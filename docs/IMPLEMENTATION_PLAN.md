@@ -90,7 +90,8 @@ sessions can run concurrently without merge conflicts.
 - Posted invoices and stock-ledger entries are immutable; corrections are compensating transactions.
 - Reporting projections are never the authoritative source of financial, stock, workflow or custody state.
 - Module ownership is preserved: no cross-module table access unless an ADR permits it.
-- Synthetic data only in tests and local development; no production secrets in the repository.
+- Synthetic data only in tests and local development (production refuses synthetic seeding unconditionally);
+  no production secrets in the repository.
 - Release gates: security, accessibility (WCAG 2.2 AA), cross-browser, performance, backup/restore and DR.
 
 ### 2.3 Release-level acceptance criteria (#1)
@@ -125,7 +126,7 @@ touches it.
 | D6 **(ADR)** | **Transactional outbox** table per module schema written in the same transaction as the aggregate; a worker dispatches to in-process handlers, notification channels and webhooks with at-least-once delivery, inbox/idempotency records and dead-letter queue. | #21, #47, #54. |
 | D7 **(ADR)** | **Single organisation, branch-aware from day one**: `organisation_id` (fixed) and `branch_id` on all operational aggregates; policy-based authorisation evaluates branch scope; tenancy can be added later without schema rewrites. | #18 acceptance criteria. |
 | D8 **(ADR)** | **Configurable taxonomy stored as versioned data**: categories, service types, measurement templates, design option groups, workflow definitions, QC checklists, price lists and tax configuration are draft → published (immutable) → retired records with seed data for the initial scope. | #1, #27, #29, #30, #33, #41. |
-| D9 | **Identifiers**: UUIDv7 primary keys (`Guid.CreateVersion7()`), human-readable numbers allocated from per-branch/financial-year sequences at posting time (`SELECT … FOR UPDATE` on a sequence row), barcode payloads = namespace letter + 12-character random Crockford base32 + check character, e.g. `G-7K3M9QW2XZ4B` (garment job), `S-…` (stock), `I-…` (invoice), `R-…` (receipt). | #35 (opaque, no PII, separate namespaces), #42 (atomic numbering). |
+| D9 | **Identifiers**: UUIDv7 primary keys (`Guid.CreateVersion7()`), human-readable numbers allocated from per-branch/financial-year sequences at posting time (`SELECT … FOR UPDATE` on a sequence row), barcode payloads = namespace letter + a 12-character Crockford base32 body made of 11 random characters (55 bits of entropy) followed by 1 check character (Crockford mod-37 check symbol computed over the namespace and the 11 random characters), e.g. `G-7K3M9QW2XZ4B` (garment job; `B` is the check character), `S-…` (stock), `I-…` (invoice), `R-…` (receipt). | #35 (opaque, no PII, separate namespaces), #42 (atomic numbering). |
 | D10 | **Money and tax**: `decimal(18,2)` amounts, `decimal(18,4)` unit rates, `decimal(6,3)` tax rates; line-level half-up rounding to paise, document round-off to the nearest rupee (configurable), CGST/SGST vs IGST decided by place of supply; financial year April–March; every calculation stores the pricing/tax configuration version used. | #41, #42. |
 | D11 | **Time**: `timestamptz` in UTC; branch IANA timezone (default `Asia/Kolkata`) for display, due dates and report cut-offs; server timestamps are authoritative for scans and transitions. | #33, #37, #44. |
 | D12 | **Background processing**: a .NET Worker Service container running outbox dispatch, notification delivery, webhook delivery, low-stock evaluation, retention/cleanup, export generation, report projection rebuilds and backup-age checks; database-lease based scheduling (Quartz.NET with the PostgreSQL job store is the fallback if scheduling needs grow). | #21, #40, #46, #47, #57. |
@@ -226,7 +227,7 @@ modules; enforced by architecture tests (#18, #20).
 
 | Module | Owns (schema) | Publishes (contracts) | Consumes |
 | --- | --- | --- | --- |
-| Identity/Admin | users, roles, permissions, branch assignments, sessions, MFA/passkeys, recovery, branches, feature flags, admin audit views | `UserDeactivated`, `BranchCreated`, `FeatureFlagChanged` | — |
+| Identity/Admin | users, roles, permissions, branch assignments, sessions, MFA/passkeys, recovery, branches, admin audit views; the feature-flag administration UI/API calls Platform through its contract (Platform owns the flag store) | `UserDeactivated`, `BranchCreated` | Platform (flag contract) |
 | Customers/Measurements | customers, consent records, communication preferences, duplicate candidates, merges, measurement templates/versions, measurement versions, drafts | `CustomerCreated/Merged`, `MeasurementVersionConfirmed` | Identity (branch scope) |
 | Catalog/Design | categories, service types, catalog versions, design option groups/options/rules, QC checklist templates | `CatalogVersionPublished` | — |
 | Media | media objects, derivatives, quarantine, retention holds, access log | `MediaReady`, `MediaQuarantined` | Identity, Customers/Orders (authorisation callbacks) |
@@ -237,7 +238,7 @@ modules; enforced by architecture tests (#18, #20).
 | Reporting | read models/materialised views, metric dictionary, export jobs, reconciliation results | — | all modules' events |
 | Notifications/Feedback | templates/versions, intents, deliveries, in-app notifications, customer status links, feedback tokens/responses, service-recovery cases | `NotificationDelivered/Failed`, `FeedbackReceived`, `ServiceRecoveryOpened` | Customers (consent), Orders, Billing, Custody, Inventory events |
 | Integration | integration event envelopes, webhook subscriptions/deliveries, provider configurations, accounting export batches, payment callbacks | `WebhookDelivered/DeadLettered`, `PaymentCallbackReconciled` | outbox events from all modules |
-| Platform | outbox/inbox, idempotency keys, sequences, audit events, configuration, flags evaluation, correlation | — | — |
+| Platform | outbox/inbox, idempotency keys, sequences, audit events, configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit) and correlation | `FeatureFlagChanged` | — |
 
 ### 4.4 Cross-cutting mechanisms
 
@@ -403,9 +404,15 @@ These apply to every implementation issue and are the content of `CLAUDE.md` (#2
 | W5 | M6 | (#51 ∥ #56 ∥ #57) → (#52 ∥ #58) → #59 → #60 → #61 | Installable PWA with safe updates; ASVS baseline and pen test; privacy/audit; observability and load tests; CI/CD promotion; backups/DR rehearsed; UAT and go-live |
 
 Dependency note: #41 (pricing engine) lists #32 (orders) as a dependency while #32 needs the pricing service for
-order totals. The plan resolves the cycle by delivering #41 first with a pricing contract that takes catalog
-service references and quantities (no order entity), and having #32 consume that contract. Reviewers should
-confirm this reading when #41 opens.
+order totals, so the issues as written form a cycle and neither could start under the rule in 6.1. The plan
+resolves it as follows and the owner is asked to amend issue #41 accordingly (Section 11, item 11):
+
+- #41's dependency on E06-F01 (#32) is **replaced** by a dependency on the pricing contract
+  `Billing.Contracts.IPricingService` (`PricingRequest` = catalog service/product references, quantities,
+  discounts, place of supply, effective date; `PricingResult` = line components, document totals, configuration
+  versions). The contract is the first deliverable of #41 and does not reference any order entity.
+- #41 therefore starts W3 with dependencies #19 and #29 only; #32 depends on #41 in addition to its own list.
+- Until the owner amends #41, the plan's traceability matrix (Section 7) is the operative dependency list.
 
 ### 6.3 Milestone exit criteria mapped to the roadmap
 
@@ -456,7 +463,7 @@ XL split. "Evidence" lists what the PR must attach to satisfy the issue's accept
 | #38 | E08 | W4 | A+B | `feat/e08-f01-inventory-masters` | M | #17, #21, #24 | Inventory, PWA | Unit conversion property tests, import/deactivation tests, initial catalog review |
 | #39 | E08 | W4 | A | `feat/e08-f02-stock-ledger-reservations` | L | #38, #33 | Inventory | Balance invariant property tests, concurrency reservation tests, purchase/transfer/consume/correction E2E |
 | #40 | E08 | W4 | A+B | `feat/e08-f03-low-stock-stocktake-valuation` | L | #38, #39, #47 | Inventory, Worker, Reporting, PWA | Alert dedup tests, stocktake approval separation tests, reconciliation and performance tests |
-| #41 | E09 | W3 | A | `feat/e09-f01-pricing-gst-engine` | L | #19, #29, #32 (cycle resolved in 6.2: engine first, orders consume it) | Billing (engine), PWA admin | Accountant golden-master tests, rounding property tests, version publish/reproduction tests |
+| #41 | E09 | W3 | A | `feat/e09-f01-pricing-gst-engine` | L | #19, #29 (the issue's #32 dependency is replaced by the pricing contract, see 6.2) | Billing (engine), PWA admin | Accountant golden-master tests, rounding property tests, version publish/reproduction tests |
 | #42 | E09 | W4 | A+B | `feat/e09-f02-invoices-numbering-pdf` | L | #41, #32 | Billing, PDF adapter, PWA | Concurrent numbering tests, immutability tests, PDF snapshot + accessibility, barcode retrieval auth tests |
 | #43 | E09 | W4 | A+B | `feat/e09-f03-payments-receipts-cashier-dispatch-gate` | L | #42, #37, #24 | Billing, Custody (gate), PWA | Allocation property tests, idempotent payment tests, cashier close UAT, unpaid dispatch rejected E2E |
 | #44 | E10 | W4 | A+B | `feat/e10-f01-sales-gst-receivables-reports` | L | #42, #43, #21 | Reporting, Worker, PWA | Golden-data reconciliation, export leak tests, timezone boundary and volume tests |
@@ -537,8 +544,9 @@ acceptance criteria, which remain the contract.
 - **Deliverables**: solution per Section 4.2 with empty module skeletons and registration extensions; PWA
   skeleton (Vite, TypeScript strict, ESLint, Prettier, Vitest, Storybook placeholder); `infra/compose/`
   (`docker-compose.yml` for PostgreSQL 16, MinIO, ClamAV, MailHog/Mailpit, OpenTelemetry collector + Grafana
-  stack optional); `.env.example` files with no secrets; `Tailor360.Cli` with `migrate`, `seed --synthetic`
-  (refuses when `ASPNETCORE_ENVIRONMENT=Production` unless `--i-know-this-is-production`); health endpoints
+  stack optional); `.env.example` files with no secrets; `Tailor360.Cli` with `migrate`, `init-reference-data` (idempotent, production-safe: roles, permissions,
+  default catalog, document sequences, an initial owner account created from a one-time secret) and `seed-synthetic`
+  (development and test only; refuses unconditionally when `ASPNETCORE_ENVIRONMENT=Production`, with no override flag); health endpoints
   `/health/live`, `/health/ready`, `/health/startup`; `docs/dev/setup.md` (Windows/WSL, macOS, Linux),
   `troubleshooting.md`, `ports.md`, `commands.md`; one-command scripts (`./scripts/dev up|test|reset|run`).
 - **Architecture tests** from #18's rule list, including a deliberately failing example kept as a negative test.
@@ -558,8 +566,10 @@ acceptance criteria, which remain the contract.
   variables and Docker/Kubernetes secrets; optional Vault/Key Vault provider behind an interface.
 - **Flags**: organisation/branch scope, owner-only mutation with reason, cached evaluation with change
   notification, safe default off.
-- **Seed**: deterministic synthetic reference data (branches, roles, users, categories placeholder) with fixed
-  IDs; production guard.
+- **Seed**: two separate commands. `init-reference-data` creates the reference data every environment needs
+  (roles, permissions, default catalog, sequences, initial owner) idempotently and is safe in production.
+  `seed-synthetic` creates deterministic synthetic branches, users and sample business data with fixed IDs for
+  development and automated tests only and refuses unconditionally in production (no override flag).
 - **Health**: migration state, outbox backlog/age, failed jobs, flag store, database connectivity.
 - **Tests**: outbox commit/rollback atomicity, duplicate delivery no double effect, poison message to dead letter
   and replay, concurrent update conflict, config missing → startup failure, migration from empty DB and from the
@@ -1152,6 +1162,8 @@ acceptance criteria, which remain the contract.
 9. **Label format** (thermal size, QR in addition to Code 128) (#35).
 10. **Initial catalog, measurement templates and QC checklists** to be reviewed from the seeded drafts (#27, #29,
     #34).
+11. **Amend issue #41's "Depends on"**: replace E06-F01 with the pricing contract defined in Section 6.2 (and add
+    E09-F01 to #32's dependencies) so that wave 3 can start without a dependency cycle.
 
 ---
 
