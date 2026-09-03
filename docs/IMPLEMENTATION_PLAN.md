@@ -2,12 +2,12 @@
 
 Status: **Proposed** (for review by the product owner and technical reviewer)
 Source of truth for scope: GitHub issues [#1](https://github.com/MK-AIFy/HyFib-Tailor360/issues/1) (roadmap), #2–#16 (epics) and #17–#61 (feature issues).
-Last reviewed against issues: 2026-09-03 (all 61 open issues read in full).
+Last reviewed against issues: 2026-09-03 (all 61 open issues read in full; every acceptance criterion and implementation step audited against this plan).
 
 > This plan turns the roadmap into an executable, dependency-ordered sequence of pull requests. It records the
 > architecture, conventions and quality gates every implementation issue must follow, and gives each feature
-> issue a concrete blueprint (modules, data, endpoints, screens, tests, evidence). Items that need a human
-> decision are collected in [Section 11](#11-decisions-required-from-the-business-owner).
+> issue a concrete blueprint (modules, data, contracts, endpoints, screens, workers, tests, evidence). Items that
+> need a human decision are collected in [Section 11](#11-decisions-required-from-the-business-owner).
 
 ---
 
@@ -18,8 +18,8 @@ Last reviewed against issues: 2026-09-03 (all 61 open issues read in full).
 3. [Key decisions and assumptions](#3-key-decisions-and-assumptions)
 4. [Target architecture](#4-target-architecture)
 5. [Engineering standards and Definition of Done](#5-engineering-standards-and-definition-of-done)
-6. [Delivery plan: milestones, lanes and ordering](#6-delivery-plan-milestones-lanes-and-ordering)
-7. [Traceability matrix (issue → milestone → branch → evidence)](#7-traceability-matrix)
+6. [Delivery plan: milestones, waves, epic closure](#6-delivery-plan-milestones-waves-epic-closure)
+7. [Traceability matrix (issue → wave → branch → evidence)](#7-traceability-matrix)
 8. [Issue blueprints: E01–E07 (#17–#37)](#8-issue-blueprints-e01e07)
 9. [Issue blueprints: E08–E15 (#38–#61)](#9-issue-blueprints-e08e15)
 10. [Risks and mitigations](#10-risks-and-mitigations)
@@ -44,14 +44,15 @@ produces six milestones that match the roadmap's target milestones:
 | --- | --- | --- | --- |
 | M1 | Product and architecture baseline | #17, #18, #19 | Approved glossary, workflow maps, ADRs, NFRs, Definition of Done |
 | M2 | Platform foundation and access control | #20, #21, #22, #53, #23, #24, #25, #50 | Buildable repo, CI gates, outbox, auth/BFF, RBAC, admin, design system |
-| M3 | Customer, measurements, catalog, design, media | #26, #29, #27, #28, #30, #31 | Customers, versioned templates, measurement capture, design snapshots, secure images |
+| M3 | Customer, measurements, catalog, design, media | #26, #29, #56a, #27, #28, #30, #31 | Customers, versioned templates, measurement capture, design snapshots, secure images, threat models before the flows they cover |
 | M4 | Orders, workflow, barcode custody, QC | #41, #32, #33, #34, #35, #36, #37 | Multi-garment orders, job cards, workflow engine, labels, scanning, custody chain |
-| M5 | Inventory, billing, payments, reporting, delivery, feedback | #38, #39, #42, #43, #40, #54, #47, #48, #49, #44, #45, #46, #55 | Stock ledger, GST invoices, payments and dispatch gate, notifications, delivery, feedback, reports, adapters |
-| M6 | Hardening, integrations, security, operations, launch | #51, #52, #56, #57, #58, #59, #60, #61 | PWA resilience, WCAG/cross-browser, ASVS baseline, privacy/audit, observability, CI/CD, backups/DR, UAT and go-live |
+| M5 | Inventory, billing, payments, reporting, delivery, feedback | #38, #42, #54, #39, #43, #47, #44, #40, #48, #45, #46, #49, #55 | Stock ledger, GST invoices, payments and dispatch gate, notifications, delivery, feedback, reports, adapters |
+| M6 | Hardening, integrations, security, operations, launch | #51, #56b, #57, #52, #58, #59, #60, #61 | PWA resilience, WCAG/cross-browser, ASVS baseline and pen test, privacy/audit, observability, CI/CD, backups/DR, UAT and go-live |
 
-Delivery is one focused branch and pull request per implementation issue (a roadmap delivery principle). The
-plan identifies three parallel lanes (backend platform, frontend/PWA, governance/docs) so that two or three
-sessions can run concurrently without merge conflicts.
+Delivery is one focused branch and pull request per implementation issue (a roadmap delivery principle); two
+extra-large issues are split into GitHub sub-issues with their own branches. The plan identifies three parallel
+lanes (backend platform, frontend/PWA, governance/security/operations) so that two or three sessions can run
+concurrently without touching the same module.
 
 **Two things need attention before implementation starts** (details in Section 3 and Section 11):
 
@@ -59,9 +60,9 @@ sessions can run concurrently without merge conflicts.
    SDK** and its egress policy blocks the Microsoft download hosts, so backend issues need an environment with the
    .NET 10 SDK pre-installed (or an allowed egress rule). A Node.js/TypeScript backend would work in the current
    environment but contradicts the roadmap; that choice is the owner's, not this plan's.
-2. Several M1 items are business approvals (workshops, accountant sign-off, device matrix, hosting model).
-   Claude can draft every artefact, but approval gates are human. The plan schedules drafting first so approvals
-   are never on the critical path for longer than one review cycle.
+2. Several M1 items are business approvals (workshops, accountant sign-off, device matrix, hosting model and
+   budget). Claude can draft every artefact, but approval gates are human. The plan schedules drafting first so
+   approvals are never on the critical path for longer than one review cycle.
 
 ---
 
@@ -85,11 +86,12 @@ sessions can run concurrently without merge conflicts.
 - No direct commits to `main`; every change arrives through a reviewed pull request linked to one issue.
 - Every state-changing endpoint enforces authentication, authorisation, validation, idempotency where required
   and audit logging.
-- Categories, measurements, workflow phases, taxes, prices, alerts and feature availability are **configuration,
-  not code**.
-- Posted invoices and stock-ledger entries are immutable; corrections are compensating transactions.
+- Categories, measurements, workflow phases, QC checklists, taxes, prices, alerts, retention and feature
+  availability are **configuration, not code**.
+- Posted invoices, payments and stock-ledger entries are immutable; corrections are compensating transactions.
 - Reporting projections are never the authoritative source of financial, stock, workflow or custody state.
-- Module ownership is preserved: no cross-module table access unless an ADR permits it.
+- Module ownership is preserved: no cross-module table access unless an ADR permits it; modules talk through
+  `Contracts` projects and events.
 - Synthetic data only in tests and local development (production refuses synthetic seeding unconditionally);
   no production secrets in the repository.
 - Release gates: security, accessibility (WCAG 2.2 AA), cross-browser, performance, backup/restore and DR.
@@ -121,28 +123,31 @@ touches it.
 | D1 **(ADR, owner)** | Backend: **.NET 10 LTS**, ASP.NET Core Minimal APIs in a **modular monolith** (one deployable web host + one worker host sharing module assemblies). | Mandated by #1/#18. .NET 10 is the current LTS (support to Nov 2028). Minimal APIs keep endpoint definitions close to each module's slice. |
 | D2 **(ADR)** | Frontend: **React 19 + TypeScript + Vite** PWA with TanStack Query, React Router, Tailwind CSS 4 plus headless accessible primitives, react-hook-form + zod, `@zxing/browser` for camera decoding with the native `BarcodeDetector` API when present, Workbox via `vite-plugin-pwa`. | Mandated PWA (#1, #12). Libraries chosen for accessibility, small bundles and cross-browser decoding (#36 forbids depending solely on `BarcodeDetector`). |
 | D3 **(ADR)** | **PostgreSQL 16+**, one database, **one schema per module**, EF Core 10 with one `DbContext` per module, migrations per module, `xmin` concurrency tokens. | Module ownership at the schema level makes forbidden cross-module access testable (#18, #20, #21). |
-| D4 **(ADR)** | **Private S3-compatible object storage** (MinIO locally; S3, R2, or Azure Blob via S3 API in production), random object keys, short-lived signed URLs issued only after an authorisation check. | #31 requires private storage, signed access and no stable URLs. |
-| D5 **(ADR)** | **BFF pattern**: the ASP.NET Core host serves the PWA and the `/api/v1` surface on the same origin; authentication is an `HttpOnly; Secure; SameSite=Lax` session cookie backed by server-side session/ticket storage; anti-forgery via header token; no bearer tokens in browser storage. Third-party/trusted clients authenticate separately (API keys or OAuth client credentials) and never share the cookie scheme. | #1, #23, #53. |
-| D6 **(ADR)** | **Transactional outbox** table per module schema written in the same transaction as the aggregate; a worker dispatches to in-process handlers, notification channels and webhooks with at-least-once delivery, inbox/idempotency records and dead-letter queue. | #21, #47, #54. |
+| D4 **(ADR)** | **Private S3-compatible object storage** (MinIO locally; S3, R2, or Azure Blob via S3 API in production), server-side encryption on every bucket, random object keys, per-module bucket prefixes. The PWA never receives storage URLs: media is served by an API endpoint that re-authorises every request and either streams the object or redirects to a single-use signed URL (≤ 60 s). | #31 requires private storage, signed access, no stable URLs and re-authorisation of every media request (#24). |
+| D5 **(ADR)** | **BFF pattern**: the ASP.NET Core host serves the PWA and the `/api/v1` surface on the same origin; authentication is an `HttpOnly; Secure; SameSite=Lax` session cookie backed by server-side session storage; anti-forgery via header token; no bearer tokens in browser storage. Third-party/trusted clients authenticate separately (API keys or OAuth client credentials) and never share the cookie scheme. | #1, #23, #53. |
+| D6 **(ADR)** | **Transactional outbox** table per module schema written in the same transaction as the aggregate; a worker dispatches to in-process handlers, notification channels and webhooks with at-least-once delivery, inbox/idempotency records and dead-letter queue. Each module maps its own domain events to versioned integration events; the Integration module never reads another module's tables. | #21, #47, #54. |
 | D7 **(ADR)** | **Single organisation, branch-aware from day one**: `organisation_id` (fixed) and `branch_id` on all operational aggregates; policy-based authorisation evaluates branch scope; tenancy can be added later without schema rewrites. | #18 acceptance criteria. |
-| D8 **(ADR)** | **Configurable taxonomy stored as versioned data**: categories, service types, measurement templates, design option groups, workflow definitions, QC checklists, price lists and tax configuration are draft → published (immutable) → retired records with seed data for the initial scope. | #1, #27, #29, #30, #33, #41. |
-| D9 | **Identifiers**: UUIDv7 primary keys (`Guid.CreateVersion7()`), human-readable numbers allocated from per-branch/financial-year sequences at posting time (`SELECT … FOR UPDATE` on a sequence row), barcode payloads = namespace letter + a 12-character Crockford base32 body made of 11 random characters (55 bits of entropy) followed by 1 check character (Crockford mod-37 check symbol computed over the namespace and the 11 random characters), e.g. `G-7K3M9QW2XZ4B` (garment job; `B` is the check character), `S-…` (stock), `I-…` (invoice), `R-…` (receipt). | #35 (opaque, no PII, separate namespaces), #42 (atomic numbering). |
+| D8 **(ADR)** | **Configurable taxonomy stored as versioned data**: categories, service types, measurement templates, design option groups, QC checklists, workflow definitions, price lists, tax configuration, payment modes, alert policies, retention policies and costing assumptions are draft → published (immutable) → retired records with seed data for the initial scope. | #1, #27, #29, #30, #33, #34, #40, #41, #43, #57. |
+| D9 | **Identifiers**: UUIDv7 primary keys (`Guid.CreateVersion7()`) are the only identifiers used in API paths, deep links and customer links; human-readable display numbers (`O-<branch>-<FY>-000001`, `J-…-01`, `E-…`, invoice numbers) are allocated from per-branch/financial-year sequences and are never lookup keys on unauthenticated surfaces. Barcode payloads = namespace letter + a 12-character body from the Crockford base32 alphabet: 11 random characters (55 bits of entropy) followed by 1 check character computed with a Damm-style checksum over the 32-symbol alphabet (so the check character is itself one of the 32 alphanumeric symbols and keyboard-wedge safe), e.g. `G-7K3M9QW2XZ4B` (garment job; `B` is the check character), `S-…` (stock), `I-…` (invoice), `R-…` (receipt). Decoding accepts lowercase and the I/L→1, O→0 confusables. | #35 (opaque, no PII, separate namespaces, checksum), #42 (atomic numbering), #32 (non-guessable identifiers). |
 | D10 | **Money and tax**: `decimal(18,2)` amounts, `decimal(18,4)` unit rates, `decimal(6,3)` tax rates; line-level half-up rounding to paise, document round-off to the nearest rupee (configurable), CGST/SGST vs IGST decided by place of supply; financial year April–March; every calculation stores the pricing/tax configuration version used. | #41, #42. |
-| D11 | **Time**: `timestamptz` in UTC; branch IANA timezone (default `Asia/Kolkata`) for display, due dates and report cut-offs; server timestamps are authoritative for scans and transitions. | #33, #37, #44. |
-| D12 | **Background processing**: a .NET Worker Service container running outbox dispatch, notification delivery, webhook delivery, low-stock evaluation, retention/cleanup, export generation, report projection rebuilds and backup-age checks; database-lease based scheduling (Quartz.NET with the PostgreSQL job store is the fallback if scheduling needs grow). | #21, #40, #46, #47, #57. |
-| D13 | **Observability**: OpenTelemetry traces/metrics/logs exported via OTLP; Serilog structured logs with a redaction policy; `AspNetCore.HealthChecks` for liveness/readiness/startup including database, object storage, outbox lag and migration state. | #20, #58. |
+| D11 | **Time**: `timestamptz` in UTC; branch IANA timezone (default `Asia/Kolkata`) for display, due dates and report cut-offs; optional branch working calendar (holidays) for due/SLA clocks; server timestamps are authoritative for scans and transitions. | #33, #37, #44. |
+| D12 | **Background processing**: a .NET Worker Service container running outbox dispatch, notification delivery, webhook delivery, due-date/SLA evaluation, low-stock evaluation, retention/cleanup, export generation, report projections and reconciliation, scheduled reports and backup-age checks; database-lease based scheduling (Quartz.NET with the PostgreSQL job store is the fallback if scheduling needs grow). The worker exposes its own health endpoints and heartbeat. | #21, #33, #40, #44, #46, #47, #57. |
+| D13 | **Observability**: OpenTelemetry traces/metrics/logs exported via OTLP; Serilog structured logs with a redaction policy; `AspNetCore.HealthChecks` for liveness/readiness/startup including database, object storage, ClamAV, outbox lag and migration state. Default self-hosted backend in `infra/observability/`: OpenTelemetry Collector → Prometheus, Loki, Tempo, Grafana (dashboards per role) and Alertmanager; a hosted alternative is a configuration change. Client telemetry (web vitals, errors, scanner metrics) is posted to a same-origin endpoint and exported through the same collector. | #20, #36, #52, #58. |
 | D14 | **Testing**: xUnit + FluentAssertions, Testcontainers (PostgreSQL, MinIO, ClamAV) for integration, NetArchTest/ArchUnitNET for module boundaries, FsCheck for property tests, Verify for snapshots (PDF/JSON), Playwright (Chromium, Firefox, WebKit) + axe-core for E2E/accessibility, k6 for load, Lighthouse CI for performance budgets. | #20, #22, #52, #58, #61. |
-| D15 | **Barcode/PDF rendering**: ZXing.Net for Code 128/QR bitmaps; PDF via a `IPdfRenderer` port with QuestPDF as default adapter (verify the Community licence fits HyFib's revenue) and PDFsharp as the MIT alternative. Image processing via SkiaSharp or Magick.NET (permissive licences) for decode-validate, EXIF strip, re-encode and thumbnails. | #31, #35, #42, #55. |
+| D15 | **Barcode/PDF rendering**: ZXing.Net for Code 128/QR bitmaps behind `IBarcodeRenderer`; PDF via `IPdfRenderer` with QuestPDF as default adapter (verify the Community licence fits HyFib's revenue) and PDFsharp as the MIT alternative. Image processing via SkiaSharp or Magick.NET (permissive licences) for decode-validate, EXIF strip, re-encode and thumbnails. Ports are introduced by the first issue that needs them (#35, #42) in `Platform.Abstractions`. | #31, #35, #42, #55. |
 | D16 | **Malware scanning**: ClamAV (`clamd`) behind an `IMalwareScanner` port, feature-flagged; uploads are quarantined until the scan passes. | #31, #56. |
-| D17 | **Deployment baseline**: Docker Compose (reverse proxy with automatic TLS, web host, worker, PostgreSQL, MinIO, ClamAV, OpenTelemetry collector) for single-VM/on-prem; the same images run under Kubernetes/Helm later. Terraform (cloud) or Ansible (on-prem) for environment provisioning. | #1 portability, #59. |
-| D18 | **Backups**: pgBackRest (or WAL-G) base + WAL archiving to encrypted object storage with separate credentials; MinIO versioning and replication; weekly automated restore into an isolated environment. | #60. |
+| D17 **(owner)** | **Deployment baseline**: Docker Compose (reverse proxy with automatic TLS, web host, worker, PostgreSQL, MinIO, ClamAV, observability stack, backup sidecar) for single-VM/on-prem; the same images run under Kubernetes/Helm later. Terraform (cloud) or Ansible (on-prem) for environment provisioning. An interim single-VM staging environment exists from the end of W1 so real-device UAT has a place to run. | #1 portability, #22, #59. |
+| D18 | **Backups**: pgBackRest (or WAL-G) base + WAL archiving to encrypted object storage with separate credentials and object lock; MinIO/S3 versioning and replication; weekly automated restore into an isolated environment; retention 35 daily + 12 monthly so deleted data ages out. | #57, #60. |
 | D19 | **Repository layout**: single repository (`src/`, `clients/pwa/`, `tests/`, `docs/`, `infra/`, `.github/`) so one PR can carry API, UI, migrations and docs for an issue. | #20, #22. |
-| D20 **(owner)** | **Providers**: default adapters are fakes; first real adapters are SMTP email, an Indian SMS provider (e.g. MSG91), WhatsApp via Meta Cloud API or an aggregator, UPI/card via Razorpay or PhonePe, accounting export in Tally XML. Enabled per branch by feature flag only after contract tests pass. | #47, #55. |
+| D20 **(owner)** | **Providers**: default adapters are fakes; first real adapters are SMTP email, an Indian SMS provider (e.g. MSG91), WhatsApp via Meta Cloud API or an aggregator, UPI/card via Razorpay or PhonePe, accounting export in Tally XML. Enabled per branch by feature flag only after contract tests pass and a support-ownership document exists. | #47, #55. |
+| D21 **(ADR)** | **Caching**: no application cache is ever authoritative. Permitted caches: version-keyed read caches for catalog, price lists, tax configuration and workflow definitions (invalidated by the corresponding `…VersionPublished` event); feature-flag evaluation cache with a documented propagation bound (≤ 30 s via `LISTEN/NOTIFY`); session-revocation cache backed by `identity.sessions`, revalidated per request when more than one web replica runs. A distributed cache (Redis/Valkey) is optional and introduced only with more than one replica. | #18, #21, #23, #29, #59. |
 
 **Assumptions**
 
 - A1. One legal entity (organisation) with one or more branches, all in India; INR only; GST-registered.
-- A2. Staff-only application; customers interact through expiring links (status, feedback), not accounts.
+- A2. Staff-only application with local accounts (password + TOTP/passkeys); customers interact through expiring
+  links (estimate, status, feedback), not accounts. Federation with an external identity provider is an owner
+  decision (Section 11).
 - A3. Concurrent users ≈ 20–50 per branch, orders ≈ 100–500/month per branch, images ≈ 5 per garment. The NFR
   issue (#19) will replace these with measured targets.
 - A4. Hardware: Android phones/tablets, iPhone/iPad, desktop browsers, USB/Bluetooth keyboard-wedge scanners,
@@ -161,17 +166,18 @@ Reception / Measurement / Tailor Master / Tailor / Inventory / Cashier / Deliver
 ┌─────────────────────────────── Web host (ASP.NET Core) ───────────────────────────────┐
 │  Static PWA  │  BFF: session cookie, anti-forgery, /api/v1 (Minimal APIs, OpenAPI)   │
 │  Modules (in-process): Identity/Admin · Customers/Measurements · Catalog/Design ·     │
-│  Orders/Workflow · Custody/Barcode · Inventory · Billing/Payments · Reporting ·       │
-│  Notifications/Feedback · Integration · Platform (outbox, audit, flags, config)      │
+│  Media · Orders/Workflow · Custody/Barcode · Inventory · Billing/Payments ·           │
+│  Reporting · Notifications/Feedback · Integration · Platform (outbox, audit, flags)   │
 └───────────────┬───────────────────────────────┬───────────────────────────────────────┘
-                │ EF Core (schema per module)    │ signed URLs / uploads
+                │ EF Core (schema per module)    │ uploads / authorised media streaming
                 ▼                               ▼
-        PostgreSQL 16 (one DB)          Private object storage (S3 API)
+        PostgreSQL 16 (one DB)          Private object storage (S3 API, SSE)
                 ▲
-                │ outbox / inbox / leases
+                │ outbox / inbox / leases / heartbeats
 ┌───────────────┴───────────────── Worker host (.NET Worker Service) ───────────────────┐
-│  Outbox dispatcher · Notification sender · Webhook sender · Low-stock evaluator ·      │
-│  Retention/cleanup · Export generator · Projection rebuilds · Backup-age monitor       │
+│  Outbox dispatcher · Notification sender · Webhook sender · Due-date/SLA evaluator ·   │
+│  Low-stock evaluator · Retention/cleanup · Export generator · Projections and         │
+│  reconciliation · Scheduled reports · Backup-age monitor                              │
 └───────────────┬───────────────────────────────────────────────────────────────────────┘
                 ▼ ports/adapters (fakes by default)
    Email · SMS · WhatsApp · Payment gateway · Accounting export · Print bridge · ClamAV
@@ -184,148 +190,198 @@ HyFib.Tailor360.slnx
 ├── src/
 │   ├── Platform/                      # shared kernel: no business rules
 │   │   ├── Tailor360.Platform.Abstractions   # Result, DomainEvent, IClock, IIdGenerator, Money, ports
-│   │   ├── Tailor360.Platform.Persistence    # EF conventions, outbox/inbox, sequences, idempotency, audit
+│   │   │                                     # (IEmailSender, IPdfRenderer, IBarcodeRenderer, ITimelineSource, …)
+│   │   ├── Tailor360.Platform.Persistence    # EF conventions, outbox/inbox, sequences, idempotency, audit writer
 │   │   ├── Tailor360.Platform.Security       # permission catalogue, policies, branch scope, step-up
 │   │   └── Tailor360.Platform.Observability  # OTel, Serilog redaction, health checks, correlation
 │   ├── Modules/
 │   │   ├── Identity/      (Domain, Application, Infrastructure, Api, Contracts)
-│   │   ├── Customers/     (customers, consent, measurement templates, measurement versions)
-│   │   ├── Catalog/       (categories, service types, design option groups, rules, media links)
-│   │   ├── Media/         (upload pipeline, storage, signed access, retention)
-│   │   ├── Orders/        (estimates, orders, garment jobs, workflow engine, QC, alterations, holds)
-│   │   ├── Custody/       (barcode identities, labels, scan/custody events, reconciliation)
-│   │   ├── Inventory/     (items, units, suppliers, locations, ledger, reservations, stocktake, alerts)
-│   │   ├── Billing/       (pricing/tax engine, price lists, estimates, invoices, credit notes, payments, receipts, cashier sessions)
-│   │   ├── Reporting/     (read models, projections, exports)
-│   │   ├── Notifications/ (templates, intents, dispatch, in-app centre, customer links, feedback, service recovery)
-│   │   └── Integration/   (integration events, webhooks, provider adapters, accounting export)
+│   │   ├── Customers/     (customers, consent, preferences, measurement templates, measurement versions/drafts)
+│   │   ├── Catalog/       (categories, service types, design option groups/rules, QC checklist templates)
+│   │   ├── Media/         (upload pipeline, storage, authorised delivery, retention)
+│   │   ├── Orders/        (estimates, orders, garment jobs, snapshots, workflow engine, QC results, alterations, holds)
+│   │   ├── Custody/       (barcode identities, labels, scan/custody events, reconciliation, delivery queue)
+│   │   ├── Inventory/     (items, units, suppliers, locations, ledger, reservations, stocktake, alerts, valuation)
+│   │   ├── Billing/       (pricing/tax engine, price lists, invoices, credit/debit notes, payments, receipts, cashier)
+│   │   ├── Reporting/     (read models, projections, reconciliation, scheduled reports, governed exports)
+│   │   ├── Notifications/ (templates, intents, deliveries, in-app centre, customer links, feedback, service recovery)
+│   │   └── Integration/   (integration event relay, webhooks, provider adapters, accounting export, callbacks)
 │   ├── Hosts/
-│   │   ├── Tailor360.Web              # BFF + API + static PWA hosting, module registration
-│   │   └── Tailor360.Worker           # background processing host
+│   │   ├── Tailor360.Web              # BFF + API + static PWA hosting, module registration, timeline composition
+│   │   └── Tailor360.Worker           # background processing host with its own health endpoints
 │   └── Tools/
-│       └── Tailor360.Cli              # migrate, seed (guarded), create-admin, reprint-label, replay-outbox
+│       └── Tailor360.Cli              # migrate, init-reference-data, seed-synthetic (non-production), replay-outbox,
+│                                      # flags set, rebuild-projection, create-owner
 ├── clients/pwa/                       # React + TypeScript PWA (Vite), generated API client, Storybook
 ├── tests/
 │   ├── Tailor360.UnitTests            # per-module domain/application tests, property tests
-│   ├── Tailor360.IntegrationTests     # Testcontainers (PostgreSQL, MinIO, ClamAV), API tests via WebApplicationFactory
-│   ├── Tailor360.ArchitectureTests    # module dependency rules, no cross-schema access
-│   ├── Tailor360.ContractTests        # OpenAPI diff, consumer contracts, adapter contract suites
-│   ├── e2e/                           # Playwright (Chromium/Firefox/WebKit, phone/tablet/desktop profiles), axe
-│   └── load/                          # k6 scenarios
-├── docs/                              # PRD, glossary, ADRs, threat models, runbooks, metric dictionary, UAT scripts
-├── infra/                             # docker-compose.*.yml, Dockerfiles, reverse proxy, otel, backup, terraform/ansible
+│   ├── Tailor360.IntegrationTests     # Testcontainers (PostgreSQL, MinIO, ClamAV), API tests, authorisation matrix
+│   ├── Tailor360.ArchitectureTests    # module dependency rules (ARCH-001…), vendor SDK isolation, endpoint policy
+│   ├── Tailor360.ContractTests        # OpenAPI lint/diff, endpoint inventory, consumer contracts, adapter suites
+│   ├── e2e/                           # Playwright (Chromium/Firefox/WebKit; phone/tablet/desktop; portrait/landscape), axe
+│   ├── load/                          # k6 scenarios
+│   └── fixtures/                      # golden masters (billing, valuation, reporting), db snapshots, synthetic datasets
+├── docs/                              # prd, architecture, adr, nfr, process, security, privacy, api, reports, runbooks, uat
+├── infra/                             # compose (dev, staging), Dockerfiles, reverse proxy, observability, backup, terraform/ansible
 └── .github/                           # workflows, issue/PR templates, CODEOWNERS, dependabot
 ```
 
 Module internals follow one shape: `Domain` (aggregates, invariants, domain events — no framework references),
-`Application` (commands/queries, validators, authorisation requirements, ports), `Infrastructure` (EF `DbContext`,
-repositories, adapters, outbox handlers), `Api` (Minimal API endpoint groups, DTOs), `Contracts` (integration
-events and public read contracts other modules may reference). Only `Contracts` may be referenced across
-modules; enforced by architecture tests (#18, #20).
+`Application` (commands/queries, validators, authorisation requirements, ports, integration-event mappers),
+`Infrastructure` (EF `DbContext`, repositories, adapters, outbox handlers), `Api` (Minimal API endpoint groups,
+DTOs), `Contracts` (integration events, queries and read contracts other modules may reference). Only `Contracts`
+and `Platform.*` may be referenced across modules; enforced by architecture tests with stable identifiers
+(`ARCH-001`…) published in `docs/architecture/architecture-rules.md` (#18) and implemented in #20.
 
-### 4.3 Module responsibilities and owned data
+### 4.3 Module responsibilities, owned data and published contracts
 
-| Module | Owns (schema) | Publishes (contracts) | Consumes |
+| Module | Owns (schema / storage prefix) | Publishes (events and read contracts) | Consumes |
 | --- | --- | --- | --- |
-| Identity/Admin | users, roles, permissions, branch assignments, sessions, MFA/passkeys, recovery, branches, admin audit views; the feature-flag administration UI/API calls Platform through its contract (Platform owns the flag store) | `UserDeactivated`, `BranchCreated` | Platform (flag contract) |
-| Customers/Measurements | customers, consent records, communication preferences, duplicate candidates, merges, measurement templates/versions, measurement versions, drafts | `CustomerCreated/Merged`, `MeasurementVersionConfirmed` | Identity (branch scope) |
-| Catalog/Design | categories, service types, catalog versions, design option groups/options/rules, QC checklist templates | `CatalogVersionPublished` | — |
-| Media | media objects, derivatives, quarantine, retention holds, access log | `MediaReady`, `MediaQuarantined` | Identity, Customers/Orders (authorisation callbacks) |
-| Orders/Workflow | estimates, orders, garment jobs, snapshots (measurement, design, price), workflow definitions/versions, job phases, assignments, QC results, rework, alterations, holds, cancellations | `OrderConfirmed`, `JobEnteredProduction`, `JobPhaseChanged`, `QcRecorded`, `JobReadyForDelivery`, `OrderCancelled` | Customers, Catalog, Billing (pricing service contract), Custody (custody state), Billing (paid status) |
-| Custody/Barcode | barcode identities, label prints, scan/custody events, pending transfers, reconciliation cases | `CustodyTransferred`, `ScanRecorded`, `DispatchRecorded` | Orders (job state), Billing (paid status), Identity |
-| Inventory | items, units/conversions, suppliers, locations, reorder rules, ledger entries, reservations, purchase receipts, stocktakes, low-stock alerts, customer-material custody records | `StockReserved/Consumed`, `LowStockRaised/Cleared`, `StocktakePosted` | Orders (job references) |
-| Billing/Payments | price lists, tax configuration, calculation versions, estimates, invoices, invoice lines/tax components, sequences, credit/debit notes, payments, allocations, refunds, receipts, cashier sessions | `InvoicePosted`, `PaymentRecorded`, `InvoicePaidStatusChanged`, `CreditNotePosted` | Customers, Orders, Catalog |
-| Reporting | read models/materialised views, metric dictionary, export jobs, reconciliation results | — | all modules' events |
-| Notifications/Feedback | templates/versions, intents, deliveries, in-app notifications, customer status links, feedback tokens/responses, service-recovery cases | `NotificationDelivered/Failed`, `FeedbackReceived`, `ServiceRecoveryOpened` | Customers (consent), Orders, Billing, Custody, Inventory events |
-| Integration | integration event envelopes, webhook subscriptions/deliveries, provider configurations, accounting export batches, payment callbacks | `WebhookDelivered/DeadLettered`, `PaymentCallbackReconciled` | outbox events from all modules |
-| Platform | outbox/inbox, idempotency keys, sequences, audit events, configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit) and correlation | `FeatureFlagChanged` | — |
+| Identity/Admin | users, roles, permissions, branch assignments, sessions, MFA/passkeys, recovery, branches (with timezone and working calendar), admin audit views; the feature-flag administration UI/API calls Platform through its contract | `UserDeactivated`, `BranchCreated`, `BranchCalendarChanged`; `IUserDirectory` (names, roles, capabilities) | Platform (flag contract) |
+| Customers/Measurements | customers, aliases, consent records, communication preferences, duplicate candidates, merges, measurement templates/versions/fields, measurement drafts and versions | `CustomerCreated/Merged/Corrected/Deactivated`, `ConsentRecorded/Withdrawn`, `PreferencesChanged`, `MeasurementVersionConfirmed`; `IConsentQuery`, `ICommunicationPreferenceQuery`, `ICustomerSnapshotQuery`, timeline source | Identity (branch scope) |
+| Catalog/Design | categories, service types, catalog versions, design option groups/options/rules, QC checklist templates/versions | `CatalogVersionPublished`; `ICatalogAvailabilityQuery`, `ICatalogDependencyValidator` registration, `IDesignSelectionValidator`, `GarmentDesignSnapshot` builder | — |
+| Media (`media/` prefixes) | media objects, derivatives, quarantine, retention holds, access log; bundled static diagrams/illustrations until upload exists | `MediaReady`, `MediaQuarantined`, `MediaDeleted`; `IMediaReference` | Identity, Customers (consent record id), Orders (job authorisation) |
+| Orders/Workflow | estimates (priced draft-order snapshots), orders, garment jobs and job dependencies, snapshots (measurement, design, price), order revisions, workflow definitions/versions, job phases, assignments, assignee capabilities, QC results, rework, alterations, holds, cancellations, ready-state | `OrderConfirmed`, `OrderRevised`, `EstimateIssued`, `GarmentJobCreated`, `JobEnteredProduction`, `JobPhaseChanged`, `JobAssigned/Reassigned/Unassigned`, `JobHeld/Resumed/Rescheduled`, `QcRecorded`, `ReworkOpened/Completed`, `AlterationRequested/Decided/Completed`, `JobReadyForDelivery`, `JobDueSoon/Overdue`, `PhaseSlaBreached`, `JobCancelled`, `OrderCancelled`, `JobClosed`, `DesignRevised`; `IAlterationRequests`, `IOrderSnapshotQuery`, timeline source | Customers, Catalog, Billing (pricing contract), Custody (custody state), Billing (dispatch eligibility) |
+| Custody/Barcode | barcode identities, label prints, scan/custody events, custody transfers, reconciliation cases, delivery queue entries | `CustodyTransferRequested/Transferred/Overdue`, `ScanRecorded`, `DispatchRecorded`, `DeliveryConfirmed/Failed/Returned`, `HandoffDisputed`; `ICustodyStateQuery`, `IBarcodeIdentityAllocator`, timeline source | Orders (job state), Billing (dispatch eligibility), Identity |
+| Inventory | items, units/conversions, suppliers, locations, reorder rules, alert policies, ledger entries, balances (derived), reservations, purchase orders/receipts, stocktakes, low-stock alerts, valuation runs, customer-material custody records | `StockReserved/Released/Consumed`, `PurchaseReceived`, `LowStockRaised/Cleared`, `StocktakePosted`; `IStockBalanceQuery`, `IValuationQuery` | Orders (job references), Notifications (alert routing) |
+| Billing/Payments (`documents/` prefix) | price lists/versions, GST registrations, tax configuration versions, calculation snapshots, invoices, invoice lines/tax components, document sequences, document artefacts, credit/debit notes, invoice cancellations, payment modes, payments, allocations, advances, refunds/reversals, receipts, cashier sessions, reconciliation batches, dispatch exceptions | `InvoicePosted`, `InvoiceCancelled`, `CreditNotePosted`, `DebitNotePosted`, `PaymentRecorded/Allocated/Reversed`, `RefundRecorded`, `AdvanceReceived/Applied`, `InvoicePaidStatusChanged`, `CashierSessionClosed`, `DispatchExceptionApproved`; `IPricingService`, `IDispatchEligibilityQuery`, `IFinancialTotalsQuery`, timeline source | Customers, Orders, Catalog |
+| Reporting (`exports/` prefix) | read models/projections, projection checkpoints, metric dictionary, reconciliation runs, report schedules, export jobs, costing assumption versions, GST summary layouts | `ReportReconciliationMismatch`, `ReportFreshnessBreached` | all modules' events and read contracts only |
+| Notifications/Feedback | templates/versions, intents, deliveries, in-app notifications, customer links (estimate/status/feedback purposes), feedback tokens/responses, service-recovery cases and policies | `NotificationDelivered/Failed`, `FeedbackReceived`, `ServiceRecoveryOpened/Closed`, timeline source | Customers (consent), Orders, Billing, Custody, Inventory events |
+| Integration | integration event relay copy, webhook subscriptions/deliveries, provider configurations, payment intents/callbacks, accounting export batches, print jobs | `WebhookDelivered/DeadLettered`, `PaymentCallbackReconciled` | outbox events from all modules (relay), ports |
+| Platform | outbox/inbox, idempotency keys, sequences, audit events (append-only, trigger-protected), configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit), retention policies, worker heartbeats, correlation | `FeatureFlagChanged`; `IAuditWriter`, `IIdempotencyStore`, `ISequenceAllocator` | — |
+
+Object-storage ownership: Media owns the material/reference/diagram/QC-evidence/delivery-evidence prefixes,
+Billing owns `documents/` (invoice, estimate, receipt and credit-note PDFs referenced by `document_artifacts`),
+Reporting owns `exports/`; no module writes to another module's prefix (enforced by per-module storage
+credentials or bucket policies).
 
 ### 4.4 Cross-cutting mechanisms
 
-- **Authentication and session (D5, #23)**: ASP.NET Core Identity with a strengthened password hasher (Argon2id
-  or PBKDF2 at ASVS-compliant cost), TOTP MFA and passkeys (WebAuthn, supported natively by Identity in .NET 10),
-  server-side session tickets with rotation on privilege change, sliding inactivity and absolute timeouts, device
-  and session inventory, logout-all and immediate revocation checked per request via a revocation cache.
-- **Authorisation (#24)**: a permission catalogue (`customers.read`, `orders.confirm`, `custody.scan`,
-  `billing.post_invoice`, `payments.record`, `inventory.approve_variance`, `reports.export`, `admin.users`, …)
-  mapped to default roles; `IAuthorizationRequirement` handlers evaluate permission + branch scope + resource
-  ownership; endpoints declare `.RequirePermission("orders.confirm")` and resource handlers load the aggregate's
-  branch; workers carry an explicit system principal with a declared scope.
+- **Authentication and session (D5, #23)**: ASP.NET Core Identity with an Argon2id password hasher, TOTP MFA and
+  passkeys (WebAuthn, supported natively by Identity in .NET 10), server-side session tickets with rotation on
+  privilege change, sliding inactivity and absolute timeouts, device and session inventory, logout-all and
+  immediate revocation checked per request via the revocation cache (D21). Security headers baseline and a
+  report-only CSP ship with #23; the enforcing nonce-based CSP is a configuration change in #56b.
+- **Authorisation (#24)**: a permission catalogue (`customers.read`, `customers.read_contact`, `orders.confirm`,
+  `custody.scan`, `custody.dispatch`, `custody.dispatch_override`, `billing.post_invoice`, `payments.record`,
+  `inventory.approve_variance`, `reports.export`, `admin.users`, …) mapped to default roles in an owner-approved
+  `docs/security/permission-matrix.md`; `IAuthorizationRequirement` handlers evaluate permission + branch scope +
+  resource ownership; endpoints declare `.RequirePermission("orders.confirm")`; deny-by-default is enforced by
+  an architecture test (an endpoint without an explicit policy or a justified `[AllowAnonymous]` fails the
+  build); field-level minimisation policies project DTOs per role; workers carry an explicit `SystemPrincipal`
+  with a declared scope; media and download endpoints re-check authorisation on every request. Every new or
+  changed endpoint adds its expectations to the authorisation matrix fixtures, and the matrix test fails on any
+  endpoint without an entry.
 - **Validation and errors (#53)**: FluentValidation in the application layer; RFC 9457 problem details with
-  field errors, correlation ID and no stack traces; request size/time limits; rate limits per user/IP/route.
+  field errors, correlation ID and no stack traces; request size/time limits; rate limits per user/IP/route;
+  `X-Client-Version` checked against the minimum supported client (426 when too old).
 - **Idempotency (#21, #53)**: `Idempotency-Key` header required on confirm/scan/post/pay/webhook commands; key +
   user + route + request hash stored with the response for replay; scan events also carry a client event UUID.
 - **Concurrency (#21, #53)**: `xmin` (or explicit `version`) as concurrency token; `ETag`/`If-Match` on editable
   aggregates; 409 problem details with current version.
-- **Audit (#57)**: append-only `platform.audit_events` written in the same transaction as the mutation via a
-  `SaveChanges` interceptor plus explicit domain audit calls for reads of sensitive data (measurement sheet,
-  media, exports); restricted viewer; retention independent of logs; hash chain per day for tamper evidence.
+- **Audit (mechanism in #21, integrity features in #57)**: `Platform.Persistence` ships `IAuditWriter`, a
+  `SaveChanges` interceptor that appends `platform.audit_events` in the same transaction as the mutation, and an
+  `[Audited("module.action")]` endpoint filter recording actor, action, resource, reason and correlation for
+  every state-changing endpoint (an architecture test fails when a command endpoint lacks it) plus explicit
+  calls for sensitive reads (measurement sheet, media, exports). #57 adds the daily hash chain, gap detection,
+  restricted viewer/export and retention independent of logs.
 - **Outbox/inbox (D6)**: `outbox_messages` per module schema; worker polls with `FOR UPDATE SKIP LOCKED`, dispatches
-  with retry/backoff/jitter, marks processed, moves poison messages to dead letter with operator replay.
-- **Feature flags (#21, #25)**: `platform.feature_flags` with organisation/branch scope, owner-only mutation,
-  evaluation audit, `Microsoft.FeatureManagement` filters for evaluation, safe defaults (off).
+  with retry/backoff/jitter, marks processed, moves poison messages to dead letter with operator replay (CLI in
+  W1, authenticated endpoint from #25).
+- **Feature flags (#21, #25)**: `platform.feature_flags` with organisation/branch scope, mutation restricted to
+  `admin.feature_flags` (Owner and the HyFib super-user role), mandatory reason, evaluation audit,
+  `Microsoft.FeatureManagement` filters, documented propagation bound (D21), safe defaults (off).
 - **Configuration (#21)**: `IOptions<T>` bound from `appsettings` + environment + secret store, validated on
-  startup (`ValidateOnStart`), fails fast if required values are missing.
-- **Media pipeline (#31)**: upload → size/type allowlist → decode-validate signature → quarantine object →
-  malware scan → strip metadata and re-encode → derivatives (thumb/preview) → mark ready → signed URL issuance
-  after authorisation → access log.
-- **Barcode/scan abstraction (#36)**: PWA `ScannerSource` interface with `CameraSource` (ZXing / BarcodeDetector),
-  `KeyboardWedgeSource` (buffer + terminator detection, ignored while typing in unrelated fields) and
-  `ManualEntrySource`; all produce `{ raw, normalised, namespace, id, checksumValid, source, timestamp }`.
+  startup (`ValidateOnStart`), fails fast if required values are missing; secrets never appear in logs, problem
+  details, health payloads or telemetry (tested).
+- **Media pipeline (#31)**: upload → size/type allowlist → decode-validate signature → quarantine bucket →
+  malware scan → strip metadata and re-encode → derivatives (thumb/preview) → ready bucket → authorised delivery
+  endpoint with access log (D4).
+- **Barcode/scan abstraction (#33 interface, #36 implementation)**: PWA `ScannerSource` interface with
+  `CameraSource` (ZXing / BarcodeDetector), `KeyboardWedgeSource` (buffer + terminator detection, ignored while
+  typing in unrelated fields) and `ManualEntrySource` (reason required, audited); all produce
+  `{ raw, normalised, namespace, id, checksumValid, source, timestamp }`. The server re-validates namespace,
+  check character, identity status and branch on every resolve and command.
+- **Customer timeline (#26)**: `Platform.Abstractions.ITimelineSource` implemented by Customers, Orders, Billing,
+  Custody and Notifications as those modules land; a BFF composition endpoint in the web host merges entries and
+  filters them by the caller's permissions and branch scope. Customers never references other modules.
+- **Provider calls (#55)**: never inside a database transaction; record intent → call with the intent id as the
+  provider idempotency key → apply verified outcome; timeouts are `unknown`, resolved by status polling, never
+  assumed successful.
 
 ### 4.5 Data model overview (aggregate roots and invariants)
 
-- **Customer** (branch visibility, normalised name/phone, consent records, preferences, status). Invariant: phone
-  is validated, not unique; duplicates are detected and merged only by authorised decision.
-- **MeasurementTemplateVersion** (category link, fields with unit/precision/ranges/conditions, diagram media,
-  status). Invariant: published versions immutable.
-- **MeasurementVersion** (customer, template version, canonical values in millimetres with display unit,
-  reason, taken-by). Invariant: never edited; corrections create a new version.
-- **CatalogVersion** (categories, service types, design option groups/options/rules). Invariant: one coherent
-  published version per order.
-- **Order** → **GarmentJob[]** (category/service version, measurement version, design snapshot, media links,
-  price snapshot, due date, priority, workflow version, phases, assignments, QC results, rework, alteration
-  links, holds, custody state). Invariant: job snapshots immutable after confirmation; ready-for-delivery derived
-  from workflow complete + QC passed + custody reconciled.
-- **BarcodeIdentity** (namespace, opaque payload, entity ref, status active/invalidated/superseded, label
-  prints). Invariant: exactly one active identity per garment job.
-- **ScanEvent / CustodyTransfer** (immutable; idempotency key; from/to custodian; state pending/accepted/
-  rejected/expired). Invariant: server validates expected custodian and prerequisites; history is never edited.
-- **StockItem**, **LedgerEntry** (immutable, signed quantity in base unit, type, references), **Reservation**,
-  **PurchaseReceipt**, **Stocktake**. Invariant: balances rebuildable from ledger; no oversubscription.
-- **PriceListVersion**, **TaxConfigurationVersion** (effective-dated, immutable when published).
-- **Invoice** (draft → posted; posted immutable; lines and tax components snapshot; sequence per branch/FY),
-  **CreditNote/DebitNote**, **Payment** (with allocations, reversal/refund), **Receipt**, **CashierSession**.
-  Invariant: balance = posted charges − allocations − credits + refunds; numbers never reused.
-- **NotificationIntent → Delivery**, **CustomerLink** (random token, expiry, revocation, purpose), **Feedback**,
-  **ServiceRecoveryCase**.
-- **IntegrationEvent**, **WebhookSubscription/Delivery**, **AccountingExportBatch**.
+- **Customer** (branch visibility, normalised name/phone, aliases, consent records, preferences, status).
+  Invariant: phone is validated, not unique; duplicates are detected and merged only by authorised decision;
+  corrections keep `id` and `customer_number`; no delete endpoint (pseudonymisation via #57 only).
+- **MeasurementTemplateVersion** (category link, fields with unit/precision/ranges/conditions, diagram
+  reference, lifecycle draft → in_review → published → retired). Invariant: published versions immutable
+  (database trigger).
+- **MeasurementDraft / MeasurementVersion** (customer, template version, canonical millimetre values with display
+  unit, reason, taken-by, reused-from). Invariant: versions are never edited; a draft is consumed exactly once.
+- **CatalogVersion** (categories, service types with references to template, workflow, option groups, price item
+  and QC checklist; design option groups/options/rules; QC checklist versions). Invariant: one coherent published
+  version per order; dependency validators registered by later modules.
+- **Estimate / Order → GarmentJob[]** (category/service version, measurement version, design snapshot, media
+  links, price snapshot, due date, priority, job dependencies, workflow definition reference at confirmation,
+  pinned workflow version at start-production, phases, assignments, QC results, rework, alteration links, holds,
+  ready-state, custody state). Invariant: job snapshots immutable after confirmation; revision only before
+  production; ready-for-delivery computed by the gate alone.
+- **BarcodeIdentity** (namespace, opaque payload, entity ref, status active/superseded/invalidated, label prints).
+  Invariant: exactly one active identity per garment job (partial unique index); allocated inside the
+  confirmation transaction.
+- **ScanEvent / CustodyTransfer / ReconciliationCase** (immutable, append-only; idempotency key and client event
+  UUID; from/to custodian and location; source camera/wedge/manual; corrections are new events linked to the
+  corrected one). Invariant: server validates expected custodian and prerequisites; history is never edited.
+- **StockItem**, **LedgerEntry** (immutable, signed quantity in base unit, type, references, `corrects_entry_id`),
+  **Balance** (derived, updated in the same transaction, rebuilt and reconciled by a job), **Reservation**,
+  **PurchaseReceipt**, **Stocktake**, **ValuationRun**. Invariant: balances rebuildable from ledger; no
+  oversubscription (row lock on the balance).
+- **PriceListVersion**, **TaxConfigurationVersion**, **PaymentMode** (effective-dated, immutable when published).
+- **Invoice** (draft → posted; posted rows never updated; cancellation is an appended record; lines and tax
+  components snapshot; sequence per branch/FY), **CreditNote/DebitNote**, **Payment** (append-only, allocations,
+  advances, reversal/refund as new rows), **Receipt**, **CashierSession**, **ReconciliationBatch**,
+  **DispatchException**. Invariant: balance = posted charges − allocations − credits + refunds; numbers never
+  reused; card credentials never stored.
+- **NotificationIntent → Delivery**, **CustomerLink** (random 128-bit token, purpose-bound, expiring, revocable,
+  rate-limited), **Feedback**, **ServiceRecoveryCase**.
+- **IntegrationEvent**, **WebhookSubscription/Delivery**, **PaymentIntent**, **AccountingExportBatch**, **PrintJob**.
+- **DataSubjectRequest**, **RetentionPolicy** (configuration), **AuditEvent** (append-only, hash-chained).
 
 ### 4.6 PWA architecture (#50, #51, #52)
 
 - Routing by role-optimised shells: phone (bottom navigation + scanner-first "Scan" action), tablet
   (master-detail), desktop (side navigation + dense tables). Layouts chosen by container queries, not user agent.
-- State: TanStack Query for server state with `Idempotency-Key` injection and conflict handling; local drafts
-  in IndexedDB encrypted with a per-session key, bound to user + branch, expiring, cleared on logout.
+- State: TanStack Query for server state with `Idempotency-Key`, `X-Correlation-Id`, `X-Client-Version` and
+  anti-forgery header injection and conflict handling; server-side drafts for measurement capture and order
+  intake (#28, #32); encrypted local drafts and the persisted offline scan queue arrive in #51.
 - Bounded offline queue only for approved idempotent operations (scan submissions); billing, payment and
   inventory reconciliation are online-only with explicit "offline: not available" UI.
-- Service worker: precache versioned assets; network-first for API; never cache `/api` responses containing
-  protected data; update prompt with API compatibility check (`/api/version` minimum client version).
+- Service worker: precache versioned assets; network-first for API; stale-while-revalidate only for an explicit
+  allowlist of non-sensitive reference endpoints; never cache protected responses; update prompt driven by
+  `GET /api/version` and the server's 426 response for outdated clients.
 - Design system: tokens (colour, type scale, spacing, motion, focus, density, breakpoints), accessible components
-  (forms, numeric measurement input with large touch targets and numeric keypad, scanner, camera capture, tables
-  and cards, filters, drawers/dialogs, timeline, status badges, alerts, empty/error/loading, confirmation with
-  undo). Storybook with axe checks and visual regression baselines.
+  with one `FieldProps` form contract and a shared `FormErrorSummary`, numeric measurement input with large touch
+  targets and numeric keypad, scanner, camera capture, tables and cards, filters, drawers/dialogs, timeline,
+  status badges, alerts, empty/error/loading, confirmation with typed confirmation and undo. Components emit no
+  inline scripts/styles (CSP-compatible) and are documented in Storybook with axe checks and visual regression
+  baselines; a Playwright helper asserts no horizontal overflow at 320/360/768/1024/1280 px and 200 % zoom.
 - Generated API client from OpenAPI (`openapi-typescript` + `openapi-fetch`), so contract changes fail the
   frontend type check.
+- Client telemetry module (web vitals, unhandled errors with stack hashes, service-worker failures, capability
+  detection, scanner metrics) posted batched, sampled and redacted to a same-origin endpoint (#52, #58).
 
-### 4.7 Deployment topology (#59)
+### 4.7 Deployment topology (#22 interim, #59 hardened)
 
 - Images: `tailor360-web` (host + PWA), `tailor360-worker`, `tailor360-cli`; non-root, read-only filesystem,
-  pinned base images, SBOM + signature.
+  pinned base images, SBOM + signature + provenance.
 - Compose stack: reverse proxy (Caddy or Traefik, automatic TLS), web, worker, PostgreSQL, MinIO, ClamAV,
-  OpenTelemetry collector, backup sidecar. Environments: dev (compose), test (CI ephemeral), staging, production.
-- Release: build once, promote the identical digest; expand-migrate-contract migrations run by the CLI job before
-  rollout; readiness gates; documented rollback/roll-forward.
+  observability stack (collector, Prometheus, Loki, Tempo, Grafana, Alertmanager), backup sidecar, Mailpit (non-
+  production). Environments: dev (compose), test (CI ephemeral), interim staging (single VM from W1, synthetic
+  data), staging and production (IaC-managed, #59).
+- Release: build once, promote the identical digest after signature and provenance verification;
+  expand-migrate-contract migrations run by the CLI job before rollout; readiness gates; documented rollback/
+  roll-forward rehearsed against a migrated database.
 
 ---
 
@@ -335,18 +391,25 @@ These apply to every implementation issue and are the content of `CLAUDE.md` (#2
 
 ### 5.1 Definition of Done (per pull request)
 
-1. Linked to exactly one issue; only scoped changes; branch `feat/eXX-fYY-short-name`.
+1. Linked to exactly one issue (or sub-issue); only scoped changes; branch `feat/eXX-fYY-<slug>`; enforced by the
+   PR policy check (#22).
 2. Server-side authorisation, validation, idempotency (where the endpoint is retried) and audit events on every
-   state-changing endpoint.
+   state-changing endpoint; every new or changed endpoint adds its role × own-branch/other-branch expectations
+   (and field mask where applicable) to the authorisation matrix fixtures.
 3. Unit tests for domain rules, integration tests for persistence/API, architecture tests still green,
    E2E coverage for any new critical journey; synthetic data only.
 4. Migrations forward-only and backward compatible with the previous release (expand/contract); rollback or
-   restore note in the PR.
-5. OpenAPI updated; generated client regenerated; no undocumented breaking change.
-6. No secrets, no PII in logs, telemetry names and redaction reviewed.
-7. Accessibility check (axe) and responsive check (phone/tablet/desktop profiles) for UI changes.
-8. Documentation updated (module README, ADR if a decision changed, runbook if operations changed).
-9. PR evidence checklist completed (tests run, screenshots for UI, migration output, security notes).
+   restore note in the PR (`docs/dev/migrations.md`).
+5. OpenAPI updated (or the endpoint marked internal); generated client regenerated; no undocumented breaking
+   change (`oasdiff` gate).
+6. No secrets, no PII in logs, telemetry names and redaction reviewed; the threat model covering the flow is
+   referenced and its mapped controls closed (from #56a onward).
+7. Accessibility check (axe), responsive check (phone/tablet/desktop profiles, no horizontal overflow helper)
+   and CSP report-only clean for UI changes.
+8. Documentation updated (module README, ADR if a decision changed, runbook if operations changed, metric
+   dictionary if a report changed).
+9. PR evidence checklist completed (tests run, screenshots for UI, migration output, security notes) — a
+   required status check verifies the linked issue, branch name and checklist.
 
 ### 5.2 Conventions
 
@@ -354,41 +417,48 @@ These apply to every implementation issue and are the content of `CLAUDE.md` (#2
 - Naming: schemas `identity`, `customers`, `catalog`, `media`, `orders`, `custody`, `inventory`, `billing`,
   `reporting`, `notifications`, `integration`, `platform`; tables snake_case; all tables carry `id`,
   `organisation_id`, `branch_id` (where scoped), `created_at`, `created_by`, `updated_at`, `updated_by`, `xmin`.
+- Append-only tables (audit events, ledger entries, scan events, custody transfers, posted invoices, payments,
+  receipts, QC results) are protected by database triggers that reject UPDATE/DELETE from the application role.
 - No soft-delete of business records; deactivation flags instead. Hard delete only for retention-policy jobs on
-  approved classes (media derivatives, expired drafts, expired links).
+  approved classes (media derivatives, expired drafts, expired links, expired exports).
 - REST: `/api/v1/{module}/{resource}`; commands as POST sub-resources (`/orders/{id}/confirm`); cursor
-  pagination; `filter[...]`, `sort`, `fields`; problem details errors; `X-Correlation-Id`.
-- Domain events named in past tense; integration events versioned `orders.order-confirmed.v1`.
-- Logging: no request bodies, tokens, measurements, image bytes; correlation and causation IDs everywhere.
+  pagination; `filter[...]`, `sort`, `fields`; problem details errors; `X-Correlation-Id`; `X-Client-Version`.
+- Domain events named in past tense; integration events versioned `orders.order-confirmed.v1` with JSON Schema
+  and examples under `docs/integration/events/`; payloads carry identifiers, codes, statuses, timestamps, amounts
+  and branch codes only unless the event is classified personal and the subscriber is approved for it.
+- Logging: no request bodies, tokens, measurements, image bytes, rendered message bodies, recipient addresses or
+  card data; correlation and causation IDs everywhere.
 - Frontend: TypeScript strict, ESLint + Prettier, no `any`, components documented in Storybook, translations via
-  keys (English first).
+  keys (English first, Tamil-ready).
 
 ### 5.3 Test pyramid and gates
 
 | Layer | Tooling | Gate |
 | --- | --- | --- |
 | Unit and property | xUnit, FsCheck, Vitest | every PR |
-| Architecture | NetArchTest/ArchUnitNET rules | every PR |
-| Integration | Testcontainers PostgreSQL/MinIO/ClamAV, WebApplicationFactory | every PR |
-| Contract | OpenAPI lint + diff (oasdiff), adapter contract suites | every PR |
-| E2E + accessibility | Playwright (Chromium/Firefox/WebKit; phone/tablet/desktop), axe | every PR for touched journeys; full nightly |
-| Security | CodeQL, dependency review, gitleaks, Trivy (images/IaC), SBOM | every PR / release |
-| Performance | Lighthouse CI budgets, k6 smoke; full load test per release | release |
+| Architecture | NetArchTest/ArchUnitNET rules `ARCH-001`… (module boundaries, endpoint policy, audit filter, vendor SDK isolation) | every PR |
+| Integration | Testcontainers PostgreSQL/MinIO/ClamAV, WebApplicationFactory, authorisation matrix | every PR |
+| Contract | OpenAPI lint (Spectral) + diff (oasdiff) + endpoint inventory, adapter contract suites | every PR |
+| E2E + accessibility | Playwright (Chromium/Firefox/WebKit; phone/tablet/desktop; portrait/landscape), axe, overflow helper | every PR for touched journeys; full nightly |
+| Security | CodeQL, dependency review with licence allowlist, gitleaks, Trivy (images/IaC), SBOM, expired-exception check | every PR / release |
+| Performance | Lighthouse CI budgets, k6 smoke; full load and mixed-load test per release | release |
 | Operations | migration dry-run, restore test, DR exercise | release / scheduled |
 
 ---
 
-## 6. Delivery plan: milestones, lanes and ordering
+## 6. Delivery plan: milestones, waves, epic closure
 
 ### 6.1 Ordering rules
 
 - The order below is derived from the "Depends on" field of every feature issue. An issue starts only when its
-  dependencies are merged to `main` (or the owner explicitly accepts a stub).
-- One issue = one branch = one Claude Code session = one pull request. Issues marked XL are split into
-  sub-issues (proposed splits are in the blueprints) so that each PR stays reviewable (target < 1,500 changed
-  lines excluding generated code and tests).
+  dependencies are merged to `main` (or the owner explicitly accepts a stub defined in this plan).
+- One issue = one branch = one Claude Code session = one pull request. Extra-large issues are split into GitHub
+  sub-issues (linked under the parent) before work starts; each sub-issue has its own branch, session and PR,
+  and the parent closes when all sub-issues are merged. Target < 1,500 changed lines per PR excluding generated
+  code and tests.
 - Three lanes can run concurrently: **Lane A** backend platform and modules, **Lane B** PWA and design system,
-  **Lane C** governance, security and operations documents. Issues in the same wave touch disjoint modules.
+  **Lane C** governance, security and operations documents. Issues in the same parallel group touch disjoint
+  modules; where two issues must touch one module (Reporting in W4), they are sequenced.
 - Business approvals (workshops, accountant, device matrix) are scheduled as review gates at the end of the
   wave that produces the draft, never as blockers for drafting.
 
@@ -396,94 +466,217 @@ These apply to every implementation issue and are the content of `CLAUDE.md` (#2
 
 | Wave | Milestone | Issues (parallel groups shown with `∥`) | Exit gate |
 | --- | --- | --- | --- |
-| W0 | M1 | #17 → #18 → #19 | Owner approves glossary, workflow maps, ADRs and NFRs; repo has `docs/prd`, `docs/adr`, `docs/nfr` |
-| W1 | M2 | #20 → #21 → (#22 ∥ #23 ∥ #50) → #24 → (#25 ∥ #53) | Clean clone builds; CI gates block bad changes; login with MFA behind BFF; permission matrix tests green; admin UI; design system in Storybook |
-| W2 | M3 | (#26 ∥ #29) → #27 → (#28 ∥ #30) → #31 | Customer search/dedup; catalog and measurement templates seeded and published; measurement wizard on phone/tablet; secure image pipeline |
-| W3 | M4 | #41 → #32 → (#33 ∥ #35) → (#34 ∥ #36) → #37 | Multi-garment order confirmed with snapshots; job cards; workflow engine and workboards; labels printed; scanning on real devices; custody chain end-to-end |
-| W4 | M5 | (#38 ∥ #42 ∥ #54) → (#39 ∥ #43 ∥ #47) → (#40 ∥ #48 ∥ #44) → (#49 ∥ #45 ∥ #46 ∥ #55) | Ledger-backed stock; posted GST invoices and receipts; payment-gated dispatch; notifications; feedback; reconciled reports; adapters behind flags |
-| W5 | M6 | (#51 ∥ #56 ∥ #57) → (#52 ∥ #58) → #59 → #60 → #61 | Installable PWA with safe updates; ASVS baseline and pen test; privacy/audit; observability and load tests; CI/CD promotion; backups/DR rehearsed; UAT and go-live |
+| W0 | M1 | #17 → #18 → #19 | Owner approves glossary, workflow maps, category hierarchy, ADRs and NFRs; owner confirms D1 (backend platform and SDK-capable environment) and D17 (hosting model and indicative budget) in writing so ADR-0002/ADR-0010 are final and no critical architecture decision blocks W1 (Section 11 items 1–2 closed); repo has `docs/prd`, `docs/adr`, `docs/nfr`, `docs/process` |
+| W1 | M2 | #20 → #21 → (#22 ∥ #23 ∥ #50) → #24 → (#25 ∥ #53) | Clean clone builds; CI gates and branch protection block bad changes; interim staging reachable over TLS with synthetic data; login with MFA behind BFF; permission matrix approved and regression suite green; admin UI; design system in Storybook |
+| W2 | M3 | (#26 ∥ #29 ∥ #56a) → #27 → (#28 ∥ #30) → #31 | Customer search/dedup with consent contract; threat models for every flow; catalog and measurement templates seeded and published; measurement wizard on phone/tablet; design catalog with immutable snapshots; secure image pipeline |
+| W3 | M4 | #41 → #32a → #32b → (#33 ∥ #35) → (#34 ∥ #36) → #37 | Multi-garment order confirmed with snapshots and estimate PDF; job cards; workflow engine, workboards and due-date alerts; labels printed and scanned on real devices; custody chain end-to-end with fail-closed dispatch gate |
+| W4 | M5 | (#38 ∥ #42 ∥ #54) → (#39 ∥ #43 ∥ #47) → (#44 ∥ #40 ∥ #48) → #45 → (#46 ∥ #49 ∥ #55) | Ledger-backed stock; posted GST invoices and receipts; payment-gated dispatch with partial-delivery policy; notifications; feedback; reconciled reports with visible freshness; adapters behind flags |
+| W5 | M6 | (#51 ∥ #56b ∥ #57) → (#52 ∥ #58) → #59 → #60 → #61a → #61b → #61c | Installable PWA with safe updates and offline scan queue; ASVS baseline and pen test; privacy/audit; observability and load tests; CI/CD promotion; backups/DR rehearsed; UAT and go-live |
 
-Dependency note: #41 (pricing engine) lists #32 (orders) as a dependency while #32 needs the pricing service for
-order totals, so the issues as written form a cycle and neither could start under the rule in 6.1. The plan
-resolves it as follows and the owner is asked to amend issue #41 accordingly (Section 11, item 11):
+Dependency notes (each is a deliberate deviation from, or completion of, the issues' own "Depends on" lines):
 
-- #41's dependency on E06-F01 (#32) is **replaced** by a dependency on the pricing contract
-  `Billing.Contracts.IPricingService` (`PricingRequest` = catalog service/product references, quantities,
-  discounts, place of supply, effective date; `PricingResult` = line components, document totals, configuration
-  versions). The contract is the first deliverable of #41 and does not reference any order entity.
-- #41 therefore starts W3 with dependencies #19 and #29 only; #32 depends on #41 in addition to its own list.
-- Until the owner amends #41, the plan's traceability matrix (Section 7) is the operative dependency list.
+1. **#41 ↔ #32 cycle.** Issue #41 (pricing engine) lists #32 (orders) as a dependency while #32 needs the pricing
+   service for order totals. The plan replaces #41's dependency on E06-F01 (#32) with a dependency on the
+   pricing contract `Billing.Contracts.IPricingService` (`PricingRequest` = catalog service/product references,
+   quantities, discounts, place of supply, effective date; `PricingResult` = line components, document totals,
+   configuration versions). The contract is the first deliverable of #41 and never references an order entity
+   (an architecture test rejects any `Billing → Orders` reference). #41 therefore starts W3 with dependencies
+   #19 and #29 only; #32 depends on #41 in addition to its own list. Until the owner amends issue #41
+   (Section 11, item 11), the implementing session records the supersession in its PR description. If the owner
+   declines, #41 moves after #32 and #32 ships with a feature-flagged stub `IPricingService` (catalogue base rates,
+   no tax, not usable for invoicing) replaced when #41 merges.
+2. **#37 dispatch gate before #43.** #37's dispatch scan must enforce the payment rule, but Billing's payment
+   module (#43) is delivered later and itself depends on #37. #37 introduces
+   `Billing.Contracts.IDispatchEligibilityQuery.GetDispatchEligibility(orderId, jobIds[])` with a default
+   implementation that **fails closed** (`Eligible = false, Reason = NotEvaluated`); dispatch is rejected unless the
+   query returns eligible or an approved dispatch exception exists. #43 registers the balance-based rule; #48
+   adds the partial-delivery policy. The W3 rehearsal records dispatch through the exception path; paid dispatch
+   is rehearsed again in #43 and #48.
+3. **#34 ready-for-delivery gate before #37.** The gate's `CustodyReconciled` predicate resolves through
+   `Custody.Contracts.ICustodyStateQuery`; #34 registers a placeholder returning `Unknown` and the predicate is
+   disabled by configuration until #37 supplies the real query and enables it.
+4. **Reporting module sequencing in W4.** #44 creates the Reporting module foundations; #45 and then #46 add
+   only their own projections, one migration each (`<issue>_<slug>`) and screens, merged sequentially. #40 serves
+   its operational inventory views from the Inventory module and does not touch the `reporting` schema.
+5. **#56 split.** Threat models must precede the flows they cover, so #56 is split into #56a (W2, Lane C: threat
+   models, abuse cases, ASVS traceability skeleton, CI severity gates) and #56b (W5: security regression suite,
+   enforcing CSP, penetration test and remediation).
+6. **Media references before #31.** #27 diagrams and #30 illustrations are stored as media references; until #31
+   merges they resolve to bundled static line drawings by asset key; #31 adds the admin upload path and a
+   migration registering the bundled assets as media objects.
+7. **Email before #47.** #23 introduces `IEmailSender` (SMTP adapter, fake for tests) in `Platform.Abstractions`
+   for recovery, MFA enrolment and invitations; #47 moves adapters under Integration and adds templates,
+   consent and tracking without changing the port.
+8. **Client drafts and offline queue.** #28 and #32 use server-side drafts only; #37 retries scan submissions in
+   memory; #51 is the only implementation of encrypted local drafts and the persisted offline scan queue.
 
-### 6.3 Milestone exit criteria mapped to the roadmap
+### 6.3 Roadmap acceptance criteria mapped to verifying issues
 
 | Roadmap acceptance criterion (#1) | Verified in |
 | --- | --- |
-| End-to-end garment lifecycle with real labels and devices | #37 (custody rehearsal), #61 (pilot) |
-| Dispatch blocked until QC passes and payment rule satisfied | #34, #43, #48 |
-| Role and branch isolation tests | #24 (regression suite), #56 |
+| End-to-end garment lifecycle with real labels and devices | #37 (custody rehearsal), #48 (dispatch leg), #61c (pilot) |
+| Dispatch blocked until QC passes and payment rule satisfied | #34 (gate), #37 (fail-closed dispatch scan), #43 (rule), #48 (policy) |
+| Role and branch isolation tests | #24 (regression suite and two-branch walkthrough), #56b |
 | Photos and measurements protected by consent, retention, access controls | #26, #28, #31, #57 |
 | Browser/device matrix | #52 |
 | WCAG 2.2 AA on critical journeys | #50, #52 |
-| No unresolved critical/high security findings | #56 (pen test), #59 |
+| No unresolved critical/high security findings | #56b (pen test), #59 |
 | Load/performance targets and SLOs | #19 (targets), #58 (tests) |
 | Backup, PITR, rollback, DR exercises | #59, #60 |
-| GST configuration and sample output approved by accountant | #41, #42 |
-| UAT sign-off, training, runbooks, monitoring, hypercare | #61 |
+| GST configuration and sample output approved by accountant | #41, #42, #44 |
+| UAT sign-off, training, runbooks, monitoring, hypercare | #61c |
+
+### 6.4 Epic codes, issue numbers and exit criteria
+
+Epic codes used in Section 7 map to the GitHub epic issues as follows (note the non-sequential numbering of
+E09–E15):
+
+| Epic | Issue | Children | Wave(s) |
+| --- | --- | --- | --- |
+| E01 | #2 | #17, #18, #19 | W0 |
+| E02 | #3 | #20, #21, #22 | W1 |
+| E03 | #4 | #23, #24, #25 | W1 |
+| E04 | #5 | #26, #27, #28 | W2 |
+| E05 | #6 | #29, #30, #31 | W2 |
+| E06 | #7 | #32, #33, #34 | W3 |
+| E07 | #8 | #35, #36, #37 | W3 |
+| E08 | #9 | #38, #39, #40 | W4 |
+| E09 | #13 | #41, #42, #43 | W3–W4 |
+| E10 | #10 | #44, #45, #46 | W4 |
+| E11 | #11 | #47, #48, #49 | W4 |
+| E12 | #12 | #50, #51, #52 | W1, W5 |
+| E13 | #14 | #53, #54, #55 | W1, W4 |
+| E14 | #15 | #56, #57, #58 | W2, W5 |
+| E15 | #16 | #59, #60, #61 | W5 |
+
+An epic closes only when every child is merged with evidence, each exit criterion below has linked evidence,
+architecture/security review findings are resolved, and the product owner records acceptance of the epic's
+end-to-end workflow as a comment on the epic issue. The last PR of each epic adds `docs/evidence/eXX-closure.md`
+collecting the links, and the roadmap checklist item in #1 is ticked in the same PR.
+
+| Epic | Exit criterion | Verified by |
+| --- | --- | --- |
+| E01 | Workflow maps approved by owner | #17 walkthrough sign-off (W0 gate) |
+| E01 | Context map, ownership, diagrams, ADRs version-controlled | #18 |
+| E01 | NFRs measurable and mapped to CI/UAT evidence | #19 `docs/nfr/traceability.md` |
+| E01 | No unresolved critical architecture/compliance decision | Section 11 items 1–2 closed before W1 |
+| E02 | Clean checkout builds/runs via documented commands | #20 clean-clone logs (Windows/WSL and macOS/Linux) |
+| E02 | CI validates compile, format, tests, migrations, dependencies, containers, security | #20 minimal CI, #22 failing-check demos |
+| E02 | No production secret/customer data needed locally | #20 `.env.example`, #21 `seed-synthetic` |
+| E02 | Claude Code instructions and governance concise, testable, versioned | #22 workflow demonstration |
+| E03 | Permission matrix approved and enforced by policy | #24 (owner-approved `docs/security/permission-matrix.md`) |
+| E03 | Horizontal/vertical escalation tests pass | #24 matrix + IDOR suite, #56b regression suite |
+| E03 | Sensitive admin actions need step-up and are audited | #25 |
+| E03 | Disabled users/revoked sessions lose access within SLO | #23, #25 (SLO value from #19) |
+| E04 | Customer created/located without avoidable duplicates | #26 |
+| E04 | Every category has an approved template and rules | #27 business review |
+| E04 | Orders retain the exact measurement version | #28 immutability, #32 snapshot regression |
+| E04 | Measurement journeys pass usability, a11y, authz, offline-resilience | #28 device tests, #51, #52 |
+| E05 | Admins add/retire categories and options without deployment | #29 demo, #30 demo |
+| E05 | Invalid option combinations prevented by configurable rules | #30 rule-engine tests |
+| E05 | Tailors see exact approved designs/images on the job card | #30, #32 |
+| E05 | Unauthorized/expired media access denied and logged | #31 |
+| E06 | Every garment independently traceable | #32 job numbers and dependencies, #35 identities |
+| E06 | Only authorized, valid, idempotent transitions | #33, #37 |
+| E06 | QC failure routes to rework without losing history | #34 |
+| E06 | Responsive queues for priority/overdue/blocked/assigned | #33 |
+| E07 | No PII in any barcode payload | #35 payload test, #56b regression |
+| E07 | Real labels and devices complete the physical workflow | #37 rehearsal, #48 dispatch leg, #61c pilot |
+| E07 | Duplicate/out-of-order scans cannot corrupt state | #37 |
+| E07 | Missing/rejected/damaged/reprinted labels have auditable recovery | #35 reprint, #37 reconciliation cases |
+| E08 | Stock on hand derived from reconciled ledger | #39 rebuild property test and reconciliation job |
+| E08 | No oversubscription under concurrency | #39 |
+| E08 | Low-stock alerts to correct branch/role, no storms | #40, #47 |
+| E08 | Stocktake/adjustment evidence auditable | #40 |
+| E09 | Calculations pass accountant examples | #41 golden master |
+| E09 | Posted records immutable; compensating corrections | #42, #43 |
+| E09 | Concurrent numbering and callbacks idempotent | #42, #43, #55 |
+| E09 | Cashier reconciliation and dispatch gate pass UAT | #43, #48 |
+| E10 | Totals reconcile to approved samples | #44, #46 |
+| E10 | Role/branch restrictions on screens, scheduled generation, downloads, exports | #44, #46 |
+| E10 | Large-range queries meet targets without affecting order processing | #44 isolation, #46 mixed-load test, #58 |
+| E10 | Definitions, freshness, limitations visible and documented | #44 metric dictionary and status strip, #45 |
+| E11 | Unpaid/failed-QC cannot dispatch without authorized override | #37, #43, #48 |
+| E11 | Retries do not send uncontrolled duplicates | #47 |
+| E11 | Links expire, revocable, non-enumerable | #48 |
+| E11 | Negative feedback/alteration create follow-up | #49 |
+| E12 | Critical journeys pass device/browser/orientation matrix | #52 |
+| E12 | Updates cannot strand an incompatible client/API | #51, #53 |
+| E12 | No unresolved critical a11y violations | #52 |
+| E12 | Performance/CWV budgets pass on mobile | #52 |
+| E13 | Integration failures cannot corrupt core transactions | #21 outbox tests, #54, #55, #58 |
+| E13 | Webhook signature/replay/idempotency/scoping tests pass | #54 |
+| E13 | Provider replacement needs no domain change | #55 architecture test |
+| E13 | Contracts, limits, errors, support ownership documented | #53, #55 |
+| E14 | No unresolved critical/high finding | #56b pen test |
+| E14 | Privacy/retention workflows evidenced and enforceable | #57 |
+| E14 | SLO dashboards/alerts with runbooks | #58 |
+| E14 | Security/performance/resilience/incident simulations pass | #56b, #58 game days |
+| E15 | Release deployed and rolled back via automation | #59 |
+| E15 | Restore/DR meet RPO/RTO | #60 |
+| E15 | All acceptance gates and UAT pass | #61 |
+| E15 | Ops ownership, monitoring, training, hypercare active | #61c, #58 |
 
 ---
 
 ## 7. Traceability matrix
 
 Branch names follow `feat/eXX-fYY-<slug>`; docs-only issues use `docs/`. Size: S ≤ 1 session, M 1–2, L 2–3,
-XL split. "Evidence" lists what the PR must attach to satisfy the issue's acceptance criteria.
+XL split into sub-issues. "Depends on" is the plan's operative list (it equals the issue's list unless a
+Section 6.2 note says otherwise). "Evidence" lists what the PR must attach to satisfy the issue's acceptance
+criteria.
 
 | Issue | Epic | Wave | Lane | Branch | Size | Depends on | Modules / areas | Key evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| #17 | E01 | W0 | C | `docs/e01-f01-workflows-glossary` | M | #1 | docs/prd | Workflow maps per category, glossary, RACI, exception catalogue, configurable-vs-fixed table, owner approval |
-| #18 | E01 | W0 | C | `docs/e01-f02-architecture-adrs` | M | #17 | docs/adr, docs/architecture | C4 diagrams, ADR-0001…0010, module ownership table, invariants, conventions, architecture-test rule list |
-| #19 | E01 | W0 | C | `docs/e01-f03-nfr-slo-dod` | M | #17, #18 | docs/nfr | Numeric NFRs, SLOs, RPO/RTO, data classification, DoR/DoD, waiver process, traceability matrix |
-| #20 | E02 | W1 | A | `feat/e02-f01-scaffold-local-env` | L | #18 | solution, compose, health | Clean-clone build log, health checks passing, architecture test failing on forbidden reference, secret scan clean |
-| #21 | E02 | W1 | A | `feat/e02-f02-persistence-outbox-config-flags` | L | #20 | Platform.Persistence, Worker | Outbox atomicity test, duplicate delivery test, config fail-fast test, flag audit, migration from empty DB and prior snapshot |
-| #22 | E02 | W1 | C | `feat/e02-f03-ci-governance-claude` | M | #20, #21 | .github, CLAUDE.md | Failing checks demo (format/test/arch/secret/vuln), templates, CODEOWNERS, permissions review, CI baseline time |
-| #23 | E03 | W1 | A | `feat/e03-f01-auth-sessions-mfa` | L | #18, #19, #21 | Identity, Web host | Cookie/CSRF/lockout tests, revocation SLO test, MFA/passkey/recovery flows, auth audit sample |
-| #24 | E03 | W1 | A | `feat/e03-f02-rbac-branch-scope` | L | #23 | Platform.Security, all Api | Permission catalogue, matrix test report, IDOR/cross-branch tests, worker context test |
-| #25 | E03 | W1 | A+B | `feat/e03-f03-admin-users-branches-flags` | M | #23, #24 | Identity Api, PWA admin | Admin authorisation tests, step-up test, suspension revocation test, audit before/after view |
-| #26 | E04 | W2 | A+B | `feat/e04-f01-customers-consent-dedup` | L | #24, #25 | Customers, PWA | Normalisation/dedup unit tests, merge/concurrency/timeline integration tests, phone/tablet screenshots |
-| #27 | E04 | W2 | A+B | `feat/e04-f02-measurement-templates` | M | #17, #24, #29 | Customers (templates), PWA admin | Property tests for unit conversion, publish/retire tests, seeded templates for 5 categories, business review note |
-| #28 | E04 | W2 | A+B | `feat/e04-f03-measurement-capture` | L | #26, #27 | Customers, PWA wizard | Validation/snapshot tests, concurrent confirm test, template-change test, device usability notes |
-| #29 | E05 | W2 | A+B | `feat/e05-f01-category-service-catalog` | M | #17, #21, #25 | Catalog, PWA admin | Hierarchy/lifecycle tests, cache invalidation test, seeded categories, "add category without code" demo |
-| #30 | E05 | W2 | A+B | `feat/e05-f02-design-catalog-snapshots` | L | #29, #27 | Catalog, Orders (snapshot contract), PWA | Rule-engine property tests, snapshot immutability test, job-card render, tablet usability notes |
-| #31 | E05 | W2 | A+B | `feat/e05-f03-secure-media-pipeline` | L | #24, #26, #30 | Media, Worker, PWA | Adversarial upload corpus results, signed URL expiry test, EXIF strip test, outage/orphan cleanup tests |
-| #32 | E06 | W3 | A+B | `feat/e06-f01-orders-job-cards` (split: 32a backend, 32b intake UI) | XL | #28, #29, #30, #31 (plan adds #41, see 6.2) | Orders, PWA intake | Confirmation atomic/idempotent tests, snapshot regression tests, multi-garment UAT screenshots |
-| #33 | E06 | W3 | A+B | `feat/e06-f02-workflow-assignment-workboard` | L | #32, #24 | Orders (workflow), PWA queues | Graph property tests, invalid transition tests, concurrent transition tests, workboard device test |
-| #34 | E06 | W3 | A+B | `feat/e06-f03-qc-rework-alteration-hold-cancel` | L | #33 | Orders, PWA | State-machine tests for every exceptional path, integration with inventory/billing/notification stubs, UAT notes |
-| #35 | E07 | W3 | A | `feat/e07-f01-barcode-identity-labels` | M | #32, #24 | Custody, PDF adapter | Collision/checksum tests, reprint/invalidate tests, printed test sheets scanned on devices |
-| #36 | E07 | W3 | B | `feat/e07-f02-scanner-experience` | M | #35, #50 | PWA scanner | Parser/debounce tests, Android/iPhone/iPad/hardware scanner results, accessibility review |
-| #37 | E07 | W3 | A+B | `feat/e07-f03-custody-transfers-idempotency` | L | #35, #36, #33, #34 | Custody, Orders, PWA | State/property tests, concurrency/replay tests, physical rehearsal record |
-| #38 | E08 | W4 | A+B | `feat/e08-f01-inventory-masters` | M | #17, #21, #24 | Inventory, PWA | Unit conversion property tests, import/deactivation tests, initial catalog review |
-| #39 | E08 | W4 | A | `feat/e08-f02-stock-ledger-reservations` | L | #38, #33 | Inventory | Balance invariant property tests, concurrency reservation tests, purchase/transfer/consume/correction E2E |
-| #40 | E08 | W4 | A+B | `feat/e08-f03-low-stock-stocktake-valuation` | L | #38, #39, #47 | Inventory, Worker, Reporting, PWA | Alert dedup tests, stocktake approval separation tests, reconciliation and performance tests |
-| #41 | E09 | W3 | A | `feat/e09-f01-pricing-gst-engine` | L | #19, #29 (the issue's #32 dependency is replaced by the pricing contract, see 6.2) | Billing (engine), PWA admin | Accountant golden-master tests, rounding property tests, version publish/reproduction tests |
-| #42 | E09 | W4 | A+B | `feat/e09-f02-invoices-numbering-pdf` | L | #41, #32 | Billing, PDF adapter, PWA | Concurrent numbering tests, immutability tests, PDF snapshot + accessibility, barcode retrieval auth tests |
-| #43 | E09 | W4 | A+B | `feat/e09-f03-payments-receipts-cashier-dispatch-gate` | L | #42, #37, #24 | Billing, Custody (gate), PWA | Allocation property tests, idempotent payment tests, cashier close UAT, unpaid dispatch rejected E2E |
-| #44 | E10 | W4 | A+B | `feat/e10-f01-sales-gst-receivables-reports` | L | #42, #43, #21 | Reporting, Worker, PWA | Golden-data reconciliation, export leak tests, timezone boundary and volume tests |
-| #45 | E10 | W4 | A+B | `feat/e10-f02-pipeline-workload-quality-analytics` | M | #33, #34, #37 | Reporting, PWA dashboards | Projection replay/idempotency tests, performance test, ops UAT |
-| #46 | E10 | W4 | A+B | `feat/e10-f03-inventory-profitability-exports` | M | #39, #40, #42, #43 | Reporting, Worker exports, PWA | Reconciliation tests, export authorisation/expiry/cleanup tests, load test |
-| #47 | E11 | W4 | A+B | `feat/e11-f01-notifications-templates-adapters` | L | #21, #26, #54 | Notifications, Integration adapters, Worker, PWA centre | Adapter contract/retry tests, consent/quiet-hour/dedup tests, provider-down drill |
-| #48 | E11 | W4 | A+B | `feat/e11-f02-delivery-queue-status-links-dispatch` | L | #34, #37, #43, #47 | Custody, Notifications (links), PWA delivery | Unpaid/paid/partial E2E, token security tests, delivery-team mobile UAT |
-| #49 | E11 | W4 | A+B | `feat/e11-f03-feedback-alterations-service-recovery` | M | #47, #48 | Notifications (feedback), Orders (alteration link), PWA | Token replay/rate-limit tests, follow-up idempotency/escalation tests, journey UAT |
-| #50 | E12 | W1 | B | `feat/e12-f01-design-system-layouts` | L | #19, #20 | PWA design system, Storybook | Component a11y + visual regression, device/orientation/zoom matrix, role walkthrough notes |
-| #51 | E12 | W5 | B | `feat/e12-f02-pwa-install-updates-resilience` | L | #50, #21, #37 | PWA service worker, drafts, offline queue | Install/update/rollback tests, offline/reconnect/conflict E2E, cache/privacy inspection |
-| #52 | E12 | W5 | B | `feat/e12-f03-wcag-cross-browser-performance` | M | #50, #51 | tests/e2e, Lighthouse CI | Cross-browser and axe reports, manual screen-reader/zoom notes, performance budget results |
-| #53 | E13 | W1 | A | `feat/e13-f01-api-standards-openapi-idempotency` | M | #18, #21, #23, #24 | Platform, Web host, contract tests | OpenAPI lint/diff in CI, idempotency/concurrency tests, error-leak and rate-limit tests |
-| #54 | E13 | W4 | A | `feat/e13-f02-integration-events-webhooks` | M | #21, #53 | Integration, Worker | Commit/rollback/duplicate/replay tests, signature/SSRF tests, slow-receiver load test |
-| #55 | E13 | W4 | A | `feat/e13-f03-provider-adapters` | L | #53, #54, #43, #47 | Integration adapters | Contract suites, fault injection, payment callback security tests, accounting balanced totals |
-| #56 | E14 | W5 | C+A | `feat/e14-f01-threat-model-asvs-baseline` | L | #18, #19, #24, #53 | docs/security, Platform.Security, CI | Threat models, ASVS traceability, security regression suite, pen test report and remediation |
-| #57 | E14 | W5 | A | `feat/e14-f02-privacy-audit-encryption-secrets` | L | #19, #24, #26, #31 | Platform (audit), Customers, Media, Worker | Retention job tests, audit completeness review, rotation exercise log |
-| #58 | E14 | W5 | A+C | `feat/e14-f03-observability-slo-resilience` | L | #19, #21, #56 | Platform.Observability, infra/otel, tests/load | Telemetry redaction tests, load/soak/fault results vs NFRs, game-day records |
-| #59 | E15 | W5 | C | `feat/e15-f01-environments-cicd-releases` | L | #22, #56, #58 | infra, .github | Provenance chain, failed migration/health rehearsal, permissions review |
-| #60 | E15 | W5 | C | `feat/e15-f02-backups-pitr-dr-runbooks` | M | #57, #58, #59 | infra/backup, docs/runbooks | Automated restore test, PITR exercise, DR exercise with RPO/RTO |
-| #61 | E15 | W5 | A+B+C | `feat/e15-f03-qa-uat-pilot-golive` (split: 61a test strategy and fixtures, 61b E2E suite, 61c UAT/training/pilot) | XL | #52, #56, #58, #59, #60 | tests, docs/uat, docs/training | Regression artefacts, dress rehearsal, UAT signatures, pilot report, go/no-go record |
+| #17 | E01 | W0 | C | `docs/e01-f01-workflows-glossary` | M | #1 | docs/prd | Current-state and target workflow maps per category, branch scenarios, glossary, RACI, exception catalogue and review record, configurable-vs-fixed table, confirmed category hierarchy, proposed measurement field sets, traceability to backlog issues, owner approval |
+| #18 | E01 | W0 | C | `docs/e01-f02-architecture-adrs` | M | #17 | docs/adr, docs/architecture | C4 diagrams, ADR-0001…0013, module/storage ownership table, invariants, conventions, `architecture-rules.md` (`ARCH-001`…) |
+| #19 | E01 | W0 | C | `docs/e01-f03-nfr-slo-dod` | M | #17, #18 | docs/nfr, docs/process | Numeric NFRs per candidate hosting model, SLOs incl. revocation SLO, RPO/RTO, data classification incl. credentials, DoR/DoD, release gates with severity and waiver owner, stakeholder and risk review records, traceability matrix |
+| #20 | E02 | W1 | A | `feat/e02-f01-scaffold-local-env` | L | #18 | solution, compose, health, minimal CI | Clean-clone logs from Windows/WSL and macOS/Linux, tests run twice, all five component health checks, architecture test failing on forbidden reference, branch-protection screenshot, secret scan clean |
+| #21 | E02 | W1 | A | `feat/e02-f02-persistence-outbox-config-flags` | L | #20 | Platform.Persistence, Worker, CLI | Outbox atomicity/duplicate/poison/replay tests, audit interceptor tests, config fail-fast test, secret-leak test, flag consistency test, migration from empty DB and prior snapshot |
+| #22 | E02 | W1 | C | `feat/e02-f03-ci-governance-claude-staging` | M | #20, #21 | .github, CLAUDE.md, infra/compose staging | Failing checks demo (format/test/arch/secret/vuln), PR policy check, templates, CODEOWNERS, permissions review, artefacts/summaries, workflow demonstration with revert, interim staging URL, CI baseline time |
+| #23 | E03 | W1 | A+B | `feat/e03-f01-auth-sessions-mfa` | L | #18, #19, #21 | Identity, Web host, Platform.Abstractions (email), PWA auth screens | Cookie/CSRF/lockout/fixation tests, no-token-in-storage browser test, revocation SLO test, MFA/passkey/recovery flows on phone and desktop, authentication threat model, auth audit sample |
+| #24 | E03 | W1 | A | `feat/e03-f02-rbac-branch-scope` | L | #23 | Platform.Security, all Api | Owner-approved permission matrix, generated matrix test report, field-mask assertions, IDOR/cross-branch tests, worker context test, two-branch manual walkthrough record |
+| #25 | E03 | W1 | A+B | `feat/e03-f03-admin-users-branches-flags` | M | #23, #24, #50 | Identity Api, Platform (flag/outbox endpoints), PWA admin | Admin authorisation tests, step-up test, suspension revocation test, concurrent update test, audit before/after view, UAT script |
+| #26 | E04 | W2 | A+B | `feat/e04-f01-customers-consent-dedup` | L | #24, #25 | Customers, Web host (timeline composition), PWA | Normalisation/dedup unit tests, merge/correction/deactivation/export/concurrency/timeline integration tests, consent contract tests, field-mask tests, phone/tablet screenshots |
+| #27 | E04 | W2 | A+B | `feat/e04-f02-measurement-templates` | M | #17, #24, #29 | Customers (templates), Catalog validator, PWA admin | Property tests for unit conversion, lifecycle/permission tests, publish-time validation tests, seeded templates for 5 categories, business review note |
+| #28 | E04 | W2 | A+B | `feat/e04-f03-measurement-capture` | L | #26, #27 | Customers (drafts/versions), PWA wizard | Validation/snapshot tests, idempotent confirm test, concurrent confirm test, template-change test, log-redaction test, interrupted-capture recovery on phone, device usability notes |
+| #29 | E05 | W2 | A+B | `feat/e05-f01-category-service-catalog` | M | #17, #21, #25 | Catalog, PWA admin | Hierarchy/lifecycle tests, validator registration and availability contract tests, cache invalidation test, seeded categories, "add category without code" demo |
+| #30 | E05 | W2 | A+B | `feat/e05-f02-design-catalog-snapshots` | L | #29, #27 | Catalog (rules, snapshot builder), PWA picker and job-card component | Rule-engine property tests, snapshot immutability after republish, 409 on concurrent revision, seeded option groups, tablet usability notes, "add option without deployment" demo |
+| #31 | E05 | W2 | A+B | `feat/e05-f03-secure-media-pipeline` | L | #24, #26, #30 | Media, Worker, PWA | Adversarial upload corpus results, per-request authorisation and single-use URL tests, EXIF strip test, SSE health check, retention idempotency/hold tests, outage/orphan cleanup tests, device upload performance |
+| #32a | E06 | W3 | A | `feat/e06-f01a-orders-backend` | L | #28, #29, #30, #31, #41 | Orders, Custody contract hook, PDF (estimate) | Atomic/idempotent confirmation tests, snapshot regression, identifier tests, estimate PDF snapshot, revision-window tests, timeline source |
+| #32b | E06 | W3 | B | `feat/e06-f01b-intake-ui` | L | #32a | PWA intake | Multi-garment intake on phone/tablet (screenshots), draft autosave/expiry, estimate print/share, validation summary, E2E confirm |
+| #33 | E06 | W3 | A+B | `feat/e06-f02-workflow-assignment-workboard` | L | #32a, #32b, #24 | Orders (workflow, capabilities, SLA evaluator), Worker, PWA queues, admin editor | Graph property tests, invalid transition tests, concurrent transition tests, eligibility tests, due/SLA evaluator tests (timezone, dedup), workboard device test |
+| #34 | E06 | W3 | A+B | `feat/e06-f03-qc-rework-alteration-hold-cancel` | L | #33 | Orders, Catalog (QC checklist versions), PWA | State-machine tests for every exceptional path, gate predicate tests incl. placeholder, events contract tests, dashboard reconciliation test, UAT notes |
+| #35 | E07 | W3 | A+B | `feat/e07-f01-barcode-identity-labels` | M | #32a, #24 | Custody, Platform.Abstractions (PDF/barcode ports), PWA print | Collision/checksum/no-PII tests, partial unique index and reprint concurrency tests, authorisation tests per permission, resolve endpoint tests, printed test sheets scanned on devices and printers, `identifiers.md` |
+| #36 | E07 | W3 | B | `feat/e07-f02-scanner-experience` | M | #35, #50 | PWA scanner | Parser/debounce tests, permission-denied fallback E2E, wrong-namespace contract test, Android/iPhone/iPad/hardware scanner results, accessibility review |
+| #37 | E07 | W3 | A+B | `feat/e07-f03-custody-transfers-idempotency` | L | #35, #36, #33, #34 | Custody, Orders, Billing.Contracts (dispatch eligibility), PWA | State/property tests, concurrency/replay tests, fail-closed dispatch tests, reconciliation walkthrough per exception type, physical rehearsal record |
+| #38 | E08 | W4 | A+B | `feat/e08-f01-inventory-masters` | M | #17, #21, #24 | Inventory, PWA | Unit conversion property tests, import/deactivation/permission tests, initial catalog review |
+| #39 | E08 | W4 | A+B | `feat/e08-f02-stock-ledger-reservations` | L | #38, #33 | Inventory, PWA (receipts, workboard material panel, item timeline) | Balance invariant property tests, concurrency reservation tests, half-post failure tests, purchase/transfer/consume/return/correction E2E on device |
+| #40 | E08 | W4 | A+B | `feat/e08-f03-low-stock-stocktake-valuation` | L | #38, #39, #47 | Inventory, Worker, Notifications (alert routing), PWA | Alert dedup and policy tests, stocktake approval separation tests, valuation golden-master tests, reconciliation footer, performance tests |
+| #41 | E09 | W3 | A | `feat/e09-f01-pricing-gst-engine` | L | #19, #29 (the issue's #32 dependency is replaced by the pricing contract, see 6.2) | Billing (engine), PWA admin | Accountant golden-master tests, rounding property tests, version publish/reproduction tests, no `Billing → Orders` reference test |
+| #42 | E09 | W4 | A+B | `feat/e09-f02-invoices-numbering-pdf` | L | #41, #32a | Billing, PDF adapter, PWA | Concurrent numbering tests, immutability trigger tests, from-order conversion idempotency, PDF snapshot + totals-match-snapshot + accessibility, barcode retrieval auth tests, accountant review |
+| #43 | E09 | W4 | A+B | `feat/e09-f03-payments-receipts-cashier-dispatch-gate` | L | #42, #37, #24 | Billing, Custody (gate), PWA | Allocation property tests, idempotent payment tests, append-only tests, cashier close reconciliation tests, dispatch eligibility semantics tests, override separation tests, UAT |
+| #44 | E10 | W4 | A+B | `feat/e10-f01-sales-gst-receivables-reports` | L | #42, #43, #21 | Reporting (foundations), Worker, PWA | Golden-data reconciliation, historical stability after new price/tax version, filter-inference and export leak tests, scheduled report authorisation test, timezone boundary and volume tests |
+| #45 | E10 | W4 | A+B | `feat/e10-f02-pipeline-workload-quality-analytics` | M | #33, #34, #37, #44 | Reporting, PWA dashboards | Projection replay/idempotency tests, reconciliation to source jobs, performance test, ops UAT |
+| #46 | E10 | W4 | A+B | `feat/e10-f03-inventory-profitability-exports` | M | #39, #40, #42, #43, #45 | Reporting, Worker exports, PWA | Reconciliation tests, export authorisation/expiry/cleanup tests, mixed-load test |
+| #47 | E11 | W4 | A+B | `feat/e11-f01-notifications-templates-adapters` | L | #21, #26, #54 | Notifications, Integration adapters, Worker, PWA centre | Adapter contract/retry tests, consent/quiet-hour/dedup tests, template safety tests, audit/redaction tests, provider-down drill |
+| #48 | E11 | W4 | A+B | `feat/e11-f02-delivery-queue-status-links-dispatch` | L | #34, #37, #43, #47 | Custody (queue), Notifications (links), PWA delivery | Unpaid/paid/partial E2E under each policy, token security tests, compensating custody tests, delivery-team mobile UAT |
+| #49 | E11 | W4 | A+B | `feat/e11-f03-feedback-alterations-service-recovery` | M | #47, #48 | Notifications (feedback), Orders (alteration contract), PWA | Token replay/rate-limit tests, follow-up idempotency/escalation/closure tests, journey UAT |
+| #50 | E12 | W1 | B | `feat/e12-f01-design-system-layouts` | L | #19, #20 | PWA design system, Storybook | Component a11y + visual regression, form contract tests, reference journeys per role, device/orientation/zoom matrix, overflow helper, CSP report-only clean |
+| #51 | E12 | W5 | B | `feat/e12-f02-pwa-install-updates-resilience` | L | #50, #21, #37, #53 | PWA service worker, drafts, offline queue | Install/update/rollback tests, 426 handling, offline/reconnect/duplicate/conflict E2E, cache/privacy inspection, quota tests, docs |
+| #52 | E12 | W5 | B | `feat/e12-f03-wcag-cross-browser-performance` | M | #50, #51 | tests/e2e, Lighthouse CI, client telemetry | Cross-browser and axe reports, manual screen-reader/zoom notes, performance budget before/after report, client telemetry redaction test |
+| #53 | E13 | W1 | A | `feat/e13-f01-api-standards-openapi-idempotency` | M | #18, #21, #23, #24 | Platform, Web host, contract tests | OpenAPI lint/diff and endpoint-inventory test in CI, idempotency/concurrency/timeout tests, error-leak and rate-limit tests, version-compatibility test, browser BFF/CSRF/no-token-storage run |
+| #54 | E13 | W4 | A | `feat/e13-f02-integration-events-webhooks` | M | #21, #53 | Integration, module mappers, Worker | Commit/rollback/duplicate/ordering/replay tests, signature/rotation/SSRF tests, policy filter tests, slow-receiver load test |
+| #55 | E13 | W4 | A | `feat/e13-f03-provider-adapters` | L | #53, #54, #43, #47 | Integration adapters | Contract suites, fault injection (no half-posting), callback security tests, reconciliation report tests, accounting balanced totals, vendor-SDK isolation test |
+| #56a | E14 | W2 | C | `docs/e14-f01a-threat-models-asvs` | M | #18, #19, #24, #53 | docs/security, CI gates | Threat models per flow, abuse cases, ASVS traceability skeleton with owners, vulnerability management and exception register, severity gates and licence audit in CI |
+| #56b | E14 | W5 | C+A | `feat/e14-f01b-security-baseline-regression-pentest` | L | #56a, #55 | Platform.Security, CI, tests | Enforcing CSP, automated security regression suite, ASVS traceability audit, pen test report and remediation |
+| #57 | E14 | W5 | A | `feat/e14-f02-privacy-audit-encryption-secrets` | L | #19, #24, #26, #31 | Platform (audit integrity, retention policies), Customers, Media, Worker | Data inventory, data-subject request tests, retention job tests, audit hash-chain/gap/completeness review, rotation exercise log |
+| #58 | E14 | W5 | A+C | `feat/e14-f03-observability-slo-resilience` | L | #19, #21, #56a | Platform.Observability, infra/observability, tests/load | Telemetry redaction tests, burn-rate alerts with runbooks, retry-safety fault test, load/soak/mixed-load results vs NFRs, game-day records |
+| #59 | E15 | W5 | C | `feat/e15-f01-environments-cicd-releases` | L | #22, #56b, #58 | infra, .github | Provenance chain, deploy-time signature check, clean-environment provisioning test, failed migration/health and rollback rehearsals, patch-management workflow, permissions review |
+| #60 | E15 | W5 | C | `feat/e15-f02-backups-pitr-dr-runbooks` | M | #57, #58, #59 | infra/backup, docs/runbooks | Automated restore test, PITR and missing-object exercises, DR exercise by a non-author operator with RPO/RTO, backup access/immutability review |
+| #61a | E15 | W5 | A+C | `feat/e15-f03a-test-strategy-fixtures` | M | #52 | tests/fixtures, docs/qa | Test strategy, consolidated fixture catalogue, import validation flow or "no source data" decision |
+| #61b | E15 | W5 | B | `feat/e15-f03b-e2e-suite` | L | #61a, #59 | tests/e2e | Business-scenario regression per category and exception with stored artefacts, dress rehearsal incl. restore and rollback |
+| #61c | E15 | W5 | C | `feat/e15-f03c-uat-pilot-golive` | L | #61b, #60 | docs/uat, docs/training, docs/launch | UAT signatures, accountant approval, training material, pilot report with entry/exit criteria, go/no-go record, hypercare and post-launch review schedule, release evidence index |
 
 ---
 
@@ -494,64 +687,107 @@ acceptance criteria, which remain the contract.
 
 ### #17 [E01-F01] Workflow maps, glossary, configurable taxonomy
 
-- **Deliverables**: `docs/prd/00-overview.md`, `docs/prd/glossary.md`, `docs/prd/workflows/<category>.md` (Mermaid
-  flowcharts for happy path and exceptions per category), `docs/prd/state-transitions.md` (table: transition,
-  actor, preconditions, outputs, audit event, exception behaviour), `docs/prd/raci.md`,
-  `docs/prd/configurable-vs-fixed.md`, `docs/prd/assumptions-and-open-decisions.md`.
+- **Deliverables**: `docs/prd/00-overview.md`; `docs/prd/glossary.md`; `docs/prd/workflows/<category>.md` with two
+  sections each — *Current practice* (paper registers, verbal handoffs, paper job cards, cash book, as observed in
+  the workshop) and *Target workflow* (Mermaid flowcharts for happy path and exceptions) — closing with a "what
+  changes for staff" table that feeds training (#61c); `docs/prd/workflows/branch-scenarios.md` (single branch,
+  customer served at a second branch, cross-branch garment/material transfer, branch-specific category/price
+  availability, branch closure/holiday), each naming the owning module and the branch-scope rule (#24);
+  `docs/prd/state-transitions.md` (transition, actor, preconditions, outputs, audit event, exception behaviour);
+  `docs/prd/raci.md`; `docs/prd/configurable-vs-fixed.md`; `docs/prd/category-hierarchy.md` (confirmed initial
+  hierarchy Blouse → Pattern, Aari work; Salwar; Lehenga; Gown; Kids; code/naming conventions; the rule that
+  administrators add categories without deployment; the per-category links every service type carries:
+  measurement template, workflow definition, design option groups, price-list item, QC checklist);
+  `docs/prd/measurement-templates.md` (proposed field sets per category: key, label, group, canonical unit mm,
+  display units, precision, required, ranges, conditional rules, diagram — the seed source for #27);
+  `docs/prd/assumptions-and-open-decisions.md` with an explicit **Out of scope** section (customer self-service
+  accounts, multi-legal-entity tenancy, e-commerce).
 - **Method**: Claude drafts from the issues and this plan; owner runs the workshops using the drafts as the
   agenda; decisions are recorded in the open-decisions file and folded back into the documents.
 - **Exception catalogue to map**: duplicate customer, missing material, changed measurements, rejected QC,
   rework, late order, damaged label, cancelled order, refund, unpaid dispatch attempt, negative feedback.
-- **Evidence**: one end-to-end walkthrough per category recorded in `docs/prd/walkthroughs.md`; requirement
-  traceability table linking each original request to workflow and owning module.
+- **Evidence**: one end-to-end walkthrough per category in `docs/prd/walkthroughs.md`; exception flows reviewed
+  with one representative each of Reception, Tailor Master, Inventory, Cashier and Delivery, recorded in
+  `docs/prd/reviews/exception-review.md`; traceability table with columns *original request → workflow(s) →
+  owning module → backlog issue(s)*; any request without an issue gets a decision (new issue or out of scope).
 
 ### #18 [E01-F02] Modular architecture, ownership, data model, ADRs
 
 - **Deliverables**: `docs/architecture/context.md`, `container.md`, `components.md`, `deployment.md`,
-  `sequences/` (order confirmation, barcode handoff, invoice posting + payment, stock reservation + consumption),
-  `docs/architecture/module-ownership.md` (Section 4.3 expanded), `docs/architecture/invariants.md`,
-  `docs/architecture/conventions.md` (money, time, identifiers, concurrency, API versioning, migration
-  compatibility), ADRs in `docs/adr/` using MADR format:
-  ADR-0001 modular monolith and extraction criteria; ADR-0002 .NET 10 LTS and Minimal APIs; ADR-0003 React PWA;
-  ADR-0004 PostgreSQL schema-per-module; ADR-0005 object storage and signed access; ADR-0006 BFF cookie session;
-  ADR-0007 branch-aware single tenancy; ADR-0008 transactional outbox and background workers; ADR-0009 configurable
-  taxonomy as versioned data; ADR-0010 deployment portability (containers, compose baseline, Kubernetes-ready);
-  ADR-0011 reporting read models; ADR-0012 integration adapters and ports.
-- **Architecture-test rule list** (implemented in #20): module `Domain` references only Platform.Abstractions;
-  `Application` never references another module's `Infrastructure`; only `Contracts` cross modules; no `DbContext`
-  of one module maps tables of another schema; hosts reference modules only through registration extensions.
+  `sequences/` (order confirmation with barcode allocation, barcode handoff, invoice posting + payment, stock
+  reservation + consumption), `docs/architecture/module-ownership.md` (Section 4.3 expanded, including the
+  object-storage ownership column), `docs/architecture/invariants.md`, `docs/architecture/conventions.md`
+  (money, time, identifiers, concurrency, API versioning, migration compatibility),
+  `docs/architecture/architecture-rules.md` (rules `ARCH-001`… with assertion, allowed exceptions and the #20
+  test class implementing each), ADRs in `docs/adr/` using MADR format: ADR-0001 modular monolith and extraction
+  criteria; ADR-0002 .NET 10 LTS and Minimal APIs; ADR-0003 React PWA; ADR-0004 PostgreSQL schema-per-module;
+  ADR-0005 object storage and authorised delivery; ADR-0006 BFF cookie session; ADR-0007 branch-aware single
+  tenancy; ADR-0008 transactional outbox and background workers; ADR-0009 configurable taxonomy as versioned
+  data; ADR-0010 deployment portability (containers, compose baseline, Kubernetes-ready); ADR-0011 reporting read
+  models; ADR-0012 integration adapters and ports; ADR-0013 caching (D21).
+- **Architecture-test rules** (implemented in #20, extended by later issues): `Domain` references only
+  `Platform.Abstractions`; `Application` never references another module's `Infrastructure`; only `Contracts`
+  and `Platform.*` cross modules; no `DbContext` maps tables of another schema; hosts reference modules only
+  through registration extensions; every endpoint declares a policy or a justified `[AllowAnonymous]`; every
+  command endpoint carries the audit filter; provider SDK packages are referenced only by
+  `Integration.Infrastructure` and test projects; `Billing` never references `Orders`; `Reporting` references
+  only `Contracts` projects.
 - **Evidence**: review record of the four representative flows against the diagrams; failure-mode notes for
   database, object storage and worker outages.
 
 ### #19 [E01-F03] NFRs, SLOs, data policy, Definition of Done
 
 - **Deliverables**: `docs/nfr/support-matrix.md` (devices, browsers, OS versions, orientations, camera/scanner/
-  printer capabilities and fallbacks), `docs/nfr/capacity-and-performance.md` (users, branches, orders, scans,
-  stock transactions, images, reports, concurrent billing; budgets for LCP/INP/CLS, API p95, bundle sizes),
-  `docs/nfr/slo.md` (availability, latency, error rate, job lag, notification latency, RPO, RTO, backup retention,
-  restore-test cadence), `docs/nfr/data-classification.md` (classes, purpose, consent, access, retention,
-  backup treatment for DB, media, logs, audit, exports, backups), `docs/nfr/accessibility-localisation.md`,
-  `docs/nfr/security-operations-targets.md` (patching and vulnerability SLAs, incident targets),
-  `docs/process/definition-of-ready.md`, `definition-of-done.md`, `release-gates.md`, `waivers.md`,
-  `docs/nfr/traceability.md` (NFR → test/monitor/evidence → owner).
+  printer capabilities and fallbacks); `docs/nfr/capacity-and-performance.md` (users, branches, orders, scans,
+  stock transactions, images, reports, concurrent billing; budgets for LCP/INP/CLS, API p95, bundle sizes,
+  memory on the lowest supported device for the scan and capture screens); `docs/nfr/slo.md` stating
+  availability, latency, error rate, job lag, notification latency, RPO, RTO, backup retention and restore-test
+  cadence **per candidate hosting model** (single-VM on-prem/compose vs managed cloud) with the monthly cost band,
+  backup destination, failover mechanism and staffing each requires — the selected model is marked once Section
+  11 decision 2 is taken and the compatibility statement is signed by the owner; `docs/nfr/data-classification.md`
+  (classes incl. credentials and secrets: password hashes, MFA secrets, recovery codes, session tickets, provider
+  keys, backup keys; purpose, consent, access, retention, backup treatment for DB, media, logs, audit, exports,
+  backups; items needing legal review marked); `docs/nfr/accessibility-localisation.md`;
+  `docs/nfr/security-operations-targets.md` (patching and vulnerability SLAs, incident targets);
+  `docs/process/definition-of-ready.md`, `definition-of-done.md`, `release-gates.md` (blocking severity and
+  authorised waiver owner per gate with expiry), `waivers.md`; `docs/nfr/traceability.md` (NFR → test/monitor/
+  evidence → owner); `docs/nfr/reviews/stakeholder-review.md` (product, engineering, security, operations and the
+  accountant, who confirms GST record retention, financial-data classification and export needs);
+  `docs/nfr/risk-review.md` (infeasible or costly targets with mitigation or waiver, completed before W1).
 - **Proposed starting targets** (to be confirmed): availability 99.5% monthly; API p95 < 400 ms for reads and
-  < 800 ms for commands at the stated load; scan round-trip p95 < 1 s on 4G; outbox lag < 30 s p95; RPO ≤ 15 min
-  (WAL archiving), RTO ≤ 4 h; backups retained 35 days plus monthly for 12 months; critical vulnerability fix
-  ≤ 7 days, high ≤ 30 days.
+  < 800 ms for commands at the stated load; scan round-trip p95 < 1 s on 4G; outbox lag < 30 s p95; session
+  revocation and user deactivation effective on every host within 60 s p99; MFA challenge round-trip < 2 s p95;
+  RPO ≤ 15 min (WAL archiving), RTO ≤ 4 h; backups retained 35 days plus monthly for 12 months; critical
+  vulnerability fix ≤ 7 days, high ≤ 30 days, medium ≤ 90 days.
 
 ### #20 [E02-F01] Scaffold solution, module boundaries, local environment
 
 - **Deliverables**: solution per Section 4.2 with empty module skeletons and registration extensions; PWA
   skeleton (Vite, TypeScript strict, ESLint, Prettier, Vitest, Storybook placeholder); `infra/compose/`
-  (`docker-compose.yml` for PostgreSQL 16, MinIO, ClamAV, MailHog/Mailpit, OpenTelemetry collector + Grafana
-  stack optional); `.env.example` files with no secrets; `Tailor360.Cli` with `migrate`, `init-reference-data` (idempotent, production-safe: roles, permissions,
-  default catalog, document sequences, an initial owner account created from a one-time secret) and `seed-synthetic`
-  (development and test only; refuses unconditionally when `ASPNETCORE_ENVIRONMENT=Production`, with no override flag); health endpoints
-  `/health/live`, `/health/ready`, `/health/startup`; `docs/dev/setup.md` (Windows/WSL, macOS, Linux),
-  `troubleshooting.md`, `ports.md`, `commands.md`; one-command scripts (`./scripts/dev up|test|reset|run`).
+  (`docker-compose.yml` for PostgreSQL 16, MinIO, ClamAV, Mailpit, OpenTelemetry collector; observability stack
+  optional profile) with `healthcheck` blocks (`pg_isready`, `/minio/health/ready`, `clamdcheck`, Mailpit);
+  `.env.example` files with no secrets; `Tailor360.Cli` with `migrate`, `init-reference-data` (idempotent,
+  production-safe: roles, permissions, default catalog, document sequences, an initial owner account created
+  from a one-time secret) and `seed-synthetic` (development and test only; refuses unconditionally when
+  `ASPNETCORE_ENVIRONMENT=Production`, with no override flag; in #20 it creates only the minimal rows the health
+  checks need — one organisation, one branch — and #21 supplies the full deterministic dataset).
+- **Health checks per component**: web host `/health/live`, `/health/ready`, `/health/startup` (database, object
+  storage, ClamAV when enabled); worker host exposes the same three endpoints on `WORKER_HEALTH_PORT` reporting
+  database connectivity and a heartbeat row in `platform.worker_heartbeats` (stale heartbeat → unhealthy); PWA
+  check `GET /` returns the app shell whose build hash matches `GET /api/version`; `./scripts/dev status` prints
+  all five states and its output is the PR evidence. Health payloads expose component status only, never
+  configuration values.
+- **Cross-platform commands**: `scripts/dev` (bash) and `scripts/dev.ps1` (PowerShell) with identical verbs
+  `up | restore | build | test | run | reset | status`; `up` runs `restore` (`dotnet restore`, `pnpm install`)
+  first. `docs/dev/setup.md` (Windows 11 + WSL2, macOS, Linux), `troubleshooting.md`, `ports.md`, `commands.md`.
+- **Minimal CI and branch protection**: `.github/workflows/ci.yml` with restore/build/test for .NET and pnpm, and
+  branch protection on `main` (required status check, one review, no direct pushes, linear history) so that #21
+  and every later PR is gated; #22 extends the same workflow.
 - **Architecture tests** from #18's rule list, including a deliberately failing example kept as a negative test.
-- **Evidence**: clean-clone build log from two environments; tests run twice; secret scan output.
-- **Environment prerequisite**: Claude Code sessions need the .NET 10 SDK, Node 22 and Docker; see Section 12.
+- **Evidence**: clean-clone build logs from Windows/WSL and macOS or Linux; tests run twice to expose order
+  dependence; secret scan output; branch-protection settings screenshot.
+- **Environment prerequisite**: Claude Code sessions need the .NET 10 SDK, Node 22 and Docker; the environment
+  image definition is recorded under `infra/dev-environment/` (Section 12).
 
 ### #21 [E02-F02] Persistence conventions, migrations, outbox, configuration, flags
 
@@ -559,37 +795,70 @@ acceptance criteria, which remain the contract.
   money, `xmin` concurrency, audit columns, schema name); migration runner with advisory lock and startup
   validation (`pending migrations → refuse to serve`); `outbox_messages`, `inbox_messages`, `idempotency_keys`,
   `sequences`, `audit_events` (append-only, trigger-protected), `feature_flags`, `feature_flag_evaluations`
-  (sampled audit).
+  (sampled audit), `worker_heartbeats`; `IAuditWriter` and the `SaveChanges` audit interceptor plus the
+  `[Audited]` endpoint filter (Section 4.4) so every state-changing endpoint from #23 onward satisfies the
+  roadmap rule.
 - **Worker**: outbox dispatcher (`FOR UPDATE SKIP LOCKED`, batch, exponential backoff with jitter, max attempts,
-  dead letter), inbox de-duplication for handlers, operator replay endpoint (`admin.outbox.replay` permission).
+  dead letter), inbox de-duplication for handlers, heartbeat writer.
+- **Sequencing note**: #21 precedes authentication (#23) and the permission catalogue (#24), so #21 exposes **no
+  HTTP endpoints** for outbox replay or flag mutation. Operator replay and flag mutation ship as guarded
+  `Tailor360.Cli` commands (`replay-outbox <id|--dead-letter>`, `flags set <key> --scope org|branch --reason`)
+  executed with an operator identity recorded in `platform.audit_events`; the application services declare the
+  authorisation requirements (`admin.outbox.replay`, `admin.feature_flags`) that #24 fulfils; the HTTP endpoints
+  are delivered in #25 with step-up and reason.
 - **Configuration**: typed options with `ValidateDataAnnotations().ValidateOnStart()`; secret sources: environment
   variables and Docker/Kubernetes secrets; optional Vault/Key Vault provider behind an interface.
-- **Flags**: organisation/branch scope, owner-only mutation with reason, cached evaluation with change
-  notification, safe default off.
-- **Seed**: two separate commands. `init-reference-data` creates the reference data every environment needs
-  (roles, permissions, default catalog, sequences, initial owner) idempotently and is safe in production.
-  `seed-synthetic` creates deterministic synthetic branches, users and sample business data with fixed IDs for
-  development and automated tests only and refuses unconditionally in production (no override flag).
-- **Health**: migration state, outbox backlog/age, failed jobs, flag store, database connectivity.
-- **Tests**: outbox commit/rollback atomicity, duplicate delivery no double effect, poison message to dead letter
-  and replay, concurrent update conflict, config missing → startup failure, migration from empty DB and from the
-  previous release snapshot (snapshot stored under `tests/fixtures/db-snapshots/`).
+- **Flags**: organisation/branch scope, mutation restricted to `admin.feature_flags` with reason, cached
+  evaluation with `LISTEN/NOTIFY` change notification and a documented bound (visible on the mutating node
+  immediately and on every node within 30 s; each evaluation records the flag version applied) in
+  `docs/platform/feature-flags.md`; safe default off.
+- **Seed**: `init-reference-data` (roles, permissions, default catalog placeholders, sequences, initial owner) is
+  idempotent and safe in production; `seed-synthetic` creates deterministic synthetic branches (two, for
+  branch-scope tests), users per role, and sample business data with fixed IDs for development and automated
+  tests only and refuses unconditionally in production. This dataset is the origin of the fixture library
+  consolidated by #61a.
+- **Docs**: `docs/dev/migrations.md` — expand/contract rules, per-module migration generation, startup refusal on
+  pending migrations, backward-compatibility check against the previous release snapshot, rollback/restore
+  procedure (forward-only fix migration first; restore from backup when data was mutated), referenced by the PR
+  template.
+- **Health**: migration state, outbox backlog/age, failed jobs, flag store, database connectivity, heartbeats.
+- **Tests**: outbox commit/rollback atomicity; duplicate delivery no double effect; poison message to dead letter
+  and replay; audit row written atomically with the mutation and rolled back with it; audit table rejects
+  UPDATE/DELETE from the application role; concurrent update conflict; config missing → startup failure;
+  secrets never leak (sentinel values in connection string, storage key and a fake provider secret never appear
+  in logs, exception output, problem details, `/health/*` or exporter output, including on startup validation
+  failure); flag propagation bound with two hosts; migration from empty DB and from the previous release
+  snapshot (`tests/fixtures/db-snapshots/`).
 
-### #22 [E02-F03] CI quality gates, repository governance, Claude Code workflow
+### #22 [E02-F03] CI quality gates, repository governance, Claude Code workflow, interim staging
 
 - **`CLAUDE.md`** (concise): architecture summary, commands (`dotnet build/test`, `pnpm test`, `./scripts/dev`),
   module boundary rules, security rules (authorisation, validation, idempotency, audit, no secrets/PII in logs),
   testing rules, Git workflow (one issue/one branch/one PR, Conventional Commits with `Refs #NN`), Definition of
   Done; path-scoped rules in `src/Modules/CLAUDE.md`, `clients/pwa/CLAUDE.md`, `infra/CLAUDE.md`.
-- **Templates**: issue templates (feature, bug, security), PR template mirroring the evidence checklist, ADR
-  template, threat-model template, release evidence checklist; `CODEOWNERS`; branch protection documentation.
+- **Templates and governance**: issue templates (feature, bug, security), PR template mirroring the evidence
+  checklist, ADR template, threat-model template, release evidence checklist; `CODEOWNERS`; branch protection
+  documentation; **PR policy job** (`.github/workflows/pr-policy.yml`, a required status check) that fails when
+  the PR body does not link exactly one open issue (`Refs #NN` / `Closes #NN`), when the branch name does not
+  match `feat|fix|docs/eXX-fYY[a-c]?-<slug>`, or when a mandatory evidence-checklist item is unchecked once the PR
+  is ready for review; a `release-ready` label is applied only by this check.
 - **CI (`.github/workflows/ci.yml`)**: restore/build (.NET + pnpm), formatting (`dotnet format --verify-no-changes`,
   Prettier), lint (ESLint, analyzers as errors), unit/integration/architecture tests with Testcontainers, migration
   check (apply to empty DB + snapshot), PWA build and Vitest, dependency review, gitleaks, CodeQL, Trivy on images
-  and IaC, SBOM (Syft) upload; least-privilege `permissions:` blocks; third-party actions pinned by SHA;
-  Dependabot with grouped updates; security exception process documented.
+  and IaC, SBOM (Syft) upload; artefacts and summaries (TRX/JUnit results, Cobertura coverage with a per-project
+  floor, Playwright traces on failure, SARIF from CodeQL/Trivy/gitleaks, failing tests and rules written to
+  `GITHUB_STEP_SUMMARY`); least-privilege `permissions:` blocks; third-party actions pinned by SHA; CI runs on
+  `pull_request` only (never `pull_request_target` with a checkout of the PR head); deployment secrets exist only
+  in protected GitHub Environments with required reviewers; fork PRs receive no secrets; `id-token: write` only in
+  the release workflow; Dependabot with grouped updates; documented security exception process.
+- **Interim staging** (Lane C): `infra/compose/docker-compose.staging.yml` (Caddy TLS, seeded synthetic data, no
+  production secrets, access restricted to staff test accounts) redeployed from `main` by a CI job, so that UAT
+  screenshots, real-device tests, physical label rehearsals and cashier/delivery UAT listed as evidence for W2–W4
+  have a place to run; #59 replaces it with the IaC-managed pipeline and destroys it.
 - **Evidence**: runs on deliberately broken branches (format, test, architecture, secret, vulnerability); baseline
-  CI duration and optimisation budget.
+  CI duration and optimisation budget; **workflow demonstration** — a sample change taken through issue →
+  `feat/…` branch → PR with plan and evidence checklist → CI green → CODEOWNERS review → squash merge → tagged
+  build, then reverted through a second PR to demonstrate rollback, recorded in `docs/process/workflow-demo.md`.
 
 ### #23 [E03-F01] Authentication, sessions, MFA, recovery
 
@@ -600,37 +869,73 @@ acceptance criteria, which remain the contract.
 - **Session/BFF**: cookie auth with server-side ticket store (`identity.sessions`: id, user, device label, IP,
   user agent, created, last seen, absolute expiry, revoked); rotation on login, MFA and role change; sliding
   inactivity timeout (default 30 min) and absolute timeout (default 12 h); anti-forgery token endpoint and
-  header validation; `SameSite=Lax; Secure; HttpOnly`; security headers baseline.
+  header validation; `SameSite=Lax; Secure; HttpOnly`; security headers baseline (HSTS, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`) and a report-only CSP; revocation checked per
+  request via the cache in D21.
 - **Abuse controls**: per-account and per-IP throttling, progressive lockout, generic error messages, optional
   CAPTCHA adapter, anti-enumeration on recovery (same response timing and message).
+- **Outbound email**: `Platform.Abstractions.IEmailSender` and a minimal `IEmailTemplateRenderer` for recovery,
+  invitation and security-alert messages, `FakeEmailSender` for tests, SMTP adapter (Mailpit locally, configured
+  relay elsewhere), no message body or token in logs; #25 invitations reuse it; #47 moves adapters under
+  Integration.
 - **Recovery**: email-based verified reset with single-use expiring token; admin-initiated reset requires step-up.
 - **Audit**: login success/failure, MFA enrol/challenge, recovery, session create/revoke, suspicious activity.
 - **Endpoints**: `POST /api/v1/auth/login`, `/mfa/challenge`, `/passkeys/*`, `/logout`, `/logout-all`,
   `GET /me`, `GET/DELETE /sessions`, `POST /recovery/request`, `/recovery/confirm`, `GET /antiforgery`.
+- **PWA screens (Lane B, on the #20 skeleton, re-skinned by #50)**: login; MFA challenge (TOTP, passkey, recovery
+  code); MFA enrolment (QR + one-time recovery-code display); passkey registration and management; recovery
+  request/confirm; session and device inventory with revoke and logout-all; step-up re-authentication dialog
+  (reused by #25). Keyboard- and screen-reader-usable on phone/tablet/desktop; no token material client-side.
+- **Threat model** (required verification): `docs/security/threat-models/authentication.md` from the #22
+  template — DFD of login, MFA, passkey, recovery and admin reset; STRIDE table; abuse cases (credential stuffing,
+  recovery-token interception, MFA fatigue, session fixation, admin reset misuse, step-up bypass); each
+  mitigation mapped to a test in this PR; reviewed before merge; consolidated by #56a.
 - **Tests**: session lifecycle, lockout, CSRF rejection, fixation (new session id after login), replay after
-  revocation (denied within SLO), enumeration timing; Playwright browser tests for cookies/headers/logout.
+  revocation (denied within the #19 SLO), enumeration timing; Playwright browser tests for cookies/headers/logout
+  and an assertion that `localStorage`, `sessionStorage` and IndexedDB contain no token/ticket material after
+  login and MFA, that `document.cookie` cannot read the session cookie and that the anti-forgery token is the
+  only value scripts can read.
 
 ### #24 [E03-F02] RBAC, branch scopes, authorisation regression tests
 
 - **Permission catalogue** in `Platform.Security` as a strongly typed list grouped by module; roles Owner, Admin,
-  Reception, Measurement Staff, Tailor Master, Tailor, Inventory, Cashier, Delivery, Auditor with default
-  grants in seed data and an admin-editable role → permission map (custom roles allowed).
+  Reception, Measurement Staff, Tailor Master, Tailor, Inventory, Cashier, Delivery, Auditor with default grants
+  in seed data and an admin-editable role → permission map (custom roles allowed);
+  `docs/security/permission-matrix.md` (role × permission × branch scope with rationale) reviewed and approved by
+  the owner before merge; the generated matrix test reads this file so approval and enforcement cannot diverge.
 - **Policies**: `PermissionRequirement`, `BranchScopeRequirement` (user branch assignments vs resource branch),
   `ResourceOwnershipRequirement` (tailor sees assigned jobs only); endpoint filters that load the resource's
-  branch before the handler runs; deny-by-default for every endpoint (an architecture test fails if an endpoint
-  lacks an explicit policy or `AllowAnonymous` with justification attribute).
+  branch before the handler runs; deny-by-default for every endpoint (architecture test); **field-level
+  minimisation**: response DTOs for Tailor-facing endpoints (job card, measurement sheet, work queue) exclude
+  customer contact details, pricing and payment state; matrix fixtures declare the allowed field set per role.
 - **Background context**: `SystemPrincipal` with explicit scope for workers/exports; media and download endpoints
   re-check authorisation on every request.
-- **Regression suite**: generated matrix test (role × endpoint × own-branch/other-branch) from the OpenAPI
-  document; IDOR tests with foreign identifiers; export and job authorisation tests; audit of denied privileged
-  actions with sampling to avoid log floods.
+- **Regression suite**: generated matrix test (role × endpoint × own-branch/other-branch, plus field masks) from
+  `EndpointDataSource` metadata (the OpenAPI document is completed by #53) so an endpoint without a policy cannot
+  escape the matrix; fixtures in `tests/Tailor360.IntegrationTests/Authorization/matrix.yaml` extended by every
+  later PR (DoD item 2); IDOR tests with foreign identifiers; export and job authorisation tests; audit of denied
+  privileged actions with sampling to avoid log floods.
+- **Manual two-branch walkthrough** (required verification): two seeded branches with one representative user per
+  role in each; scripted in `docs/security/role-walkthrough.md`; each role exercises its permitted actions in its
+  own branch and the corresponding denied actions against the other branch (including edited identifiers);
+  screenshots or problem-details responses per step attached to the PR.
 
 ### #25 [E03-F03] Audited administration for users, branches, permissions, flags
 
 - **Screens (desktop-first, tablet-capable)**: users (invite/create, activate, suspend, branch assignment, role
-  assignment, MFA status, revoke sessions), branches (code, name, timezone, address, GST registration reference,
-  contact, status, data-scope rules), roles/permissions, feature flags and module/menu toggles (super-user only),
-  audit history drawer (before/after, actor, reason, correlation ID, effective time).
+  assignment, tailor skills attribute, MFA status, revoke sessions), branches (code, name, timezone, working
+  calendar and holidays, address, GST registration reference, contact, status, data-scope rules),
+  roles/permissions, feature flags and module/menu toggles, outbox dead-letter replay, audit history drawer
+  (before/after, actor, reason, correlation ID, effective time).
+- **Endpoints** (every mutation requires `Idempotency-Key`, `If-Match`, a reason and writes audit):
+  `GET/POST /api/v1/admin/users`, `POST /api/v1/admin/users/{id}/invite|activate|suspend|reinstate|reset-mfa|revoke-sessions`,
+  `PUT /api/v1/admin/users/{id}/branches`, `PUT /api/v1/admin/users/{id}/roles`; `GET/POST/PUT /api/v1/admin/branches`,
+  `PUT /api/v1/admin/branches/{id}/calendar`, `POST /api/v1/admin/branches/{id}/deactivate`;
+  `GET/PUT /api/v1/admin/roles/{id}/permissions`; `GET/PUT /api/v1/admin/feature-flags/{key}`,
+  `PUT /api/v1/admin/modules/{code}/enabled`; `GET /api/v1/admin/audit?subject=…`;
+  `POST /api/v1/admin/outbox/{id}/replay`.
+- **Permissions**: `admin.users`, `admin.branches`, `admin.roles` (Owner, Admin); `admin.feature_flags` (Owner and
+  the HyFib super-user role only); `admin.audit.read` (Owner, Auditor); `admin.outbox.replay` (Owner, Admin).
 - **Controls**: step-up (re-authenticate with MFA within 5 minutes) for role/permission/billing/security changes;
   mandatory reason; dual confirmation for Owner-level changes; no deletion of referenced identities/branches
   (deactivate); safe search/filter/pagination; export restricted to Auditor/Owner.
@@ -642,171 +947,385 @@ acceptance criteria, which remain the contract.
 
 - **Model** (`customers` schema): `customers` (customer_number `C-<branch>-000001`, name, normalised_name,
   primary_phone, alternate_phone, phone_normalised (E.164), email, address, language, preferences, notes,
-  status, visibility branches), `consent_records` (purpose, version, source, granted/withdrawn, actor, time),
-  `duplicate_candidates` (score, reasons, decision), `customer_merges` (survivor, merged, actor, reason).
-- **Search**: exact (phone, customer number) and fuzzy (trigram on normalised name, phonetic) with permission
-  filtering; duplicate scoring at create time (phone match, name similarity, address similarity) with explanation;
-  merge requires `customers.merge` permission and keeps source IDs as aliases.
-- **Timeline**: read model composed from module contracts (measurements, orders, invoices, payments, delivery,
-  feedback, alterations, consent, notes) with permission-aware entries.
+  status, visibility branches), `customer_aliases`, `consent_records` (purpose, wording version, source,
+  granted/withdrawn, actor, time), `duplicate_candidates` (score, reasons, decision), `customer_merges`
+  (survivor, merged, actor, reason). Consent purposes are seeded configuration (`measurement_storage`,
+  `photo_capture`, `transactional_messages`, `marketing_messages`, `feedback_requests`) with versioned wording.
+- **Search**: exact (phone, customer number, alias) and fuzzy (trigram on normalised name, phonetic) with
+  permission filtering; duplicate scoring at create time (phone match, name similarity, address similarity) with
+  explanation; merge (`POST /customers/{survivor}/merge`, `customers.merge`) writes `customer_merges`, keeps the
+  merged number as an alias, re-points measurements/orders through `CustomerMerged`, is irreversible, and keeps the
+  merged history readable in the survivor's timeline.
+- **Lifecycle and corrections**: `PUT /api/v1/customers/{id}` (with `If-Match`) is a correction with mandatory
+  reason and before/after audit; `id` and `customer_number` never change. `POST /customers/{id}/deactivate` and
+  `/reactivate` (`customers.deactivate`, reason); deactivated customers stay searchable to Owner/Admin/Auditor and
+  remain referenced by orders and invoices. There is **no delete endpoint**; the retention-approved erasure
+  workflow arrives with #57 and refuses while orders, invoices, payments or holds reference the record.
+  `POST /customers/{id}/export` (`customers.export`, Owner/Auditor by default) produces an audited, expiring
+  download of profile, consent history and measurement summary (no images) — the basis of #57's subject-access
+  export.
+- **Consent contract** (`Customers.Contracts`): `IConsentQuery.Get(customerId, purpose)` → `{ status, version,
+  recordedAt, source, recordId }`; `ICommunicationPreferenceQuery.Get(customerId)` → `{ allowedChannels, language,
+  quietHours }`; integration events `customers.consent-recorded.v1`, `consent-withdrawn.v1`,
+  `preferences-changed.v1`. Media (#31) stores the consent record id it relied on; Notifications (#47) evaluates
+  the query server-side before every send. Contract tests in this PR.
+- **Field-level visibility**: DTOs projected through a `CustomerViewPolicy`: `customers.read` returns name,
+  customer number, branch and status; `customers.read_contact` adds phones/email/address; `customers.read_notes`
+  adds notes; consent history requires `customers.read_consent`. Tailor and Tailor Master receive no contact
+  fields (job cards show customer name and job number only). Search results and timeline entries are filtered by
+  the same policy and by branch (visibility branches ∩ caller's branch assignments).
+- **Timeline**: `Platform.Abstractions.ITimelineSource { For(customerId, branchScope, permissions, cursor) }`
+  registered per module; #26 ships the consent, note, correction/merge and (after #28) measurement sources and the
+  BFF composition endpoint `GET /api/v1/customers/{id}/timeline` in the web host; #32a, #34, #42, #43, #48 and #49
+  register their sources in their own PRs. Ordering by server event time with stable tie-break; entries carry the
+  permission required to expand them.
 - **Screens**: search-first "Find or create customer" (phone keypad on mobile), create/edit with concurrency
   handling, detail with timeline tabs (tablet master-detail).
-- **Tests**: normalisation/validation/duplicate scoring unit tests; merge, concurrency, branch scope, timeline
-  ordering integration tests; phone/tablet UAT screenshots.
+- **Tests**: normalisation/validation/duplicate scoring unit tests; merge, correction, deactivation, export,
+  concurrency, branch scope, field mask and timeline ordering integration tests; consent contract tests;
+  phone/tablet UAT screenshots.
 
 ### #27 [E04-F02] Configurable measurement-template administration
 
-- **Model**: `measurement_templates` (category/service link, name), `template_versions` (status draft/published/
-  retired, effective dates, reason, actor), `template_fields` (key, label, group, display order, canonical unit
-  millimetre, display units allowed, precision, required, min/max/warning ranges, conditional rules expressed as a
-  small JSON rule language, help text, diagram media reference).
-- **Rules**: published versions immutable; clone to draft; retirement blocked while active orders reference it
-  unless a successor exists; preview and test-data validation before publish; audit with reason.
-- **Seed**: initial templates for Blouse (Pattern, Aari work), Salwar, Lehenga, Gown, Kids with the field sets
-  proposed in `docs/prd/measurement-templates.md` (drafted from the scaffold's category configuration: length,
-  chest, waist, shoulder, armhole, neck depths, sleeve length/round, apex, hip, bottom lengths, skirt length,
-  flare, and so on) for business review.
-- **Tests**: property tests for cm/inch conversion and rounding round-trips; publish/retire/historical-render
-  integration tests; admin authorisation tests.
+- **Model**: `measurement_templates` (category/service link, name), `template_versions` (status draft/in_review/
+  published/retired, effective dates, reason, actor), `template_fields` (key, label, group, display order,
+  canonical unit millimetre stored as `numeric(8,2)`, allowed display units, precision 0–2 or `fraction_of_inch`
+  1/8 or 1/16, required, min/max/warning ranges, conditional rules in a small JSON rule language, help text,
+  `diagram_media_id` nullable reference resolved through `Media.Contracts.IMediaReference` with a bundled
+  line-drawing fallback by `diagram_key` until #31).
+- **Units**: exact constants (1 in = 25.4 mm, 1 cm = 10 mm); display rounding half-up to field precision; the
+  stored value is the converted entered value, never a re-rounded display value.
+- **Lifecycle and permissions**: `draft → in_review → published → retired`; commands
+  `POST /api/v1/customers/measurement-templates/{id}/versions/{v}/submit|approve|publish|retire|clone`; edit and
+  submit require `catalog.templates.edit`; publish/retire require `catalog.templates.publish` (Owner/Admin by
+  default, step-up per #25; the submitter cannot also publish when more than one administrator exists,
+  configurable); published versions immutable (database trigger); clone creates a new draft; retirement blocked
+  while active orders reference the version unless a successor exists; audit with reason; concurrent publish
+  returns 409; registers an `ICatalogDependencyValidator` (#29) rejecting catalog publication that references a
+  non-published template and rejecting its own retirement while a published catalog version references it.
+- **Publish-time validation** (field-level problem details): unknown field keys in conditions, cyclic conditional
+  dependencies, min > max or warning range outside min/max, precision not allowed for the display unit, required
+  field hidden by an unconditional rule, duplicate keys, missing or retired category/service reference; preview
+  and test-data validation before publish.
+- **Seed**: initial templates for Blouse (Pattern, Aari work), Salwar, Lehenga, Gown, Kids from
+  `docs/prd/measurement-templates.md` (#17) loaded by `init-reference-data`.
+- **Tests**: property tests (`toDisplay(fromDisplay(x)) == x` at field precision in both units; conversion
+  monotonic; converted `min ≤ warning_low ≤ warning_high ≤ max`); lifecycle/permission/historical-render
+  integration tests; publish-time validation tests; business review of each initial template.
 
 ### #28 [E04-F03] Responsive measurement capture, validation, versioning, reuse
 
-- **Flow**: choose customer → choose category/service → wizard groups (from template) with progress, large numeric
-  inputs (`inputmode="decimal"`), unit toggle, diagrams, inline warnings, accessible error summary; autosaved
-  draft (server-side `measurement_drafts` + local encrypted copy); review with previous-version comparison
-  (field-by-field diff, source date/version shown); confirm creates immutable `measurement_versions` row.
-- **Server rules**: template version pinned at draft creation; if the template is republished mid-capture the
-  draft shows a migration prompt; required/range/conditional validation server-authoritative; correction = new
-  version with reason; concurrency on draft with `If-Match`.
-- **Outputs**: `MeasurementVersionConfirmed` event; printable/view-only measurement sheet for authorised tailors
-  (no unrelated customer data; access audited).
-- **Tests**: validation and snapshot invariants; concurrent confirmation (only one version created); template
-  change during capture; interrupted capture recovery without duplicates; real-device usability notes with the
-  longest template.
+- **Flow**: choose customer → choose category/service → wizard groups (from the active published template) with
+  progress, large numeric inputs (`inputmode="decimal"`), unit toggle, diagrams, inline warnings, accessible
+  error summary → review with previous-version comparison (field-by-field diff, source date/version shown) →
+  confirm.
+- **Explicit reuse**: when a confirmed version exists for the customer/category, the wizard offers "Reuse version N
+  (taken <date> by <staff>)" or "Take new measurements"; reuse requires explicit confirmation, records
+  `reused_from_version_id`, actor and reason, never defaults silently to the latest version; a retired template
+  version cannot be reused without the migration prompt.
+- **Drafts (server-side only in this issue)**: `measurement_drafts` (customer, template version, values JSON,
+  current step, `expires_at` default 24 h, `xmin`); autosave on every step change and on blur through
+  `PUT /api/v1/customers/measurements/drafts/{id}` with `If-Match`; unsaved state stays in memory with a warning
+  before navigation; expired drafts are hard-deleted by the retention job and return 410 with a "start again from
+  the last confirmed version" action. Encrypted local drafts and background sync are #51's scope.
+- **Server rules**: template version pinned at draft creation; republished template mid-capture → migration
+  prompt; required/range/conditional validation server-authoritative; correction = new version with reason.
+- **Confirm**: `POST /measurements/drafts/{id}/confirm` with mandatory `Idempotency-Key`; one transaction:
+  validation, insert `measurement_versions` (version number per customer × template), mark the draft consumed
+  (unique partial index), emit `MeasurementVersionConfirmed`; a retry with the same key or a consumed draft
+  returns the original version, never a second one.
+- **Audit**: `measurement.draft_confirmed`, `measurement.reused`, `measurement.corrected`,
+  `measurement.sheet_viewed`/`sheet_printed`, `measurement.exported` (values included in the #26 export only for
+  `customers.export`).
+- **Outputs**: printable/view-only measurement sheet for authorised tailors (no unrelated customer data; access
+  audited; Tailor access only through the resource-ownership requirement that #33 registers for assigned jobs).
+- **Tests**: validation and snapshot invariants; idempotent confirm; concurrent confirmation (only one version);
+  template change during capture; interrupted capture recovery on a phone profile (network loss mid-wizard → app
+  reopened → server draft resumed → exactly one version on confirm); log/telemetry capture asserting no field
+  key/value appears (redaction policy lists `measurements.*`); matrix tests for `measurements.*` endpoints;
+  immutability trigger on `measurement_versions` (job-card criterion completed by #32a's snapshot regression).
 
 ### #29 [E05-F01] Configurable stitching-category and service catalog
 
 - **Model** (`catalog` schema): `categories` (code, name, parent, display order, active dates, branch
-  availability, feature flag), `service_types` (category, code, name, description, expected duration, links to
-  measurement template, workflow definition, design option groups, price list item), `catalog_versions`
-  (draft/published/retired snapshot of the hierarchy used by orders).
-- **Rules**: no cycles, unique codes, dependency validation before publish, retirement blocked with in-progress
-  orders, cache with version-based invalidation, permission-aware read API (`GET /catalog/current`).
-- **Seed**: Blouse → Pattern, Aari work; Salwar; Lehenga; Gown; Kids.
+  availability, feature flag), `service_types` (category, code, name, description, expected duration, nullable
+  references `measurement_template_id` (#27), `design_option_group_ids` (#30), `workflow_definition_id` (#33),
+  `qc_checklist_template_id` (#34), `price_list_item_code` (#41)), `catalog_versions` (draft/published/retired
+  snapshot of the hierarchy used by orders).
+- **Validation and contracts**: publish runs every registered `Catalog.Contracts.ICatalogDependencyValidator`;
+  #29 ships the built-in validators (cycles, unique codes, orphaned parent, retired references, branch
+  availability ⊆ parent's) and the registration point; #27, #30, #33, #34 and #41 add validators for their
+  references. A service with a missing dependency may be published only with `allow_incomplete=true` and is
+  flagged `not_orderable`. `Catalog.Contracts.ICatalogAvailabilityQuery.IsOrderable(serviceTypeId, branchId, at)`
+  (published version, active dates, branch availability, feature flag on, not `not_orderable`) is used by #32a at
+  confirmation and by the read API (`GET /catalog/current`) so inactive/unavailable services are neither listed
+  nor accepted.
+- **Rules**: retirement blocked with in-progress orders; version-keyed cache (D21) with invalidation on
+  `CatalogVersionPublished`; permission-aware read API.
+- **Seed**: Blouse → Pattern, Aari work; Salwar; Lehenga; Gown; Kids (from `docs/prd/category-hierarchy.md`).
 - **Screens**: admin tree editor with preview and branch availability; demonstration "add a category without a
   deployment" recorded as evidence.
-- **Tests**: hierarchy/lifecycle, cache invalidation, concurrent publish.
+- **Tests**: hierarchy/lifecycle, validator registration, availability contract, cache invalidation, concurrent
+  publish.
 
 ### #30 [E05-F02] Visual shape and design catalog with garment-level selections
 
 - **Model**: `design_option_groups` (category links, name, selection mode single/multiple, required, display
-  order), `design_options` (label, illustration media, help text, price impact, time impact, active), `design_rules`
+  order, `branch_availability`, `active_from/to`), `design_options` (label, `illustration_media_id` with bundled
+  line-drawing fallback until #31, help text, price impact, time impact, active), `design_rules`
   (requires/excludes/conditional-note between options and categories), versioned with the catalog version.
-- **Snapshot contract** (consumed by Orders): `GarmentDesignSnapshot` { catalog version, selected options with
-  labels and illustration references, customer notes, tailor instructions, approvals, revision number }.
-- **Screens**: responsive visual picker (thumbnail grid, zoom, selection summary, validation), job-card view with
-  printable fallback; revision flow with reason and price/due-date impact review.
-- **Tests**: rule-engine unit/property tests, snapshot immutability after catalog change, concurrent revision
-  tests, tablet usability review.
+- **Split of responsibilities**: #30 delivers, in Catalog, the rule engine
+  (`IDesignSelectionValidator.Validate(catalogVersionId, categoryId, selections) → violations`), the snapshot
+  builder (`GarmentDesignSnapshot.From(catalogVersion, selections, notes, instructions)` — a value object
+  serialised as JSON embedding labels, illustration references and option versions so it renders without a
+  catalog lookup), the responsive picker (thumbnail grid, zoom, selection summary, validation) and the job-card
+  component with printable fallback. Persistence of confirmed snapshots (`orders.garment_design_snapshots`: job,
+  `revision_number`, snapshot JSON, reason, approved_by, immutable rows) and the post-confirmation command
+  `POST /jobs/{id}/design-revisions` (`orders.revise_design`, reason, price/due-date delta via #41 shown before
+  approval, blocked once the workflow marks design frozen) are wired in #32a, with the alteration path in #34;
+  `orders.design-revised.v1` is consumed by #47 for notification.
+- **Seed** (`docs/prd/design-options.md`, loaded by `init-reference-data`): Blouse — front neck, back neck, sleeve
+  type/length, fit, closure (hooks/zip, front/back), lining, padding, blouse length, embellishment, pattern, Aari
+  work (motif, density, placement; shown only when service = Aari work); Salwar — neck, sleeve, kameez length,
+  slit, bottom style; Lehenga — skirt style, flare, waist, blouse options, dupatta; Gown — neckline, sleeve,
+  silhouette, length, closure; Kids — simplified subsets with age-band notes; dependency rules (padding requires
+  lining; Aari embellishment requires the Aari service type).
+- **Tests**: rule-engine unit/property tests; integration tests persisting draft snapshots in
+  `catalog.design_selection_drafts` (reused for intake autosave in #32b) to prove immutability after a catalog
+  republish and 409 on concurrent revision; tablet usability review on the seed; "add an option without
+  deployment" demo.
 
 ### #31 [E05-F03] Secure customer-material and reference-image lifecycle
 
-- **Model** (`media` schema): `media_objects` (purpose MATERIAL/REFERENCE/DIAGRAM/QC_EVIDENCE/DELIVERY_EVIDENCE,
-  owner branch, links customer/order/job, classification, consent reference, retention date, status
-  uploading/quarantined/ready/rejected/deleted, checksum, size, mime, dimensions), `media_derivatives`,
+- **Model** (`media` schema): `media_objects` (purpose MATERIAL/REFERENCE/DIAGRAM/ILLUSTRATION/QC_EVIDENCE/
+  DELIVERY_EVIDENCE, owner branch, links customer/order/job, classification, consent record id, retention date,
+  status uploading/quarantined/ready/rejected/deleted, checksum, size, mime, dimensions), `media_derivatives`,
   `media_access_log`, `retention_holds`.
 - **Pipeline** per Section 4.4: allowlist (JPEG, PNG, WebP, HEIC → converted), decoded signature validation,
-  quarantine bucket, ClamAV scan, metadata strip and re-encode, thumbnails, ready; random object keys; signed URLs
-  (≤ 5 min) issued only after policy check; no PII in filenames.
-- **Client**: camera capture and gallery upload with progress, retry, cancel, preview, caption; deletion
-  request flow.
-- **Operations**: retention job, legal/business hold, orphan cleanup, storage health metrics; backup treatment
-  documented.
-- **Tests**: adversarial corpus (polyglot, spoofed extension, oversized, EICAR), URL copy after expiry/revocation
-  denied, EXIF removed, tailor cross-job access denied, outage/retry/orphan cleanup, large-image performance on
-  device.
+  `media-quarantine` bucket, ClamAV scan, metadata strip and re-encode, thumbnails, `media-ready` bucket; random
+  object keys; no PII in filenames; bucket-level server-side encryption mandatory (SSE-S3/KMS locally, provider
+  KMS in production) with a startup health check that fails if a media bucket is publicly readable or SSE is
+  disabled; admin upload path for DIAGRAM/ILLUSTRATION (branch-independent, no consent record, indefinite
+  retention) and a migration registering the bundled assets from #27/#30 as media objects.
+- **Delivery**: `GET /api/v1/media/{id}/content?variant=thumb|preview|original` re-evaluates the media policy on
+  every request (branch, customer/order/job link, purpose, consent record, `status = ready`, and for Tailor roles
+  an assignment to the linked job), writes `media_access_log`, then streams from storage (`Cache-Control:
+  private, no-store`) or, when `Media:RedirectToSignedUrl=true`, issues a single-use signed URL with ≤ 60 s expiry
+  bound to the object version and redirects. The PWA never receives a storage URL.
+- **Client**: camera capture and gallery upload with progress, retry, cancel, preview, caption; deletion request
+  flow.
+- **Operations**: retention job under a `SystemPrincipal` with `media.retention` selecting
+  `retention_date < now AND status = ready AND NOT EXISTS (retention_holds)`; each deletion idempotent (status
+  deleted, derivatives removed, storage delete tolerant of 404) with one audit event per media id; held records
+  skipped and counted; failures retry with backoff and surface as a health signal; legal/business hold; orphan
+  cleanup; storage health metrics; backup treatment documented.
+- **Tests**: adversarial corpus (polyglot, spoofed extension, oversized, EICAR); copied signed URL rejected after
+  first use and after 60 s; endpoint returns 403 immediately after session revocation, role change, consent
+  withdrawal or media deletion; EXIF removed; tailor cross-job access denied; retention rerun performs zero
+  additional deletions; outage/retry/orphan cleanup; large-image performance on device.
 
-### #32 [E06-F01] Estimates, multi-garment orders, immutable job cards (split 32a/32b)
+### #32 [E06-F01] Estimates, multi-garment orders, immutable job cards (sub-issues #32a backend, #32b intake UI)
 
-- **Model** (`orders` schema): `estimates`, `orders` (order_number `O-<branch>-<FY>-000001`, customer, branch,
-  status draft/confirmed/in_production/ready/delivered/closed/cancelled, due date, priority, notes, totals,
-  confirmed_at, idempotency), `garment_jobs` (job_number `J-…`, order, category/service version, measurement
-  version, design snapshot, media links, price snapshot, due date, priority, lifecycle state), `order_revisions`.
-- **Confirmation**: single transaction: validate catalog/template/workflow availability and required evidence
-  (measurements, consents), snapshot inputs, allocate numbers, create job cards, write outbox events
-  (`OrderConfirmed`, `GarmentJobCreated`) consumed by Custody (barcode identity), Orders workflow (instantiate),
-  Inventory (reservations when configured). `Idempotency-Key` mandatory.
-- **32b intake UI**: select/create customer → add garments (category, service, design, measurements capture or
-  reuse, media, notes) → dates/priority → totals via pricing engine (#41) → validation summary → estimate
-  print/share → confirm. Autosave drafts with expiry.
-- **Tests**: confirmation rollback and duplicate request, snapshot regression after catalog/measurement change,
-  role/branch restrictions on search/view/edit/print/export, phone/tablet UAT.
+- **Model** (`orders` schema, #32a): `order_drafts` (server-side autosave with expiry), `estimates` (priced,
+  shareable snapshot of a draft: `E-<branch>-<FY>-000001`, `PricingResult` snapshot with configuration versions,
+  validity date, status issued/superseded/converted, artefact checksum), `orders` (display number
+  `O-<branch>-<FY>-000001`, customer snapshot reference, branch, status draft/confirmed/in_production/ready/
+  delivered/closed/cancelled, due date, priority, notes, totals, confirmed_at, idempotency), `garment_jobs`
+  (display number `J-<branch>-<FY>-000001-01`, category/service version, measurement version, design snapshot,
+  media links, price snapshot, due date, priority, lifecycle confirmed → in_production → ready → delivered →
+  closed plus cancelled/on_hold, workflow definition reference), `garment_job_dependencies` (job, prerequisite
+  job, type `finish_before` | `deliver_together`, reason), `garment_design_snapshots`, `order_revisions`.
+- **Identifiers**: the UUIDv7 resource id is the only identifier in API paths, deep links, printed QR/URLs and
+  customer links (74 random bits, always authorised against branch scope; enumeration caught by the #24 IDOR tests
+  and #53 rate limits); display numbers are human-readable references searchable only by authenticated users
+  with `orders.read` in the branch and are never lookup keys on customer-facing surfaces; job-card barcodes carry
+  the opaque `G-…` payload (D9), never the display number; the intake UI shows the display number only after
+  confirmation.
+- **Confirmation** (`POST /orders/{draftId}/confirm`, mandatory `Idempotency-Key`): single transaction: validate
+  catalog/template/workflow availability (`ICatalogAvailabilityQuery`) and required evidence (measurements,
+  consents), snapshot inputs, allocate display numbers, create job cards with the workflow *definition* reference
+  (instantiation happens at start-production, #33), run the in-transaction `GarmentJobCreated` handlers (#35
+  allocates the barcode identity so labels print in the reception session), write outbox events
+  (`OrderConfirmed`, `GarmentJobCreated`) consumed by Inventory (reservations when configured), Billing and
+  Reporting.
+- **Estimates**: `POST /orders/{draftId}/estimates` renders a PDF through `IPdfRenderer` ("Estimate — not a tax
+  invoice") plus an in-app print view; share issues an expiring customer link limited to `purpose = estimate`
+  (mechanism generalised by #48); never numbered in the invoice sequence, never posted; #42 consumes
+  `EstimateIssued` only to prefill an invoice draft.
+- **Revision window**: `POST /orders/{id}/revisions` (`orders.revise`, reason, `If-Match`) is allowed while every
+  job is `confirmed` and none has entered production; re-runs validation and pricing, supersedes the estimate,
+  records `order_revisions` and republishes `OrderConfirmed` with `revision_number`; after production starts,
+  changes go through #34 alteration requests only.
+- **Dependencies between jobs**: `deliver_together` is honoured by the ready gate (#34) and delivery queue (#48)
+  unless partial delivery is approved per configuration; `finish_before` blocks the dependent job's first phase
+  until the prerequisite phase completes (#33); snapshot with the order.
+- **Timeline**: registers an `ITimelineSource` for orders/jobs.
+- **#32b intake UI**: select/create customer → add garments (category, service, design via the #30 picker,
+  measurements capture or explicit reuse, media, notes, dependencies) → dates/priority → totals via
+  `IPricingService` (#41) → validation summary → estimate print/share → confirm. Server-side draft autosave with
+  expiry; phone/tablet layouts.
+- **Tests**: confirmation rollback and duplicate request; snapshot regression after catalog/measurement change;
+  identifier and enumeration tests; estimate PDF snapshot; revision-window tests; role/branch restrictions on
+  search/view/edit/print/export; phone/tablet UAT for single and multi-garment intake.
 
 ### #33 [E06-F02] Configurable production workflow, assignment, Tailor workboard
 
 - **Model**: `workflow_definitions` → `workflow_versions` (phases with code, name, required roles, evidence,
   duration/SLA, optional/skippable, transitions graph, category mapping), `job_phases` (instantiated per job with
-  server timestamps), `assignments` (job, phase, assignee, team, reason, history).
-- **Seeded default workflow**: Intake → Cutting → Specialist work (Aari, conditional) → Stitching → Finishing →
-  QC → Ready for delivery; exception states Rework, On hold.
-- **Rules**: published graph validated (reachable end, no dead ends); one immutable workflow version per active
-  job; transitions authorised by permission + role eligibility; concurrency via job version; events for queues,
-  alerts, reports, inventory consumption.
-- **Screens**: phone scanner-first work queue, tablet master-detail workboard, desktop planning board; filters
-  assigned/unassigned/overdue/priority/blocked/due-soon; workload view per Tailor Master.
-- **Tests**: graph property tests, invalid transitions, concurrent scans cannot double-complete, reassignment
-  history, queue reconciliation and response-time targets.
+  server timestamps), `assignments` (job, phase, assignee, team, reason; new row per reassignment, never updated),
+  `assignee_capabilities` (user or team × category code × phase code, `valid_from/to`, optional daily capacity,
+  granted by Tailor Master/Admin with reason).
+- **Entering production**: `OrderConfirmed` (#32a) does not instantiate the workflow; it records the definition
+  id. `POST /jobs/{id}/start-production` (`orders.start_production`, Tailor Master/Admin; also triggered by the
+  first phase scan in #37 when the branch setting `Workflow:AutoStartOnFirstScan=true`) resolves the currently
+  published version for the definition, pins `garment_jobs.workflow_version_id`, creates `job_phases` and emits
+  `JobEnteredProduction`. The pinned version never changes; order revision (#32a) is refused afterwards.
+- **Seeded default workflow** (published by `init-reference-data`): Intake → Cutting → Specialist work (Aari,
+  conditional) → Stitching → Finishing → QC → Ready for delivery; exception states Rework, On hold.
+- **Administration** (desktop-first; `catalog.workflows.edit` / `catalog.workflows.publish`, step-up):
+  `GET/POST /api/v1/orders/workflow-definitions`, `.../versions`, `.../versions/{v}/validate|publish|retire|clone`;
+  editor with phase list, transition matrix and graph preview highlighting unreachable phases, dead ends, missing
+  start/end and phases with no eligible role; publish refused while validation reports errors; retire refused
+  while a published catalog version maps a category to the definition unless a successor is published;
+  registers an `ICatalogDependencyValidator`; audit with reason.
+- **Eligibility and assignment**: assignment validation = same branch ∧ active user ∧ role permitted for the
+  phase ∧ a capability row for the job's category and phase (or `Workflow:RequireCapabilityMatch=false`);
+  workload view groups open phases per assignee against capacity; reassignment keeps earlier completions
+  attributed to the previous assignee.
+- **Transitions**: authorised start/pause/resume/complete with server timestamps, job-version concurrency,
+  `finish_before` dependency enforcement, and events `JobPhaseChanged`, `JobAssigned/Reassigned/Unassigned`
+  written to the outbox in the same transaction (each carrying job, order, branch, category/service version,
+  workflow version, phase code, actor role, server time and previous state).
+- **Due/aging and SLA evaluator** (worker, D12): due dates and SLA clocks use the branch timezone and the optional
+  branch working calendar (#25) — non-working days are skipped and SLAs pause when configured; a scheduled job
+  (every 15 minutes) raises `JobDueSoon`, `JobOverdue`, `PhaseSlaBreached` (and `HoldOverdue` from #34) exactly once
+  per job × condition, cleared on completion; due-soon window and escalation delay are branch configuration;
+  feeds queue filters, #45 projections and #47 routing.
+- **Screens**: phone scanner-first work queue (uses `ManualEntrySource` until #36; the `ScannerSource` interface is
+  defined here), tablet master-detail workboard, desktop planning board, "Team" screen for capabilities; filters
+  assigned/unassigned/overdue/priority/blocked/due-soon; measurement-sheet access registered for assigned jobs.
+- **Tests**: graph property tests, invalid transitions, concurrent scans cannot double-complete, eligibility
+  rejections, reassignment history, evaluator boundary at midnight `Asia/Kolkata` with no duplicate raise, queue
+  reconciliation and response-time targets, workboard device test.
 
 ### #34 [E06-F03] QC, rework, alteration, hold, cancellation, completion controls
 
-- **Model**: `qc_checklist_templates` (per category, criteria, fit checks), `qc_results` (immutable, defects,
-  evidence media, actor), `rework_tasks`, `alteration_requests` (before/after delivery, original job link, reason,
-  changed measurement/design versions, price/due decisions, communication status), `holds`, `cancellations`.
-- **Ready-for-delivery gate**: derived server-side from workflow complete + QC passed + custody reconciled +
-  documentation; never set directly by clients.
+- **QC checklist templates are catalog configuration** (D8): `catalog.qc_checklist_templates` →
+  `qc_checklist_versions` (category/service link; criteria typed pass/fail | measurement tolerance | fit check;
+  defect codes; evidence required; responsible role; draft/published/retired), administered through the #29
+  catalog admin shell with an `ICatalogDependencyValidator`. Orders stores in `qc_results` the
+  `qc_checklist_version_id` plus a JSON copy of the criteria evaluated so results render identically after
+  template changes.
+- **Model** (`orders`): `qc_results` (immutable, defects, evidence media, actor), `rework_tasks`,
+  `alteration_requests` (before/after delivery, original job link, reason, changed measurement/design versions,
+  price/due decisions, communication status, source staff/feedback), `holds`, `cancellations`; reason codes
+  configurable.
+- **Ready-for-delivery gate**: `ReadyForDeliveryGate` evaluates `WorkflowComplete`, `QcPassed` (latest result
+  pass, no open rework), `DocumentationComplete` (required evidence present), `NoOpenHold`, `DependenciesMet`
+  (`deliver_together`) and `CustodyReconciled` (through `Custody.Contracts.ICustodyStateQuery`; #34 registers a
+  placeholder returning `Unknown`, treated as blocked when `Custody:GateEnabled` is on — default off until #37);
+  each predicate returns a reason code; the result is materialised as `garment_jobs.ready_state` by the gate
+  alone, recomputed on every workflow, QC, hold, dependency and custody event, emitting `JobReadyForDelivery`.
 - **Policies**: cancellation blocked in prohibited financial/stock/custody states (compensating flows required);
-  hold/resume/reschedule/reopen with reason and approval.
-- **Dashboards**: failed QC, repeated rework, overdue holds, pending alterations, cancelled jobs.
-- **Tests**: state-machine tests for every exceptional path; integration with inventory/billing/notification
-  stubs; UAT for QC failure, alteration and cancellation.
+  hold/resume/reschedule/reopen with reason and approval; alteration hand-off contract
+  `Orders.Contracts.IAlterationRequests.Open(orderId, jobId, reason, source, caseId)` used by #49.
+- **Events** (versioned): `qc-recorded`, `rework-opened/closed`, `alteration-requested/decided/completed`,
+  `job-held/resumed/rescheduled`, `job-cancelled`, `order-cancelled`, `job-reopened`, `job-ready-for-delivery`;
+  billing adjustment intents (cancellation credit, alteration charge) travel as event data for #42/#43; Orders
+  never posts financial documents. Registers a timeline source for alterations and cancellations.
+- **Dashboards**: failed QC, repeated rework, overdue holds, pending alterations, cancelled jobs — query-time
+  views over the source tables, not projections.
+- **Tests**: state-machine tests for every exceptional path; gate predicate tests including the placeholder and
+  enabled behaviour; integration with inventory/billing/notification stubs; dashboard reconciliation (replay a
+  scripted history and assert dashboard counts equal counts derived from the event stream); UAT for QC failure,
+  alteration and cancellation.
 
 ### #35 [E07-F01] Barcode identifiers, labels, reprint control
 
 - **Model** (`custody` schema): `barcode_identities` (namespace, payload, entity type/id, status active/
-  invalidated/superseded, created, reason), `label_prints` (identity, template version, printer/format, actor,
-  time, reason, batch).
-- **Format**: D9; check character validated client- and server-side; Code 128 primary, QR optional carrying the
-  same payload; label templates (thermal 50×30 mm, A4 sheet) with job number, category cue, due cue, branch code,
-  print version; PDF fallback; quiet-zone and resolution validation.
-- **Controls**: generation on job confirmation (event handler), single/batch print with `custody.print_label`
-  permission, reprint with reason invalidates the previous identity (old label resolves to "superseded"), audit.
-- **Tests**: collision/property tests, checksum tests, reprint concurrency, authorisation; physical scan sheet
-  results across devices and printers.
+  superseded/invalidated, created, reason; partial unique index on `(entity_type, entity_id) WHERE status =
+  'active'`), `label_prints` (identity, template version, printer/format, actor, time, reason, batch).
+- **Format**: D9 with the alphanumeric check character; Code 128 primary, QR optional carrying the same payload;
+  label templates (thermal 50×30 mm, A4 sheet) with job number, category cue, due cue, branch code, print
+  version; PDF fallback; quiet-zone and resolution validation; `docs/architecture/identifiers.md` (namespaces,
+  length, entropy/collision budget, checksum algorithm with test vectors, lifecycle, label content policy).
+- **Allocation**: `Custody.Contracts.IBarcodeIdentityAllocator` runs as an in-transaction `GarmentJobCreated`
+  handler in the confirmation transaction (#32a), so the identity exists when the reception session prints;
+  the first scan (`intake_received`, custodian = reception/branch store) is recorded when the label is attached
+  to the customer's material (linked to `customer_material_custody` from #38 onward).
+- **Authorisation**: manual `POST /api/v1/custody/identities` (recovery only) requires `custody.generate_identity`
+  (Admin/Owner); printing uses `custody.print_label` (batch capped by configuration, default 50; larger batches
+  need `custody.bulk_print_label`); reprint and invalidation use `custody.reprint_label` / `custody.invalidate_label`
+  with a mandatory reason; reprint supersedes the old identity and inserts the new one in one transaction under
+  the job's row lock; every denied attempt is audited.
+- **Resolve endpoint** (server side of #36's confirmation card): `GET /api/v1/custody/barcodes/{payload}` validates
+  format and check character, rejects `S-`/`I-`/`R-` payloads with `barcode.wrong-namespace`, and resolves to
+  `{ status: active | superseded | invalidated | unknown, jobId, jobNumber, currentPhase, custodian,
+  permittedActions[] }` under `custody.scan` and branch scope; with `X-Scan-Source: manual` it requires
+  `custody.manual_lookup` and a reason and writes an audit event.
+- **Preview and PWA (Lane A+B)**: `POST /api/v1/custody/labels/preview` renders without recording issuance; label
+  print screen (select jobs by order, queue or scan; preview template/size/orientation; print via browser dialog
+  or download PDF); reprint action on the job card with reason.
+- **Tests**: collision/property and checksum tests; no-PII assertion (payload produced only from
+  `namespace + random + check`; generator signature accepts no customer, order, phone or name input); two
+  simultaneous reprints yield exactly one active identity; unauthorised generate/print/bulk/reprint/invalidate
+  rejected and audited; batch limit; resolve endpoint contract tests; printed test sheets per template/printer
+  under `docs/custody/label-tests/` with scan results for Android, iPhone/iPad and USB/Bluetooth scanners and a
+  durability note (fold, handling, humidity, adhesive).
 
 ### #36 [E07-F02] Camera, hardware-scanner and manual-entry scanning experience
 
-- **PWA**: `ScannerSource` abstraction (Section 4.4); camera flow (permission handling, rear camera, torch where
-  supported, scan region overlay, haptic/audio feedback, debounce window, release on navigation); keyboard-wedge
-  listener scoped to the scan screen; manual entry with reason (audited); confirmation card (job number, current
-  state, expected action) before committing sensitive transitions; error handling for unknown/inactive/
-  superseded/malformed/wrong-namespace codes.
-- **Telemetry**: decode latency, failures, permission denials, fallback usage (no frames recorded).
-- **Tests**: parser/normalisation/debounce unit tests; Playwright with injected scan events; real-device matrix
-  results; accessibility and one-handed review.
+- **PWA**: implements the `ScannerSource` abstraction defined in #33 (Section 4.4); camera flow (permission
+  handling, rear camera, torch where supported, scan region overlay, haptic/audio feedback, debounce window,
+  release on navigation); keyboard-wedge listener scoped to the scan screen; manual entry with reason (audited via
+  the #35 resolve endpoint); confirmation card (job number, current state, expected action) before committing
+  sensitive transitions; error handling for unknown/inactive/superseded/malformed/wrong-namespace codes.
+- **Server authority and fallbacks**: the PWA classifies the namespace for immediate feedback but every resolve and
+  #37 command re-validates server-side; every scan submission carries `source` (camera | wedge | manual) and, for
+  manual, the reason; when camera permission is denied or no camera exists the scan screen shows platform-specific
+  re-enable instructions and switches to wedge or manual entry without leaving the flow.
+- **Telemetry**: decode latency, failures, permission denials, fallback usage (no frames recorded), posted through
+  the client telemetry module.
+- **Tests**: parser/normalisation/debounce unit tests; Playwright with injected scan events; camera permission
+  denied completes the action via manual entry; wrong-namespace payload rejected by the API contract test;
+  manual lookup without `custody.manual_lookup` returns 403 and is audited; real-device matrix results;
+  accessibility and one-handed review.
 
 ### #37 [E07-F03] Custody transfers, phase scans, idempotency, reconciliation
 
-- **Model**: `scan_events` (immutable: event id, idempotency key, job, action, from/to custodian (user/team/
-  location), actor, device, branch, client time, server time, correlation, note, exception reason),
-  `custody_transfers` (pending → accepted/rejected/expired), `reconciliation_cases`.
+- **Model**: `scan_events` (immutable: event id, idempotency key, client event UUID, job, action, from/to
+  custodian (user | team | location), `location_id`, actor, device, branch, client time, server time,
+  correlation, `source`, `manual_reason`, note, exception reason, `corrects_event_id`, `reconciliation_case_id`),
+  `custody_transfers` (pending → accepted/rejected/expired), `reconciliation_cases` (job, type mismatch |
+  duplicate | stale | unknown_location | lost | disputed, opened_by, evidence media, status, resolution,
+  resolved_by, approved_by). `scan_events` and `custody_transfers` are append-only (database trigger).
 - **Rules**: explicit transfer-out and receive; phase/QC/ready/delivery-receipt/dispatch scans integrate with the
-  workflow state machine; validation of expected custodian, location, workflow/QC/payment prerequisites and role;
-  stale/conflicting events rejected with problem details; duplicates return the original outcome; dispatch scan
-  requires QC passed + delivery custody + payment rule (from Billing contract).
-- **Client**: bounded encrypted local retry queue for scan submissions only, with conflict surfacing.
-- **Screens**: pending transfers, overdue acceptance, mismatches, timeline and search.
-- **Tests**: state/property tests, concurrency/idempotency/offline replay, physical rehearsal from intake to
-  dispatch.
+  workflow state machine (start-production trigger per #33); validation of expected custodian, location,
+  workflow/QC prerequisites and role; stale/conflicting events rejected with problem details; duplicates (same
+  idempotency key or client event UUID) return the original outcome; supplies the real
+  `Custody.Contracts.ICustodyStateQuery` and enables the #34 gate predicate.
+- **Dispatch-eligibility contract (introduced here, implemented in #43)**:
+  `Billing.Contracts.IDispatchEligibilityQuery.GetDispatchEligibility(orderId, jobIds[])` →
+  `{ Eligible, Reason: NotEvaluated | Unpaid | PartialBelowThreshold | ApprovedException | Paid, OrderBalance,
+  AttributableAmount, EvaluatedAt, PolicyVersion }` with a default implementation that fails closed. The dispatch
+  scan rejects with `custody.dispatch-blocked` unless eligible or an approved dispatch exception exists
+  (`custody.dispatch_override`, granted by default to Owner only and never bundled with `custody.dispatch`;
+  mandatory reason; step-up; approver different from the dispatching user; expiry; `DispatchOverrideApproved`
+  audited and surfaced in #44/#45). Failed-QC garments have no override.
+- **Reconciliation and correction**: a correction is a new `scan_events` row with `action = CORRECTION` linked to
+  the corrected event and case, setting the resulting custodian/location; requires `custody.reconcile` and, above
+  a configurable threshold (branch change, phase skip, dispatch reversal), approval by a different user
+  (`custody.approve_reconciliation`); timeline shows original and correcting events side by side.
+- **Client**: scan submissions carry the client event UUID and `Idempotency-Key`; in-memory retry for the current
+  screen with visible pending state and conflict surfacing; no persistent offline queue here (#51).
+- **Screens**: pending transfers, overdue acceptance (configurable SLA per transfer type), custody mismatch,
+  duplicate/stale scans, unknown-location; each row opens or links a case; chronological scan/custody timeline
+  and search; registers a timeline source.
+- **Tests**: state/property tests for all transitions and exceptions; concurrency/idempotency/replay tests;
+  dispatch scan rejected with the default implementation, accepted with a fake returning `Paid`, accepted with an
+  approved exception (audited); recorded walkthrough of each exception type through to a compensating event;
+  physical rehearsal from intake scan to ready-for-delivery and delivery-team receipt, with dispatch through the
+  exception path (paid dispatch rehearsed in #43 and #48).
 
 ---
 
@@ -816,317 +1335,603 @@ acceptance criteria, which remain the contract.
 
 - **Model** (`inventory` schema): `stock_items` (sku, barcode `S-…` or supplier EAN, name, category, base unit,
   purchase/issue units with conversion factors, tracking method none/lot, tax metadata (HSN, GST rate reference),
-  cost method reference, status, branch/location availability), `units`, `unit_conversions`, `suppliers`,
-  `locations` (warehouse/store/bin, branch), `reorder_rules` (item × location: minimum, reorder point, target
-  quantity, lead time, responsible role), `customer_material_custody` (order/job link, description, quantity,
-  received/returned, never valued).
+  cost method reference, status, branch/location availability), `units`, `unit_conversions`, `suppliers` (name,
+  contacts, GSTIN/tax details, approval status draft | approved | suspended | retired, lead time, payment terms,
+  commercial notes; suspended/retired suppliers remain referenced by history and cannot be selected on new
+  purchase orders), `locations` (type warehouse | store | bin, branch, parent, active flag, transfer rules:
+  allowed destinations and approval-required flag), `reorder_rules` (item × location: minimum, reorder point,
+  target quantity, lead time, responsible role), `customer_material_custody` (order/job link, description,
+  quantity, received/returned, never valued).
+- **Permissions** (branch-scoped): `inventory.manage_items`, `inventory.manage_suppliers`,
+  `inventory.manage_locations`, `inventory.manage_reorder_rules`; edits outside the user's branches are rejected
+  and audited.
 - **Rules**: unique SKU/barcode within scope, conversion graph acyclic and invertible, retire instead of delete,
   retired items visible in history but not purchasable/issuable.
 - **Screens**: item admin with bulk CSV import preview and error report; supplier and location admin; reorder rule
   editor.
-- **Tests**: unit-conversion property tests; import validation, concurrency, deactivation integration tests;
-  initial catalogue business review.
+- **Tests**: unit-conversion property tests; import validation, concurrency, deactivation and permission
+  integration tests; initial catalogue business review.
 
 ### #39 [E08-F02] Immutable stock ledger for purchasing, reservation, consumption
 
-- **Model**: `ledger_entries` (immutable, append-only: item, location, type opening/purchase_receipt/reservation/
-  release/issue/consumption/return/transfer_out/transfer_in/wastage/adjustment, quantity in base unit signed,
-  unit cost, references job/phase/purchase/stocktake, actor, reason, idempotency key, correlation), `balances`
-  (materialised per item × location: on hand, reserved, available, in transit; rebuildable), `purchase_orders`,
-  `purchase_receipts` (supplier, lines, cost, tax reference, lot, evidence), `reservations`.
+- **Model**: `ledger_entries` (immutable, append-only, trigger-protected: item, location, type opening/
+  purchase_receipt/reservation/release/issue/consumption/return/transfer_out/transfer_in/wastage/adjustment,
+  quantity in base unit signed, unit cost, references job/phase/purchase/stocktake, actor, reason, idempotency
+  key, correlation, `corrects_entry_id` for compensating entries — an adjustment with reason `correction` and no
+  link is rejected), `balances` (per item × location: on hand, reserved, available, in transit; updated in the
+  same database transaction as the ledger insert, never via the outbox; a derived cache rebuilt and reconciled by
+  a scheduled job that alerts on any difference; the row lock is the serialisation point for reservations),
+  `purchase_orders`, `purchase_receipts` (supplier, lines, cost, tax reference, lot, receiving location,
+  evidence), `reservations`.
 - **Rules**: transfers post balanced pairs in one transaction; negative-stock policy configurable (block/allow with
-  approval); reservation uses row-level locking (`SELECT … FOR UPDATE` on balance) to prevent oversubscription;
-  corrections by compensating entries only (database trigger blocks UPDATE/DELETE on the ledger).
-- **Integration**: consumption recorded against garment job and phase from the workboard; `StockConsumed` event.
+  approval); reservation uses `SELECT … FOR UPDATE` on the balance; corrections by compensating entries only.
+- **Endpoints** (all with `Idempotency-Key`): `POST /api/v1/inventory/purchase-orders`, `/purchase-receipts`,
+  `/reservations`, `/movements` (type issue | consumption | return | wastage | transfer | adjustment; job/phase
+  references required for job-linked types), `GET /api/v1/inventory/items/{id}/balances`, `.../ledger`.
+- **Screens (Lane A+B)**: purchase order/receipt entry (supplier, lines with unit and conversion preview to base
+  unit, cost, tax reference, lot where enabled, receiving location, evidence photo via Media); "Record material"
+  panel on the job phase screen from #33 for issue/consumption/return/wastage against job + phase with reason and
+  scanner-first item selection (`S-` barcode via the #36 scanner); item balance card with transaction timeline;
+  location transfer; ledger browser with filters and CSV export.
+- **Events**: `StockReserved/Released/Consumed`, `PurchaseReceived`; `IStockBalanceQuery` contract.
 - **Tests**: balance rebuild equals materialised balances (property test); high-concurrency reservation; duplicate
-  requests; half-posted transfer impossible (transaction failure test); end-to-end purchase → reserve → consume →
-  return → correct.
+  requests; purchase receipt or transfer failing mid-post leaves no ledger entries and no balance change;
+  end-to-end purchase → reserve → consume → return → correct on device.
 
 ### #40 [E08-F03] Low-stock alerts, stocktake, variance approval, valuation reports
 
-- **Alerts**: worker evaluates `available + open purchase quantity` against reorder rules on ledger events and
-  hourly; alert state machine (raised → acknowledged/snoozed → escalated → cleared) deduplicated per item ×
-  location; routed to Inventory role for the branch via Notifications; cleared automatically on replenishment.
-- **Stocktake**: sessions per branch/location with freeze policy, count sheets and mobile entry (scanner-first),
+- **Alert policy** (configuration per branch, audited): evaluation basis (available vs on-hand), whether open
+  purchase quantity counts, hysteresis margin for clearing, evaluation cadence, escalation delay, target roles.
+  Worker evaluates on ledger events and on the configured cadence; alert state machine (raised → acknowledged/
+  snoozed → escalated → cleared) deduplicated per item × location; routed through Notifications (#47); cleared
+  automatically on replenishment.
+- **Stocktake**: sessions per branch/location with freeze policy, count sheets and mobile scanner-first entry,
   recount, variance explanation, approval by a different user above a threshold, posting as ledger adjustments
   linked to session evidence.
-- **Reports**: on hand, available/reserved, movement, purchase, consumption, wastage, aging, low stock,
-  replenishment; valuation using configurable method (weighted average default; FIFO optional) with immutable
-  source costs and documented treatment of returns/adjustments; filters, exports, freshness indicator.
-- **Tests**: threshold boundary and dedup; stocktake concurrency/approval/adjustment; report reconciliation at a
+- **Reports and valuation (Inventory module, served from its own ledger; no `reporting` schema)**: current on
+  hand/available/reserved/in transit per item × location, low-stock and replenishment list, stocktake variance,
+  and `Inventory.Contracts.IValuationQuery` (value per item × location at a cut-off using the configured method —
+  weighted average default, FIFO optional — and immutable source costs); `valuation_runs` (method, configuration
+  version, cut-off, totals, actor); screens are operational (Inventory role), synchronous, bounded to one branch,
+  with `inventory.view_reports` / `inventory.view_valuation` (cost figures), a reconciliation-totals footer
+  (ledger sum at the cut-off), freshness timestamp and CSV export of the current screen; treatment of returns/
+  adjustments documented in `docs/inventory/valuation.md` for accountant sign-off. Cross-branch historical
+  analytics belong to #46.
+- **Metrics** (for #58 dashboards): alerts raised/acknowledged/snoozed/escalated/cleared, alert-to-delivery
+  latency, false-positive rate (cleared without replenishment), stocktake variance rate, recurring-variance items.
+- **Tests**: threshold boundary and dedup; stocktake concurrency/approval/adjustment; accountant-supplied golden
+  fixtures under `tests/fixtures/inventory/valuation/*.json` (weighted average and FIFO; differing purchase
+  costs, supplier returns, wastage, adjustments, transfers, rounding to paise); report reconciliation at a
   cut-off; large-dataset performance.
 
 ### #41 [E09-F01] Configurable pricing, discounts, GST calculation engine
 
+- **Contract first**: `Billing.Contracts.IPricingService` and `PricingRequest`/`PricingResult` (Section 6.2 note 1);
+  no reference to order entities (architecture test).
 - **Model** (`billing` schema): `price_lists` → `price_list_versions` (effective dates, branch availability,
   items: service/product reference, base rate, inclusive/exclusive flag, allowed discount rules, surcharges for
   design/material/labour, approval thresholds), `gst_registrations` (branch, GSTIN, state code),
   `tax_configuration_versions` (tax codes, HSN/SAC, component rates CGST/SGST/IGST/cess, effective dates,
   place-of-supply rules), `calculation_snapshots`.
-- **Engine**: pure, deterministic `PricingService.Calculate(request) → CalculationResult` with line components,
-  document totals, rounding allocation and the configuration versions used; decimal arithmetic; rounding per
-  D10; inclusive and exclusive pricing; intra- vs inter-state by place of supply; manual override requires
-  `billing.override_price` permission, reason and audit and reports variance from catalogue.
+- **Engine**: pure, deterministic `Calculate(request) → PricingResult` with line components, document totals,
+  rounding allocation and the configuration versions used; decimal arithmetic; rounding per D10; inclusive and
+  exclusive pricing; intra- vs inter-state by place of supply; manual override requires
+  `billing.override_price`, reason and audit and reports variance from catalogue.
 - **Admin**: price/tax version editor with preview and test cases before publish; validation of missing tax
-  configuration before order/invoice confirmation.
-- **Tests**: accountant-supplied golden master (stored as JSON fixtures under `tests/fixtures/billing/`);
-  property tests for rounding/allocation invariants; concurrent publish and historical reproduction.
+  configuration before order/invoice confirmation; registers an `ICatalogDependencyValidator` for price items.
+- **Tests**: accountant-supplied golden master (`tests/fixtures/billing/`); property tests for rounding/allocation
+  invariants; concurrent publish and historical reproduction; `Billing → Orders` reference rejected.
 
-### #42 [E09-F02] Estimates, GST invoices, numbering, PDFs, financial immutability
+### #42 [E09-F02] GST invoices, numbering, PDFs, financial immutability
 
-- **Model**: `invoices` (status draft/posted/cancelled, branch, financial year, number, customer snapshot,
-  GST registration, place of supply, totals, tax components, source order/jobs, posted_at, hash of the posted
-  artefact), `invoice_lines`, `invoice_tax_components`, `credit_notes`, `debit_notes`, `document_sequences`
-  (branch × document type × financial year), `document_artifacts` (PDF version, checksum, storage key).
-- **Rules**: draft editable; posting allocates the next number under a row lock in the same transaction and freezes
-  content (database trigger blocks UPDATE on posted rows except status transitions defined by policy);
-  cancellation/void policy and credit/debit notes as compensating documents; deletion prohibited when referenced.
+- **Model**: `invoices` (status draft/posted, branch, financial year, number, customer snapshot, GST registration,
+  place of supply, totals, tax components, `source_order_id`, `source_estimate_id`, posted_at, artefact hash),
+  `invoice_lines` (with `garment_job_id`), `invoice_tax_components`, `invoice_cancellations` (appended record:
+  actor, reason, time, approval — the displayed status is derived), `credit_notes`, `debit_notes`,
+  `document_sequences` (branch × document type × financial year), `document_artifacts` (PDF version, checksum,
+  storage key under `documents/`).
+- **Conversion from orders**: `POST /api/v1/billing/invoices/from-order/{orderId}` (`billing.create_invoice`,
+  `Idempotency-Key`): eligibility = order confirmed and not cancelled, no open draft/posted invoice covering the
+  same garment jobs (partial invoicing per job set only when policy permits), branch tax configuration present;
+  reads the price and calculation snapshot through `Orders.Contracts.IOrderSnapshotQuery`, recalculates with the
+  same price-list/tax versions, fails with `billing.snapshot-mismatch` if totals differ, stores customer snapshot,
+  GST registration and place of supply on the draft.
+- **Immutability**: posting allocates the next number under a row lock in the same transaction and freezes the
+  row; a database trigger blocks every UPDATE/DELETE on posted rows with no exceptions; cancellation within the
+  configured window is an appended `invoice_cancellations` record plus a credit note where value has been
+  recognised; receipts and posted payments follow the same rule; deletion prohibited when referenced.
 - **PDF**: accessible invoice (tagged PDF where the renderer supports it) with business/customer details, lines,
-  discounts, GST components, totals, balance, terms, human-readable reference and an `I-…` barcode/QR; print view
-  in the PWA; download/print/email audited.
+  discounts, GST components, totals, balance, terms, human-readable reference and an `I-…` barcode/QR; in-app
+  print view; download/print audited; email is a `NotificationIntent` (`invoice.issued`, `credit_note.issued`)
+  enqueued behind the `notifications.email` flag (no-op until #47 merges), audited either way.
 - **Lookup**: `GET /api/v1/billing/barcodes/{payload}` resolves under authorisation only.
-- **Tests**: concurrent posting (no duplicate or skipped numbers), duplicate-post idempotency, immutability, PDF
-  snapshot (Verify) and accessibility check, barcode retrieval authorisation; accountant review of samples.
+- **Timeline**: registers an `ITimelineSource` for invoices and notes.
+- **Tests**: concurrent posting (no duplicate or skipped numbers), duplicate-post idempotency, conversion
+  idempotency and rejection of a second invoice for invoiced jobs, UPDATE on a posted invoice fails at the
+  database even for the application role, a cancelled invoice still renders its original PDF (hash unchanged),
+  `PdfTotalsMatchSnapshot` (text layer totals equal the persisted calculation snapshot over the #41 golden
+  fixtures), PDF accessibility check, barcode retrieval authorisation; accountant review of samples.
 
 ### #43 [E09-F03] Advances, payments, receipts, cashier reconciliation, dispatch gate
 
-- **Model**: `payments` (mode cash/card/UPI/bank/other, amount, external reference, status, payer, branch,
-  cashier, idempotency key, provider reference), `payment_allocations` (payment → invoice), `advances` (unapplied
-  amounts linked to customer/order), `refunds`/`reversals` (compensating, approval), `receipts` (numbered, `R-…`
-  barcode), `cashier_sessions` (open/close, expected vs counted, variance reason/approval).
+- **Model**: `payment_modes` (configuration: code, name, requires_reference, requires_provider,
+  allowed_for_refund, active, branch availability; seeded cash / card / UPI / bank_transfer / other),
+  `payments` (mode, amount, external reference, status, payer, branch, cashier, idempotency key, provider
+  reference), `payment_allocations`, `advances` (unapplied amounts linked to customer/order),
+  `refunds`/`reversals` (compensating, approval), `receipts` (numbered, `R-…` barcode),
+  `cashier_sessions` (open/close, expected vs counted, variance reason/approval), `reconciliation_batches`
+  (type cashier_session | provider_settlement, period, expected vs recorded totals by mode, variance, reason,
+  approver), `dispatch_exceptions`. `payments`, `payment_allocations`, `refunds`, `receipts` are append-only
+  (trigger); status changes only through new rows.
+- **Card data**: PAN, CVV and track data are never stored or logged; only masked last four digits, network,
+  provider transaction reference and authorisation code (validator rejects a 13–19 digit numeric value in any
+  reference field; redaction test in logs).
 - **Rules**: deterministic allocation (oldest invoice first) with authorised manual allocation; duplicate
-  requests/callbacks idempotent by key and provider reference; balance formula per Section 4.5; paid status
-  contract `IPaymentStatusQuery.GetDispatchEligibility(orderId)` consumed by Custody and Delivery; configurable
-  dispatch rule (full payment default; partial threshold or approved exception with reason and audit).
+  requests/callbacks idempotent by key and provider reference; balance formula per Section 4.5.
+- **Dispatch eligibility semantics** (implements the #37 contract): evaluated from Billing's own records only —
+  posted charges − allocations − credits + refunds across the order's posted invoices plus unapplied advances
+  linked to the order; no posted invoice → `NotEvaluated` (blocked) unless `dispatch.allow_on_advance` is on and
+  advances ≥ the configured share of the order price snapshot; rule `full` (default) requires balance = 0;
+  `partial_threshold` requires paid share ≥ threshold; `approved_exception` requires a `dispatch_exceptions`
+  record (`billing.approve_dispatch_exception`, reason, expiry, audited); the result carries the policy version;
+  Custody (#37) and Delivery (#48) never compute balances themselves.
+- **Events**: `PaymentRecorded/Allocated/Reversed`, `RefundRecorded`, `AdvanceReceived/Applied`,
+  `InvoicePaidStatusChanged`, `CashierSessionClosed`, `DispatchExceptionApproved` — written to the billing outbox
+  in the same transaction, carrying configuration versions and persisted tax components so consumers never
+  recalculate; `Billing.Contracts.IFinancialTotalsQuery` for reconciliation; timeline source for payments and
+  receipts.
 - **Screens**: take payment (phone/tablet), allocate advances, receipt print/share, cashier open/close and
-  reconciliation, outstanding balances.
-- **Tests**: allocation/balance property tests; concurrent payment, idempotency, reversal integration tests;
-  cashier close and unpaid/paid dispatch end-to-end UAT.
+  reconciliation, outstanding balances, dispatch exception approval.
+- **Tests**: allocation/balance property tests; concurrent payment, idempotency, reversal; append-only trigger;
+  cashier close totals by mode equal the sum of payments and refunds in the session; receipt amounts equal
+  allocations plus unapplied advance (property test); eligibility semantics for each rule; override separation
+  (approver ≠ dispatcher); unpaid/paid/partial dispatch integration tests against the real implementation;
+  cashier close and dispatch UAT.
 
 ### #44 [E10-F01] Reconciled sales, GST, payment and receivables reporting
 
-- **Read models** (`reporting` schema): `sales_daily`, `invoice_register`, `gst_summary` (from persisted tax
-  snapshots), `payments_register`, `receivables_aging`, `cashier_variance`, fed by outbox events with rebuild
-  command and freshness timestamp; metric dictionary in `docs/reports/metrics.md` (definitions, cut-off and
-  timezone rules, treatment of cancelled/voided/credited invoices, advances, partial payments).
+- **Foundations delivered by this issue (first Reporting-module issue)**: the `reporting` schema and
+  `ReportingDbContext`; the projection runner (inbox-deduplicated event handlers, `projection_checkpoints` with
+  last event position and `projected_at`, `rebuild-projection` CLI command that truncates and replays from the
+  module event streams); the freshness and reconciliation framework (`reconciliation_runs`: report, cut-off,
+  source total, projected total, delta, status, run time); scheduled reports (`report_schedules`: report, filters,
+  recipients as users/roles, cadence, branch scope, owner; run by the worker under `SystemPrincipal` narrowed to
+  the owner's permissions and branch scope at run time; delivered as an in-app notification with an authorised
+  expiring download, never an email attachment; suspended when the owner loses the permission); the governed
+  export service (`export_jobs`: requester, report, filters, format, classification, row count, status, storage
+  key under `exports/`, `expires_at`; worker generates encrypted files; `GET /api/v1/reporting/exports/{id}/download`
+  re-authorised per request and audited; expired files deleted by the retention job; small ranges may render
+  synchronously behind a row limit); **query isolation** (dedicated connection pool with `statement_timeout`
+  30 s interactive / 10 min asynchronous, `work_mem` cap, read-only transactions; large ranges run in the worker
+  with bounded concurrency and a queue limit; read replica optional in #59). #45 and #46 build on these and must
+  not re-create them.
+- **Read models** fed by outbox events with rebuild: `sales_daily`, `invoice_register`, `gst_summary` (from
+  persisted tax snapshots; configurable `gst_summary_layouts` — grouping keys tax rate, HSN/SAC, place of supply,
+  registered/unregistered customer; included document types; period basis; default mirrors the accountant's
+  monthly return working paper), `payments_register`, `receivables_aging`, `cashier_variance`,
+  `cancellations_register` (orders/jobs/invoices cancelled: reason, actor, approval, financial effect),
+  `discount_register` (line/document discounts, price overrides with reason and approver, variance from
+  catalogue); metric dictionary `docs/reports/metrics.md` (definitions, cut-off and timezone rules, treatment of
+  cancelled/voided/credited invoices, advances, partial payments).
+- **Reconciliation job**: runs after each projection checkpoint and at the daily branch cut-off; obtains source
+  totals only through `Billing.Contracts.IFinancialTotalsQuery` (architecture test: Reporting references no
+  `Billing.Infrastructure` type and no `billing.*` table); stores runs; raises `ReportReconciliationMismatch` /
+  `ReportFreshnessBreached` routed to Owner and Auditor through #47.
 - **Screens**: sales dashboard (daily/monthly/custom, by branch/category/cashier/payment mode/customer segment
   where permitted), invoice register, GST summary, payments/advances/refunds, outstanding and aging with
-  drill-through to authorised documents; exports (PDF/CSV/XLSX) with generated-at, filters, totals and
-  classification watermark; large ranges run asynchronously with secure delivery.
-- **Reconciliation job**: compares report totals to transactional sources; alerts on mismatch/freshness breach.
-- **Tests**: golden-data reconciliation; authorisation and export leak tests; timezone boundary; volume.
+  drill-through to authorised documents; **status strip** on every report screen ("data as of <branch time>",
+  projection lag, last reconciliation run and delta, rebuilding state; warning and "unreconciled" label when
+  thresholds are exceeded) served by `GET /api/v1/reporting/status?report=…`; exports print generated-at,
+  data-as-of and reconciliation status and record them in the export audit entry.
+- **Tests**: accountant-approved sample set under `tests/fixtures/reporting/` with expected totals signed off;
+  publish a new price-list and tax-configuration version dated after the sample period, rebuild all projections
+  and assert every historical total is identical; filter-inference test (a user scoped to branch A cannot obtain
+  organisation-wide or branch-B totals through any filter, drill-through or export); scheduled report owned by a
+  user without access to branch B yields no branch-B rows; timezone boundary; volume.
 
 ### #45 [E10-F02] Order pipeline, tailor workload, turnaround, quality analytics
 
-- **Projections** from order/workflow/custody/QC events: pipeline by branch/category/phase, queue age, promised vs
-  actual turnaround, overdue/blocked, assignment load, phase durations, QC pass/fail reasons, rework cycles,
-  alteration rate; exclusions/denominators/held-time rules documented.
-- **Screens**: owner/manager pipeline dashboard, Tailor Master workload/capacity, quality dashboard with context
-  (no misleading staff ranking), drill-through to authorised job timelines; active vs historical distinction.
+- **Projections** from Orders and Custody contract events only (architecture test): pipeline by branch/category/
+  phase, queue age, promised vs actual turnaround, overdue/blocked, assignment load, phase durations, QC pass/fail
+  reasons, rework cycles, alteration rate, `customer_retention` (new vs repeat customers per period, repeat
+  interval, category mix, feedback-linked signals from #49); one migration named `45_<slug>`.
+- **Metric dictionary**: one entry per metric in `docs/reports/metrics.md` — formula, source events, denominator,
+  exclusions, and the approved treatment of held time (excluded from turnaround by default), rework time (counted
+  in production time, reported separately as cycles) and cancelled jobs (excluded from turnaround, counted as
+  pipeline exits); owner sign-off recorded.
+- **Screens**: owner/manager pipeline dashboard (due today / due within N days (configurable) / overdue by branch
+  and category; bottleneck trend = queue age and WIP per phase over time; active vs closed toggle), Tailor
+  Master workload/capacity view (assigned/unassigned, filters by category eligibility from #33 capabilities and
+  the optional tailor-skills attribute from #25), quality dashboard with context (no misleading staff ranking),
+  drill-through to authorised job timelines; reuses the #44 status strip.
 - **Operations**: projection lag/mismatch alerts; rebuild reproduces live results.
-- **Tests**: replay/idempotency, reconciliation to source jobs, performance with production-sized history, ops
-  UAT scenarios (overdue, hold, QC fail, reassignment).
+- **Tests**: replay/idempotency, reconciliation to source jobs for a cut-off/filter, performance with
+  production-sized history, ops UAT scenarios (overdue, hold, QC fail, reassignment).
 
 ### #46 [E10-F03] Inventory, wastage and estimated-profitability analytics with governed exports
 
-- **Reports**: on hand/available/reserved/in transit, purchase, consumption, return, wastage, stocktake variance,
-  aging, reorder status by branch/location/item/category at a cut-off with valuation method/version; estimated
-  job profitability (invoiced/quoted revenue − allocated material cost − configured labour/overhead − discounts/
-  credits − wastage) labelled "estimated" with assumptions shown.
-- **Export service**: asynchronous jobs with encrypted temporary files, short expiry, authorised download,
-  deletion; field-level export policy per role/branch; audit of actor, filters, row count, classification.
-- **Tests**: ledger/valuation/profitability reconciliation; export authorisation, expiry and cleanup; load tests.
+- **Reports** (Reporting module, analytical, cross-branch, historical, built from Inventory events and
+  `IValuationQuery`; #40's operational screens are not duplicated): movement, purchase, consumption, return,
+  wastage, stocktake variance, aging and reorder status at any cut-off with valuation method/version; trends by
+  category/service/branch in day/week/month buckets (branch timezone); every figure drills through to the ledger
+  entries, purchase receipts, stocktake adjustments or invoices behind it via `Inventory.Contracts` /
+  `Billing.Contracts` queries that re-check the caller's branch and permission.
+- **Profitability**: estimated job/garment profitability from invoiced/quoted revenue − allocated material cost −
+  configured labour/overhead − discounts/credits − wastage; `reporting.costing_assumption_versions` (labour rate
+  per category/service or phase, overhead percentage, allocation basis, effective dates, draft/published/retired)
+  editable by Owner without code; each figure stores the assumption version and shows a "method and assumptions"
+  panel with every unavailable component marked and the figure labelled "estimated — incomplete".
+- **Exports**: field-level export policies so users only receive columns permitted to their role and branch;
+  actor, filters, row count, classification, status and download audited; uses the #44 export service.
+- **Isolation of reporting load**: uses the #44 pool/timeouts; exports and ranges above a configured size run only
+  in the worker with bounded per-branch and global concurrency and a queue limit ("queued" rather than more
+  work); long-running exports cancellable; synchronous endpoints reject requests whose estimated row count
+  exceeds the limit and offer the asynchronous path.
+- **Freshness and reconciliation**: reuses the status strip and `reconciliation_runs`; stock reconciliation compares
+  projected on-hand and valuation per item × location at the cut-off with `IStockBalanceQuery`/`IValuationQuery`.
+- **Tests**: ledger/valuation/profitability reconciliation; export authorisation, expiry and cleanup; k6
+  mixed-load scenario — order confirmation, payment and scan traffic at the #19 target rate while N concurrent
+  large exports run — asserting transactional p95 stays within budget and queueing behaves as configured.
 
 ### #47 [E11-F01] Notification templates, consent, delivery tracking, provider adapters
 
 - **Model** (`notifications` schema): `notification_intents` (event, audience, priority, template version,
   locale, channel preference, consent requirement, quiet hours, fallback policy, dedup key), `templates` →
-  `template_versions` (channel, declared variables allowlist, body with safe rendering, status),
-  `deliveries` (queued/accepted/delivered/failed/bounced/suppressed/acknowledged, provider reference, attempts),
-  `in_app_notifications`.
+  `template_versions` (channel, declared variables allowlist, body, status draft → published (immutable) →
+  retired), `deliveries` (queued/accepted/delivered/failed/bounced/suppressed/acknowledged, provider reference,
+  attempts; rendered bodies stored only here, classified personal, retention per #19), `in_app_notifications`.
+- **Templates**: `POST /api/v1/notifications/templates/{id}/versions/{v}/preview` renders with synthetic sample
+  data; `test-send` delivers only to the caller's own verified address; rendering uses a logic-less engine in safe
+  mode (auto-escaping, no expression evaluation, variables resolved only from the declared allowlist and a
+  per-event variable schema); SMS/WhatsApp bodies are plain text; publishing requires
+  `notifications.manage_templates` and a reason.
 - **Service**: outbox-driven, idempotent, retry/backoff, rate limits, dedup, dead letter, operator replay; consent
-  and preference checks server-side; transactional messages allowed per policy; role/branch routing for low
-  stock, overdue jobs, pending transfers, payment/delivery and feedback follow-up; in-app centre in the PWA.
-- **Adapters** (Integration module): `IEmailSender`, `ISmsSender`, `IWhatsAppSender`, `IPushSender` with fakes;
-  provider payload mapping and credentials outside domain modules.
-- **Tests**: adapter contract and retry/idempotency; consent, quiet hours, dedup, fallback; provider-down drill.
+  and preference checks server-side through the #26 contracts; transactional messages allowed per policy;
+  role/branch routing for low stock (#40), due-soon/overdue jobs (#33 evaluator), pending/overdue transfers
+  (#37 events), payment/delivery (#43/#48) and feedback follow-up (#49); in-app centre in the PWA; operator screen
+  for failed/dead-lettered deliveries with reason, single retry and bulk replay (`notifications.replay`, audited).
+- **Adapters** (Integration module): `IEmailSender` (moved from #23), `ISmsSender`, `IWhatsAppSender`,
+  `IPushSender` with fakes; provider payload mapping and credentials outside domain modules.
+- **Audit and logging**: audit events for template create/publish/retire (body hash, actor, reason), each send
+  decision (intent id, template version, channel, recipient reference — never the address — and outcome
+  accepted/suppressed with reason: consent, quiet hours, dedup, rate limit, preference), provider status
+  transitions and replays; Serilog redaction adds recipient address, body and provider credentials; telemetry
+  emits counts and latencies by channel/provider/outcome only.
+- **Tests**: adapter contract and retry/idempotency; consent, quiet hours, dedup, fallback; template safety
+  (undeclared variable rejected, markup escaped); audit/redaction; provider-down drill.
 
 ### #48 [E11-F02] Payment-cleared delivery queue, customer status links, dispatch confirmation
 
-- **Queue**: jobs past the ready-for-delivery gate grouped by order with due/ready age, balance, exceptions;
-  delivery-team receive scan establishes custody; server-side dispatch eligibility (QC passed, custody, active
-  order, holds resolved, payment rule from #43); partial readiness/delivery policy per configuration.
+- **Queue** (Custody module): jobs past the ready-for-delivery gate grouped by order with due/ready age, balance,
+  exceptions; delivery-team receive scan establishes custody; server-side dispatch eligibility through the #37/#43
+  contract (QC passed, custody, active order, holds resolved, payment rule); **partial-delivery policy**
+  (`custody.dispatch_policy` configuration per branch): `whole_order` (every job ready and the payment rule holds
+  for the whole order), `per_job` (ready jobs when the rule holds for the amount attributable to those jobs) or
+  `exception` (Owner/Admin approval with reason, audited); `deliver_together` dependencies honoured; the queue
+  shows the policy outcome and blocking reason per job.
 - **Dispatch**: scan with actor/time/branch, recipient confirmation appropriate to policy (name + OTP or signature
-  without over-collection), receipt reference, optional evidence; idempotent; failed/returned delivery restores
-  custody through compensating events; disputed handoff and lost-link reissue flows.
+  without over-collection), receipt reference, optional evidence; idempotent; `DeliveryConfirmed` (order, jobs,
+  recipient confirmation type, receipt reference, evidence media ids, actor, branch, server time) written to the
+  custody outbox in the dispatch transaction and consumed by Billing (delivery receipt document via the #42
+  document service), Notifications (customer message and the #49 invitation), Orders (status → delivered) and
+  Reporting; `DeliveryFailed` / `DeliveryReturned` create the compensating custody transfer back to the branch and
+  reopen the queue entry; `HandoffDisputed` opens a reconciliation case; lost-link reissue flow.
 - **Customer status link**: random 128-bit token, purpose-bound, expiring, revocable, rate-limited, shows minimal
-  progress and configured amount display; no enumerable identifiers.
-- **Tests**: unpaid/paid/partial E2E; token enumeration/expiry/authorisation/rate-limit; delivery mobile UAT.
+  progress and configured amount display; no enumerable identifiers; generalises the #32a estimate link.
+- **Timeline**: registers an `ITimelineSource` for delivery events.
+- **Tests**: unpaid/paid/partial E2E under each policy; token enumeration/expiry/authorisation/rate-limit;
+  compensating custody on failed/returned delivery; delivery-team mobile UAT; paid-dispatch physical rehearsal.
 
 ### #49 [E11-F03] Stitching feedback, alteration requests, service-recovery workflow
 
-- **Flow**: delivery confirmation → feedback invitation (consent/channel policy) with single-purpose expiring
-  token → short accessible form (overall, fit, stitching quality, design match, timeliness, comments, contact/
-  alteration request) → optional one-time edit window → low rating or alteration request creates exactly one
-  `service_recovery_cases` row (owner, due date, status, contact attempts, resolution, revised job link) with
-  staff notification and escalation on overdue.
-- **Restrictions**: feedback never mutates measurements/design/job history; free text visibility limited by
-  role/branch; reporting on rating, response rate, themes, alteration rate, resolution time.
-- **Tests**: token expiry/replay/rate limit; follow-up idempotency, assignment, escalation; journey UAT.
+- **Flow**: `DeliveryConfirmed` → feedback invitation (consent/channel policy) with single-purpose expiring token →
+  short accessible form (overall, fit, stitching quality, design match, timeliness, comments, contact/alteration
+  request) → optional one-time edit window → policy evaluation.
+- **Configuration**: `service_recovery_policy` per branch (rating threshold default ≤ 3 of 5, automatic case on
+  explicit alteration request, owner role, due time in business hours, escalation ladder).
+- **Cases**: `service_recovery_cases` (owner, due date, status, contact attempts, resolution code, revised job link,
+  closure); creation idempotent on feedback id; closing emits `ServiceRecoveryClosed`, which #47 turns into a
+  customer closure confirmation on the preferred consented channel (suppressed and audited when none exists);
+  accepted alteration requests call `Orders.Contracts.IAlterationRequests.Open(...)` (#34) and store the returned
+  job id; feedback rows are read-only after the edit window and never mutate measurements/design/job history.
+- **Restrictions and reporting**: free text visibility limited by role/branch; rating, response rate, themes,
+  alteration rate, resolution time; timeline source for feedback.
+- **Tests**: token expiry/replay/rate limit; follow-up idempotency (exactly one case per low rating or alteration
+  request), assignment, escalation, closure confirmation; journey UAT (positive, negative, alteration).
 
 ### #50 [E12-F01] Responsive design system and role-optimised layouts
 
 - **Tokens**: colour (light/dark/high-contrast ready), type scale, spacing, elevation, motion (reduced-motion
   aware), focus rings, density, breakpoints/container queries.
-- **Components**: navigation (bottom bar, side nav, tabs), forms (inputs, numeric measurement input, selects,
-  toggles, date), camera/scanner, tables and cards (responsive switch), filters, drawers/dialogs, timeline,
-  status badges, alerts/toasts, empty/error/loading, confirmation (with typed confirmation for destructive acts).
+- **Components**: navigation (bottom bar, side nav, tabs), forms with one `FieldProps` contract (label,
+  description, required, error, `aria-describedby`, `inputmode`, unit adornment) and a shared `FormErrorSummary`
+  (receives focus on failed submit, links to the first invalid field, `aria-live`; server problem-details field
+  errors map onto it), numeric measurement input, selects, toggles, date, camera/scanner, tables and cards
+  (responsive switch), filters, drawers/dialogs, timeline, status badges, alerts/toasts, empty/error/loading,
+  `ConfirmDialog` with typed confirmation and undo where reversible. No inline scripts or styles; CSP nonce
+  support; Storybook and Playwright run with the production CSP in report-only mode.
 - **Layouts**: phone (bottom navigation, scanner-first floating action), tablet (master-detail for measurements,
   queues, job cards, inventory, billing), desktop (side navigation, dense tables/dashboards); safe areas, virtual
   keyboard handling, 200% zoom, variable text size, 44 px touch targets; no hover-only information.
-- **Tooling**: Storybook with axe and visual regression (Playwright screenshots) baselines.
-- **Tests**: automated component accessibility; device/orientation/keyboard/zoom matrix; role walkthroughs.
+- **Evidence at W1**: reference journeys per role in Storybook against synthetic data — Reception (find customer →
+  intake), Measurement Staff (wizard), Tailor (scan → queue), Tailor Master (workboard), Inventory (stock
+  entry), Cashier (payment), Delivery (queue → dispatch), Owner (dashboard) — used for role walkthroughs and the
+  device/orientation/zoom matrix; a shared Playwright helper `expectNoHorizontalOverflow(page)` runs at
+  320/360/768/1024/1280 px and 200% zoom and is required by DoD item 7 for every later UI PR.
+- **Tests**: automated component accessibility and visual regression; form contract tests;
+  device/orientation/keyboard/zoom matrix; role walkthroughs.
 
 ### #51 [E12-F02] Installable PWA, safe updates, bounded network resilience
 
 - **Manifest** (icons, theme, start URL, display, screenshots, categories) and install guidance per platform;
-  service worker (Workbox) with versioned precache, network-first API, explicit deny-list for protected
-  responses; update detection with user-safe activation and `/api/version` compatibility check (minimum client
-  version); cache migration/cleanup.
-- **Drafts**: encrypted IndexedDB drafts bound to user/branch, expiring, cleared on logout/revocation.
-- **Offline queue**: only approved idempotent operations (scan submissions); billing posting, payment
-  reconciliation and prohibited transitions remain online-only; sync state, pending count, conflicts and recovery
-  actions visible; background/foreground resume handling.
-- **Tests**: install/update/rollback on Android, iPhone/iPad, desktop; offline/reconnect/duplicate/conflict E2E;
-  cache/privacy inspection; quota exhaustion.
+  service worker (Workbox) with versioned precache, network-first API, stale-while-revalidate only for an explicit
+  allowlist of non-sensitive reference endpoints (`/catalog/current`, template versions, workflow definitions,
+  feature flags; cache keys include branch and version tag), everything else under `/api` network-only.
+- **Compatibility**: the PWA sends `X-Client-Version`; on the server's 426 (#53) or a newer `current` from
+  `GET /api/version` it blocks mutations, shows the update prompt and reloads after the new service worker takes
+  control (`skipWaiting` only on user consent or when no unsaved work exists); cache migration/cleanup; rollback =
+  republishing the previous asset build with the same minimum.
+- **Local drafts**: encrypted IndexedDB drafts (per-session key) bound to user/branch, expiring, cleared on
+  logout/revocation, layered under the server-side drafts of #28 and #32b; quota exhaustion handling.
+- **Offline queue** (the only implementation): persistent, bounded (configurable maximum entries and age, default
+  200 events / 24 h), encrypted IndexedDB queue for the #37 scan endpoints only, replaying in order with the
+  original client event UUID and `Idempotency-Key`, pausing on the first 409/422 with the server problem details
+  shown, discarding entries whose session or branch no longer matches; the operations allowlist is a single typed
+  constant; billing posting, payment reconciliation and prohibited transitions remain online-only; sync state,
+  pending count, conflicts and recovery actions visible; background/foreground resume handling.
+- **Documentation**: `docs/pwa/offline-and-resilience.md` (what works offline, what is blocked, queue limits,
+  conflict handling, clearing local data) and `docs/support/pwa-troubleshooting.md` (install, stuck update,
+  storage quota, camera permission).
+- **Tests**: install/update/rollback on Android, iPhone/iPad, desktop; 426 handling; offline/reconnect/duplicate/
+  conflict E2E; cache/privacy inspection; quota exhaustion.
 
 ### #52 [E12-F03] WCAG accessibility, cross-browser fallbacks, mobile performance budgets
 
 - **Support contract** in `docs/nfr/support-matrix.md`: latest two stable Chrome, Edge, Firefox, Safari; approved
   iOS/iPadOS Safari, Android Chrome, Samsung Internet; graceful behaviour outside it.
-- **Automation**: Playwright projects (Chromium, Firefox, WebKit × phone/tablet/desktop × portrait/landscape) with
-  deterministic synthetic data over the critical paths (customer search, measurement capture, design/media, order
-  confirmation, barcode fallback, production/QC, inventory, billing, delivery, feedback); axe on every page;
-  Lighthouse CI budgets (JS/CSS/image sizes, LCP, INP, CLS) on a throttled mobile profile.
+- **Automation**: owns `tests/e2e/playwright.config.ts` (Chromium, Firefox, WebKit × phone/tablet/desktop ×
+  portrait/landscape), the page-object layer, axe and Lighthouse integrations and one smoke scenario per critical
+  path (customer search, measurement capture, design/media, order confirmation, barcode fallback, production/QC,
+  inventory, billing, delivery, feedback) on the `seed-synthetic` data; Lighthouse CI budgets (JS/CSS/image sizes,
+  LCP, INP, CLS) on a throttled mobile profile; #61b reuses the configuration and page objects.
+- **Optimisations (measured first, then applied)**: route-level code splitting and lazy loading of the scanner,
+  camera, PDF and dashboard bundles; `manualChunks` for vendor libraries; responsive image derivatives (#31) with
+  `srcset`, lazy loading and explicit dimensions; list virtualisation for queues, ledgers and registers; cursor
+  pagination defaults; font subsetting and `font-display`; before/after profiles in
+  `docs/nfr/performance-report.md`; memory targets for the scan and capture screens on the lowest supported device.
 - **Fallbacks**: capability detection for camera, barcode decoding, push, clipboard/share, printing, file capture,
   install prompts with documented alternatives.
+- **Client telemetry**: browser module posting batched, sampled events to `POST /api/v1/telemetry/client`
+  (same-origin, session-authenticated, rate-limited): unhandled errors and promise rejections (message, stack
+  hash, route name — never URL query or form data), service-worker failures, capability-detection results,
+  web vitals, browser/OS/device class; a redaction allowlist strips text content, identifiers and measurements;
+  the server maps events to OpenTelemetry logs correlated with the session's request ids (#58 dashboard).
 - **Manual**: screen reader (VoiceOver, TalkBack, NVDA), keyboard, zoom/reflow, real-device profiling.
 
 ### #53 [E13-F01] Versioned API, BFF, OpenAPI, idempotency standards
 
 - **Standards document** `docs/api/conventions.md`: same-origin BFF boundary; resource/command conventions; URI
-  versioning `/api/v1`; deprecation policy (`Deprecation`/`Sunset` headers); HTTP semantics; problem details;
-  cursor pagination, filtering, sorting, sparse fields; timezone and money formats; correlation IDs; request
-  size/time limits; rate limits; cancellation.
-- **Implementation**: OpenAPI generation with examples and security schemes; `oasdiff` breaking-change check in
-  CI; consumer contract tests for the PWA client; idempotency middleware for the command allowlist; concurrency
-  tokens (`ETag`/`If-Match`) across editable aggregates; policy-based authorisation audit of every endpoint.
-- **Tests**: OpenAPI lint/diff; idempotency/concurrency/timeout; authorisation, rate limit, error-leak.
+  versioning `/api/v1`; deprecation policy (`Deprecation`/`Sunset` headers, minimum notice period); HTTP
+  semantics; problem details; cursor pagination, filtering, sorting, sparse fields; timezone and money formats;
+  correlation IDs; request size/time limits; rate limits; cancellation; `docs/api/internal-endpoints.md`.
+- **Implementation**: OpenAPI generation with examples and security schemes; Spectral lint (every operation
+  declares security requirements, problem-details responses 400/401/403/404/409/422/429 and at least one example);
+  **endpoint inventory** contract test (every mapped endpoint appears in the OpenAPI document or carries
+  `[InternalEndpoint("reason")]`); `oasdiff` breaking-change gate that fails unless the change is under a new
+  major path or the PR carries the `api-breaking-approved` label (applied only by CODEOWNERS of `docs/api/`) plus
+  a linked deprecation entry; idempotency middleware for the command allowlist; concurrency tokens
+  (`ETag`/`If-Match`) across editable aggregates; `GET /api/version` `{ api, minimumClient, current, commit,
+  schemaVersion }` and middleware returning 426 problem details when `X-Client-Version` is below the minimum;
+  generated client wrapper injects `X-Correlation-Id`, `Idempotency-Key`, `X-Client-Version` and the anti-forgery
+  header.
+- **Tests**: OpenAPI lint/diff and inventory; idempotency/concurrency/timeout; authorisation, rate limit,
+  error-leak; version-compatibility; browser security run (extend the #23 Playwright suite: cookie attributes,
+  anti-forgery required on every state-changing request, cross-origin POST/fetch rejected, CORS denies non-origin
+  callers, session not replayable after logout-all, no token or session identifier in browser storage).
 
 ### #54 [E13-F02] Transactional integration events and signed webhook delivery
 
-- **Model** (`integration` schema): `integration_events` (envelope: id, type/version, occurred at, organisation/
-  branch, aggregate ref, correlation/causation, classification, minimal payload), `webhook_subscriptions`
-  (endpoint verified by challenge, allowlisted events, branch scope, status, secret with rotation),
-  `webhook_deliveries` (attempt, response class, next retry, state delivered/failed/dead-lettered).
-- **Worker**: dispatch from outbox with retry/backoff/jitter, per-endpoint concurrency limits and circuit breaker;
-  HMAC-SHA256 signature with timestamp header and documented replay window; SSRF protection (deny private
-  ranges, DNS re-resolution check); redacted diagnostics; fake receiver for tests.
-- **Tests**: commit/rollback/duplicate/ordering/replay; signature, rotation, SSRF, rate; slow/unavailable
-  receivers.
+- **Mapping ownership**: each owning module maps its domain events to integration events in its own
+  `Application` layer (e.g. `Orders.Application.IntegrationEventMappers`) and writes the envelope (id,
+  type/version, occurred at, organisation/branch, aggregate ref, `sequence` monotonic per aggregate,
+  correlation/causation, classification, minimal payload) to its own `outbox_messages` in the same transaction;
+  the Integration relay handler (worker, inbox-deduplicated) copies envelopes into `integration.integration_events`
+  for diagnostics and replay and fans out to deliveries. Payload contracts live in the owning module's `Contracts`
+  as versioned records with JSON Schema and examples under `docs/integration/events/`; field allowlist per
+  Section 5.2.
+- **Model**: `webhook_subscriptions` (endpoint verified by challenge, allowlisted events, branch scope, approved
+  classification, status active/paused, secret with dual-secret rotation window), `webhook_deliveries` (attempt,
+  response class, next retry, state delivered/failed/dead-lettered).
+- **Administration**: `GET/POST/PATCH /api/v1/integration/webhooks` under `integration.manage_webhooks`
+  (Owner/Admin, step-up, reason, audited); `GET .../webhooks/{id}/deliveries` (redacted diagnostics: status,
+  response class, headers minus secrets, payload digest); `POST /api/v1/integration/deliveries/{id}/replay` under
+  `integration.replay_delivery` (audited, idempotent); desktop "Webhooks" screen with health (circuit state, last
+  success, backlog) and delivery log.
+- **Delivery**: a delivery is created only if the event's branch is within the subscription's scope and the
+  classification ≤ the approved classification (skipped events recorded redacted); HTTPS only; HMAC-SHA256
+  signature with timestamp header and documented replay window; SSRF protection (deny private ranges, DNS
+  re-resolution check); per-attempt timeout 10 s; response body cap 64 KB; per-subscription concurrency 2 and
+  circuit breaker; global worker bulkhead; response classes: 2xx delivered, 4xx except 408/429 failed-no-retry,
+  408/429/5xx/timeout retried with exponential backoff and jitter then dead-lettered with an alert; per-aggregate
+  ordering (a failing delivery blocks later events of the same aggregate only); fake receiver for tests.
+- **Tests**: commit/rollback/duplicate/ordering (per-aggregate order under two concurrent dispatchers)/replay;
+  signature, rotation, SSRF/endpoint validation, rate; policy filter; slow/unavailable receivers.
 
 ### #55 [E13-F03] Replaceable payment, messaging, accounting and printing adapters
 
-- **Ports**: `IPaymentGateway` (initiate, status, refund, callback verification), messaging senders (#47),
-  `IAccountingExporter` (versioned mapping, batch identity, balanced totals, correction and re-export policy,
-  Tally XML first), `IBarcodeRenderer`, `IPdfRenderer`, `IPrintBridge` (PDF hand-off or network/local bridge).
-- **Adapters**: deterministic fakes/sandboxes for dev/test/UAT; real adapters (D20) with configuration/secret
-  validation, capability discovery, timeouts, retries, idempotency, correlation, circuit breakers; provider
-  errors normalised; sandbox mode cannot be enabled in production (startup guard).
-- **Payment callbacks**: signature/source verification, replay window, amount/currency/reference match,
-  idempotent reconciliation to payment records; reconciliation report of missing/duplicate/mismatched records.
-- **Tests**: adapter contract suite gating enablement by feature flag; fault injection; callback security;
-  accounting balanced totals and re-export.
+- **Port introduction order**: `IPdfRenderer`/`IBarcodeRenderer` (#35, #42), messaging senders (#23, #47),
+  `IDispatchEligibilityQuery` (#37/#43) already exist; #55 adds `IPaymentGateway` (initiate, status, refund,
+  callback verification), `IAccountingExporter` (versioned mapping, batch identity, balanced totals, correction
+  and re-export policy; Tally XML first) and `IPrintBridge` (PDF hand-off or network/local bridge), plus the
+  adapter contract-test suites that every earlier adapter must also pass before flag enablement; existing ports
+  change only by non-breaking extension.
+- **No half-posting rule**: provider calls never run inside a database transaction; record intent
+  (`payment_intents`, `accounting_export_batches` in `generated`, `print_jobs` in `queued`) plus outbox message in
+  one transaction → worker/adapter call using the intent id as the provider idempotency key → idempotent outcome
+  handler (`succeeded` / `failed` / `unknown`); `unknown` resolved by status polling, never assumed; financial
+  state changes only on a verified provider outcome; workflow/custody state never changes as a side effect of an
+  adapter call.
+- **Callback endpoint**: `POST /api/v1/integration/payments/{provider}/callback` is `AllowAnonymous` with a
+  justification attribute, optional source allowlist, raw-body signature verification, timestamp replay window,
+  provider event id as idempotency key, amount/currency/reference matched against the intent; mismatches parked
+  for reconciliation and acknowledged with 2xx; all outcomes audited.
+- **Reconciliation worker**: scheduled (daily) and on-demand job pulls provider settlement/status and compares to
+  `payments`, producing missing/duplicate/mismatched items (alerted via #58; resolved through #43 compensating
+  entries and `reconciliation_batches`); accounting batches `generated → exported → acknowledged | superseded`
+  with reversing lines on re-export.
+- **Provider health and ownership**: each enabled adapter registers a health probe reported as `degraded` (never
+  `unhealthy`) in `/health/ready` and on a dashboard; `docs/integrations/<provider>.md` (support owner, escalation,
+  rate limits, error mapping, sandbox procedure, reconciliation steps) must exist before the provider's flag can be
+  enabled; sandbox/fake mode cannot be enabled in production (startup guard).
+- **Tests**: contract suites; fault injection (timeout after provider debit, duplicate callback, callback before
+  status poll, adapter crash between steps, provider down during cashier close — exactly one consistent payment
+  record, no orphaned receipt); callback security; reconciliation report; accounting balanced totals and
+  re-export; architecture test (only `Integration.Infrastructure` and tests reference provider SDKs; negative test
+  adding a vendor package to `Billing.Application` fails) and a "swap provider by configuration only" demo.
 
-### #56 [E14-F01] Threat modelling and ASVS-aligned security baseline
+### #56 [E14-F01] Threat modelling and ASVS-aligned security baseline (sub-issues #56a, #56b)
 
-- **Documents**: `docs/security/threat-models/*.md` (DFDs and STRIDE per flow: auth, customer/measurement/media,
-  order/workflow, custody, inventory, billing/payment, reports/exports, customer links, integrations,
-  deployment), `docs/security/abuse-cases.md`, `docs/security/asvs-traceability.md` (ASVS L2 + selected L3),
-  `docs/security/vulnerability-management.md` (triage, SLAs, disclosure, exceptions with expiry).
-- **Controls**: central validation/encoding, security headers and CSP (nonce-based, no inline scripts), CSRF,
-  rate/size limits, dependency protections, business-state authorisation checks (no client-driven state),
-  upload hardening (#31) verified, secrets scanning; CI gates from #22 extended with severity SLAs.
-- **Testing**: automated security regression suite (IDOR, escalation, workflow bypass via direct API, barcode
-  replay, invoice/payment tampering, stock manipulation, malicious upload, export leakage, SSRF, credential
-  abuse, DoS limits); independent penetration test before production and after material auth/payment/upload
-  changes; remediation verified.
+- **#56a (W2, docs)**: `docs/security/threat-models/*.md` (DFDs and STRIDE per flow: auth (from #23),
+  customer/measurement/media, order/workflow, barcode custody, inventory, billing/payment, reports/exports,
+  customer links, integrations, deployment) drafted from the architecture docs and this plan, each ending with a
+  residual-risk table with owner and acceptance date; `docs/security/abuse-cases.md` (IDOR, privilege escalation,
+  workflow bypass, barcode replay, invoice/payment tampering, stock manipulation, malicious uploads, export
+  leakage, SSRF, credential abuse, denial of service); `docs/security/asvs-traceability.md` (ASVS L2 + selected
+  L3; columns requirement → control → issue/PR → test → evidence → residual risk → owner → review date);
+  `docs/security/vulnerability-management.md` (triage, SLAs critical 7 / high 30 / medium 90 days, disclosure);
+  `docs/security/exceptions.md` (finding, approver, expiry, compensating control) with a CI check failing on
+  expired exceptions; CI gates extended with a licence allowlist and severity SLAs. Each later feature PR
+  references its threat model and closes the mapped controls (DoD item 6).
+- **#56b (W5)**: enforcing nonce-based CSP (configuration change after #50's CSP-compatible components), central
+  validation/encoding review, business-state authorisation checks (no client-driven state), automated security
+  regression suite (IDOR, escalation, workflow bypass via direct API, barcode replay, invoice/payment tampering,
+  stock manipulation, malicious upload, export leakage, SSRF, credential abuse, DoS limits, no-PII-in-barcodes
+  over all rendered barcodes in the E2E fixtures), ASVS traceability audit, independent penetration test before
+  production and after material auth/payment/upload changes, verified remediation.
 
 ### #57 [E14-F02] Privacy lifecycle, immutable audit, encryption, secrets management
 
 - **Data inventory** `docs/privacy/data-inventory.md` mapping each class (identity, contact, measurements, images,
-  design, order, barcode, stock, financial, feedback, logs, audit, exports, backups) to owner, access policy,
-  retention, backup behaviour; consent/purpose/source/version recording (Customers module); correction, export,
-  restriction/deactivation, approved deletion workflows with legal/business holds.
-- **Audit**: append-only schema (actor, subject, action, resource, before/after summary or safe diff, branch,
-  time, reason, correlation, source, outcome), trigger-protected, daily hash chain, restricted viewer/export,
-  retention independent of logs, gap detection job.
-- **Encryption and secrets**: TLS everywhere, encrypted volumes/object storage, field-level protection where the
-  threat model requires (e.g., recovery codes, provider secrets) with documented key ownership; secrets via
-  environment/secret manager with rotation runbook and emergency revocation; verification tests for logout/
-  revocation, export expiry, media deletion, link revocation, rotation.
+  design, order, barcode, stock, financial, feedback, logs, audit, exports, backups, credentials/secrets) to owner,
+  access policy, retention, backup behaviour and key ownership.
+- **Removable vs retained**: `platform.retention_policies` (configuration: data class, branch scope, retention
+  period, effective-from, legal basis, actor, reason). Approved deletion of a customer **pseudonymises** the
+  customer master (name → `Deleted customer <hash>`, phone/email/address cleared, aliases and duplicate
+  candidates removed), hard-deletes measurement versions, media objects/derivatives, feedback free text and
+  customer links past retention, and **never touches** posted invoices, notes, payments, receipts, ledger
+  entries, scan events or audit events, which keep their point-in-time customer snapshot for the statutory period
+  (GST records: confirm the period with the accountant) and are excluded from deletion by policy.
+- **Workflows**: `data_subject_requests` (type correction/export/restriction/deletion, subject, requester, reason,
+  status, approver, executed classes, skipped classes with reason: hold, statutory retention);
+  `POST /api/v1/customers/{id}/data-export` (async, encrypted, expiring, audited; extends the #26 export),
+  `POST /customers/{id}/restrict` (blocks non-essential processing and outbound communication),
+  `POST /customers/{id}/deletion-requests` → Owner/Admin approval with step-up → worker executes after hold check;
+  retention job (D12) runs per policy and writes an exception report (items skipped by hold or reference)
+  surfaced in the admin audit view; backup treatment: deleted data persists until backup expiry (#60) and a
+  restore replays requests executed after the restore point before the environment is opened.
+- **Audit integrity** (mechanism from #21): daily hash chain and gap-detection job, restricted viewer/export
+  (`audit.read`, `audit.export`; Auditor/Owner; searchable by correlation id, actor, subject, resource, time),
+  retention independent of application logs, sensitive-read audit review (measurement sheet, media, exports), and
+  a completeness review generated from OpenAPI (every state-changing operation has a test asserting its audit
+  event and correlation id).
+- **Encryption and secrets**: TLS everywhere, encrypted volumes/object storage (SSE from #31), field-level
+  protection where the threat model requires (recovery codes, provider secrets) with documented key ownership;
+  secrets via environment/secret manager with rotation runbook and emergency revocation; verification tests for
+  logout/revocation, export expiry, media deletion, link revocation, secret/key rotation.
 
 ### #58 [E14-F03] Observability, SLO alerting, performance resilience, incident response
 
 - **Instrumentation**: OpenTelemetry across web, worker, database, outbox, media, scans, inventory, billing,
-  reports, notifications, integrations; correlation/causation propagation; redaction processors.
-- **Signals**: latency/errors/saturation, failed jobs, outbox lag, scan conflicts, stock reconciliation mismatch,
-  numbering/payment mismatch, notification failures, backup age, report freshness; dashboards per role;
-  alerts tied to SLOs and runbooks with grouping/dedup/severity.
+  reports, notifications, integrations; correlation/causation propagation; redaction processors; client telemetry
+  (#52) exported through the same collector; backend stack per D13 with dashboards and alert rules versioned as
+  code (deployed by #59).
+- **Signals and alerts**: latency/errors/saturation, failed jobs, outbox lag, scan conflicts, stock reconciliation
+  mismatch, numbering/payment mismatch, notification failures, backup age, report freshness, projection lag,
+  inventory alert metrics (#40); dashboards per role; multi-window burn-rate alerts per SLO (fast 1 h/5 m, slow
+  6 h/30 m) so alerts fire before budget exhaustion; every alert carries a `runbook_url` into `docs/runbooks/`;
+  grouping/dedup/severity via Alertmanager.
 - **Resilience**: timeouts, bounded retries with backoff, circuit breakers, bulkheads, queue limits, cancellation,
-  safe degradation (e.g., scanning continues if notifications are down); load/stress/soak tests (k6) for intake,
-  scan bursts, concurrent reservation/invoice/payment, uploads, large reports.
+  safe degradation (scanning continues if notifications are down); **retry-safety test**: fault injection retries
+  every protected command (confirm, scan, invoice post, payment, webhook delivery, payment callback) under
+  timeouts and worker restarts and asserts exactly one business effect; load/stress/soak tests (k6) for intake,
+  scan bursts, concurrent reservation/invoice/payment, uploads, large reports, and the mixed-load scenario from
+  #46.
 - **Incident process**: severity, ownership, escalation, communication, evidence preservation, recovery,
   post-incident review; game days (database slowdown, object storage outage, provider outage, stuck outbox,
-  duplicate callback, failed deployment).
+  duplicate callback, failed deployment) with alert/runbook effectiveness scored.
 
 ### #59 [E15-F01] Hardened environments, CI/CD, versioning, safe database releases
 
 - **Images**: minimal, non-root, pinned, scanned, read-only filesystem, dropped capabilities; SBOM, provenance
-  (SLSA-style attestation) and signature (cosign); build once, promote the same digest.
-- **Environments**: dev/test/staging/production configuration as code (Terraform for cloud, Ansible for on-prem)
-  with network boundaries, TLS, DNS, secrets, storage, database, observability; staging verification and manual
-  approval gates; separation of deployment duties; protected production credentials.
-- **Releases**: semantic versioning, build metadata, release notes, compatibility matrix (PWA/API/DB/worker);
-  expand-migrate-contract with preflight checks, migration locks, pre-migration backup, monitored post-deploy
-  verification; rolling or blue-green with readiness/liveness/startup probes, automatic halt and documented
-  rollback/roll-forward.
-- **Evidence**: provenance chain for a tagged artefact; failed-migration and failed-health-check rehearsals.
+  attestation and cosign signature; build once, promote the same digest.
+- **Environments**: dev/test/staging/production as code (Terraform for cloud, Ansible for on-prem) with network
+  boundaries, TLS, DNS, secrets, storage, database, observability, optional read replica for reporting; staging
+  verification and manual approval gates; separation of deployment duties; protected production credentials;
+  the interim staging from #22 is destroyed.
+- **Branch and release protection**: `main` and `release/*` require a PR linked to one issue, CODEOWNERS review,
+  all CI checks, no direct pushes, linear history; a production deployment requires a release tag whose GitHub
+  Release carries the evidence checklist (regression report, security scan summary, UAT sign-off link, migration
+  dry-run) — the deploy workflow fails if it is missing.
+- **Deploy-time verification**: the deploy job verifies the image signature and provenance against the digest in
+  the approved release before pulling; `/api/version` is compared to the release record during post-deploy
+  verification.
+- **Releases**: semantic versioning, build metadata, release notes, compatibility matrix (PWA/API/DB/worker and
+  patched PostgreSQL/MinIO/ClamAV/proxy versions); expand-migrate-contract with preflight checks, migration locks,
+  pre-migration backup, monitored post-deploy verification; rolling or blue-green with readiness/liveness/startup
+  probes, automatic halt and documented rollback/roll-forward.
+- **Patch management**: weekly scheduled rebuild of base images and lock files, Trivy re-scan of deployed digests
+  with alerts, patching SLAs from #19 enforced as a release gate, expedited path for emergency patches.
+- **Evidence**: provenance chain for a tagged artefact; clean-environment provisioning and deployment test (IaC
+  from empty → healthy stack in CI against an ephemeral environment); rollback rehearsal (deploy N+1 with its
+  expand migration, roll back to N while the database stays at N+1, verify health and a smoke journey, roll
+  forward); failed-migration and failed-health-check rehearsals; permissions and secret-access review.
 
 ### #60 [E15-F02] Encrypted backups, PITR, disaster recovery, runbooks
 
-- **Backups**: pgBackRest/WAL-G base + continuous WAL to encrypted object storage with separate credentials and
-  immutability/retention; MinIO/S3 versioning and replication for media; configuration/keys/audit included in
-  scope; off-site copies; monitoring of age/completeness/failures with alerts.
-- **Restore automation**: scheduled restore into an isolated environment validating integrity, migration
-  version, business invariants (ledger balances, invoice sequences) and media references; PITR to a chosen
-  timestamp.
-- **Runbooks** `docs/runbooks/`: accidental deletion, bad migration, corruption, lost object, site failure,
-  secret compromise, ransomware-like event; owners, communications, decision points, DNS/certificate/provider
-  dependencies, return-to-primary; scheduled DR exercises with recorded RPO/RTO.
+- **Backups**: pgBackRest/WAL-G base + continuous WAL to encrypted object storage with separate credentials, object
+  lock/retention and a bucket policy denying delete/overwrite to the application role; MinIO/S3 versioning and
+  replication for media; configuration/keys/audit included in scope; off-site copies; monitoring of
+  age/completeness/failures with a recorded alert test (simulated stale/missing backup); monthly backups exclude
+  media derivatives and expired exports.
+- **Retention across backups**: bounded retention per D18 so deleted data ages out; `docs/runbooks/restore.md`
+  requires replaying `data_subject_requests` executed after the restore point before the restored environment is
+  opened (#57); retention review in the quarterly DR record.
+- **Restore automation**: scheduled restore into an isolated environment validating integrity, migration version,
+  business invariants (ledger balances, invoice sequences) and media references; PITR to a chosen timestamp;
+  missing-object recovery from bucket versioning.
+- **Runbooks** `docs/runbooks/`: accidental deletion, bad migration, corruption, lost object, site failure, secret
+  compromise, ransomware-like event; owners, communications, decision points, DNS/certificate/provider
+  dependencies, return-to-primary.
+- **Cadence and evidence**: automated restore weekly; PITR exercise monthly; missing-object recovery monthly; full
+  DR exercise quarterly executed by an operator who did not author the runbook; every exercise records actual
+  RPO/RTO against #19 and opens a `release-blocker` corrective issue when a target is missed; backup access and
+  immutability review.
 
-### #61 [E15-F03] Automated QA, UAT, training, pilot rollout, go-live gates (split 61a/61b/61c)
+### #61 [E15-F03] Automated QA, UAT, training, pilot rollout, go-live gates (sub-issues #61a, #61b, #61c)
 
-- **61a**: risk-based test strategy `docs/qa/test-strategy.md`; deterministic fixtures for multiple branches,
-  roles, categories, customers, measurements, images, orders, barcodes, stock, invoices, payments, delivery,
-  feedback; legacy import validation flow (preview, rejection, reconciliation, idempotent rerun, rollback) or a
-  documented "no source data" decision.
-- **61b**: E2E scenarios per garment category, multi-garment order, barcode handoffs, QC rework, stock consumption,
-  GST billing, partial/full payment, blocked/allowed dispatch, feedback/alteration; full regression with stored
-  artefacts; production-like dress rehearsal including restore and rollback.
-- **61c**: role-based UAT scripts and sign-off, accountant approval, training material and quick guides,
-  support contacts and runbooks, controlled production-access onboarding, limited pilot with real devices/
-  printers/scanners and daily reconciliation, go/no-go review, hypercare and post-launch KPI review.
+- **#61a — strategy and fixtures**: `docs/qa/test-strategy.md` (risk-based: unit, property, architecture, database,
+  integration, contract, browser E2E, accessibility, security, performance, resilience, migration, backup and
+  DR); consolidates the fixture library that started in #21 (`seed-synthetic`) and was extended by every module
+  issue into `tests/fixtures/` with a dataset catalogue (branches, roles, categories, customers, measurements,
+  images, orders, barcodes, stock, invoices, payments, delivery, feedback), versioning rules and a
+  production-refusal test; legacy import validation flow (preview, rejection, reconciliation, idempotent rerun,
+  rollback) or a documented "no source data" decision. Starts when #52 opens; does not gate #52.
+- **#61b — regression suite**: reuses the #52 Playwright configuration and page objects; adds business-scenario
+  regression per garment category, multi-garment order, barcode handoffs, QC rework, stock consumption, GST
+  billing, partial/full payment, blocked/allowed dispatch under each policy, feedback/alteration; full regression
+  with stored artefacts; production-like dress rehearsal including restore and rollback.
+- **#61c — UAT, training, pilot, go-live**: role-based UAT scripts and sign-off for Owner, Reception, Measurement
+  Staff, Tailor Master, Tailor, Inventory, Cashier, Delivery, Auditor; accountant approval of billing examples;
+  training material and quick guides (fed by the #17 "what changes for staff" tables); support contacts and
+  runbooks; controlled production-access onboarding; pilot plan with explicit entry/exit criteria (≥ N orders
+  across every seeded category, zero P1 defects open for five consecutive days, daily reconciliation of stock
+  ledger, invoice sequences and cash drawer with no unexplained variance), defect triage cadence and severity
+  rules, real devices/printers/scanners; go-live record naming owners (business, technical, security,
+  operations), dashboards/alerts in force, rollback decision owner and criteria, support rota and escalation,
+  hypercare exit criteria (duration, SLO attainment, open-defect thresholds); `docs/launch/post-launch-review.md`
+  (weekly for four weeks, then monthly; KPIs: incidents, adoption by role, turnaround, rework rate, stock variance,
+  financial reconciliation); `docs/launch/release-evidence-index.md` mapping every #1 release criterion and every
+  P0/P1 journey to its evidence link.
 
 ---
 
@@ -1135,15 +1940,16 @@ acceptance criteria, which remain the contract.
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Claude Code environment lacks .NET SDK and blocked download egress | Backend issues cannot be built or tested in cloud sessions | Provision an environment image with .NET 10 SDK, Node 22, pnpm, Docker (or allow egress to Microsoft hosts); verify in #20 before other backend work |
-| Business approvals (workshops, accountant, device matrix) delay dependent issues | Critical-path slip | Draft-first approach; time-boxed reviews; record provisional decisions with owner and expiry |
-| Dependency cycle #41 ↔ #32 | Blocked start | Resolved in Section 6.2; confirm at #41 kickoff |
-| Over-scoped issues (#32, #61) | Unreviewable PRs | Sub-issue splits proposed in blueprints |
+| Business approvals (workshops, accountant, device matrix, hosting) delay dependent issues | Critical-path slip | Draft-first approach; time-boxed reviews; provisional decisions recorded with owner and expiry; W0 gate lists exactly what must be confirmed |
+| Cross-wave contracts (#41/#32, #37/#43, #34/#37, media before #31, email before #47) | Blocked starts or ad-hoc coupling | Contracts and fail-closed defaults defined in Section 6.2 notes and the blueprints; architecture tests enforce direction |
+| Over-scoped issues (#32, #56, #61) | Unreviewable PRs, late threat modelling | Sub-issues with own branches; threat models moved to W2 |
 | Licensing of rendering/imaging libraries | Compliance | D15 lists permissive alternatives; verify before adoption in #35/#42 |
-| Real-device and printer testing cannot run in CI | Late discovery of scanning/printing problems | Device lab checklist from #19; physical rehearsal milestones in #35, #37, #61; emulation treated as supplementary |
-| Configurable taxonomy increases complexity | Slower first release | Seed data gives a working default; admin UIs ship with each catalog issue; keep rule languages small |
-| Offline/PWA state corrupting authoritative data | Financial/custody integrity | Offline queue limited to idempotent scans; server always authoritative; conflicts surfaced (#37, #51) |
-| Multi-branch scoping mistakes | Data leakage | Deny-by-default policies, generated matrix tests (#24), architecture test for missing policy |
-| Report/projection drift | Wrong business decisions | Reconciliation jobs and freshness indicators (#44–#46); projections never authoritative |
+| Real-device and printer testing cannot run in CI | Late discovery of scanning/printing problems | Interim staging from W1; device lab checklist from #19; physical rehearsals in #35, #37, #48, #61c; emulation treated as supplementary |
+| Configurable taxonomy increases complexity | Slower first release | Seed data gives a working default; admin UIs ship with each catalog issue; rule languages kept small |
+| Offline/PWA state corrupting authoritative data | Financial/custody integrity | Offline queue limited to idempotent scans and owned by one issue; server always authoritative; conflicts surfaced (#37, #51) |
+| Multi-branch scoping mistakes | Data leakage | Deny-by-default policies, generated matrix tests with field masks (#24), architecture test for missing policy, filter-inference tests (#44) |
+| Report/projection drift or reporting load hurting transactions | Wrong decisions, slow billing | Reconciliation jobs and visible freshness (#44–#46); projections never authoritative; dedicated pool, timeouts and worker-only large ranges; mixed-load test |
+| Provider integration half-posting | Financial inconsistency | Intent → call → verified outcome pattern, idempotent callbacks, reconciliation worker (#55) |
 
 ---
 
@@ -1151,19 +1957,30 @@ acceptance criteria, which remain the contract.
 
 1. **Backend platform confirmation** (D1): keep ASP.NET Core (.NET 10) as the roadmap states, and provide a Claude
    Code environment with the SDK; or switch to a Node.js/TypeScript backend that the current environment supports.
-   The plan assumes the former.
-2. **Hosting model** (D17): cloud (which provider) or on-premises; this fixes IaC tooling, backup targets and TLS.
+   The plan assumes the former. Needed before W1.
+2. **Hosting model and indicative monthly budget** (D17): cloud (which provider) or on-premises; this fixes IaC
+   tooling, backup targets, TLS, and is needed by #19 for the RPO/RTO/availability compatibility criterion.
 3. **Providers** (D20): SMS/WhatsApp/email vendors, payment gateway (UPI/card), accounting export target.
-4. **Payment rule for dispatch** (#43): full payment, partial threshold, or approved exceptions.
-5. **Valuation method** (#40) and rounding/round-off conventions (#41) with the accountant.
-6. **Branches at launch** and their timezones/GST registrations (#25).
+4. **Payment rule for dispatch (#43) and partial-delivery policy for multi-garment orders (#48)**: full payment,
+   partial threshold, per-job share, or approved exceptions; whether advances may unlock dispatch.
+5. **Valuation method** (#40) and rounding/round-off conventions (#41) with the accountant; statutory retention
+   period for GST records (#57).
+6. **Branches at launch** with timezones, working calendars and GST registrations (#25).
 7. **Device, browser and printer matrix** to support (#19, #52), including hardware scanners and label printers.
-8. **Retention periods** for measurements, images, feedback free text, logs and backups (#19, #57).
+8. **Retention periods** for measurements, images, feedback free text, notification bodies, logs and backups
+   (#19, #57).
 9. **Label format** (thermal size, QR in addition to Code 128) (#35).
-10. **Initial catalog, measurement templates and QC checklists** to be reviewed from the seeded drafts (#27, #29,
-    #34).
+10. **Initial catalog, measurement templates, design options and QC checklists** to be reviewed from the seeded
+    drafts (#17, #27, #29, #30, #34).
 11. **Amend issue #41's "Depends on"**: replace E06-F01 with the pricing contract defined in Section 6.2 (and add
-    E09-F01 to #32's dependencies) so that wave 3 can start without a dependency cycle.
+    E09-F01 to #32's dependencies) so that wave 3 can start without a dependency cycle; if declined, the fallback
+    in Section 6.2 note 1 applies.
+12. **Primary authentication strategy** (#23): local staff accounts with password + TOTP/passkeys (the plan's
+    assumption) or federation with an external identity provider; MFA-required roles beyond Owner, Admin and
+    Cashier.
+13. **Permission matrix** (#24): approve the default role → permission grants and any custom roles required at
+    launch.
+14. **Telemetry backend** (D13): self-hosted Grafana stack (default) or a hosted service.
 
 ---
 
@@ -1172,15 +1989,18 @@ acceptance criteria, which remain the contract.
 - **Environment**: a Claude Code environment (or self-hosted runner) with .NET 10 SDK, Node 22 + pnpm, Docker
   (for Testcontainers and compose), PostgreSQL client tools, Playwright browsers, and network access to NuGet and
   npm. Record the image definition under `infra/dev-environment/` in #20 so that every session is reproducible.
-- **Operating procedure (one issue per session)**: (1) read the issue and this plan's blueprint; (2) write a
-  short plan in the PR description with the evidence checklist; (3) implement on `feat/eXX-fYY-<slug>` with
-  Conventional Commits `Refs #NN`; (4) run the fast checks locally (`dotnet format`, `dotnet test`, `pnpm lint`,
-  `pnpm test`, architecture tests); (5) open a ready-for-review PR linked to the issue; (6) address review and CI
-  until green; (7) attach evidence; (8) close the issue on merge with evidence links.
+- **Operating procedure (one issue or sub-issue per session)**: (1) read the issue, this plan's blueprint, the
+  Section 6.2 notes that touch it and the threat model covering its flow; (2) write a short plan in the PR
+  description with the evidence checklist; (3) implement on `feat/eXX-fYY[a-c]-<slug>` with Conventional Commits
+  `Refs #NN`; (4) run the fast checks locally (`dotnet format`, `dotnet test`, `pnpm lint`, `pnpm test`,
+  architecture tests, overflow helper for UI); (5) open a ready-for-review PR linked to the issue; (6) address
+  review and CI until green; (7) attach evidence; (8) close the issue on merge with evidence links; the last PR of
+  an epic adds the closure document (Section 6.4).
 - **Session boundaries**: sessions do not start a dependent issue until the dependency is merged; parallel
-  sessions follow the wave/lane table to avoid overlapping modules.
+  sessions follow the wave/lane table to avoid overlapping modules; Reporting-module issues are sequenced.
 - **Scope discipline**: no unrelated refactors; anything discovered out of scope becomes a new issue linked to the
-  epic.
+  epic; contracts owed to later issues (Section 6.2 notes) are delivered exactly as specified so the later issue
+  can start.
 - **Repository instructions**: `CLAUDE.md` (from #22) is the single place for commands and rules; this plan is
   referenced, not duplicated.
 
@@ -1191,17 +2011,17 @@ acceptance criteria, which remain the contract.
 | # | PR | Issue | Notes |
 | --- | --- | --- | --- |
 | 1 | This plan (`docs/IMPLEMENTATION_PLAN.md`) | #1 | Owner reviews decisions in Section 11 |
-| 2 | Workflow maps, glossary, RACI, exception catalogue | #17 | Drafted for the workshop |
-| 3 | Architecture docs and ADR-0001…0012 | #18 | Includes architecture-test rule list |
-| 4 | NFRs, SLOs, data classification, DoR/DoD, release gates | #19 | Proposed numeric targets for confirmation |
-| 5 | Solution scaffold, compose environment, health checks, architecture tests | #20 | First backend PR; validates the environment |
-| 6 | Persistence conventions, migrations, outbox, configuration, flags, seed | #21 | Platform foundation |
-| 7 | CI gates, templates, CODEOWNERS, `CLAUDE.md` | #22 | Can run in parallel with #23 |
-| 8 | Authentication, sessions, MFA, passkeys, recovery | #23 | Behind the BFF |
-| 9 | Design system, layouts, Storybook | #50 | Parallel frontend lane |
-| 10 | RBAC, branch scopes, authorisation regression suite | #24 | Unlocks all business modules |
+| 2 | Workflow maps (current and target), glossary, RACI, exception catalogue, category hierarchy, measurement field sets | #17 | Drafted for the workshop |
+| 3 | Architecture docs, architecture rules and ADR-0001…0013 | #18 | Includes object-storage ownership |
+| 4 | NFRs per hosting model, SLOs, data classification, DoR/DoD, release gates, reviews | #19 | Proposed numeric targets for confirmation |
+| 5 | Solution scaffold, compose environment, health checks per component, minimal CI, branch protection, architecture tests | #20 | First backend PR; validates the environment |
+| 6 | Persistence conventions, migrations, outbox, audit writer, configuration, flags, seed commands | #21 | Platform foundation |
+| 7 | CI gates, PR policy check, templates, CODEOWNERS, `CLAUDE.md`, interim staging, workflow demo | #22 | Can run in parallel with #23 and #50 |
+| 8 | Authentication, sessions, MFA, passkeys, recovery, email port, auth screens, auth threat model | #23 | Behind the BFF |
+| 9 | Design system, layouts, form contract, reference journeys, Storybook | #50 | Parallel frontend lane |
+| 10 | RBAC, branch scopes, permission matrix approval, authorisation regression suite | #24 | Unlocks all business modules |
 
 Earlier in this session a Node.js/TypeScript scaffold (pnpm workspace with a shared domain package: category
 measurement fields, GST calculation, barcode format, order state machine, permissions) was drafted before the
 roadmap's ASP.NET Core direction was reviewed. It is kept out of the repository; its category field lists and GST
-test cases are reused as seed-data and golden-test drafts in #27 and #41.
+test cases are reused as seed-data and golden-test drafts in #17, #27 and #41.
