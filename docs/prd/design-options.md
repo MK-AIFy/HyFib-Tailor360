@@ -131,10 +131,11 @@ primarily a **picture**.
 | Rule | Specification |
 | --- | --- |
 | Illustration | `design_options.illustration_media_id` once media upload exists (#31); until then the bundled line drawing identified by `illustration_key` (#30) |
-| Reference format | `<sheet_key>#<option_code>`, for example `blouse_front_neck_v1#KATORI` |
+| Reference format | `<sheet_key>#<option_code>`, for example `design_blouse_front_neck_v1#KATORI` |
 | Alt text | `illustration_alt` is **required** for every option and describes the shape in words, so the picker is usable with a screen reader and the job card is usable when printed in monochrome: "Deep rounded cup-shaped neckline with a curved seam under each cup." |
-| Seeded sheets | `blouse_front_neck_v1`, `blouse_back_neck_v1`, `blouse_sleeve_v1`, `blouse_closure_v1`, `blouse_finish_v1`, `aari_motif_v1`, `aari_placement_v1`, `salwar_neck_v1`, `salwar_bottom_v1`, `lehenga_skirt_v1`, `lehenga_dupatta_v1`, `gown_silhouette_v1`, `gown_neckline_v1`, `kids_style_v1` |
+| Seeded sheets | `design_blouse_front_neck_v1`, `design_blouse_back_neck_v1`, `design_blouse_sleeve_v1`, `design_blouse_closure_v1`, `design_blouse_finish_v1`, `design_aari_motif_v1`, `design_aari_placement_v1`, `design_salwar_neck_v1`, `design_salwar_bottom_v1`, `design_lehenga_skirt_v1`, `design_lehenga_dupatta_v1`, `design_gown_silhouette_v1`, `design_gown_neckline_v1`, `design_kids_style_v1` |
 | Versioning | The `_v1` suffix is part of the key. A redrawn sheet is `_v2`, referenced by a new catalog version; existing snapshots keep pointing at the drawing the customer was actually shown. |
+| Namespace | Every key here begins `design_`. Design illustrations and the measurement diagrams of [measurement-templates.md](./measurement-templates.md) section 8 share the single `diagram/` object-storage prefix ([../architecture/module-ownership.md](../architecture/module-ownership.md) section 4), and the two sets would otherwise have collided on `blouse_sleeve_v1`, `salwar_bottom_v1`, `lehenga_skirt_v1` and `lehenga_dupatta_v1` — four keys naming a different drawing in each document. The anchor vocabulary differs too: a measurement diagram is anchored by field key, a design illustration by option code. |
 | Zoom | Every illustration opens full-screen on tap, because a customer choosing a neckline is looking closely at it (#30, #50) |
 | Printable fallback | The job card renders the illustration where it can and the label plus alt text where it cannot, so a thermal or monochrome print is never ambiguous |
 
@@ -218,13 +219,13 @@ tablet screen.
 
 | Group code | Label | Selection | Required | Illustration sheet |
 | --- | --- | --- | --- | --- |
-| `front_neck` | Front neck shape | single | Yes | `blouse_front_neck_v1` |
-| `back_neck` | Back neck shape | single | Yes | `blouse_back_neck_v1` |
-| `sleeve_style` | Sleeve type and length | single | Yes | `blouse_sleeve_v1` |
-| `closure` | Closure | single | Yes | `blouse_closure_v1` |
-| `lining` | Lining and cup | single | Yes | `blouse_finish_v1` |
-| `padding` | Padding | single | No | `blouse_finish_v1` |
-| `finish` | Edge finish | multiple | No | `blouse_finish_v1` |
+| `front_neck` | Front neck shape | single | Yes | `design_blouse_front_neck_v1` |
+| `back_neck` | Back neck shape | single | Yes | `design_blouse_back_neck_v1` |
+| `sleeve_style` | Sleeve type and length | single | Yes | `design_blouse_sleeve_v1` |
+| `closure` | Closure | single | Yes | `design_blouse_closure_v1` |
+| `lining` | Lining and cup | single | Yes | `design_blouse_finish_v1` |
+| `padding` | Padding | single | No | `design_blouse_finish_v1` |
+| `finish` | Edge finish | multiple | No | `design_blouse_finish_v1` |
 
 | Group | Option code | Label | Price item | Rate | Days |
 | --- | --- | --- | --- | --- | --- |
@@ -288,10 +289,10 @@ specialist works, and the embroidery groups are what the specialist phase is pla
 | Group code | Label | Selection | Required | Illustration sheet |
 | --- | --- | --- | --- | --- |
 | `front_neck`, `back_neck`, `sleeve_style`, `closure`, `lining`, `padding`, `finish` | As Section 9.1 | As Section 9.1 | As Section 9.1 | As Section 9.1 |
-| `aari_motif` | Aari motif | single | Yes | `aari_motif_v1` |
-| `aari_density` | Work density | single | Yes | `aari_motif_v1` |
-| `aari_stone` | Stone and bead type | multiple | Yes | `aari_motif_v1` |
-| `aari_placement` | Work placement | multiple | Yes | `aari_placement_v1` |
+| `aari_motif` | Aari motif | single | Yes | `design_aari_motif_v1` |
+| `aari_density` | Work density | single | Yes | `design_aari_motif_v1` |
+| `aari_stone` | Stone and bead type | multiple | Yes | `design_aari_motif_v1` |
+| `aari_placement` | Work placement | multiple | Yes | `design_aari_placement_v1` |
 
 | Group | Option code | Label | Price item | Rate | Days |
 | --- | --- | --- | --- | --- | --- |
@@ -342,12 +343,12 @@ Six groups covering both pieces, because a salwar set is one garment job.
 
 | Group code | Label | Selection | Required | Illustration sheet |
 | --- | --- | --- | --- | --- |
-| `kameez_neck` | Kameez neck | single | Yes | `salwar_neck_v1` |
-| `sleeve_style` | Sleeve type and length | single | Yes | `blouse_sleeve_v1` |
-| `kameez_slit` | Side slit | single | Yes | `salwar_neck_v1` |
-| `bottom_style` | Bottom style | single | Yes | `salwar_bottom_v1` |
-| `lining` | Lining | single | No | `salwar_neck_v1` |
-| `dupatta_finish` | Dupatta finish | single | No | `lehenga_dupatta_v1` |
+| `kameez_neck` | Kameez neck | single | Yes | `design_salwar_neck_v1` |
+| `sleeve_style` | Sleeve type and length | single | Yes | `design_blouse_sleeve_v1` |
+| `kameez_slit` | Side slit | single | Yes | `design_salwar_neck_v1` |
+| `bottom_style` | Bottom style | single | Yes | `design_salwar_bottom_v1` |
+| `lining` | Lining | single | No | `design_salwar_neck_v1` |
+| `dupatta_finish` | Dupatta finish | single | No | `design_lehenga_dupatta_v1` |
 
 | Group | Option code | Label | Price item | Rate | Days |
 | --- | --- | --- | --- | --- | --- |
@@ -393,12 +394,12 @@ Six groups. The choli reuses the blouse groups; the skirt and dupatta groups are
 
 | Group code | Label | Selection | Required | Illustration sheet |
 | --- | --- | --- | --- | --- |
-| `front_neck` | Choli front neck | single | Yes | `blouse_front_neck_v1` |
-| `back_neck` | Choli back | single | Yes | `blouse_back_neck_v1` |
-| `sleeve_style` | Choli sleeve | single | Yes | `blouse_sleeve_v1` |
-| `skirt_style` | Skirt style | single | Yes | `lehenga_skirt_v1` |
-| `waist_finish` | Skirt waist finish | single | Yes | `lehenga_skirt_v1` |
-| `dupatta` | Dupatta | single | Yes | `lehenga_dupatta_v1` |
+| `front_neck` | Choli front neck | single | Yes | `design_blouse_front_neck_v1` |
+| `back_neck` | Choli back | single | Yes | `design_blouse_back_neck_v1` |
+| `sleeve_style` | Choli sleeve | single | Yes | `design_blouse_sleeve_v1` |
+| `skirt_style` | Skirt style | single | Yes | `design_lehenga_skirt_v1` |
+| `waist_finish` | Skirt waist finish | single | Yes | `design_lehenga_skirt_v1` |
+| `dupatta` | Dupatta | single | Yes | `design_lehenga_dupatta_v1` |
 
 | Group | Option code | Label | Price item | Rate | Days |
 | --- | --- | --- | --- | --- | --- |
@@ -440,14 +441,14 @@ Eight groups, the largest set: a gown is the category where the fewest customers
 
 | Group code | Label | Selection | Required | Illustration sheet |
 | --- | --- | --- | --- | --- |
-| `silhouette` | Silhouette | single | Yes | `gown_silhouette_v1` |
-| `neckline` | Neckline | single | Yes | `gown_neckline_v1` |
-| `sleeve_style` | Sleeve type and length | single | Yes | `blouse_sleeve_v1` |
-| `gown_slit` | Slit | single | Yes | `gown_silhouette_v1` |
-| `trail` | Trail | single | Yes | `gown_silhouette_v1` |
-| `closure` | Closure | single | Yes | `blouse_closure_v1` |
-| `lining` | Lining | single | Yes | `gown_silhouette_v1` |
-| `edge_finish` | Edge finish | multiple | No | `blouse_finish_v1` |
+| `silhouette` | Silhouette | single | Yes | `design_gown_silhouette_v1` |
+| `neckline` | Neckline | single | Yes | `design_gown_neckline_v1` |
+| `sleeve_style` | Sleeve type and length | single | Yes | `design_blouse_sleeve_v1` |
+| `gown_slit` | Slit | single | Yes | `design_gown_silhouette_v1` |
+| `trail` | Trail | single | Yes | `design_gown_silhouette_v1` |
+| `closure` | Closure | single | Yes | `design_blouse_closure_v1` |
+| `lining` | Lining | single | Yes | `design_gown_silhouette_v1` |
+| `edge_finish` | Edge finish | multiple | No | `design_blouse_finish_v1` |
 
 | Group | Option code | Label | Price item | Rate | Days |
 | --- | --- | --- | --- | --- | --- |
@@ -506,11 +507,11 @@ twenty choices. Age-band guidance is attached as notes rather than as rules, bec
 
 | Group code | Label | Selection | Required | Illustration sheet |
 | --- | --- | --- | --- | --- |
-| `garment_style` | Style | single | Yes | `kids_style_v1` |
-| `sleeve_style` | Sleeve | single | Yes | `kids_style_v1` |
-| `closure` | Closure | single | Yes | `kids_style_v1` |
-| `lining` | Lining | single | No | `kids_style_v1` |
-| `trim` | Trim | multiple | No | `kids_style_v1` |
+| `garment_style` | Style | single | Yes | `design_kids_style_v1` |
+| `sleeve_style` | Sleeve | single | Yes | `design_kids_style_v1` |
+| `closure` | Closure | single | Yes | `design_kids_style_v1` |
+| `lining` | Lining | single | No | `design_kids_style_v1` |
+| `trim` | Trim | multiple | No | `design_kids_style_v1` |
 
 | Group | Option code | Label | Price item | Rate | Days |
 | --- | --- | --- | --- | --- | --- |

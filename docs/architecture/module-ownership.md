@@ -150,7 +150,7 @@ carry random keys, so a prefix is an ownership boundary and an access-policy bou
 | --- | --- | --- | --- | --- |
 | `material/` | Media | Photographs of the customer's own cloth and trims taken at intake | Media worker pipeline after scan and re-encode | Authorised streaming endpoint with access log |
 | `reference/` | Media | Customer reference and inspiration images attached to an order or garment job | Media worker pipeline | Authorised streaming endpoint with access log |
-| `diagram/` | Media | Measurement diagrams and design-option illustrations, including the bundled static set shipped before upload exists | Media worker pipeline; seeded at `init-reference-data` | Authorised streaming endpoint |
+| `diagram/` | Media | Measurement diagrams and design-option illustrations, including the bundled static set shipped before upload exists. One namespace for two sets, so design-option illustration keys are prefixed `design_` to keep them distinct from measurement diagram keys — see [`../prd/design-options.md`](../prd/design-options.md) section 6 | Media worker pipeline; seeded at `init-reference-data` | Authorised streaming endpoint |
 | `qc-evidence/` | Media | Evidence images attached to a QC result or a defect code | Media worker pipeline | Authorised streaming endpoint with access log |
 | `delivery-evidence/` | Media | Doorstep handover photographs and signature strokes | Media worker pipeline | Authorised streaming endpoint with access log |
 | Quarantine bucket | Media | Uploaded bytes before signature validation, malware scan, metadata strip and re-encode | Web host upload endpoint | **Never served**; promoted to the ready bucket or deleted |

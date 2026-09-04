@@ -171,6 +171,7 @@ seen and confirmed at capture, is open decision **OD-MEA-05**.
 | Storage | `template_fields.diagram_media_id` when an image has been uploaded (#31); until then the bundled line drawing identified by `diagram_key` (#27) |
 | Alt text | `diagram_alt` is **required** for every field and describes the measuring path in words, so the field is usable with a screen reader and on a printed sheet: "From the shoulder seam beside the neck, straight down the front to the neckline point." |
 | Seeded sheets | `blouse_front_v1`, `blouse_back_v1`, `blouse_sleeve_v1`, `blouse_aari_placement_v1`, `salwar_kameez_v1`, `salwar_bottom_v1`, `lehenga_skirt_v1`, `lehenga_dupatta_v1`, `gown_front_v1`, `kids_front_v1` |
+| Namespace | These keys carry no prefix and are anchored by **field key** (`blouse_sleeve_v1#sleeve_length`). The design-option illustrations of [design-options.md](./design-options.md) share the same `diagram/` object-storage prefix but are named `design_…` and anchored by **option code**, so the two sets cannot collide. Adding a sheet here means checking that name is not already a design illustration. |
 | Versioning | The `_v1` suffix is part of the key. A redrawn sheet is `_v2` and is referenced by a new template version; existing versions keep pointing at the drawing their fields were captured against. |
 | Placement | Beside the field list on tablet and desktop; above the active field on phone; printed on the measurement sheet (#28) |
 
