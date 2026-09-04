@@ -45,3 +45,7 @@ src/Hosts/Tailor360.Web/wwwroot/*
 
 # Local infrastructure state
 infra/compose/data/
+
+# Python bytecode from the repository's own helper scripts.
+__pycache__/
+*.py[cod]

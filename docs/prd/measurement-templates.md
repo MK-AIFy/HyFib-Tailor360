@@ -124,7 +124,7 @@ millimetres added to the body measurement):
 | Salwar (bottom) | — | +0 with elastic, +25 with drawstring | +50 | — | — | Thigh +60, knee +40 |
 | Lehenga (choli) | +25 | +25 | — | +20 | +25 | Skirt waist +25 |
 | Gown | +40 | +40 | +50 | +25 | +30 | — |
-| Kids | +40 | +40 | +40 | +20 | +25 | Plus a growth allowance of +20 mm on garment length |
+| Kids | +40 | +40 | — | — | +25 | `MT_KIDS` captures neither hip nor armhole, so no ease is prescribed for them; plus a growth allowance of +20 mm on garment length |
 
 Whether these figures should become a structured `measurement_kind` and `default_ease_mm` on `template_fields`,
 rather than help text and workflow guidance, is open decision **OD-MEA-04**.
@@ -536,7 +536,7 @@ Section references are to [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 | ID | Question | Proposed default (not yet agreed) | Owner | Raised | Needed by |
 | --- | --- | --- | --- | --- | --- |
-| OD-MEA-01 | Are the field sets in Section 9 complete and correctly named for how this shop actually measures? Are any fields missing (for example a separate blouse waist-to-hem, a churidar `ankle_to_knee`, or a bridal trail length)? | The sets above, reviewed field by field against the current paper register. | Owner, with the Tailor Master and Reception | 2026-09-04 | #27 (wave 3). Tracked as Section 11 item 10. |
+| OD-MEA-01 | Are the field sets in Section 9 complete and correctly named for how this shop actually measures? Are any fields missing (for example a separate blouse waist-to-hem, a churidar `ankle_to_knee`, or a bridal trail length)? In particular, `MT_KIDS` captures neither `hip` nor `armhole`, so the Kids row of the Section 5 ease table prescribes ease for neither; adding either field here means adding its ease there. | The sets above, reviewed field by field against the current paper register. | Owner, with the Tailor Master and Reception | 2026-09-04 | #27 (wave 3). Tracked as Section 11 item 10. |
 | OD-MEA-02 | May a conditional rule read the garment's design selections (`design.sleeve_style`), or only other fields in the same template version? | Rules may read design selections when measurements are captured inside order intake, and treat them as unset otherwise. Fallback: a seeded `has_sleeves` yes/no field. | Technical reviewer, with the Owner | 2026-09-04 | #27 (rule language) and #30 (design option codes), wave 3 |
 | OD-MEA-03 | Does `template_fields` support non-numeric **choice** fields (`waist_finish`, `age_band`), or do those two move to design options? | Support choice fields in the template, with canonical unit `none`. | Technical reviewer, with the Owner | 2026-09-04 | #27 (wave 3) |
 | OD-MEA-04 | Should the ease convention in Section 5 become structured data (`measurement_kind` and `default_ease_mm` on `template_fields`) rather than help text plus workflow guidance? | Keep it as guidance for launch; revisit once the standard ease per category has been observed for one quarter. | Owner, with the Tailor Master | 2026-09-04 | #27 (wave 3); revisit post-launch |
