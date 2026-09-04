@@ -123,6 +123,7 @@ Verbs:
   status             Print the state of the five components and exit non-zero when an essential
                      one is down. This output is the evidence for issue #20.
   doctor             Report the toolchain and which test tiers can run in this environment.
+  docs               Check that every relative link in the documentation resolves.
 
 Common options:
   --yes              Skip the confirmation prompt of `reset` (also TAILOR360_ASSUME_YES=1).
@@ -837,6 +838,18 @@ cmd_doctor() {
 }
 
 # ---------------------------------------------------------------------------------------------
+# docs
+# ---------------------------------------------------------------------------------------------
+
+cmd_docs() {
+  require_tool python3
+  heading "Documentation links"
+  # The detector proves itself against known-bad input before it is trusted on the real tree.
+  step python3 "$REPO_ROOT/scripts/check-docs-links.py" --self-test
+  step python3 "$REPO_ROOT/scripts/check-docs-links.py"
+}
+
+# ---------------------------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------------------------
 
@@ -852,6 +865,7 @@ main() {
     reset) cmd_reset "$@" ;;
     status) cmd_status "$@" ;;
     doctor) cmd_doctor "$@" ;;
+    docs) cmd_docs "$@" ;;
     help|-h|--help) usage ;;
     *)
       fail "unknown verb: $verb"

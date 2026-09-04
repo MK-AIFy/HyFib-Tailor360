@@ -290,6 +290,34 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  documentation:
+    name: Documentation links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # No token is used at all: the check reads files out of the checkout and nothing else.
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prove the link checker still detects a broken link
+        # A checker that has quietly stopped detecting is indistinguishable from a repository with
+        # no broken links: both are silent and green. The self-test runs the detector over a
+        # known-bad document and fails unless it finds exactly the two genuine breaks and ignores
+        # the external, anchor, mailto and fenced-code links it is meant to ignore.
+        run: python3 scripts/check-docs-links.py --self-test
+
+      - name: Check that relative documentation links resolve
+        # The first documentation change carried ten broken relative links through review
+        # unnoticed, two of them pointing at documents a document map declared as deliverables and
+        # that nobody had written. A reader following such a link learns nothing while the map
+        # still reads as a complete set, so the gap is invisible exactly where it matters. Only
+        # relative links are checked: an external URL is somebody else's uptime and would fail
+        # builds for reasons no commit here can fix.
+        run: python3 scripts/check-docs-links.py
+
   security:
     name: Security checks
     runs-on: ubuntu-latest

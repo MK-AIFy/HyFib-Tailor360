@@ -150,6 +150,7 @@ Verbs:
   status             Print the state of the five components and exit non-zero when an essential
                      one is down. This output is the evidence for issue #20.
   doctor             Report the toolchain and which test tiers can run in this environment.
+  docs               Check that every relative link in the documentation resolves.
 
 Common options:
   --yes              Skip the confirmation prompt of `reset` (also TAILOR360_ASSUME_YES=1).
@@ -876,6 +877,22 @@ function Invoke-Doctor {
   return 0
 }
 
+function Invoke-Docs {
+  # Windows installs the interpreter as `python`; the Microsoft Store shim and most Unix-like
+  # setups provide `python3`. Either satisfies the check, so accept whichever is on PATH rather
+  # than making the verb unusable on a perfectly good machine.
+  $python = @('python3', 'python') | Where-Object { Test-Tool $_ } | Select-Object -First 1
+  if (-not $python) {
+    Write-Failure 'required tool not found on PATH: python3 (or python)'
+    Write-Failure "install it as described in docs/dev/setup.md, then run '.\scripts\dev.ps1 doctor'."
+    exit 127
+  }
+  Write-Heading 'Documentation links'
+  # The detector proves itself against known-bad input before it is trusted on the real tree.
+  Invoke-Step $python @((Join-Path $RepoRoot 'scripts/check-docs-links.py'), '--self-test')
+  Invoke-Step $python @((Join-Path $RepoRoot 'scripts/check-docs-links.py'))
+}
+
 # ---------------------------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------------------------
@@ -895,6 +912,7 @@ try {
     'reset' { Invoke-Reset -Options $Arguments; exit 0 }
     'status' { exit (Invoke-Status) }
     'doctor' { exit (Invoke-Doctor) }
+    'docs' { Invoke-Docs; exit 0 }
     { $_ -in @('help', '-h', '--help') } { Show-Usage; exit 0 }
     default {
       Write-Failure "unknown verb: $Verb"

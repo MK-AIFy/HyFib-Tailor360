@@ -22,6 +22,7 @@ and it silently falls back to VSTest, which rejects the runner's own options.
 | `reset` | Destroy the local data and re-create it |
 | `status` | State of the five components; non-zero exit when an essential one is down |
 | `doctor` | Toolchain and which test tiers can run here |
+| `docs` | Check that every relative link in the documentation resolves |
 
 ## `restore`
 
@@ -164,6 +165,34 @@ run:
 - `E2E` runs when the Playwright browsers are present.
 
 `doctor` exits non-zero only when a required tool (`dotnet`, `node`, `pnpm`) is missing.
+
+## `docs`
+
+Runs `scripts/check-docs-links.py` twice. First with `--self-test`, which builds a known-bad
+document in a temporary directory and fails unless the detector finds exactly the two genuine
+breaks in it and ignores the external, anchor, mailto and fenced-code links it is meant to ignore.
+Then for real, walking every markdown file under `docs/` and `.github/` plus the repository's
+top-level `README.md`, and failing when a **relative** link points at a file that is not there.
+
+The self-test exists because a checker that has quietly stopped detecting looks exactly like a
+repository with no broken links: both are silent and green. The `Documentation links` job in CI
+runs the same two commands, so a failure here is the failure a reviewer would otherwise have seen
+only after pushing.
+
+What it checks and what it deliberately does not:
+
+| Kind of link | Checked | Why |
+| --- | --- | --- |
+| Relative path, for example `../nfr/slo.md` | Yes | The repository owns whether the file exists |
+| Relative path with an anchor, `slo.md#section` | The file only | A heading may arrive later in the same series of changes |
+| Image embed, `![x](diagram.png)` | Yes | A missing image is as broken as a missing document |
+| Reference definition, `[ref]: c.md` | Yes | Same failure, different syntax |
+| `http://`, `https://`, `mailto:` | No | Somebody else's uptime; a build must not fail for a reason no commit here can fix |
+| Anything inside a fenced code block | No | An illustrative link in an example is not meant to resolve |
+
+When the target is a document a future issue will deliver, refer to it as inline code rather than
+as a link — `docs/prd/00-overview.md` does this for the documents issue #24 has yet to deliver — so
+that a reader is told the document is planned instead of following a link to nothing.
 
 ## Things the scripts deliberately do not wrap
 
