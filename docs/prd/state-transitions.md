@@ -169,7 +169,8 @@ stateDiagram-v2
     OnHold --> Cancelled : cancel job
     InProduction --> Ready : ready gate passes
     InProduction --> Cancelled : cancel job
-    Ready --> InProduction : rework opened or hold opened
+    Ready --> InProduction : rework opened
+    Ready --> OnHold : hold with reason and approval
     Ready --> Delivered : delivery confirmed
     Delivered --> InProduction : post-delivery alteration accepted
     Delivered --> Closed : closure rule satisfied

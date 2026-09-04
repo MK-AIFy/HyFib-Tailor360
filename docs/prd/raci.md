@@ -140,7 +140,7 @@ confirmed or renamed by issue #24 under OD-13. Every other name is taken from th
 | 2 | Measurement capture | `POST /customers/{id}/measurement-drafts/{id}/confirm` | `measurements.capture`; sheet read `measurements.read_sheet` | No | Capture reason on the version | Customers/Measurements | #27, #28 |
 | 3 | Estimate | `POST /orders/drafts/{id}/estimate` | `orders.estimate` | No | No | Orders/Workflow | #32a |
 | 4 | Order confirmation | `POST /orders/drafts/{id}/confirm` with `Idempotency-Key` | `orders.confirm` | No | No | Orders/Workflow | #32a |
-| 5 | Advance collection | `POST /billing/payments` with `Idempotency-Key` | `payments.record`, `payments.open_session`; manual allocation `payments.allocate_manual` | Manual allocation only | Manual allocation | Billing/Payments | #43 |
+| 5 | Advance collection | `POST /billing/payments` with `Idempotency-Key` | `payments.record`, `payments.session` (the session audit actions are `payments.open_session` and `payments.close_session`); manual allocation `payments.allocate_manual` | Manual allocation only | Manual allocation | Billing/Payments | #43 |
 | 6 | Barcode allocation | Confirmation participant hook; manual `POST /custody/identities` | `orders.confirm`; manual `custody.generate_identity` | Manual only | Manual only | Custody/Barcode | #35 |
 | 7 | Label print | `POST /custody/labels/print` | `custody.print_label`, `custody.bulk_print_label`, `custody.verify_label`; `custody.reprint_label`, `custody.invalidate_label` | Reprint, invalidate | Reprint, invalidate | Custody/Barcode | #35 |
 | 8 | Material issue | `POST /inventory/reservations`, `POST /inventory/movements` | `inventory.record_movement`; `inventory.approve_negative_stock` | Negative stock only | Wastage, negative stock | Inventory | #39 |
@@ -154,7 +154,7 @@ confirmed or renamed by issue #24 under OD-13. Every other name is taken from th
 | 16 | Ready declaration | None — computed by the ready-for-delivery gate | No permission exists; the audit action is `orders.ready_state_changed` | n/a | n/a | Orders/Workflow | #34 |
 | 17 | Delivery custody | `POST /custody/scans` with action `RECEIVE` | `custody.receive`, `custody.scan` | No | Manual entry only | Custody/Barcode | #37, #48 |
 | 18 | Payment settlement | `POST /billing/invoices/{id}/post`, `POST /billing/payments`, `POST /billing/payments/{id}/allocations` | `billing.post_invoice`, `payments.record`, `payments.allocate`; `billing.cancel_invoice`, `payments.refund`, `payments.reverse` | Cancel, refund, reverse | Cancel, refund, reverse | Billing/Payments | #42, #43 |
-| 19 | Dispatch | `POST /custody/dispatch`, then `POST /custody/deliveries/{id}/confirm` | `custody.dispatch`, `custody.confirm_delivery`, `custody.recipient_confirmation`; exception `billing.approve_dispatch_exception` | Exception approval | Exception approval, failed delivery | Custody, Billing | #37, #43, #48 |
+| 19 | Dispatch | `POST /custody/dispatch`, then `POST /custody/deliveries/{id}/confirm` | `custody.dispatch`, `custody.confirm_delivery`; exception `billing.approve_dispatch_exception` | Exception approval | Exception approval, failed delivery | Custody, Billing | #37, #43, #48 |
 | 20 | Feedback capture | `/c/feedback/{token}` — a customer link, no staff session | None for the customer; staff read `feedback.read`° | No | No | Notifications/Feedback | #49 |
 | 21 | Service recovery | `POST /feedback/cases/{id}/contact`, `.../close` | `feedback.manage_cases`° | No | Closure resolution code | Notifications/Feedback | #49 |
 | 22 | Stock receipt | `POST /inventory/purchase-orders`, `POST /inventory/purchase-receipts` | `inventory.record_movement`, `inventory.manage_suppliers` | No | Variance against the order | Inventory | #39 |
@@ -172,7 +172,9 @@ Two rows deserve emphasis because they are the controls the business is buying:
   reconciliation. No role, however senior, can declare a garment ready.
 - **Row 19** fails closed. Custody asks Billing whether the order may be dispatched; an unevaluated answer blocks
   the scan (`custody.dispatch-blocked`) and the attempt is audited. Neither Custody nor Delivery Staff computes a
-  balance.
+  balance. `custody.recipient_confirmation` is not a permission and grants nobody anything: it is the branch
+  configuration value `otp_or_signature | signature | otp` that decides whether the doorstep confirmation needs an
+  OTP, a signature stroke or either ([`state-transitions.md`](state-transitions.md) section 4.1, issue #48).
 
 ---
 

@@ -190,7 +190,7 @@ demonstrated as acceptance evidence for #29.
 | Change the shape of the hierarchy beyond two levels in the UI | Engineering (the data model already supports it) | — | Yes, for the editor only |
 
 The default role-to-permission grants for `catalog.*` are proposed in
-[../security/permission-matrix.md](../security/permission-matrix.md) and confirmed under Section 11 item 13 of
+`../security/permission-matrix.md` (delivered by #24) and confirmed under Section 11 item 13 of
 [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md). Every catalogue change is audited with actor, reason and
 correlation id; the publish action requires a reason.
 
