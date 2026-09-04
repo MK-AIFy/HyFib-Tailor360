@@ -74,7 +74,7 @@ services:
       Email__SmtpHost: mailpit
       Email__SmtpPort: "1025"
     secrets:
-      - ConnectionStrings__Tailor360
+      - Database__ConnectionString
       - ObjectStorage__AccessKey
       - ObjectStorage__SecretKey
     # Section 4.7: read-only root filesystem, no privilege escalation, no capabilities. The host
@@ -128,7 +128,7 @@ services:
       Email__SmtpHost: mailpit
       Email__SmtpPort: "1025"
     secrets:
-      - ConnectionStrings__Tailor360
+      - Database__ConnectionString
       - ObjectStorage__AccessKey
       - ObjectStorage__SecretKey
     read_only: true
@@ -192,8 +192,8 @@ secrets:
   # The container runs as UID 1654 (the `app` user of the .NET runtime image) and Compose
   # bind-mounts these files with their host ownership, so they must be readable by that UID:
   #   chmod 0444 infra/compose/secrets/*      (development values only — see infra/README.md)
-  ConnectionStrings__Tailor360:
-    file: ${TAILOR360_SECRETS_DIR:-./secrets}/ConnectionStrings__Tailor360
+  Database__ConnectionString:
+    file: ${TAILOR360_SECRETS_DIR:-./secrets}/Database__ConnectionString
   ObjectStorage__AccessKey:
     file: ${TAILOR360_SECRETS_DIR:-./secrets}/ObjectStorage__AccessKey
   ObjectStorage__SecretKey:

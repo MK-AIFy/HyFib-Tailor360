@@ -40,6 +40,7 @@
     <ProjectReference Include="..\..\src\Modules\Reporting\Tailor360.Modules.Reporting.Contracts\Tailor360.Modules.Reporting.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Tailor360.Modules.Reporting.Domain\Tailor360.Modules.Reporting.Domain.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Tools\Tailor360.Cli\Tailor360.Cli.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />

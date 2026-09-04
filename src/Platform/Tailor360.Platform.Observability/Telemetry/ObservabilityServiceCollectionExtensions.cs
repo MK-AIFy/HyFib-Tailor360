@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -15,12 +17,19 @@ public static class ObservabilityServiceCollectionExtensions
     /// telemetry backend pays no export cost and leaks nothing over the network.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configuration">
+    /// Application configuration. The service name and sampling ratio are read from it eagerly,
+    /// because a resource attribute and a sampler are fixed when the provider is built and cannot be
+    /// supplied later from options.
+    /// </param>
     /// <param name="serviceVersion">The build version reported as a resource attribute.</param>
     public static IServiceCollection AddTailor360Observability(
         this IServiceCollection services,
+        IConfiguration configuration,
         string serviceVersion)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddOptions<ObservabilityOptions>()
             .BindConfiguration(ObservabilityOptions.SectionName)
@@ -30,13 +39,20 @@ public static class ObservabilityServiceCollectionExtensions
         services.AddScoped<CorrelationContext>();
         services.AddScoped<ICorrelationContext>(sp => sp.GetRequiredService<CorrelationContext>());
 
-        var options = new ObservabilityOptions();
+        // The resource identity and the sampler are baked into the provider at build time, so they are
+        // read here rather than resolved from IOptions later. Reporting both hosts under one service
+        // name would make their traces indistinguishable, and leaving the sampler unset would export
+        // every trace regardless of the configured ratio.
+        var startup = new ObservabilityOptions();
+        configuration.GetSection(ObservabilityOptions.SectionName).Bind(startup);
+
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
-                .AddService(Tailor360Diagnostics.SourceName, serviceVersion: serviceVersion))
+                .AddService(startup.ServiceName, serviceVersion: serviceVersion))
             .WithTracing(tracing =>
             {
                 tracing
+                    .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(startup.TraceSamplingRatio)))
                     .AddSource(Tailor360Diagnostics.SourceName)
                     .AddAspNetCoreInstrumentation(instrumentation =>
                     {
@@ -56,8 +72,7 @@ public static class ObservabilityServiceCollectionExtensions
 
         services.ConfigureOpenTelemetryTracerProvider((sp, builder) =>
         {
-            var configured = sp.GetRequiredService<
-                Microsoft.Extensions.Options.IOptions<ObservabilityOptions>>().Value;
+            var configured = sp.GetRequiredService<IOptions<ObservabilityOptions>>().Value;
             if (configured.ExportsTelemetry)
             {
                 builder.AddOtlpExporter(exporter => exporter.Endpoint = new Uri(configured.OtlpEndpoint));
@@ -66,15 +81,13 @@ public static class ObservabilityServiceCollectionExtensions
 
         services.ConfigureOpenTelemetryMeterProvider((sp, builder) =>
         {
-            var configured = sp.GetRequiredService<
-                Microsoft.Extensions.Options.IOptions<ObservabilityOptions>>().Value;
+            var configured = sp.GetRequiredService<IOptions<ObservabilityOptions>>().Value;
             if (configured.ExportsTelemetry)
             {
                 builder.AddOtlpExporter(exporter => exporter.Endpoint = new Uri(configured.OtlpEndpoint));
             }
         });
 
-        _ = options;
         return services;
     }
 }

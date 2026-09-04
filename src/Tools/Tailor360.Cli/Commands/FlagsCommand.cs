@@ -93,15 +93,9 @@ public static class FlagsCommand
             var branchId = parseResult.GetValue(branch);
             var why = parseResult.GetValue(reason) ?? string.Empty;
 
-            if (scopeType == FeatureFlagScopes.Branch && branchId is null)
+            if (!FlagScopeSelection.TryResolve(scopeType, branchId, out var scopeId, out var error))
             {
-                Console.Error.WriteLine("A branch-scoped value needs --branch <guid>.");
-                return ExitCodes.Failure;
-            }
-
-            if (scopeType is not (FeatureFlagScopes.Branch or FeatureFlagScopes.Organisation))
-            {
-                Console.Error.WriteLine("--scope must be 'organisation' or 'branch'.");
+                Console.Error.WriteLine(error);
                 return ExitCodes.Failure;
             }
 
@@ -111,7 +105,6 @@ public static class FlagsCommand
             var audit = hostScope.ServiceProvider.GetRequiredService<IAuditWriter>();
             var clock = hostScope.ServiceProvider.GetRequiredService<IClock>();
 
-            var scopeId = branchId ?? Guid.Empty;
             var existing = await context.FeatureFlags.SingleOrDefaultAsync(
                 f => f.Key == flagKey && f.ScopeType == scopeType && f.ScopeId == scopeId,
                 cancellationToken);

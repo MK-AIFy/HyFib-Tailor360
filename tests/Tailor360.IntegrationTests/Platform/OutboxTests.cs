@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Shouldly;
 using Tailor360.Platform.Abstractions.Events;
 using Tailor360.Platform.Persistence.Contexts;
@@ -133,16 +134,18 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
 
         var dispatcher = provider.GetRequiredService<OutboxDispatcher>();
 
-        // Four cycles, because only the oldest undelivered message of an aggregate is ever eligible.
-        // That is what makes reordering impossible rather than merely unlikely.
-        for (var cycle = 0; cycle < 4; cycle++)
+        // Two dispatchers run together until the queue drains. Only the oldest undelivered message of
+        // an aggregate is ever eligible, so a cycle delivers at most one of these four; the loop runs
+        // until nothing is left rather than assuming how many cycles that takes, because how many
+        // cycles it takes is a timing detail and the ordering guarantee is not.
+        for (var cycle = 0; cycle < 20 && handler.Deliveries.Count < 4; cycle++)
         {
             var first = dispatcher.RunCycleAsync("dispatcher-1", TestContext.Current.CancellationToken);
             var second = dispatcher.RunCycleAsync("dispatcher-2", TestContext.Current.CancellationToken);
             await Task.WhenAll(first, second);
         }
 
-        handler.Deliveries.Count.ShouldBe(4);
+        handler.Deliveries.Count.ShouldBe(4, "the queue should have drained within the cycle budget");
         handler.Deliveries.Select(d => d.OccurredAt)
             .ShouldBe(handler.Deliveries.Select(d => d.OccurredAt).Order());
     }
@@ -264,6 +267,49 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
             .ProcessedAt.ShouldNotBeNull();
     }
 
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
+    public async Task AHandlerThatOutlivesTheLeaseIsNotRunTwice()
+    {
+        // The failure this guards against: a handler waiting on a stalled provider outlives its lease,
+        // a second dispatcher claims the same message, and both run the handler at once. The inbox row
+        // cannot prevent it because it is written only after the handler returns.
+        await using var context = await fixture.CreateDatabaseAsync("outboxslowhandler");
+
+        var lease = TimeSpan.FromSeconds(2);
+        var handler = new SlowHandler(SampleEvent.TypeName, "test.slow", TimeSpan.FromSeconds(5));
+        await using var provider = PlatformServiceHarness.Build(
+            context,
+            services =>
+            {
+                services.AddSingleton<IOutboxMessageHandler>(handler);
+                services.AddSingleton(Options.Create(new OutboxOptions { LeaseDuration = lease }));
+            });
+
+        await PublishAsync(provider, Guid.CreateVersion7());
+
+        var dispatcher = provider.GetRequiredService<OutboxDispatcher>();
+
+        var slow = dispatcher.RunCycleAsync("dispatcher-1", TestContext.Current.CancellationToken);
+
+        // While the first dispatcher is inside the handler, a second one repeatedly tries to claim.
+        // Renewal must keep the lease alive across the whole handler, so every attempt finds nothing.
+        var stolen = 0;
+        while (!slow.IsCompleted)
+        {
+            stolen += await dispatcher.RunCycleAsync("dispatcher-2", TestContext.Current.CancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken);
+        }
+
+        await slow;
+
+        stolen.ShouldBe(0, "the lease was renewed, so no other dispatcher could claim the message");
+        handler.Invocations.ShouldBe(1);
+
+        context.ChangeTracker.Clear();
+        (await context.OutboxMessages.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken))
+            .ProcessedAt.ShouldNotBeNull();
+    }
+
     private static async Task PublishAsync(
         IServiceProvider provider,
         Guid aggregateId,
@@ -279,6 +325,24 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
             TestContext.Current.CancellationToken);
 
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>A handler that takes longer than a short lease, standing in for a stalled provider.</summary>
+    private sealed class SlowHandler(string eventType, string handlerName, TimeSpan delay) : IOutboxMessageHandler
+    {
+        private int _invocations;
+
+        public string EventType { get; } = eventType;
+
+        public string HandlerName { get; } = handlerName;
+
+        public int Invocations => Volatile.Read(ref _invocations);
+
+        public async Task HandleAsync(OutboxDelivery delivery, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _invocations);
+            await Task.Delay(delay, cancellationToken);
+        }
     }
 
     private sealed record SampleEvent(Guid EventId, DateTimeOffset OccurredAt, Guid AggregateId, string Note)

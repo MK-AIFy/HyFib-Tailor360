@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Shouldly;
@@ -171,6 +172,62 @@ public sealed class AuditTrailTests(PlatformDatabaseFixture fixture)
         entry.Before.ShouldBe("true");
         entry.After.ShouldNotBeNull().ShouldContain("\"enabled\": false");
         entry.Reason.ShouldBe("Pilot rehearsal");
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(AuditTrailTests))]
+    public async Task AnEntryForAnUnprovisionedMonthLandsInTheDefaultPartitionInsteadOfFailing()
+    {
+        // PostgreSQL routes a row to its partition before any row-level trigger runs, so a month with
+        // no partition cannot be rescued by the trigger. Because an audit entry is written in the same
+        // transaction as the change it records, a rejected entry would fail the change too: running
+        // out of partitions would stop every state change in the system. The default partition is what
+        // makes that impossible.
+        await using var context = await fixture.CreateDatabaseAsync("auditdefault");
+
+        var farFuture = DateTimeOffset.UtcNow.AddYears(5);
+
+        context.AuditEvents.Add(new AuditEvent
+        {
+            Id = Guid.CreateVersion7(),
+            OccurredAt = farFuture,
+            ActorDisplayName = "system",
+            Action = "tests.far_future",
+            EntityType = "Sample",
+            EntityId = Guid.CreateVersion7(),
+            Summary = "An entry for a month nobody has provisioned.",
+            PreviousHash = string.Empty,
+            Hash = string.Empty,
+        });
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        (await ScalarAsync<long>(context, "SELECT platform.audit_default_partition_rows()")).ShouldBe(1);
+
+        // And the chain still holds: the default partition is part of the same table.
+        (await VerifyChainAsync(context)).ShouldBeNull();
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(AuditTrailTests))]
+    public async Task ProvisioningIsIdempotentAndCreatesTheRequestedMonth()
+    {
+        await using var context = await fixture.CreateDatabaseAsync("auditprovision");
+
+        await context.Database.ExecuteSqlRawAsync(
+            "SELECT platform.ensure_audit_partition(now() + interval '9 month')",
+            TestContext.Current.CancellationToken);
+        await context.Database.ExecuteSqlRawAsync(
+            "SELECT platform.ensure_audit_partition(now() + interval '9 month')",
+            TestContext.Current.CancellationToken);
+
+        var expected = DateTimeOffset.UtcNow.AddMonths(9).ToString("yyyy_MM", CultureInfo.InvariantCulture);
+
+        (await ScalarAsync<long>(
+            context,
+            $"""
+             SELECT count(*) FROM pg_class c
+             JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'platform' AND c.relname = 'audit_events_{expected}'
+             """)).ShouldBe(1);
     }
 
     /// <summary>Gate used by the skip conditions on every test in this class.</summary>

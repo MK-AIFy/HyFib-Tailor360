@@ -75,9 +75,31 @@ it and for every row after it.
 -- Empty result means the chain is intact.
 SELECT * FROM platform.verify_audit_chain();
 
--- Create partitions ahead of time (the CLI does this; the trigger is a backstop).
+-- Provision a month ahead of time. The worker does this daily; the command line does it on demand.
 SELECT platform.ensure_audit_partition(now() + interval '1 month');
+
+-- Zero is the healthy state. Anything else means maintenance has stopped running.
+SELECT platform.audit_default_partition_rows();
 ```
 
-`init-reference-data` keeps three months of partitions ahead, so the first write after midnight on the
-first of a month is never the thing that discovers a missing partition.
+### Partition maintenance
+
+Partitions cannot be created on demand by the insert that needs one: PostgreSQL routes a row to its
+partition **before** any row-level trigger fires, so a row for an unprovisioned month is rejected
+during routing and no trigger can rescue it. Because an audit entry is written in the same transaction
+as the change it records, that rejection would fail the change too — running out of partitions would
+stop every state change in the system.
+
+Two things prevent that.
+
+1. **A default partition.** A row for a month with no partition of its own lands in
+   `platform.audit_events_default` instead of being rejected. Availability is never at risk.
+2. **Maintenance.** The worker provisions the current month and three ahead, at start-up and daily,
+   under a job lease so one instance does it when several are running. `init-reference-data` does the
+   same on demand.
+
+`platform.audit_default_partition_rows()` reports how many entries are in the default partition, and
+the `audit-partitions` health check turns a non-zero count into a degraded status. That number is the
+signal that maintenance has stopped: nothing is broken yet, but those rows must be moved out before
+their month can be given a partition, and `ensure_audit_partition` will refuse with an explanatory
+error until they are.

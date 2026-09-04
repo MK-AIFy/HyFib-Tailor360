@@ -32,6 +32,11 @@ internal static partial class PersistenceLog
         Message = "Outbox message {MessageId} exhausted its attempts and was dead-lettered.")]
     public static partial void OutboxDeadLettered(ILogger logger, Guid messageId);
 
+    [LoggerMessage(EventId = 1013, Level = LogLevel.Warning,
+        Message = "Dispatcher {Owner} finished message {MessageId} but no longer held its lease; " +
+                  "another dispatcher owns it now and will deliver it.")]
+    public static partial void OutboxLeaseLost(ILogger logger, Guid messageId, string owner);
+
     [LoggerMessage(EventId = 1020, Level = LogLevel.Information,
         Message = "Feature flag cache invalidated by a change notification.")]
     public static partial void FeatureFlagsInvalidated(ILogger logger);

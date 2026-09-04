@@ -59,7 +59,7 @@ builder.Services.AddRateLimiter(options => options.AddTailor360Policies());
 
 builder.Services.AddTailor360Platform();
 builder.Services.AddTailor360Security();
-builder.Services.AddTailor360Observability(BuildInformation.Version);
+builder.Services.AddTailor360Observability(builder.Configuration, BuildInformation.Version);
 
 // Readiness reports the database only. Object storage, the malware scanner and provider APIs are
 // reported as degraded rather than unhealthy, because losing them disables a feature, not the instance.

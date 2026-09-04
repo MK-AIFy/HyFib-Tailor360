@@ -112,7 +112,7 @@ services:
       Email__SmtpHost: mailpit
       Email__SmtpPort: "1025"
     secrets:
-      - ConnectionStrings__Tailor360
+      - Database__ConnectionString
       - ObjectStorage__AccessKey
       - ObjectStorage__SecretKey
     <<: *app-hardening
@@ -153,7 +153,7 @@ services:
       Email__SmtpHost: mailpit
       Email__SmtpPort: "1025"
     secrets:
-      - ConnectionStrings__Tailor360
+      - Database__ConnectionString
       - ObjectStorage__AccessKey
       - ObjectStorage__SecretKey
     <<: *app-hardening
@@ -334,8 +334,8 @@ volumes:
 secrets:
   # Files on the VM, root-owned and readable by the container user, placed by the deploy script from
   # the operator's secret store — never committed, never in an environment block.
-  ConnectionStrings__Tailor360:
-    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/ConnectionStrings__Tailor360
+  Database__ConnectionString:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/Database__ConnectionString
   ObjectStorage__AccessKey:
     file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/ObjectStorage__AccessKey
   ObjectStorage__SecretKey:

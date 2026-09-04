@@ -119,4 +119,16 @@ internal static partial class WorkerLog
         Level = LogLevel.Error,
         Message = "An outbox dispatch cycle failed; the loop continues.")]
     public static partial void OutboxCycleFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        EventId = 2020,
+        Level = LogLevel.Information,
+        Message = "Audit partitions provisioned for the current month and the next {MonthsAhead}.")]
+    public static partial void AuditPartitionsProvisioned(ILogger logger, int monthsAhead);
+
+    [LoggerMessage(
+        EventId = 2021,
+        Level = LogLevel.Error,
+        Message = "Audit partition maintenance failed; the audit partition health check reports the effect.")]
+    public static partial void AuditPartitionMaintenanceFailed(ILogger logger, Exception exception);
 }

@@ -78,7 +78,7 @@ file name is the configuration key and `__` is the section separator. Create the
 ```bash
 mkdir -p infra/compose/secrets
 printf 'Host=postgres;Port=5432;Database=tailor360;Username=tailor360;Password=tailor360_dev_only' \
-  > infra/compose/secrets/ConnectionStrings__Tailor360
+  > infra/compose/secrets/Database__ConnectionString
 printf 'tailor360-dev'                > infra/compose/secrets/ObjectStorage__AccessKey
 printf 'tailor360-dev-not-a-secret'   > infra/compose/secrets/ObjectStorage__SecretKey
 chmod 0444 infra/compose/secrets/*

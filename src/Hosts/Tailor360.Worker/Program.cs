@@ -30,11 +30,11 @@ builder.Services.AddOptions<WorkerOptions>()
     .ValidateOnStart();
 
 builder.Services.AddTailor360Platform();
-builder.Services.AddTailor360Observability(
-    typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0");
+builder.Services.AddTailor360Observability(builder.Configuration, typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0");
 
 builder.Services.AddSingleton<HeartbeatService>();
 builder.Services.AddHostedService<OutboxDispatcherService>();
+builder.Services.AddHostedService<AuditPartitionMaintenanceService>();
 builder.Services.AddSingleton<IHeartbeatMonitor>(sp => sp.GetRequiredService<HeartbeatService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HeartbeatService>());
 

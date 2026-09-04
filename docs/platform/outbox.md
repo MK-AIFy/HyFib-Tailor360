@@ -45,6 +45,16 @@ A claim stamps `lease_owner` and `lease_expires_at`. A dispatcher that crashes m
 lease behind; once it lapses the message becomes eligible again and another instance takes it. No
 operator has to clear anything.
 
+The lease is **renewed while the handlers run**, every third of its duration. Without renewal a handler
+that outlives the lease — an external provider stalling is enough — would let a second dispatcher claim
+the same message and run the same handler at the same time. The inbox row cannot prevent that, because
+it is written only after the handler returns, so both invocations would find no inbox row and both
+proceed. Renewal is what makes "one message per aggregate in flight" true rather than usual.
+
+Completion is conditional on still owning the lease. A dispatcher that lost its lease anyway logs a
+warning and leaves the message to whoever holds it now, rather than marking work done that another
+instance has yet to do.
+
 ### Retries and dead letters
 
 A failed delivery moves `available_at` forward with exponential backoff plus jitter. The jitter matters

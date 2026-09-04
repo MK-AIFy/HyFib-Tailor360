@@ -57,6 +57,11 @@ public static class ReplayOutboxCommand
             var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var audit = scope.ServiceProvider.GetRequiredService<IAuditWriter>();
 
+            // The update and its audit entry commit together. Without the transaction the raw update
+            // would commit on its own and a failure writing the audit entry would leave messages back
+            // in the queue with no record of who did it, which is precisely what the audit trail is for.
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
             var replayed = id is null
                 ? await context.Database.ExecuteSqlAsync(
                     $"""
@@ -85,6 +90,7 @@ public static class ReplayOutboxCommand
                 cancellationToken);
 
             await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             Console.WriteLine($"Replayed {replayed} message(s).");
             return ExitCodes.Success;

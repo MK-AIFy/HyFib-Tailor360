@@ -11,8 +11,10 @@ architecture document, an `ARCH-…` rule or a module README needs a reason, the
 
 ## 1. The records
 
-Thirteen records were produced by issue #18 as the Wave 0 architecture baseline. All are **Accepted** and dated
-September 2026.
+Thirteen decision records, ADR-0001 to ADR-0013, were produced by issue #18 as the Wave 0 architecture baseline.
+All thirteen are **Accepted**, dated 4 September 2026. Nine of them remain conditional on a business decision that
+is still open — Section 5 names each one, its owner and what happens if it goes the other way. The table below
+also lists ADR-0000, which is not a decision about the system but the decision about how decisions are written.
 
 | # | Record | Decides | Status | Plan decision |
 | --- | --- | --- | --- | --- |
@@ -26,10 +28,10 @@ September 2026.
 | 0007 | [`0007-branch-aware-single-tenancy.md`](0007-branch-aware-single-tenancy.md) | One organisation with branch scoping, and the costed checklist of what multi-tenancy would change | Accepted — 2026-09-04 | D7 |
 | 0008 | [`0008-transactional-outbox-and-workers.md`](0008-transactional-outbox-and-workers.md) | Publishing facts through a per-module transactional outbox, with inbox deduplication, leases and a dedicated worker host running the side effects | Accepted — 2026-09-04 | D6, D12 |
 | 0009 | [`0009-configurable-taxonomy-as-versioned-data.md`](0009-configurable-taxonomy-as-versioned-data.md) | Categories, templates, workflows, checklists, prices, taxes and policies as draft, published and retired versioned data rather than code, with snapshots protecting in-flight orders | Accepted — 2026-09-04 | D8 |
-| 0010 | [`0010-deployment-portability.md`](0010-deployment-portability.md) | Container images with a Docker Compose baseline that stays Kubernetes-ready | Accepted — 2026-09 | D17 |
-| 0011 | [`0011-reporting-read-models.md`](0011-reporting-read-models.md) | Reporting as event-fed projections that are never the authoritative source of financial, stock, workflow or custody state | Accepted — 2026-09 | Plan 4.3 |
-| 0012 | [`0012-integration-adapters-ports.md`](0012-integration-adapters-ports.md) | Ports in `Platform.Abstractions` with vendor adapters confined to `Integration.Infrastructure`, fakes by default | Accepted — 2026-09 | D15, D20 |
-| 0013 | [`0013-caching.md`](0013-caching.md) | No application cache is ever authoritative; the permitted caches and their invalidation and propagation bounds | Accepted — 2026-09 | D21 |
+| 0010 | [`0010-deployment-portability.md`](0010-deployment-portability.md) | Shipping as portable container images with a Docker Compose baseline and a Kubernetes-ready path | Accepted — 2026-09-04 | D17, D12, D13, D18 |
+| 0011 | [`0011-reporting-read-models.md`](0011-reporting-read-models.md) | Serving reports from rebuildable projections with checkpoints and reconciliation, never as the authoritative source of financial, stock, workflow or custody state | Accepted — 2026-09-04 | Plan 2.2, 4.3 |
+| 0012 | [`0012-integration-ports-and-adapters.md`](0012-integration-ports-and-adapters.md) | Reaching external systems only through ports, with replaceable adapters confined to `Integration.Infrastructure` and a strict outbound policy | Accepted — 2026-09-04 | D20, D15, D16 |
+| 0013 | [`0013-caching.md`](0013-caching.md) | Caching only in process, only with explicit invalidation, and never authoritatively | Accepted — 2026-09-04 | D21 |
 
 Records 0001 to 0007 and the template were issued in the first batch of issue #18; records 0008 to 0013 complete
 the same issue and the same Wave 0 baseline. Every record listed here is in force.
@@ -83,7 +85,7 @@ flowchart TD
 | Why can an administrator add a category without a deployment? | [`0009-configurable-taxonomy-as-versioned-data.md`](0009-configurable-taxonomy-as-versioned-data.md) |
 | Why Docker Compose rather than Kubernetes at launch? | [`0010-deployment-portability.md`](0010-deployment-portability.md) |
 | Why does a report never decide whether a garment may be dispatched? | [`0011-reporting-read-models.md`](0011-reporting-read-models.md) |
-| Why is the payment gateway's software development kit referenced by only one project? | [`0012-integration-adapters-ports.md`](0012-integration-adapters-ports.md) |
+| Why is the payment gateway's software development kit referenced by only one project? | [`0012-integration-ports-and-adapters.md`](0012-integration-ports-and-adapters.md) |
 | Why is there no cache in front of the invoice total? | [`0013-caching.md`](0013-caching.md) |
 
 ## 4. Writing a new record
@@ -112,11 +114,14 @@ and in Section 11 of [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md).
 | Record | Open decision | Owner | Needed by | Effect if it goes the other way |
 | --- | --- | --- | --- | --- |
 | ADR-0002 | OD-01 backend platform and build environment | Business owner with the technical reviewer | Before Wave 1 | Superseded, not amended, if a Node.js and TypeScript backend is chosen; ADR-0001, 0004, 0005, 0006 and 0007 survive largely unchanged |
-| ADR-0010 | OD-02 hosting model and indicative monthly budget | Business owner | Before the Wave 1 exit | The Compose baseline stands either way; the target environment, infrastructure-as-code tooling and backup destination are filled in once the model is chosen |
-| ADR-0006 | OD-12 primary authentication strategy and devices | Business owner with the technical reviewer | Before Wave 1 | Federation would replace credential establishment only; the cookie session, revocation and step-up model are retained as an amendment |
-| ADR-0007 | OD-06 branches at launch, with timezones, calendars and GST registrations | Business owner | Before the Wave 1 exit | Fixes the seed data, not the model |
-| ADR-0005 | OD-08 retention periods; OD-02 for the storage product and cost band | Business owner, with the accountant for financial records | Before the Wave 1 exit | Fixes retention numbers and the concrete product; the delivery model is unaffected |
 | ADR-0003 | OD-07 device, browser and printer matrix | Business owner | Before the Wave 0 exit | Bounds what "supported" means; the client model is unaffected |
+| ADR-0005 | OD-08 retention periods, and OD-02 for the storage product and cost band | Business owner, with the accountant for financial records | Before the Wave 1 exit | Fixes retention numbers and the concrete product; the authorised-delivery model is unaffected |
+| ADR-0006 | OD-12 primary authentication strategy and devices | Business owner with the technical reviewer | Before Wave 1 | Federation would replace credential establishment only; the cookie session, revocation and step-up model are retained as an amendment |
+| ADR-0007 | OD-06 branches at launch, with timezones, working calendars and GST registrations | Business owner | Before the Wave 1 exit | Fixes the seed data, not the model |
+| ADR-0010 | OD-02 hosting model and indicative monthly budget; OD-14 telemetry backend | Business owner | Before the Wave 1 exit (OD-02); before Wave 5 (OD-14) | The Compose baseline and the container unit stand either way; the venue, infrastructure-as-code tooling, backup destination and whether a second machine is provisioned are filled in once chosen |
+| ADR-0011 | OD-05 valuation method, rounding conventions and GST record retention; OD-08 retention periods | Business owner, co-signed by the accountant | Before Wave 3 for rounding, before Wave 4 for valuation | Decides what several published figures mean and how long an export lives, not how they are served |
+| ADR-0012 | OD-03 providers; OD-04 the dispatch payment rule; OD-15 operations ownership and alert channel | Business owner | Before Wave 4 (OD-03, OD-04); before Wave 5 (OD-15) | Names the vendors and decides whether a doorstep payment adapter is needed at all; the port-and-adapter shape is unaffected |
+| ADR-0013 | OD-02 hosting model; OD-12 authentication strategy and shared devices | Business owner with the technical reviewer | Before the Wave 1 exit (OD-02); before Wave 1 (OD-12) | Could change the implementation of the session-revocation cache; the rule that no cache is ever authoritative is unaffected |
 
 ## 6. Related documents
 

@@ -149,7 +149,7 @@ non-secret settings only.
 
 | Secret file | Consumed by | Contents |
 | --- | --- | --- |
-| `ConnectionStrings__Tailor360` | Web host, worker | The application role's connection string. The runtime role holds DML only; DDL belongs to the migrator |
+| `Database__ConnectionString` | Web host, worker | The application role's connection string. The runtime role holds DML only; DDL belongs to the migrator |
 | `ObjectStorage__AccessKey`, `ObjectStorage__SecretKey` | Web host, worker | Per-module-prefix credentials for the S3 API |
 | `postgres_password` | PostgreSQL | Read by the image through `POSTGRES_PASSWORD_FILE` |
 | `minio_root_user`, `minio_root_password` | Object storage, bucket bootstrap | Read through the `_FILE` variants |

@@ -18,6 +18,7 @@ using Tailor360.Platform.Persistence.Health;
 using Tailor360.Platform.Persistence.Idempotency;
 using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Persistence.Outbox;
+using Tailor360.Platform.Persistence.Scheduling;
 using Tailor360.Platform.Persistence.Sequencing;
 
 namespace Tailor360.Platform.Persistence;
@@ -93,6 +94,7 @@ public static class PlatformServiceCollectionExtensions
             .Add<PlatformDbContext>(PlatformDbContext.SchemaName, ModuleContextRegistry.PlatformOrder));
 
         services.TryAddScoped<MigrationRunner>();
+        services.TryAddScoped<JobLeaseService>();
 
         services.TryAddScoped<IAuditContext, SystemAuditContext>();
         services.TryAddScoped<IAuditWriter, AuditWriter>();
@@ -110,7 +112,8 @@ public static class PlatformServiceCollectionExtensions
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database", tags: [HealthCheckTags.Ready])
             .AddCheck<MigrationStateHealthCheck>("migrations", tags: [HealthCheckTags.Startup])
-            .AddCheck<OutboxBacklogHealthCheck>("outbox", tags: [HealthCheckTags.NonEssential]);
+            .AddCheck<OutboxBacklogHealthCheck>("outbox", tags: [HealthCheckTags.NonEssential])
+            .AddCheck<AuditPartitionHealthCheck>("audit-partitions", tags: [HealthCheckTags.NonEssential]);
 
         return services;
     }

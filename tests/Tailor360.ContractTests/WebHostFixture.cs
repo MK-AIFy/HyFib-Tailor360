@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Tailor360.Web;
 
@@ -17,6 +18,16 @@ public sealed class WebHostFixture : WebApplicationFactory<WebEntryPoint>
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.UseEnvironment(Environments.Development);
+
+        // Contract tests inspect the route table and never touch the database, but the host still
+        // builds its context; pointing it at whatever instance this environment provides keeps the
+        // startup probe honest rather than reporting a database that is not there.
+        if (Environment.GetEnvironmentVariable("TAILOR360_TEST_DATABASE_URL") is { Length: > 0 } url)
+        {
+            builder.ConfigureHostConfiguration(configuration => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Database:ConnectionString"] = url }));
+        }
+
         return base.CreateHost(builder);
     }
 }

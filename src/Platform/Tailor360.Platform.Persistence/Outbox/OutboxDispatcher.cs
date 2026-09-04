@@ -48,7 +48,7 @@ public sealed class OutboxDispatcher(
         foreach (var delivery in claimed)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await DeliverAsync(context, handlers[delivery.EventType], delivery, cancellationToken);
+            await DeliverAsync(context, handlers[delivery.EventType], delivery, owner, cancellationToken);
         }
 
         return claimed.Count;
@@ -133,8 +133,15 @@ public sealed class OutboxDispatcher(
         PlatformDbContext context,
         IEnumerable<IOutboxMessageHandler> handlers,
         OutboxDelivery delivery,
+        string owner,
         CancellationToken cancellationToken)
     {
+        // The claim is held open for as long as the handlers take. A handler that outlives the lease
+        // would otherwise let a second dispatcher claim the same message and run the same handler
+        // concurrently, which the inbox row cannot prevent because it is written only afterwards.
+        await using var renewal = OutboxLeaseRenewal.Start(
+            scopeFactory, delivery.MessageId, owner, options.Value.LeaseDuration);
+
         try
         {
             foreach (var handler in handlers)
@@ -162,14 +169,21 @@ public sealed class OutboxDispatcher(
                 await context.SaveChangesAsync(cancellationToken);
             }
 
-            await context.Database.ExecuteSqlInterpolatedAsync(
+            // Conditional on still holding the lease. Marking a message processed after losing the
+            // lease would hide work another dispatcher is doing, or has yet to do.
+            var completed = await context.Database.ExecuteSqlInterpolatedAsync(
                 $"""
                  UPDATE platform.outbox_messages
                     SET processed_at = {clock.UtcNow}, lease_owner = NULL, lease_expires_at = NULL,
                         last_error = NULL
-                  WHERE id = {delivery.MessageId}
+                  WHERE id = {delivery.MessageId} AND lease_owner = {owner}
                  """,
                 cancellationToken);
+
+            if (completed == 0)
+            {
+                PersistenceLog.OutboxLeaseLost(logger, delivery.MessageId, owner);
+            }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

@@ -108,7 +108,7 @@ Npgsql.NpgsqlException: Failed to connect to 127.0.0.1:5432
   service.
 - **Wrong password.** The development password lives in `infra/compose/.env`
   (`POSTGRES_PASSWORD`); the hosts read the connection string from the secret file
-  `infra/compose/secrets/ConnectionStrings__Tailor360` (git-ignored, created as described in
+  `infra/compose/secrets/Database__ConnectionString` (git-ignored, created as described in
   `infra/README.md`). If you changed one, change the other. The container only reads
   `POSTGRES_PASSWORD` when the data volume is created, so after changing it you must recreate the
   volume: `./scripts/dev reset`.
