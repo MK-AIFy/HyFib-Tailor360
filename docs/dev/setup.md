@@ -16,6 +16,7 @@ reports the five running components. Those two outputs are the evidence a pull r
 | Git | 2.40 or newer | `git config core.autocrlf` behaviour on Windows (see step 2). |
 | Docker | Engine 27 or Docker Desktop 4.3x | Optional but strongly recommended: it runs PostgreSQL, MinIO, Mailpit and the Testcontainers-based integration tests. |
 | PostgreSQL client tools | 16 | Optional: `pg_isready` gives `./scripts/dev status` a real readiness answer instead of a plain port check, and `psql` is how you inspect the database. |
+| Python | 3.9 or newer | Optional: `./scripts/dev docs` runs the documentation link check with it. The same check runs in CI, so a missing interpreter delays the failure rather than hiding it. Windows installs the interpreter as `python`, which the script accepts alongside `python3`. |
 | PowerShell | 7.4 or newer | Only on Windows without WSL. `scripts/dev.ps1` also runs on Windows PowerShell 5.1. |
 
 Everything else — the compilers, the analysers, the test runner, Vite — comes from `dotnet
