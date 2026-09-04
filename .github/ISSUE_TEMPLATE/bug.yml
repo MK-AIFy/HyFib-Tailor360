@@ -107,6 +107,48 @@ body:
         Screenshots or a short recording, the correlation id shown on the error screen, and any log
         lines. Redact anything identifying a real person before attaching it.
 
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### The Definition of Done this work inherits
+
+        Work opened here is held to the project-wide Definition of Done, not to a checklist written
+        per issue. Its nine items are authoritative in
+        [`docs/process/definition-of-done.md`](https://github.com/MK-AIFy/HyFib-Tailor360/blob/main/docs/process/definition-of-done.md); the
+        pull-request template mirrors them and `pr-policy.yml` enforces the mechanical parts.
+
+        <details>
+        <summary>The nine items</summary>
+
+        1. Scope, issue link and branch
+        2. Authorisation, validation, idempotency and audit on every state-changing endpoint
+        3. Tests
+        4. Migrations and rollback
+        5. Application programming interface contract
+        6. Secrets, personal data, telemetry and the threat model
+        7. User-interface changes
+        8. Documentation
+        9. Evidence checklist complete
+
+        </details>
+
+        Before a branch is cut, the issue must also satisfy the Definition of Ready in
+        [`docs/process/definition-of-ready.md`](https://github.com/MK-AIFy/HyFib-Tailor360/blob/main/docs/process/definition-of-ready.md) — most
+        of what it asks for (data classification, authorisation impact, test strategy, the evidence
+        list) is far cheaper to decide now than to reconstruct during review.
+
+  - type: checkboxes
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      options:
+        - label: >-
+            I understand this work is held to the project-wide Definition of Done, and that a
+            pull request that does not meet it will not be merged.
+          required: true
+
   - type: checkboxes
     id: confirmations
     attributes:
