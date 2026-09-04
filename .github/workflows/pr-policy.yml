@@ -57,7 +57,12 @@ jobs:
           # closes the issue on merge. Repeating the same number is accepted (a body may mention
           # the issue twice); two different numbers are not, because a pull request that serves two
           # issues cannot be reviewed or reverted as one unit.
-          issues=$(printf '%s' "$PR_BODY" | grep -oiE '\b(refs|closes):?[[:space:]]+#[0-9]+' \
+          # The pattern deliberately swallows a comma- or `and`-separated list after one keyword, so
+          # that `Refs #17, #20, #21` counts as three issues rather than one. Matching only the first
+          # number would let a pull request serving a whole wave pass a check meant to prevent exactly
+          # that, which is worse than having no check.
+          issues=$(printf '%s' "$PR_BODY" \
+            | grep -oiE '\b(refs|closes):?[[:space:]]+#[0-9]+([[:space:]]*(,|and)[[:space:]]*#[0-9]+)*' \
             | grep -oE '[0-9]+' | sort -u || true)
           issue_count=$(printf '%s' "$issues" | grep -c . || true)
 

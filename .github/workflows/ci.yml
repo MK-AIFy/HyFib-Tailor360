@@ -295,6 +295,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # gitleaks lists the commits of the pull request to decide what to scan, and the dependency
+    # review compares the base and head dependency graphs. Both need to read pull-request metadata;
+    # the workflow-level default of `contents: read` alone makes them fail with a 403 that reads
+    # like a bug in the action. Read access is the whole grant: neither writes anything.
+    permissions:
+      contents: read
+      pull-requests: read
+
     # Issue #22 adds CodeQL (JavaScript/TypeScript and C#), Trivy over the images and the compose
     # and IaC files, and the Syft SBOM upload, together with their SARIF uploads — which need
     # `security-events: write`. The scaffold keeps this job to the two checks that need no further
