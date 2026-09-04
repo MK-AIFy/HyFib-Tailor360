@@ -84,17 +84,41 @@ public sealed class WebPipelineTests(WebApplicationFixture fixture)
         echoed.ShouldAllBe(c => char.IsAsciiLetterOrDigit(c));
     }
 
-    [Fact]
-    public async Task AnUnknownApiRouteIsNotSwallowedByTheClientShellFallback()
+    [Theory]
+    [InlineData("/api/v1/does-not-exist")]
+    [InlineData("/api/nope")]
+    [InlineData("/health/nope")]
+    public async Task AnUnknownApiOrHealthRouteIsNotSwallowedByTheClientShellFallback(string path)
     {
         using var client = fixture.CreateClient();
 
-        // The fallback exists for client routes. An unknown /api path must still be a 404, or a typo in
-        // a client call would silently receive HTML and fail much later.
-        var response = await client.GetAsync(
-            new Uri("/api/v1/does-not-exist", UriKind.Relative), TestContext.Current.CancellationToken);
+        // The shell fallback exists for client routes. Once the built client is present in wwwroot it
+        // would otherwise answer a mistyped API call with HTML and a 200, and the caller would fail
+        // somewhere far from the cause. Asserting the content type as well as the status keeps this
+        // test from passing merely because no index.html happens to be deployed.
+        var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.ShouldNotBe("text/html");
+    }
+
+    [Fact]
+    public async Task AClientDeepLinkResolvesToTheShell()
+    {
+        using var client = fixture.CreateClient();
+
+        // A barcode label or a message can carry a deep link straight to a job. It has to open.
+        var response = await client.GetAsync(
+            new Uri("/orders/12345", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        // Without a built client in wwwroot there is nothing to fall back to, which is the state of a
+        // backend-only checkout; either answer is acceptable, serving the API instead is not.
+        response.StatusCode.ShouldBeOneOf(HttpStatusCode.OK, HttpStatusCode.NotFound);
+
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
+        }
     }
 
     private sealed record VersionPayload(string Version, string BuildHash, string Environment);

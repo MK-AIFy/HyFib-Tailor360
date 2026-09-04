@@ -129,8 +129,26 @@ if (app.Environment.IsDevelopment())
             "#20");
 }
 
-// The progressive web application is a single-page shell: any path the API did not claim returns
-// index.html so that a deep link opened from a scanner or a message resolves in the client router.
+// An unknown path under /api or /health must be a 404, never the client shell. Once the built client
+// is present in wwwroot the shell fallback would otherwise answer a mistyped API call with HTML and a
+// 200, and the caller would fail somewhere far from the cause. These patterns are more specific than
+// the shell fallback below, so they win.
+app.MapFallback("/api/{**path}", () => Results.NotFound())
+    .AllowAnonymousWithJustification(
+        "Returns 404 for an unknown API route and nothing else. Answering here rather than falling " +
+        "through to the client shell is what keeps a mistyped API call from receiving HTML with a 200.",
+        "#20")
+    .ExcludeFromDescription();
+
+app.MapFallback("/health/{**path}", () => Results.NotFound())
+    .AllowAnonymousWithJustification(
+        "Returns 404 for an unknown health path, so a probe misconfigured to the wrong path fails " +
+        "loudly instead of receiving the client shell and reporting the instance healthy.",
+        "#20")
+    .ExcludeFromDescription();
+
+// The progressive web application is a single-page shell: any other path returns index.html so that a
+// deep link opened from a scanner or a message resolves in the client router.
 app.MapFallbackToFile("index.html")
     .AllowAnonymousWithJustification(
         "The application shell is a static HTML file containing no data. It must load before a session " +

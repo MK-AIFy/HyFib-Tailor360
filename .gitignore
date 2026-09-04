@@ -38,5 +38,10 @@ secrets/
 .DS_Store
 Thumbs.db
 
+# The built client is copied into the web host's wwwroot by the image build and by scripts/dev.
+# It is build output, not source.
+src/Hosts/Tailor360.Web/wwwroot/*
+!src/Hosts/Tailor360.Web/wwwroot/.gitkeep
+
 # Local infrastructure state
 infra/compose/data/
