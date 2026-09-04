@@ -90,7 +90,7 @@ reason.
 | How long | Budget by the work, not by the journey — **proposed, to be confirmed** (A11Y-OD-02). The proposal is **10 minutes per screen** for the core checklist, **10 minutes per screen-family checklist**, and **20 minutes for the section 6 journey record**, with the keyboard pass and the screen-reader pass budgeted **separately**. A priority-zero journey of ten screens touching six families is therefore a day's work, not an hour's, and is planned as one. A run that overruns is not abandoned — it is a finding that the journey is long, and the overrun is recorded on the record |
 | What the runner needs | A kit, not a laptop. The device and pairing of section 2.3; a paired Bluetooth keyboard for the keyboard pass; a configured **keyboard-wedge scanner**; a **printed synthetic label sheet**, including the deliberately invalid payloads of section 3.7; access to a branch **print-station queue**; the fixtures and forced states of section 3.7; a second device where a family checklist names a different device class — A11Y-BI-13 asks about phone layouts and cannot be answered on the NVDA desktop pairing alone; and synthetic data only, per plan Section 2.2. A second person is **not** required, but is useful for the priority-zero journeys because one can read the checklist aloud while the other drives |
 | When a piece of kit is missing | The affected items are recorded `N/A — kit unavailable: <item>` and the run **does not** count as covering them. The gap is then visible on the record and in the release evidence, rather than absorbed into a silent Pass |
-| Eyes open or closed | Eyes open. This is not an empathy exercise. The rule is stricter and easier to apply, and it is about **completing a step**: a step is Pass only if the information needed **to know what to do next** came through the assistive technology. If the runner used the screen to decide the next move during the screen-reader pass, or the mouse during the keyboard pass, the step is a Fail. The rule does **not** apply to the observation items, which deliberately ask the runner to compare what is announced with what is on the screen — every item marked `Env` in the **Pass** column of sections 4 and 5, and A11Y-09, which exists precisely to compare the two orders |
+| Eyes open or closed | Eyes open. This is not an empathy exercise. The rule is stricter and easier to apply, and it is about **completing a step**: a step is Pass only if the information needed **to know what to do next** came through the assistive technology. If the runner used the screen to decide the next move during the screen-reader pass, or the mouse during the keyboard pass, the step is a Fail. The rule does **not** apply to the observation items, which deliberately ask the runner to compare what is announced with what is on the screen — every item marked `Env` in the **Which pass** column of sections 4 and 5, and A11Y-09, which exists precisely to compare the two orders |
 
 ### 2.3 Which pairing a run uses
 
@@ -121,8 +121,8 @@ journeys with VoiceOver on iOS and TalkBack on Android only, and states that #52
 NVDA arrives. Counter and back-office journeys therefore run on **VoiceOver with Safari** in the interim, and the NVDA
 leg of the rotation begins at #52.
 
-Some items cannot be answered on a desktop pairing at all, because they are about a phone: **A11Y-16**, the shop-floor
-rows of **A11Y-65**, **A11Y-67**, **A11Y-LF-09** and **A11Y-BI-13**. On NVDA they are recorded `N/A — desktop pairing`
+Some items cannot be answered on a desktop pairing at all, because they are about a phone: **A11Y-17**, the shop-floor
+rows of **A11Y-68**, **A11Y-70**, **A11Y-LF-09** and **A11Y-BI-13**. On NVDA they are recorded `N/A — desktop pairing`
 and stay with the TalkBack and VoiceOver runs. That is a legitimate Not applicable under section 2.2, and it does not
 trigger the re-run rule.
 
@@ -167,8 +167,8 @@ navigation, which is the commonest way a run produces a false Pass. Record both 
 case where they disagree is the case this ordering exists to expose.
 
 The environment items — greyscale, zoom, text spacing, reduced motion, the themes — are answered in a third
-**environment pass**, after both, using the settings of section 3.6. Every item in sections 4 and 5 says which pass
-answers it in its **Pass** column:
+**environment pass**, after both, using the settings of section 3.6. Every item in sections 4 and 5 names the pass that
+answers it in its **Which pass** column:
 
 | Marker | Pass it belongs to |
 | --- | --- |
@@ -293,11 +293,11 @@ accessibility settings rather than concluding the setting is gone.
 
 | Setting the item needs | Android | iOS / iPadOS | Windows |
 | --- | --- | --- | --- |
-| **Greyscale display** (A11Y-47) | Settings → Accessibility → Colour and motion → Colour correction → Greyscale | Settings → Accessibility → Display & Text Size → Colour Filters → on → Greyscale | `Ctrl+Win+C` toggles the greyscale colour filter, once it is enabled in Settings → Accessibility → Colour filters |
-| **Reduce motion** (A11Y-70) | Settings → Accessibility → Colour and motion → Remove animations | Settings → Accessibility → Motion → Reduce Motion | Settings → Accessibility → Visual effects → Animation effects off |
-| **200% zoom** (A11Y-68) | Chrome → ⋮ → Settings → Accessibility → Text scaling to 200%, plus Desktop site where the layout is being checked at desktop width | Safari → the `ᴀA` menu in the address bar → 200% | `Ctrl` and `+` in the browser, to 200% |
-| **The three themes** (A11Y-14) | **The product's own theme switch**, on the display-preferences screen — theme is a stored user preference (system, light, dark, high contrast), not an operating-system setting. Set it there, then confirm the operating-system dark mode and `prefers-contrast` do not override it | Same | Same |
-| **Product text size** (A11Y-69) | The product's own display preferences — 100%, 125%, 150% — set alongside the device font size at its largest | Same | Same |
+| **Greyscale display** (A11Y-48) | Settings → Accessibility → Colour and motion → Colour correction → Greyscale | Settings → Accessibility → Display & Text Size → Colour Filters → on → Greyscale | `Ctrl+Win+C` toggles the greyscale colour filter, once it is enabled in Settings → Accessibility → Colour filters |
+| **Reduce motion** (A11Y-73) | Settings → Accessibility → Colour and motion → Remove animations | Settings → Accessibility → Motion → Reduce Motion | Settings → Accessibility → Visual effects → Animation effects off |
+| **200% zoom** (A11Y-71) | Chrome → ⋮ → Settings → Accessibility → Text scaling to 200%, plus Desktop site where the layout is being checked at desktop width | Safari → the `ᴀA` menu in the address bar → 200% | `Ctrl` and `+` in the browser, to 200% |
+| **The three themes** (A11Y-15) | **The product's own theme switch**, on the display-preferences screen — theme is a stored user preference (system, light, dark, high contrast), not an operating-system setting. Set it there, then confirm the operating-system dark mode and `prefers-contrast` do not override it | Same | Same |
+| **Product text size** (A11Y-72) | The product's own display preferences — 100%, 125%, 150% — set alongside the device font size at its largest | Same | Same |
 
 Two of these are worth stating plainly, because they are the ones a runner most often gets wrong. **"High contrast"
 in this document means the product's own high-contrast theme**, the one that exists for sunlight at the counter, not
@@ -306,8 +306,8 @@ a Windows contrast theme and not `prefers-contrast` alone; the operating-system 
 setting, not `Ctrl` and `+`** — the two produce different layouts, and only the first is what a person with
 presbyopia actually has switched on.
 
-Where an item names a **CSS pixel measurement** — A11Y-15's 2 px indicator and 3:1 contrast, A11Y-65's 56, 44 and
-32 px, A11Y-67's bottom 8 px — it cannot be eyeballed. Measure it: connect the device to a desktop with remote
+Where an item names a **CSS pixel measurement** — A11Y-16's 2 px indicator and 3:1 contrast, A11Y-68's 56, 44 and
+32 px, A11Y-70's bottom 8 px — it cannot be eyeballed. Measure it: connect the device to a desktop with remote
 debugging (Chrome DevTools for Android at `chrome://inspect`, Safari's Develop menu for iOS) and read the computed
 box on the focused element; for contrast, take a screenshot of the focused control and sample the two colours with
 a contrast tool. Record the measured number on the record, not the verdict alone.
@@ -321,7 +321,7 @@ be confirmed** (A11Y-OD-11).
 | State the run needs | Items | How it is reached | Who owns providing it |
 | --- | --- | --- | --- |
 | **Offline, repeatably, mid-journey** | All of 5.8, plus the offline step of every section 6 record | Airplane mode on the device is the primary route, because it is the one the shop floor actually meets. Where a journey must stay mid-form, use the remote-debug route instead — DevTools → Network → Offline over `chrome://inspect` for Android, the Network Link Conditioner profile for iOS | Technical reviewer, as a documented route per platform |
-| **A session about to expire** | A11Y-76, A11Y-77, and step 9 of `A11Y-PZ-05` | A short-timeout environment flag on the test environment, or an administration action that expires the runner's own session on demand. Waiting out a production timeout is not a fixture | Technical reviewer, with #23 |
+| **A session about to expire** | A11Y-79, A11Y-80, and step 9 of `A11Y-PZ-05` | A short-timeout environment flag on the test environment, or an administration action that expires the runner's own session on demand. Waiting out a production timeout is not a fixture | Technical reviewer, with #23 |
 | **An offline queue at its bound** | A11Y-OF-04 | A lowered queue bound on the test environment. The real bound is 200 queued scans per device ([`support-matrix.md`](support-matrix.md) section 7.4) and is not reachable by hand inside any budget | Technical reviewer, with #51 |
 | **A client the server refuses as too old** | A11Y-OF-08 | A pinned old client build, or an `X-Client-Version` override that provokes the 426 response | Technical reviewer, with #53 |
 | **Five distinct scan rejections** | A11Y-SC-05, step 9 of `A11Y-PZ-02` | A printed synthetic label sheet carrying one pre-made payload per rule — wrong namespace, bad check character, unknown identity, wrong branch, wrong custodian. The check-character payload is generated by the seed tool, never hand-crafted: the checksum is a Damm-style check character over the Crockford base32 alphabet and cannot be guessed at a desk | Technical reviewer, with #35 and #36 |
@@ -335,8 +335,8 @@ release evidence rather than an answer nobody can trust.
 
 ### 3.8 Capturing what the screen reader actually said
 
-A few items are answered by a **transcript**, not by a verdict: A11Y-BI-02 (an Indian-grouped amount), A11Y-42
-(announced once, not doubled), A11Y-51 (a double-labelled control), A11Y-57 (row identity in an action name) and
+A few items are answered by a **transcript**, not by a verdict: A11Y-BI-02 (an Indian-grouped amount), A11Y-43
+(announced once, not doubled), A11Y-52 (a double-labelled control), A11Y-60 (row identity in an action name) and
 A11Y-DP-08 (an amount in words). For these, the words themselves are the evidence, and "sounded right" is not a
 record.
 
@@ -354,7 +354,7 @@ of the section 8 run table. A record that answers one of those five items withou
 ## 4. The core checklist — items that apply to every screen
 
 Every item is written so that **yes means Pass**. Answer each one **Pass**, **Fail** or **Not applicable**; "Not
-applicable" needs a one-line reason on the record, and "Fail" needs a defect identifier. The **Pass** column says
+applicable" needs a one-line reason on the record, and "Fail" needs a defect identifier. The **Which pass** column says
 which of the three passes of section 2.6 answers the item — `K`, `SR`, `K+SR` or `Env` — so the runner can work one
 pass from end to end instead of filtering the list three times. The **WCAG** column names the success criterion where
 one exists; where it says *product rule*, the requirement comes from
@@ -364,7 +364,7 @@ in brackets is that document's open decision.
 Two standing rules for the whole of sections 4 and 5:
 
 - **Where an item asks more than one thing, any failing part fails the item**, and the Note column must name which
-  part failed. The defect is raised against that part, not against the item as a whole — a bare `A11Y-19` on a
+  part failed. The defect is raised against that part, not against the item as a whole — a bare `A11Y-20` on a
   journey record tells the developer nothing about which of its three conditions is broken.
 - **The automated checks are not repeated here.** axe-core on every screen and state, the overflow and
   obscured-focus helper, the target-size check and the text-spacing injection test belong to
@@ -375,145 +375,145 @@ Two standing rules for the whole of sections 4 and 5:
 
 ### 4.1 Page identity, structure and language
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-01** | On arriving, does the screen reader announce a title that names **this** screen and tells it apart from every other screen in the journey? | A shared device is picked up mid-task. "HyFib Tailor 360" on nine screens tells nobody where they are | 2.4.2 Page Titled (A) |
-| **A11Y-02** | When moving to another screen without a full page reload, does the announced title change to the new screen's title? | A single-page application that never changes its title leaves a screen-reader user navigating blind | 2.4.2 (A) |
-| **A11Y-03** | Moving by heading from the top, do the levels describe the **actual nesting** of this screen's content — is what sounds like a sub-section really inside the section above it? | The machine checks that no level is skipped; only a person can say whether the nesting matches the content. A correctly ordered set of headings that groups the wrong things is still a wrong map | 1.3.1 Info and Relationships (A) |
-| **A11Y-04** | Moving by heading alone and reading nothing else, can the runner say what each section contains? | A heading that says "Details" three times is a heading that does not work | 2.4.6 Headings and Labels (AA) |
-| **A11Y-05** | Moving by landmark alone, can the runner reach the working part of the screen without stepping through the shell — and does `main` begin where the **work** begins rather than at the top of the page? | Landmarks are how a returning user skips the shell they already know. A `main` that starts above the navigation is present, valid and useless | 1.3.1 (A) |
-| **A11Y-06** | Where a landmark type appears more than once, does each name say **what is inside it**, so a returning user can choose which one to skip to? | "Navigation, navigation, navigation" is the same as no landmarks — and so is "Region 1, Region 2", which is distinct and still says nothing | 1.3.1 (A) |
-| **A11Y-07** | Listening to a paragraph of the screen's own text, is it read with **English phonetics** rather than through another language's voice? | Wrong language means wrong pronunciation for every word on the screen. The markup is machine-checked; whether the voice actually changed is not | 3.1.1 Language of Page (A) |
-| **A11Y-08** | Is a Tamil name, note or configuration label read with Tamil phonetics rather than spelled out as English? | User-generated content is never translated ([`accessibility-localisation.md`](accessibility-localisation.md) section 11.4); tagging its language is what makes it readable | 3.1.2 Language of Parts (AA) |
-| **A11Y-09** | Moving element by element, does the order match what a sighted person reads — including sticky headers, bottom bars and anything positioned by CSS? | Visual order and reading order drift apart silently, and only a human notices | 1.3.2 Meaningful Sequence (A) |
-| **A11Y-10** | Are the navigation, the help entry point and the support contact in the same place, with the same names, as on the previous screen in this journey? | [`accessibility-localisation.md`](accessibility-localisation.md) section 4.5 fixes consistent help as a product rule | 3.2.3, 3.2.4, 3.2.6 (A/AA) |
-| **A11Y-T01** | Is this screen reachable by at least **two routes** — a search and a queue, a scan and a link, a dashboard tile and a menu — unless it is a step inside a process? | Nothing machine-checkable answers this, and it is the difference between a Tailor who can find a job and one who can only find it the way they were shown once | 2.4.5 Multiple Ways (AA) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-01** | `SR` | On arriving, does the screen reader announce a title that names **this** screen and tells it apart from every other screen in the journey? | A shared device is picked up mid-task. "HyFib Tailor 360" on nine screens tells nobody where they are | 2.4.2 Page Titled (A) |
+| **A11Y-02** | `SR` | When moving to another screen without a full page reload, does the announced title change to the new screen's title? | A single-page application that never changes its title leaves a screen-reader user navigating blind | 2.4.2 (A) |
+| **A11Y-03** | `SR` | Moving by heading from the top, do the levels describe the **actual nesting** of this screen's content — is what sounds like a sub-section really inside the section above it? | The machine checks that no level is skipped; only a person can say whether the nesting matches the content. A correctly ordered set of headings that groups the wrong things is still a wrong map | 1.3.1 Info and Relationships (A) |
+| **A11Y-04** | `SR` | Moving by heading alone and reading nothing else, can the runner say what each section contains? | A heading that says "Details" three times is a heading that does not work | 2.4.6 Headings and Labels (AA) |
+| **A11Y-05** | `SR` | Moving by landmark alone, can the runner reach the working part of the screen without stepping through the shell — and does `main` begin where the **work** begins rather than at the top of the page? | Landmarks are how a returning user skips the shell they already know. A `main` that starts above the navigation is present, valid and useless | 1.3.1 (A) |
+| **A11Y-06** | `SR` | Where a landmark type appears more than once, does each name say **what is inside it**, so a returning user can choose which one to skip to? | "Navigation, navigation, navigation" is the same as no landmarks — and so is "Region 1, Region 2", which is distinct and still says nothing | 1.3.1 (A) |
+| **A11Y-07** | `SR` | Listening to a paragraph of the screen's own text, is it read with **English phonetics** rather than through another language's voice? | Wrong language means wrong pronunciation for every word on the screen. The markup is machine-checked; whether the voice actually changed is not | 3.1.1 Language of Page (A) |
+| **A11Y-08** | `SR` | Is a Tamil name, note or configuration label read with Tamil phonetics rather than spelled out as English? | User-generated content is never translated ([`accessibility-localisation.md`](accessibility-localisation.md) section 11.4); tagging its language is what makes it readable | 3.1.2 Language of Parts (AA) |
+| **A11Y-09** | `SR` | Moving element by element, does the order match what a sighted person reads — including sticky headers, bottom bars and anything positioned by CSS? | Visual order and reading order drift apart silently, and only a human notices | 1.3.2 Meaningful Sequence (A) |
+| **A11Y-10** | `K+SR` | Are the navigation, the help entry point and the support contact in the same place, with the same names, as on the previous screen in this journey? | [`accessibility-localisation.md`](accessibility-localisation.md) section 4.5 fixes consistent help as a product rule | 3.2.3, 3.2.4, 3.2.6 (A/AA) |
+| **A11Y-11** | `K+SR` | Is this screen reachable by at least **two routes** — a search and a queue, a scan and a link, a dashboard tile and a menu — unless it is a step inside a process? | Nothing machine-checkable answers this, and it is the difference between a Tailor who can find a job and one who can only find it the way they were shown once | 2.4.5 Multiple Ways (AA) |
 
 ### 4.2 Keyboard and focus
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-11** | With the keyboard alone, can every control be **reached** — icon-only buttons, table row actions, the scanner trigger, anything that appears on hover? | The counter and print-station desktops are keyboard-driven, and a wedge scanner is a keyboard | 2.1.1 Keyboard (A) |
-| **A11Y-12** | Does every reached control **work** from the keyboard — `Enter` or `Space`, and arrow keys inside tabs, menus, the fraction control and date pickers? | Reachable but inert is the commonest keyboard defect | 2.1.1 (A) |
-| **A11Y-13** | Does `Tab` move through the screen in the visual order, without jumping backwards or into content that is not visible? | Focus order is the keyboard user's reading order | 2.4.3 Focus Order (A) |
-| **A11Y-14** | Is there a visible focus indicator on **every** focusable element, in the light theme, the dark theme and the high-contrast theme? | The high-contrast theme exists for sunlight at the counter and is where indicators usually vanish | 2.4.7 Focus Visible (AA) |
-| **A11Y-15** | Is the indicator at least **2 px** thick and does it contrast at least **3:1** with both the focused control and the background behind it? Measure it by the method of section 3.6 — the computed outline width in remote DevTools, and a colour sample from a screenshot — and record the two numbers, not the verdict alone | The source states both numbers; "clearly distinguishable" would be a matter of opinion and could not be adjudicated by a spot-check. Adopted AAA criterion — [`accessibility-localisation.md`](accessibility-localisation.md) section 4.4 assigns it to design-system review, and this item is where it is checked on a real screen | 2.4.13 Focus Appearance (AAA, adopted) |
-| **A11Y-16** | On a **real phone with the real virtual keyboard open**, tabbing through the whole screen, is the focused control ever **wholly** hidden behind the bottom navigation, a sticky action bar, a banner, a toast, a sticky table header or the keyboard itself? Pass = never | The obscured-focus helper of **NFR-AC-04** runs at fixed breakpoints in a headless browser and never sees a real on-screen keyboard resize a real viewport. This item is that gap, not a repeat of the helper — attach the helper's report as well | 2.4.11 Focus Not Obscured (Minimum) (AA) |
-| **A11Y-17** | Is the focused control **fully** visible, with no part of it covered? Record partial obscuring even where A11Y-16 passes | The aspiration, not the floor. A half-covered field is still hard to use one-handed | 2.4.12 Focus Not Obscured (Enhanced) (AAA) |
-| **A11Y-18** | From every dialog, bottom sheet, camera overlay, date picker and embedded frame, can the keyboard get **out** using `Tab` or `Escape` alone? | 2.1.2 is absolute: an overlay that cannot be dismissed from the keyboard is a trap, camera or not | 2.1.2 No Keyboard Trap (A) |
-| **A11Y-19** | Is a skip-to-content control the first thing `Tab` reaches, does it become visible when focused, and does it move focus into `main`? | Without it every keyboard user re-tabs the shell on every screen | 2.4.1 Bypass Blocks (A) |
-| **A11Y-20** | Does focus stay where the user put it — never moved by a background refresh, a queue update, a sync completion or a wedge-scanner keystroke? | The wedge source must buffer and be ignored while the user is typing elsewhere ([`accessibility-localisation.md`](accessibility-localisation.md) section 7) | 3.2.1 On Focus (A), 2.1.1 (A) |
-| **A11Y-21** | Does changing a select, radio or toggle avoid navigating, submitting or reordering the screen until an explicit action is taken? | A change-on-select that submits a form is how a mis-tap becomes a confirmed order | 3.2.2 On Input (A) |
-| **A11Y-22** | If single-character shortcuts exist, can they be turned off or remapped, and do they stay silent while a text field has focus? | A wedge scan is a burst of characters. A single-character shortcut turns it into a burst of commands | 2.1.4 Character Key Shortcuts (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-12** | `K` | With the keyboard alone, can every control be **reached** — icon-only buttons, table row actions, the scanner trigger, anything that appears on hover? | The counter and print-station desktops are keyboard-driven, and a wedge scanner is a keyboard | 2.1.1 Keyboard (A) |
+| **A11Y-13** | `K` | Does every reached control **work** from the keyboard — `Enter` or `Space`, and arrow keys inside tabs, menus, the fraction control and date pickers? | Reachable but inert is the commonest keyboard defect | 2.1.1 (A) |
+| **A11Y-14** | `K` | Does `Tab` move through the screen in the visual order, without jumping backwards or into content that is not visible? | Focus order is the keyboard user's reading order | 2.4.3 Focus Order (A) |
+| **A11Y-15** | `Env` | Is there a visible focus indicator on **every** focusable element, in the light theme, the dark theme and the high-contrast theme? | The high-contrast theme exists for sunlight at the counter and is where indicators usually vanish | 2.4.7 Focus Visible (AA) |
+| **A11Y-16** | `Env` | Is the indicator at least **2 px** thick and does it contrast at least **3:1** with both the focused control and the background behind it? Measure it by the method of section 3.6 — the computed outline width in remote DevTools, and a colour sample from a screenshot — and record the two numbers, not the verdict alone | The source states both numbers; "clearly distinguishable" would be a matter of opinion and could not be adjudicated by a spot-check. Adopted AAA criterion — [`accessibility-localisation.md`](accessibility-localisation.md) section 4.4 assigns it to design-system review, and this item is where it is checked on a real screen | 2.4.13 Focus Appearance (AAA, adopted) |
+| **A11Y-17** | `K` | On a **real phone with the real virtual keyboard open**, tabbing through the whole screen, is the focused control ever **wholly** hidden behind the bottom navigation, a sticky action bar, a banner, a toast, a sticky table header or the keyboard itself? Pass = never | The obscured-focus helper of **NFR-AC-04** runs at fixed breakpoints in a headless browser and never sees a real on-screen keyboard resize a real viewport. This item is that gap, not a repeat of the helper — attach the helper's report as well | 2.4.11 Focus Not Obscured (Minimum) (AA) |
+| **A11Y-18** | `K` | Is the focused control **fully** visible, with no part of it covered? Record partial obscuring even where A11Y-17 passes | The aspiration, not the floor. A half-covered field is still hard to use one-handed | 2.4.12 Focus Not Obscured (Enhanced) (AAA) |
+| **A11Y-19** | `K` | From every dialog, bottom sheet, camera overlay, date picker and embedded frame, can the keyboard get **out** using `Tab` or `Escape` alone? | 2.1.2 is absolute: an overlay that cannot be dismissed from the keyboard is a trap, camera or not | 2.1.2 No Keyboard Trap (A) |
+| **A11Y-20** | `K` | Is a skip-to-content control the first thing `Tab` reaches, does it become visible when focused, and does it move focus into `main`? | Without it every keyboard user re-tabs the shell on every screen | 2.4.1 Bypass Blocks (A) |
+| **A11Y-21** | `K+SR` | Does focus stay where the user put it — never moved by a background refresh, a queue update, a sync completion or a wedge-scanner keystroke? | The wedge source must buffer and be ignored while the user is typing elsewhere ([`accessibility-localisation.md`](accessibility-localisation.md) section 7) | 3.2.1 On Focus (A), 2.1.1 (A) |
+| **A11Y-22** | `K` | Does changing a select, radio or toggle avoid navigating, submitting or reordering the screen until an explicit action is taken? | A change-on-select that submits a form is how a mis-tap becomes a confirmed order | 3.2.2 On Input (A) |
+| **A11Y-23** | `K` | If single-character shortcuts exist, can they be turned off or remapped, and do they stay silent while a text field has focus? | A wedge scan is a burst of characters. A single-character shortcut turns it into a burst of commands | 2.1.4 Character Key Shortcuts (A) |
 
 ### 4.3 Names, labels and instructions
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-23** | Does the screen reader announce a meaningful name for every control, including icon-only buttons? Pass requires the name to say what the control **does**, not what it looks like | "Button" and "graphic" are the two most common things a screen reader says on an unfinished screen | 4.1.2 Name, Role, Value (A) |
-| **A11Y-24** | With voice control switched on, **say the visible label aloud as a command** — does the control activate? | Voice control is used one-handed with a garment in the other. That the name contains the label is machine-checked ([`accessibility-localisation.md`](accessibility-localisation.md) section 4.3 marks 2.5.3 automated); that saying it actually works is not | 2.5.3 Label in Name (A) |
-| **A11Y-25** | Is each control announced with the right **role** — button, link, checkbox, tab, dialog, alert? | A link announced as a button teaches the wrong key to press | 4.1.2 (A) |
-| **A11Y-26** | Are expanded, collapsed, selected, checked, pressed and current **states** announced, and re-announced when they change? | A filter chip that never says "selected" cannot be used without sight | 4.1.2 (A) |
-| **A11Y-27** | Does every field have a **visible label that stays visible** while the field holds a value, with no field labelled only by its placeholder? | The one form contract of [`accessibility-localisation.md`](accessibility-localisation.md) section 8.1 leaves nowhere to put a placeholder-only label; this item catches a screen that bypasses it | 3.3.2 Labels or Instructions (A) |
-| **A11Y-28** | Does every numeric field announce its **unit**, and where a range is enforced, the expected range — and is the hint reachable by the screen reader, not merely printed beside the field? | A centimetre value typed into an inch field is the defect the confirmation band exists to catch ([`../prd/measurement-templates.md`](../prd/measurement-templates.md)) | 3.3.2 (A) |
-| **A11Y-29** | Is any instruction needed to complete a field announced **with or before** the field, rather than only after a failed save? | Learning the rule by breaking it is expensive when the customer is standing at the counter | 3.3.2 (A) |
-| **A11Y-30** | Does each link's name, **together with the row, sentence or list item it sits in**, say where it goes — and is it still distinctive when the links are listed on their own? | 2.4.4 allows the enclosing row or sentence to supply the context, which is exactly the pattern A11Y-57 and A11Y-LF-08 rely on. But screen-reader users also list the links, and a list of nine "view"s is a list of nothing | 2.4.4 Link Purpose (In Context) (A) |
-| **A11Y-31** | With a saved contact card on the device, does the keyboard actually **offer to fill** name, phone and address — and does an incoming one-time code appear as a suggestion above the keyboard? | That the attribute is present and valid is machine-checked; that the device honours it is not. Less typing on a phone at a busy counter, and 3.3.8 depends on the one-time-code field accepting help | 1.3.5 Identify Input Purpose (AA) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-24** | `SR` | Does the screen reader announce a meaningful name for every control, including icon-only buttons? Pass requires the name to say what the control **does**, not what it looks like | "Button" and "graphic" are the two most common things a screen reader says on an unfinished screen | 4.1.2 Name, Role, Value (A) |
+| **A11Y-25** | `SR` | With voice control switched on, **say the visible label aloud as a command** — does the control activate? | Voice control is used one-handed with a garment in the other. That the name contains the label is machine-checked ([`accessibility-localisation.md`](accessibility-localisation.md) section 4.3 marks 2.5.3 automated); that saying it actually works is not | 2.5.3 Label in Name (A) |
+| **A11Y-26** | `SR` | Is each control announced with the right **role** — button, link, checkbox, tab, dialog, alert? | A link announced as a button teaches the wrong key to press | 4.1.2 (A) |
+| **A11Y-27** | `SR` | Are expanded, collapsed, selected, checked, pressed and current **states** announced, and re-announced when they change? | A filter chip that never says "selected" cannot be used without sight | 4.1.2 (A) |
+| **A11Y-28** | `K` | Does every field have a **visible label that stays visible** while the field holds a value, with no field labelled only by its placeholder? | The one form contract of [`accessibility-localisation.md`](accessibility-localisation.md) section 8.1 leaves nowhere to put a placeholder-only label; this item catches a screen that bypasses it | 3.3.2 Labels or Instructions (A) |
+| **A11Y-29** | `SR` | Does every numeric field announce its **unit**, and where a range is enforced, the expected range — and is the hint reachable by the screen reader, not merely printed beside the field? | A centimetre value typed into an inch field is the defect the confirmation band exists to catch ([`../prd/measurement-templates.md`](../prd/measurement-templates.md)) | 3.3.2 (A) |
+| **A11Y-30** | `SR` | Is any instruction needed to complete a field announced **with or before** the field, rather than only after a failed save? | Learning the rule by breaking it is expensive when the customer is standing at the counter | 3.3.2 (A) |
+| **A11Y-31** | `SR` | Does each link's name, **together with the row, sentence or list item it sits in**, say where it goes — and is it still distinctive when the links are listed on their own? | 2.4.4 allows the enclosing row or sentence to supply the context, which is exactly the pattern A11Y-60 and A11Y-LF-08 rely on. But screen-reader users also list the links, and a list of nine "view"s is a list of nothing | 2.4.4 Link Purpose (In Context) (A) |
+| **A11Y-32** | `K` | With a saved contact card on the device, does the keyboard actually **offer to fill** name, phone and address — and does an incoming one-time code appear as a suggestion above the keyboard? | That the attribute is present and valid is machine-checked; that the device honours it is not. Less typing on a phone at a busy counter, and 3.3.8 depends on the one-time-code field accepting help | 1.3.5 Identify Input Purpose (AA) |
 
 ### 4.4 Required, invalid and error handling
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-32** | Is a required field announced as **required** when it takes focus, rather than marked only by an asterisk or a colour? | An asterisk is a visual convention, not information | 3.3.2 (A) |
-| **A11Y-33** | After a failed validation, is the field announced as **invalid** when it takes focus? | Otherwise the only way to find the bad field is to guess | 3.3.1 Error Identification (A), 4.1.2 (A) |
-| **A11Y-34** | Is the error message read **as part of the field**, and can it be heard again by returning to the field? | An error that can only be heard once, at the moment it appeared, is an error that was missed | 3.3.1 (A) |
-| **A11Y-35** | On a failed save, does focus move to the error summary, is the summary announced, and does each entry move focus to its field? | The shared step-aware summary is a design-system component; this is the item that proves it is wired up on this screen | 3.3.1 (A) |
-| **A11Y-36** | Is every error a sentence a person can act on — no code, no field key, no stack, no "validation failed"? | Server problem details are mapped to plain language by rule ([`accessibility-localisation.md`](accessibility-localisation.md) section 8.2) | 3.3.1 (A) |
-| **A11Y-37** | Where the correct value is knowable — an out-of-range measurement, a badly formed phone number, a duplicate customer — is the suggestion **in the announced error text**? | "Waist must be between 45.0 cm and 150.0 cm" is a fix; "invalid" is a dead end | 3.3.3 Error Suggestion (AA) |
-| **A11Y-38** | Before an irreversible action, is the confirmation announced with **what will happen** and **what cannot be undone**, and does the confirming control's name say what it does? | [`accessibility-localisation.md`](accessibility-localisation.md) section 4.5 names five actions under 3.3.4: **posting an invoice, recording a payment, approving a dispatch exception, posting a stocktake and cancelling an order**. Order confirmation joins them as irreversible in its own right ([`../prd/state-transitions.md`](../prd/state-transitions.md) section 7) | 3.3.4 Error Prevention (AA) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-33** | `SR` | Is a required field announced as **required** when it takes focus, rather than marked only by an asterisk or a colour? | An asterisk is a visual convention, not information | 3.3.2 (A) |
+| **A11Y-34** | `SR` | After a failed validation, is the field announced as **invalid** when it takes focus? | Otherwise the only way to find the bad field is to guess | 3.3.1 Error Identification (A), 4.1.2 (A) |
+| **A11Y-35** | `SR` | Is the error message read **as part of the field**, and can it be heard again by returning to the field? | An error that can only be heard once, at the moment it appeared, is an error that was missed | 3.3.1 (A) |
+| **A11Y-36** | `K+SR` | On a failed save, does focus move to the error summary, is the summary announced, and does each entry move focus to its field? | The shared step-aware summary is a design-system component; this is the item that proves it is wired up on this screen | 3.3.1 (A) |
+| **A11Y-37** | `K+SR` | Is every error a sentence a person can act on — no code, no field key, no stack, no "validation failed"? | Server problem details are mapped to plain language by rule ([`accessibility-localisation.md`](accessibility-localisation.md) section 8.2) | 3.3.1 (A) |
+| **A11Y-38** | `SR` | Where the correct value is knowable — an out-of-range measurement, a badly formed phone number, a duplicate customer — is the suggestion **in the announced error text**? | "Waist must be between 45.0 cm and 150.0 cm" is a fix; "invalid" is a dead end | 3.3.3 Error Suggestion (AA) |
+| **A11Y-39** | `SR` | Before an irreversible action, is the confirmation announced with **what will happen** and **what cannot be undone**, and does the confirming control's name say what it does? | [`accessibility-localisation.md`](accessibility-localisation.md) section 4.5 names five actions under 3.3.4: **posting an invoice, recording a payment, approving a dispatch exception, posting a stocktake and cancelling an order**. Order confirmation joins them as irreversible in its own right ([`../prd/state-transitions.md`](../prd/state-transitions.md) section 7) | 3.3.4 Error Prevention (AA) |
 
 ### 4.5 Announcements, live regions and status
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-39** | Are save confirmations, queue counts, filter result counts, sync state and scan acceptance announced **politely**, without the runner having to go looking? | 4.1.3 is the criterion the shop floor depends on most: the runner is looking at a garment | 4.1.3 Status Messages (AA) |
-| **A11Y-40** | Is a rejected scan, a blocked action or a failed save announced **assertively**, interrupting whatever is being read? | A rejected scan that waits its turn is heard after the garment has moved | 4.1.3 (AA) |
-| **A11Y-41** | Are scan results, sync state and actionable errors delivered by something **persistent** — a region that stays on the screen — rather than a toast that disappears? | Forbidden outright by [`accessibility-localisation.md`](accessibility-localisation.md) section 6: a toast disappears before a person holding a garment can read it | 4.1.3 (AA) |
-| **A11Y-42** | Is each change announced **once** — not repeated on every re-render, and not doubled by both a live region and a focus move? | Chatter is as disabling as silence; the runner starts ignoring the voice | 4.1.3 (AA) |
-| **A11Y-43** | Is a busy state announced when it starts **and** its outcome announced when it ends, so silence never has to be interpreted? | On the shop's 4G, "nothing is happening" and "it failed" sound identical | 4.1.3 (AA) |
-| **A11Y-44** | After navigating, does the screen reader say where it now is — a changed title, or a heading that takes focus? | Complements A11Y-02: the title may change without anything being said | 2.4.2 (A), 4.1.3 (AA) |
-| **A11Y-45** | Where a **count outside a list** changes — the offline queue depth, an alert badge, a selected-item count, a pending-upload count — is the new figure announced rather than changing silently? | The list case belongs to **A11Y-LF-01** and is not asked twice, so that a recurring S3 can be counted against one identifier across releases. This item covers the counts that have no list under them | 4.1.3 (AA) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-40** | `SR` | Are save confirmations, queue counts, filter result counts, sync state and scan acceptance announced **politely**, without the runner having to go looking? | 4.1.3 is the criterion the shop floor depends on most: the runner is looking at a garment | 4.1.3 Status Messages (AA) |
+| **A11Y-41** | `SR` | Is a rejected scan, a blocked action or a failed save announced **assertively**, interrupting whatever is being read? | A rejected scan that waits its turn is heard after the garment has moved | 4.1.3 (AA) |
+| **A11Y-42** | `K+SR` | Are scan results, sync state and actionable errors delivered by something **persistent** — a region that stays on the screen — rather than a toast that disappears? | Forbidden outright by [`accessibility-localisation.md`](accessibility-localisation.md) section 6: a toast disappears before a person holding a garment can read it | 4.1.3 (AA) |
+| **A11Y-43** | `SR` | Is each change announced **once** — not repeated on every re-render, and not doubled by both a live region and a focus move? | Chatter is as disabling as silence; the runner starts ignoring the voice | 4.1.3 (AA) |
+| **A11Y-44** | `SR` | Is a busy state announced when it starts **and** its outcome announced when it ends, so silence never has to be interpreted? | On the shop's 4G, "nothing is happening" and "it failed" sound identical | 4.1.3 (AA) |
+| **A11Y-45** | `SR` | After navigating, does the screen reader say where it now is — a changed title, or a heading that takes focus? | Complements A11Y-02: the title may change without anything being said | 2.4.2 (A), 4.1.3 (AA) |
+| **A11Y-46** | `SR` | Where a **count outside a list** changes — the offline queue depth, an alert badge, a selected-item count, a pending-upload count — is the new figure announced rather than changing silently? | The list case belongs to **A11Y-LF-01** and is not asked twice, so that a recurring S3 can be counted against one identifier across releases. This item covers the counts that have no list under them | 4.1.3 (AA) |
 
 ### 4.6 Colour, contrast and non-text content
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-46** | For every status, badge, chart series, required marker, row highlight and validation state, is the meaning also carried by a **word, an icon or a pattern**? | The commitment is explicit: overdue, held, ready, unpaid, rework each carry an icon and a word | 1.4.1 Use of Colour (A) |
-| **A11Y-47** | With the display set to greyscale, can every status on the screen still be told apart? | The two-minute version of A11Y-46, and it catches what a code review does not | 1.4.1 (A) |
-| **A11Y-48** | Does every photograph, diagram, illustration and chart carry a name that says what a reader needs **from it**, not what it is a picture of? | Alternative text is a required field on a design option and an illustration; this item checks the text is useful | 1.1.1 Non-text Content (A) |
-| **A11Y-49** | Are purely decorative icons hidden from the screen reader, rather than announced as "image" or by file name? | Decoration announced as content is noise that hides the content | 1.1.1 (A) |
-| **A11Y-50** | Does each measurement diagram carry, in text, **where on the body the measurement is taken**? | The diagram is instruction, not decoration. A mistaken measurement produces a garment that does not fit | 1.1.1 (A) |
-| **A11Y-51** | Is an icon inside a labelled button silent, so the button is announced **once**? | "Print print label button label" is what a double-labelled control sounds like | 1.1.1 (A), 4.1.2 (A) |
-| **A11Y-52** | Is anything that appears on hover or focus dismissible without moving the pointer, hoverable, and persistent until dismissed? | Tooltips carrying the only copy of a unit or a rule fail this and A11Y-28 together | 1.4.13 Content on Hover or Focus (AA) |
-| **A11Y-T02** | In the **high-contrast theme at full screen brightness**, can the job number, due date, phase name, scan result and amount due be read **at arm's length** — outdoors or by a window, not at a desk? | The fourth adopted AAA criterion, and the only one with no other home: [`accessibility-localisation.md`](accessibility-localisation.md) section 4.1 targets 7:1 for exactly this text and assigns it to design-system review, which is neither the axe gate nor a real screen in sunlight. "Readable at arm's length in sunlight" is the human judgement this document exists to hold | 1.4.6 Contrast (Enhanced) (AAA, adopted) |
-| **A11Y-T03** | Is every instruction, label and error free of shape, size, position, colour or sound as its **only** cue — no "the green badge", no "the button on the right", no "the total at the bottom", no "listen for the beep"? | Position and colour are precisely what a screen reader does not convey, and nothing automated finds a sentence that depends on them. A11Y-BI-05 catches the single case of the invoice total; this catches the rest | 1.3.3 Sensory Characteristics (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-47** | `K` | For every status, badge, chart series, required marker, row highlight and validation state, is the meaning also carried by a **word, an icon or a pattern**? | The commitment is explicit: overdue, held, ready, unpaid, rework each carry an icon and a word | 1.4.1 Use of Colour (A) |
+| **A11Y-48** | `Env` | With the display set to greyscale, can every status on the screen still be told apart? | The two-minute version of A11Y-47, and it catches what a code review does not | 1.4.1 (A) |
+| **A11Y-49** | `SR` | Does every photograph, diagram, illustration and chart carry a name that says what a reader needs **from it**, not what it is a picture of? | Alternative text is a required field on a design option and an illustration; this item checks the text is useful | 1.1.1 Non-text Content (A) |
+| **A11Y-50** | `SR` | Are purely decorative icons hidden from the screen reader, rather than announced as "image" or by file name? | Decoration announced as content is noise that hides the content | 1.1.1 (A) |
+| **A11Y-51** | `SR` | Does each measurement diagram carry, in text, **where on the body the measurement is taken**? | The diagram is instruction, not decoration. A mistaken measurement produces a garment that does not fit | 1.1.1 (A) |
+| **A11Y-52** | `SR` | Is an icon inside a labelled button silent, so the button is announced **once**? | "Print print label button label" is what a double-labelled control sounds like | 1.1.1 (A), 4.1.2 (A) |
+| **A11Y-53** | `K` | Is anything that appears on hover or focus dismissible without moving the pointer, hoverable, and persistent until dismissed? | Tooltips carrying the only copy of a unit or a rule fail this and A11Y-29 together | 1.4.13 Content on Hover or Focus (AA) |
+| **A11Y-54** | `Env` | In the **high-contrast theme at full screen brightness**, can the job number, due date, phase name, scan result and amount due be read **at arm's length** — outdoors or by a window, not at a desk? | The fourth adopted AAA criterion, and the only one with no other home: [`accessibility-localisation.md`](accessibility-localisation.md) section 4.1 targets 7:1 for exactly this text and assigns it to design-system review, which is neither the axe gate nor a real screen in sunlight. "Readable at arm's length in sunlight" is the human judgement this document exists to hold | 1.4.6 Contrast (Enhanced) (AAA, adopted) |
+| **A11Y-55** | `K+SR` | Is every instruction, label and error free of shape, size, position, colour or sound as its **only** cue — no "the green badge", no "the button on the right", no "the total at the bottom", no "listen for the beep"? | Position and colour are precisely what a screen reader does not convey, and nothing automated finds a sentence that depends on them. A11Y-BI-05 catches the single case of the invoice total; this catches the rest | 1.3.3 Sensory Characteristics (A) |
 
 ### 4.7 Tables, lists and grouped controls
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-53** | Is each data table a real table with **header cells**, so the column name is read with the cell value? | A workboard or an invoice read as a stream of unlabelled numbers is unusable | 1.3.1 (A) |
-| **A11Y-54** | Does each table carry a caption or accessible name saying what it lists? | Two tables on one screen are otherwise indistinguishable when listed | 1.3.1 (A) |
-| **A11Y-55** | Are layout-only grids free of table semantics, so nothing that is not data is announced as a table? | A layout table sends the reader into cell-by-cell navigation for no reason | 1.3.1 (A) |
-| **A11Y-56** | Are radio groups, checkbox groups, the inch-fraction control and each measurement group announced with their **group name** before the first option? | Sixteen fields in four groups are navigable; sixteen ungrouped fields are not | 1.3.1 (A) |
-| **A11Y-57** | Does a row action announce **which row** it belongs to — "Print label, job J-CBE01-2627-000512-01" rather than "Print"? | Eleven identical "Print" buttons in a queue is a custody error waiting to happen | 2.4.4 (A), 4.1.2 (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-56** | `SR` | Is each data table a real table with **header cells**, so the column name is read with the cell value? | A workboard or an invoice read as a stream of unlabelled numbers is unusable | 1.3.1 (A) |
+| **A11Y-57** | `SR` | Does each table carry a caption or accessible name saying what it lists? | Two tables on one screen are otherwise indistinguishable when listed | 1.3.1 (A) |
+| **A11Y-58** | `SR` | Are layout-only grids free of table semantics, so nothing that is not data is announced as a table? | A layout table sends the reader into cell-by-cell navigation for no reason | 1.3.1 (A) |
+| **A11Y-59** | `SR` | Are radio groups, checkbox groups, the inch-fraction control and each measurement group announced with their **group name** before the first option? | Sixteen fields in four groups are navigable; sixteen ungrouped fields are not | 1.3.1 (A) |
+| **A11Y-60** | `SR` | Does a row action announce **which row** it belongs to — "Print label, job J-CBE01-2627-000512-01" rather than "Print"? | Eleven identical "Print" buttons in a queue is a custody error waiting to happen | 2.4.4 (A), 4.1.2 (A) |
 
 ### 4.8 Dialogs, sheets and dynamic content
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-58** | On opening a dialog or bottom sheet, is focus moved **into** it and is its name announced? | Otherwise the dialog is invisible and the screen behind it appears to have stopped working | 4.1.2 (A) |
-| **A11Y-59** | While it is open, does `Tab` cycle **only within** it, and is the content behind it hidden from the screen reader? | Reading the page behind a modal is how a confirmation gets answered for the wrong record | 2.4.3 (A) |
-| **A11Y-60** | Does `Escape` close every dialog, bottom sheet and overlay, **including the camera scanner overlay**? | Stated as a rule in [`accessibility-localisation.md`](accessibility-localisation.md) section 7 | 2.1.2 (A) |
-| **A11Y-61** | On close, does focus return to the control that opened it? | Focus dumped on the document body means re-tabbing the whole screen, one-handed | 2.4.3 (A) |
-| **A11Y-62** | When content appears in place — a new line, an expanded panel, a conditional measurement field — is it announced, or is focus placed so the next `Tab` reaches it? | Conditional fields are ordinary in the measurement wizard; silent insertion is a lost field | 4.1.3 (AA), 2.4.3 (A) |
-| **A11Y-63** | When the focused element is removed — a deleted line, a dismissed banner — does focus land somewhere sensible rather than on the document body? | Losing focus mid-task on a phone is a restart | 2.4.3 (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-61** | `K+SR` | On opening a dialog or bottom sheet, is focus moved **into** it and is its name announced? | Otherwise the dialog is invisible and the screen behind it appears to have stopped working | 4.1.2 (A) |
+| **A11Y-62** | `K+SR` | While it is open, does `Tab` cycle **only within** it, and is the content behind it hidden from the screen reader? | Reading the page behind a modal is how a confirmation gets answered for the wrong record | 2.4.3 (A) |
+| **A11Y-63** | `K` | Does `Escape` close every dialog, bottom sheet and overlay, **including the camera scanner overlay**? | Stated as a rule in [`accessibility-localisation.md`](accessibility-localisation.md) section 7 | 2.1.2 (A) |
+| **A11Y-64** | `K` | On close, does focus return to the control that opened it? | Focus dumped on the document body means re-tabbing the whole screen, one-handed | 2.4.3 (A) |
+| **A11Y-65** | `K+SR` | When content appears in place — a new line, an expanded panel, a conditional measurement field — is it announced, or is focus placed so the next `Tab` reaches it? | Conditional fields are ordinary in the measurement wizard; silent insertion is a lost field | 4.1.3 (AA), 2.4.3 (A) |
+| **A11Y-66** | `K` | When the focused element is removed — a deleted line, a dismissed banner — does focus land somewhere sensible rather than on the document body? | Losing focus mid-task on a phone is a restart | 2.4.3 (A) |
 
 ### 4.9 Size, spacing, zoom and motion
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-64** | Wearing a **thin glove or a finger guard**, does every primary shop-floor action on this screen activate on the first tap, without a neighbour firing instead? | The 24 × 24 px floor is measured by the automated target-size check and is not re-measured here. What no machine can measure is whether a tap aimed with a finger guard lands where it was aimed — which is the reason the product sets sizes above the floor at all. This is the walkthrough **AL-04** asks for, recorded on this record per A11Y-OD-09 | 2.5.8 Target Size (Minimum) (AA); product rule, section 5 (**AL-04**) |
-| **A11Y-65** | Do the product sizes hold — **56 × 56** with 12 px spacing for primary shop-floor actions, **44 × 44** with 8 px for standard controls, and **32 × 32** for dense controls **on desktop only**? Measure the computed box by the remote-debug method of section 3.6 and record the numbers | 24 px is not usable with a needle, chalk or a finger guard in the hand. The design-system token is what enforces the size; this item is what proves the rendered screen kept it | Product rule, section 5 (**AL-03**) |
-| **A11Y-66** | Is every destructive or irreversible action separated from the frequent action beside it by at least 24 px, different in weight and colour, and confirmed? | Dispatch does not sit beside Cancel order; Delete evidence does not sit beside Add evidence | Product rule, section 5 |
-| **A11Y-67** | Is every control clear of the **bottom 8 px** of a phone viewport, where the system gesture bar takes the touch? Measure it by the same remote-debug method, with the device in its normal gesture-navigation mode | A control there is not merely small; it is unreachable | Product rule, section 5 |
-| **A11Y-68** | At **200% zoom**, is everything still reachable and operable — bottom navigation, dialogs, the scanner overlay — with no horizontal scrolling of the page? | Reading glasses left at home is the normal case after forty | 1.4.4 Resize Text (AA), 1.4.10 Reflow (AA) |
-| **A11Y-69** | With the product's own **text-size preference at 150%** and the device font size at its largest, does any label, amount, unit or error message become clipped, overlapped or unreachable? Pass = none | The 1.4.12 overrides are applied by an automated injection test and are not repeated here. The product additionally offers 100 / 125 / 150% as a stored preference, which is what a person with presbyopia actually switches on, and nothing else tests it | 1.4.4 Resize Text (AA); product rule, section 4.2 |
-| **A11Y-70** | With reduce-motion on, do transitions, parallax and the scanner sweep stop — and is **nothing lost**, with every state change still signalled some other way? | Motion is never the only channel ([`accessibility-localisation.md`](accessibility-localisation.md) section 6) | 2.3.3 Animation from Interactions (AAA, adopted) |
-| **A11Y-71** | Does the screen hold still — nothing auto-advancing, auto-rotating, auto-refreshing or reordering under the reader — or is there a control that holds it? | A queue that reorders while being read loses the row the runner was on | 2.2.2 Pause, Stop, Hide (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-67** | `Env` | Wearing a **thin glove or a finger guard**, does every primary shop-floor action on this screen activate on the first tap, without a neighbour firing instead? | The 24 × 24 px floor is measured by the automated target-size check and is not re-measured here. What no machine can measure is whether a tap aimed with a finger guard lands where it was aimed — which is the reason the product sets sizes above the floor at all. This is the walkthrough **AL-04** asks for, recorded on this record per A11Y-OD-09 | 2.5.8 Target Size (Minimum) (AA); product rule, section 5 (**AL-04**) |
+| **A11Y-68** | `Env` | Do the product sizes hold — **56 × 56** with 12 px spacing for primary shop-floor actions, **44 × 44** with 8 px for standard controls, and **32 × 32** for dense controls **on desktop only**? Measure the computed box by the remote-debug method of section 3.6 and record the numbers | 24 px is not usable with a needle, chalk or a finger guard in the hand. The design-system token is what enforces the size; this item is what proves the rendered screen kept it | Product rule, section 5 (**AL-03**) |
+| **A11Y-69** | `Env` | Is every destructive or irreversible action separated from the frequent action beside it by at least 24 px, different in weight and colour, and confirmed? | Dispatch does not sit beside Cancel order; Delete evidence does not sit beside Add evidence | Product rule, section 5 |
+| **A11Y-70** | `Env` | Is every control clear of the **bottom 8 px** of a phone viewport, where the system gesture bar takes the touch? Measure it by the same remote-debug method, with the device in its normal gesture-navigation mode | A control there is not merely small; it is unreachable | Product rule, section 5 |
+| **A11Y-71** | `Env` | At **200% zoom**, is everything still reachable and operable — bottom navigation, dialogs, the scanner overlay — with no horizontal scrolling of the page? | Reading glasses left at home is the normal case after forty | 1.4.4 Resize Text (AA), 1.4.10 Reflow (AA) |
+| **A11Y-72** | `Env` | With the product's own **text-size preference at 150%** and the device font size at its largest, does any label, amount, unit or error message become clipped, overlapped or unreachable? Pass = none | The 1.4.12 overrides are applied by an automated injection test and are not repeated here. The product additionally offers 100 / 125 / 150% as a stored preference, which is what a person with presbyopia actually switches on, and nothing else tests it | 1.4.4 Resize Text (AA); product rule, section 4.2 |
+| **A11Y-73** | `Env` | With reduce-motion on, do transitions, parallax and the scanner sweep stop — and is **nothing lost**, with every state change still signalled some other way? | Motion is never the only channel ([`accessibility-localisation.md`](accessibility-localisation.md) section 6) | 2.3.3 Animation from Interactions (AAA, adopted) |
+| **A11Y-74** | `K+SR` | Does the screen hold still — nothing auto-advancing, auto-rotating, auto-refreshing or reordering under the reader — or is there a control that holds it? | A queue that reorders while being read loses the row the runner was on | 2.2.2 Pause, Stop, Hide (A) |
 
 ### 4.10 Pointer, gestures and drag alternatives
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-72** | Does every drag — reordering a workboard column, adjusting a crop, signing at the doorstep — have a **button or keyboard alternative** that reaches the same result? | Required outright; the alternative is not a lesser path but the equal one | 2.5.7 Dragging Movements (AA) |
-| **A11Y-73** | Is every action available **without** a path-based or multi-point gesture — is pinch-zoom on an image always accompanied by buttons? | One hand is holding a garment; the other is holding the phone | 2.5.1 Pointer Gestures (A) |
-| **A11Y-74** | Does an action fire on **release**, and can it be abandoned by moving off the control before releasing? | A mis-touch while holding a garment must not confirm a dispatch | 2.5.2 Pointer Cancellation (A) |
-| **A11Y-75** | At the doorstep, is a typed **recipient name plus one-time password** always offered instead of a signature stroke? | Outdoors, one-handed, sometimes in rain — and the OTP path is already the policy in [`../prd/state-transitions.md`](../prd/state-transitions.md) section 4.1 | 2.5.7 (AA) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-75** | `K` | Does every drag — reordering a workboard column, adjusting a crop, signing at the doorstep — have a **button or keyboard alternative** that reaches the same result? | Required outright; the alternative is not a lesser path but the equal one | 2.5.7 Dragging Movements (AA) |
+| **A11Y-76** | `K` | Is every action available **without** a path-based or multi-point gesture — is pinch-zoom on an image always accompanied by buttons? | One hand is holding a garment; the other is holding the phone | 2.5.1 Pointer Gestures (A) |
+| **A11Y-77** | `K` | Does an action fire on **release**, and can it be abandoned by moving off the control before releasing? | A mis-touch while holding a garment must not confirm a dispatch | 2.5.2 Pointer Cancellation (A) |
+| **A11Y-78** | `K` | At the doorstep, is a typed **recipient name plus one-time password** always offered instead of a signature stroke? | Outdoors, one-handed, sometimes in rain — and the OTP path is already the policy in [`../prd/state-transitions.md`](../prd/state-transitions.md) section 4.1 | 2.5.7 (AA) |
 
 ### 4.11 Time, interruption and re-entry
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-76** | Does the session-inactivity warning appear at least **two minutes** before expiry, is it announced, and can it be dismissed from the keyboard to continue? | Shared counter and workshop devices time out while a form is half-filled | 2.2.1 Timing Adjustable (A) |
-| **A11Y-77** | After re-authenticating in place, is **every typed value still there**, and does the pending action complete exactly once? | The rule is that the pending request is retried with the same `Idempotency-Key`; this item is how a human proves it | 2.2.1 (A), 3.3.7 (A) |
-| **A11Y-78** | Is nothing already given in this journey asked for a second time, except where re-entry is genuinely essential? | Re-typing a phone number or a measurement on a phone at a counter is where journeys are abandoned | 3.3.7 Redundant Entry (A) |
-| **A11Y-79** | Is the sign-in free of any puzzle, memory test or transcription task, and does the one-time-code field accept **paste**? | No CAPTCHA and no "third character of your memorable word" — brute force is handled by the rate-limit policy instead | 3.3.8 Accessible Authentication (Minimum) (AA) |
-| **A11Y-80** | Where the device supports it, is a **passkey** offered as a primary factor? | Adopted AAA criterion; it removes the memory task entirely | 3.3.9 (AAA, adopted) |
-| **A11Y-81** | If the browser is closed mid-journey and reopened, does the journey resume where it was without retyping? | The order draft is server-side and resumable by design; this proves it on this screen | 3.3.7 (A) |
-| **A11Y-82** | Is the help entry point present on this screen, in the same place and with the same name as elsewhere? | Consistent help is a product rule as well as a criterion | 3.2.6 Consistent Help (A) |
-| **A11Y-T04** | When an action demands **step-up re-authentication** mid-journey, is the prompt announced with **what is being authorised**, is it free of any puzzle or transcription task, does the one-time-code field accept paste, and afterwards does the action complete **once** with every typed value intact? | 3.3.8 applies to every authentication step, not only the first. Twenty-two transitions demand step-up ([`../prd/state-transitions.md`](../prd/state-transitions.md) section 8) — label reprint, dispatch-exception approval, price override, manual allocation, refund, stocktake variance, every `admin.*` action — and step-up is the one that interrupts a half-finished form | 3.3.8 (AA), 3.3.7 (A) |
-| **A11Y-T05** | Where a transition requires a **reason**, is the reason field labelled, announced as **required**, and announced with **what the reason will be attached to** — rather than an unlabelled box inside a confirmation dialog? | The reason is stored on the audit event, is never optional and is never defaulted by the client. This is the *confirm with a reason* tier of the three-tier `ConfirmDialog` ([`accessibility-localisation.md`](accessibility-localisation.md) section 8.4); A11Y-BI-13 covers only the typed-confirmation tier | 3.3.2 (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-79** | `K+SR` | Does the session-inactivity warning appear at least **two minutes** before expiry, is it announced, and can it be dismissed from the keyboard to continue? | Shared counter and workshop devices time out while a form is half-filled | 2.2.1 Timing Adjustable (A) |
+| **A11Y-80** | `K+SR` | After re-authenticating in place, is **every typed value still there**, and does the pending action complete exactly once? | The rule is that the pending request is retried with the same `Idempotency-Key`; this item is how a human proves it | 2.2.1 (A), 3.3.7 (A) |
+| **A11Y-81** | `K+SR` | Is nothing already given in this journey asked for a second time, except where re-entry is genuinely essential? | Re-typing a phone number or a measurement on a phone at a counter is where journeys are abandoned | 3.3.7 Redundant Entry (A) |
+| **A11Y-82** | `K` | Is the sign-in free of any puzzle, memory test or transcription task, and does the one-time-code field accept **paste**? | No CAPTCHA and no "third character of your memorable word" — brute force is handled by the rate-limit policy instead | 3.3.8 Accessible Authentication (Minimum) (AA) |
+| **A11Y-83** | `K` | Where the device supports it, is a **passkey** offered as a primary factor? | Adopted AAA criterion; it removes the memory task entirely | 3.3.9 (AAA, adopted) |
+| **A11Y-84** | `K` | If the browser is closed mid-journey and reopened, does the journey resume where it was without retyping? | The order draft is server-side and resumable by design; this proves it on this screen | 3.3.7 (A) |
+| **A11Y-85** | `K+SR` | Is the help entry point present on this screen, in the same place and with the same name as elsewhere? | Consistent help is a product rule as well as a criterion | 3.2.6 Consistent Help (A) |
+| **A11Y-86** | `K+SR` | When an action demands **step-up re-authentication** mid-journey, is the prompt announced with **what is being authorised**, is it free of any puzzle or transcription task, does the one-time-code field accept paste, and afterwards does the action complete **once** with every typed value intact? | 3.3.8 applies to every authentication step, not only the first. Twenty-two transitions demand step-up ([`../prd/state-transitions.md`](../prd/state-transitions.md) section 8) — label reprint, dispatch-exception approval, price override, manual allocation, refund, stocktake variance, every `admin.*` action — and step-up is the one that interrupts a half-finished form | 3.3.8 (AA), 3.3.7 (A) |
+| **A11Y-87** | `SR` | Where a transition requires a **reason**, is the reason field labelled, announced as **required**, and announced with **what the reason will be attached to** — rather than an unlabelled box inside a confirmation dialog? | The reason is stored on the audit event, is never optional and is never defaulted by the client. This is the *confirm with a reason* tier of the three-tier `ConfirmDialog` ([`accessibility-localisation.md`](accessibility-localisation.md) section 8.4); A11Y-BI-13 covers only the typed-confirmation tier | 3.3.2 (A) |
 
 ### 4.12 The five screen states
 
@@ -524,16 +524,16 @@ and a journey that touches neither section 5.4 nor section 5.9 was never asked a
 
 | State | Where it is answered |
 | --- | --- |
-| Loading | **A11Y-43** — the busy state announced when it starts and its outcome when it ends |
+| Loading | **A11Y-44** — the busy state announced when it starts and its outcome when it ends |
 | Error | The whole of section 4.4 |
 | Offline | Section 5.8, and the offline step of every section 6 record |
-| Empty | **A11Y-T06** below, and **A11Y-LF-03** for a list's empty result |
-| Forbidden | **A11Y-T07** below, and **A11Y-DB-09** for a dashboard tile |
+| Empty | **A11Y-88** below, and **A11Y-LF-03** for a list's empty result |
+| Forbidden | **A11Y-89** below, and **A11Y-DB-09** for a dashboard tile |
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
-| --- | --- | --- | --- |
-| **A11Y-T06** | Does the **empty** state announce **what** is empty and **what to do next**, rather than reading as a screen that has not finished loading? | Silence and emptiness sound identical, and an empty state is where a screen-reader journey usually stops. This is the general case; A11Y-LF-03 is the list case | 4.1.3 (AA), 3.3.2 (A) |
-| **A11Y-T07** | Does the **forbidden** state announce that this role may not see or do this, **name who can**, and leave a keyboard-reachable way back — rather than a blank region, a silently missing control or a dimmed button that says only "dimmed"? | Deny-by-default makes the forbidden state a normal state that a Tailor or a Delivery Staff member meets daily, not an error case. A control that is simply absent cannot be asked about, and a control that is present and dimmed explains nothing | 4.1.3 (AA), 1.3.1 (A) |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
+| --- | --- | --- | --- | --- |
+| **A11Y-88** | `SR` | Does the **empty** state announce **what** is empty and **what to do next**, rather than reading as a screen that has not finished loading? | Silence and emptiness sound identical, and an empty state is where a screen-reader journey usually stops. This is the general case; A11Y-LF-03 is the list case | 4.1.3 (AA), 3.3.2 (A) |
+| **A11Y-89** | `K+SR` | Does the **forbidden** state announce that this role may not see or do this, **name who can**, and leave a keyboard-reachable way back — rather than a blank region, a silently missing control or a dimmed button that says only "dimmed"? | Deny-by-default makes the forbidden state a normal state that a Tailor or a Delivery Staff member meets daily, not an error case. A control that is simply absent cannot be asked about, and a control that is present and dimmed explains nothing | 4.1.3 (AA), 1.3.1 (A) |
 
 ---
 
@@ -547,147 +547,147 @@ touches**. Each family carries its own identifier prefix so a defect can name ex
 Many numeric fields, two display units, fractions, conditional rules and two validation bands. The highest
 consequence of a defect on this family is a garment that does not fit.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-ME-01** | Does the screen announce which **template and version** is open, and for which garment and customer? | A measurement version always renders through the template version it was captured under |
-| **A11Y-ME-02** | Is each field announced with its **position in its group** — "Shoulder, 2 of 16, upper body" — so the runner knows how far through they are? | Sixteen fields with no position is sixteen chances to lose the place |
-| **A11Y-ME-03** | Does each field announce its **display unit**, and does switching between inches and centimetres announce the change and re-announce the values? | Millimetres are never shown; inches and centimetres are both in daily use |
-| **A11Y-ME-04** | Can the segmented **inch-fraction control** be reached, its options read and one chosen from the keyboard alone — and is the chosen fraction part of the field's announced value? | `36 1/2 in` must be heard as one value, not as a number and an orphan fraction |
-| **A11Y-ME-05** | Does the **numeric stepper** announce the value after each step, and can the same value also be typed? | Repetitive numeric entry one-handed; stepping and typing are both needed |
-| **A11Y-ME-06** | Does an out-of-bounds value produce a spoken message naming the **expected range in the unit on screen**? | The hard bounds exist to catch a centimetre value typed into an inch field |
-| **A11Y-ME-07** | Is the **confirmation-band** warning — "outside the usual range, check the tape and the unit" — announced, and can it be acknowledged from the keyboard with the acknowledgement then announced as recorded? | A warning never blocks a save; it must therefore be heard, or it does nothing at all |
-| **A11Y-ME-08** | When previous values are offered for **reuse**, is it announced which version they come from and what accepting them does? | Reusing the wrong version silently is worse than typing them again |
-| **A11Y-ME-09** | Does the **review step** read back every acknowledged out-of-range value before the version is confirmed? | Confirmation is irreversible: the version becomes immutable |
-| **A11Y-ME-10** | Is the "where the measurement is taken" description reachable **from the field**, not only from the diagram beside it? | A screen-reader user never reaches the diagram by accident |
-| **A11Y-ME-11** | When a field appears or disappears because of a **conditional rule**, is that announced? | A field that silently appears is a field that is silently left empty |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-ME-01** | `SR` | Does the screen announce which **template and version** is open, and for which garment and customer? | A measurement version always renders through the template version it was captured under |
+| **A11Y-ME-02** | `SR` | Is each field announced with its **position in its group** — "Shoulder, 2 of 16, upper body" — so the runner knows how far through they are? | Sixteen fields with no position is sixteen chances to lose the place |
+| **A11Y-ME-03** | `SR` | Does each field announce its **display unit**, and does switching between inches and centimetres announce the change and re-announce the values? | Millimetres are never shown; inches and centimetres are both in daily use |
+| **A11Y-ME-04** | `K+SR` | Can the segmented **inch-fraction control** be reached, its options read and one chosen from the keyboard alone — and is the chosen fraction part of the field's announced value? | `36 1/2 in` must be heard as one value, not as a number and an orphan fraction |
+| **A11Y-ME-05** | `K+SR` | Does the **numeric stepper** announce the value after each step, and can the same value also be typed? | Repetitive numeric entry one-handed; stepping and typing are both needed |
+| **A11Y-ME-06** | `SR` | Does an out-of-bounds value produce a spoken message naming the **expected range in the unit on screen**? | The hard bounds exist to catch a centimetre value typed into an inch field |
+| **A11Y-ME-07** | `K+SR` | Is the **confirmation-band** warning — "outside the usual range, check the tape and the unit" — announced, and can it be acknowledged from the keyboard with the acknowledgement then announced as recorded? | A warning never blocks a save; it must therefore be heard, or it does nothing at all |
+| **A11Y-ME-08** | `SR` | When previous values are offered for **reuse**, is it announced which version they come from and what accepting them does? | Reusing the wrong version silently is worse than typing them again |
+| **A11Y-ME-09** | `SR` | Does the **review step** read back every acknowledged out-of-range value before the version is confirmed? | Confirmation is irreversible: the version becomes immutable |
+| **A11Y-ME-10** | `SR` | Is the "where the measurement is taken" description reachable **from the field**, not only from the diagram beside it? | A screen-reader user never reaches the diagram by accident |
+| **A11Y-ME-11** | `SR` | When a field appears or disappears because of a **conditional rule**, is that announced? | A field that silently appears is a field that is silently left empty |
 
 ### 5.2 Camera capture and image upload — `A11Y-IM-nn`
 
 Customer material and reference images. The test is blunt: **can a screen-reader user complete an upload at all?**
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-IM-01** | Can an upload be completed **from the file picker alone**, without using the camera? | If the only route is a camera viewfinder, the journey is closed to a blind member of staff |
-| **A11Y-IM-02** | Is a denied or unavailable camera permission explained in text, announced, and followed by the next rung of the ladder? | The fallback ladder is a support-matrix rule; it must be audible, not merely present |
-| **A11Y-IM-03** | Is the capture control reachable and named, and is a successful capture confirmed by an **announcement**, not only by a shutter sound or a flash? | The workshop is loud and phones are muted |
-| **A11Y-IM-04** | After capture, is the image announced as a new item in a list, with a named way to review or delete it? | "Did that photo save?" is otherwise unanswerable |
-| **A11Y-IM-05** | Does each captured or uploaded image have a **labelled description field**, announced as required where the design makes it required? | Alternative text is a required field on an illustration and a design option; the same discipline applies to captures |
-| **A11Y-IM-06** | Is upload **progress** announced at start and at completion, and is a failure announced assertively with a named retry? | Bytes are large and the shop's uplink is not |
-| **A11Y-IM-07** | Offline, is "captured, upload pending" announced and left visible rather than silently queued? | Capture is permitted offline; the upload is retried while the file is held |
-| **A11Y-IM-08** | Do crop and rotate have keyboard-operable controls, not only drag handles? | 2.5.7 again, on the screen where drag is most tempting |
-| **A11Y-IM-09** | Is deleting an image confirmed, and is the deletion announced? | Evidence media are part of the custody and QC record |
-| **A11Y-IM-10** | Are the images already on the record announced as a **list with a count**, each named by its description? | Five images per garment is the design assumption; an unlabelled set of five is unusable |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-IM-01** | `K` | Can an upload be completed **from the file picker alone**, without using the camera? | If the only route is a camera viewfinder, the journey is closed to a blind member of staff |
+| **A11Y-IM-02** | `SR` | Is a denied or unavailable camera permission explained in text, announced, and followed by the next rung of the ladder? | The fallback ladder is a support-matrix rule; it must be audible, not merely present |
+| **A11Y-IM-03** | `K+SR` | Is the capture control reachable and named, and is a successful capture confirmed by an **announcement**, not only by a shutter sound or a flash? | The workshop is loud and phones are muted |
+| **A11Y-IM-04** | `SR` | After capture, is the image announced as a new item in a list, with a named way to review or delete it? | "Did that photo save?" is otherwise unanswerable |
+| **A11Y-IM-05** | `SR` | Does each captured or uploaded image have a **labelled description field**, announced as required where the design makes it required? | Alternative text is a required field on an illustration and a design option; the same discipline applies to captures |
+| **A11Y-IM-06** | `SR` | Is upload **progress** announced at start and at completion, and is a failure announced assertively with a named retry? | Bytes are large and the shop's uplink is not |
+| **A11Y-IM-07** | `SR` | Offline, is "captured, upload pending" announced and left visible rather than silently queued? | Capture is permitted offline; the upload is retried while the file is held |
+| **A11Y-IM-08** | `K` | Do crop and rotate have keyboard-operable controls, not only drag handles? | 2.5.7 again, on the screen where drag is most tempting |
+| **A11Y-IM-09** | `SR` | Is deleting an image confirmed, and is the deletion announced? | Evidence media are part of the custody and QC record |
+| **A11Y-IM-10** | `SR` | Are the images already on the record announced as a **list with a count**, each named by its description? | Five images per garment is the design assumption; an unlabelled set of five is unusable |
 
 ### 5.3 Barcode scanning — `A11Y-SC-nn`
 
 A hardware wedge scanner types into whatever has focus. That makes this family simultaneously the most important
 keyboard surface and the most important announcement surface in the product.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-SC-01** | Is **manual entry** reachable from the keyboard on this screen without opening the camera? | Manual entry is always available and is the third rung of the ladder; it is also the only rung that needs no sight |
-| **A11Y-SC-02** | Is the manual-entry field labelled with the **expected form** — the namespace letter and twelve characters — and is the mandatory **reason** field labelled and announced as required? | The reason is audited on the scan event; an unlabelled reason field produces useless audit text |
-| **A11Y-SC-03** | With focus in an **unrelated text field**, does a wedge scan leave the typing alone? | The wedge source buffers and is ignored while the user types elsewhere. This is the item that proves it |
-| **A11Y-SC-04** | After a wedge scan, is the result — the job number and the **next expected action** — announced without the runner going to look for it? | The runner is looking at a garment, not at the screen |
-| **A11Y-SC-05** | Is a **rejected** scan announced assertively, naming which rule failed — wrong namespace, bad check character, unknown identity, wrong branch, wrong custodian — and what to do next? | Five rejection reasons with five different remedies; "scan failed" is not one of them |
-| **A11Y-SC-06** | Is the camera overlay announced as a **dialog**, does `Escape` close it, and does focus return to the control that opened it? | A camera overlay that cannot be dismissed from the keyboard is a 2.1.2 trap |
-| **A11Y-SC-07** | Does the overlay announce **what to do** — hold the label within reach, or switch to manual entry? | An unnarrated viewfinder is a blank screen |
-| **A11Y-SC-08** | Does a **second scan supersede** the first result rather than stacking a second persistent region beside it — and is the superseding announced, so the runner knows which job they are now holding? | That the result is persistent rather than a toast is **A11Y-41** and is not asked twice. What A11Y-41 cannot catch is two persistent results on the screen at once, which is how the wrong garment gets transferred |
-| **A11Y-SC-09** | Is the result conveyed **visually as well as** by sound or vibration, so both a person in a loud workshop and a person who cannot hear receive it? | Sound is never the only channel |
-| **A11Y-SC-10** | Can the scan be completed **without** the torch or zoom controls — and where those controls do exist, are they named and keyboard-reachable? | Torch is best effort where the browser exposes it and its absence is never a blocker ([`support-matrix.md`](support-matrix.md) section 7.1). Asked this way round there is one answer, not two: completing without them is the requirement, naming them is the addition |
-| **A11Y-SC-11** | Can the last announced result be **re-read on demand** without rescanning? | Heard once, over a machine, is not heard |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-SC-01** | `K` | Is **manual entry** reachable from the keyboard on this screen without opening the camera? | Manual entry is always available and is the third rung of the ladder; it is also the only rung that needs no sight |
+| **A11Y-SC-02** | `SR` | Is the manual-entry field labelled with the **expected form** — the namespace letter and twelve characters — and is the mandatory **reason** field labelled and announced as required? | The reason is audited on the scan event; an unlabelled reason field produces useless audit text |
+| **A11Y-SC-03** | `K` | With focus in an **unrelated text field**, does a wedge scan leave the typing alone? | The wedge source buffers and is ignored while the user types elsewhere. This is the item that proves it |
+| **A11Y-SC-04** | `SR` | After a wedge scan, is the result — the job number and the **next expected action** — announced without the runner going to look for it? | The runner is looking at a garment, not at the screen |
+| **A11Y-SC-05** | `SR` | Is a **rejected** scan announced assertively, naming which rule failed — wrong namespace, bad check character, unknown identity, wrong branch, wrong custodian — and what to do next? | Five rejection reasons with five different remedies; "scan failed" is not one of them |
+| **A11Y-SC-06** | `K+SR` | Is the camera overlay announced as a **dialog**, does `Escape` close it, and does focus return to the control that opened it? | A camera overlay that cannot be dismissed from the keyboard is a 2.1.2 trap |
+| **A11Y-SC-07** | `SR` | Does the overlay announce **what to do** — hold the label within reach, or switch to manual entry? | An unnarrated viewfinder is a blank screen |
+| **A11Y-SC-08** | `SR` | Does a **second scan supersede** the first result rather than stacking a second persistent region beside it — and is the superseding announced, so the runner knows which job they are now holding? | That the result is persistent rather than a toast is **A11Y-42** and is not asked twice. What A11Y-42 cannot catch is two persistent results on the screen at once, which is how the wrong garment gets transferred |
+| **A11Y-SC-09** | `K+SR` | Is the result conveyed **visually as well as** by sound or vibration, so both a person in a loud workshop and a person who cannot hear receive it? | Sound is never the only channel |
+| **A11Y-SC-10** | `K` | Can the scan be completed **without** the torch or zoom controls — and where those controls do exist, are they named and keyboard-reachable? | Torch is best effort where the browser exposes it and its absence is never a blocker ([`support-matrix.md`](support-matrix.md) section 7.1). Asked this way round there is one answer, not two: completing without them is the requirement, naming them is the addition |
+| **A11Y-SC-11** | `SR` | Can the last announced result be **re-read on demand** without rescanning? | Heard once, over a machine, is not heard |
 
 ### 5.4 Lists, queues and filters with large result sets — `A11Y-LF-nn`
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-LF-01** | Is the **result count** announced when the list loads and when it changes? | The difference between "none" and "not yet" |
-| **A11Y-LF-02** | Is the **applied filter set** announced, and is there a named control to clear it? | A filter left on from yesterday is why a job "disappeared" |
-| **A11Y-LF-03** | Is an **empty** result announced with what to do next, rather than by silence? | Empty states are where screen-reader journeys usually stop |
-| **A11Y-LF-04** | Does changing the **sort** announce the new order and leave focus on the sort control? | Otherwise the runner is thrown back to the top of a long list |
-| **A11Y-LF-05** | Can the runner move from row to row **without** stepping through every cell of every row? | A hundred-row queue at six stops per row is not navigable |
-| **A11Y-LF-06** | Does "load more" or infinite scroll keep focus, announce how many items were added, and offer a keyboard route to the end of the list? | Infinite scroll with no announcement is an infinite silence |
-| **A11Y-LF-07** | Is a multi-select **count** announced, and is "select all" clearly scoped — this page, or the whole result? | Bulk label printing above the configured cap needs its own permission; selecting the wrong set is expensive |
-| **A11Y-LF-08** | Does each row announce enough to **identify** it — job number, customer, due cue — before its actions? | Row actions without row identity are the defect A11Y-57 describes, seen from the list side |
-| **A11Y-LF-09** | In a **virtualised** list, does the focused row survive being scrolled out of the rendered window — does focus stay on it, or land somewhere sensible, rather than being dropped on the document body when the row is recycled? | Obscured focus on a list row is **A11Y-16** and is not asked twice. Row recycling is the list-specific failure neither A11Y-16 nor the automated helper can see, because the row simply stops existing |
-| **A11Y-LF-10** | Is an overdue or due-soon cue carried in **text**, not by row colour alone? | Overdue is the single most consequential status on a workboard |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-LF-01** | `SR` | Is the **result count** announced when the list loads and when it changes? | The difference between "none" and "not yet" |
+| **A11Y-LF-02** | `SR` | Is the **applied filter set** announced, and is there a named control to clear it? | A filter left on from yesterday is why a job "disappeared" |
+| **A11Y-LF-03** | `SR` | Is an **empty** result announced with what to do next, rather than by silence? | Empty states are where screen-reader journeys usually stop |
+| **A11Y-LF-04** | `K+SR` | Does changing the **sort** announce the new order and leave focus on the sort control? | Otherwise the runner is thrown back to the top of a long list |
+| **A11Y-LF-05** | `SR` | Can the runner move from row to row **without** stepping through every cell of every row? | A hundred-row queue at six stops per row is not navigable |
+| **A11Y-LF-06** | `K+SR` | Does "load more" or infinite scroll keep focus, announce how many items were added, and offer a keyboard route to the end of the list? | Infinite scroll with no announcement is an infinite silence |
+| **A11Y-LF-07** | `SR` | Is a multi-select **count** announced, and is "select all" clearly scoped — this page, or the whole result? | Bulk label printing above the configured cap needs its own permission; selecting the wrong set is expensive |
+| **A11Y-LF-08** | `SR` | Does each row announce enough to **identify** it — job number, customer, due cue — before its actions? | Row actions without row identity are the defect A11Y-60 describes, seen from the list side |
+| **A11Y-LF-09** | `K` | In a **virtualised** list, does the focused row survive being scrolled out of the rendered window — does focus stay on it, or land somewhere sensible, rather than being dropped on the document body when the row is recycled? | Obscured focus on a list row is **A11Y-17** and is not asked twice. Row recycling is the list-specific failure neither A11Y-17 nor the automated helper can see, because the row simply stops existing |
+| **A11Y-LF-10** | `K` | Is an overdue or due-soon cue carried in **text**, not by row colour alone? | Overdue is the single most consequential status on a workboard |
 
 ### 5.5 Billing, invoice and payment — `A11Y-BI-nn`
 
 Money read aloud at a counter with the customer listening. Ambiguity here is not an inconvenience; it is a dispute.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-BI-01** | Is every amount announced **with its currency**, not as a bare number? | "Six hundred and nine" is not an amount |
-| **A11Y-BI-02** | Is an Indian-grouped amount such as `₹12,34,567.89` read as a single amount? Record verbatim what the screen reader actually says | Lakh and crore grouping is not what every reader expects; the record is the evidence |
-| **A11Y-BI-03** | Is each amount announced **with the line it belongs to**, so a line description and its amount are never separated? | An invoice read as a column of numbers cannot be checked |
-| **A11Y-BI-04** | Are **CGST and SGST** announced separately, each with its rate and amount? | The accountant's requirement and the customer's question are the same question |
-| **A11Y-BI-05** | Is the **total** announced with the word "Total" — never identifiable only by being last, bold, larger or a different colour? | Position and colour are exactly what a screen reader does not convey |
-| **A11Y-BI-06** | Is any **round-off** line announced with its label and its sign? | Round-off to the nearest rupee is a document convention, and an unexplained rupee is a dispute |
-| **A11Y-BI-07** | Is the allocation of an **advance** announced — which receipt it came from, and what remains? | Advances are allocated oldest first and are held unapplied until an invoice exists |
-| **A11Y-BI-08** | Is the **balance due** announced as a labelled amount **before** the confirmation to take payment? | The confirmation must not be the first time the number is heard |
-| **A11Y-BI-09** | Is each **payment mode** a named, keyboard-reachable option, and is the chosen mode announced? | Cash and UPI have different consequences at the cashier session close |
-| **A11Y-BI-10** | Does the invoice-posting confirmation announce the **amount** and the fact that a posted invoice is **immutable**? | Posting is irreversible; only a credit note reverses it |
-| **A11Y-BI-11** | After posting, is the **invoice number** announced and reachable, not only displayed? | It is the reference the customer and the accountant will use |
-| **A11Y-BI-12** | Is a refund, reversal or credit announced with a **word**, not only a minus sign or a colour? | The rule already forbids the bare parenthesis convention; the spoken form must match |
-| **A11Y-BI-13** | Is typed confirmation absent from every **phone** layout, appearing only on desktop and tablet administration screens? | Typed confirmation is reserved for administration and is never asked of somebody on a phone in a workshop |
-| **A11Y-BI-14** | Where a cancellation is **blocked**, is the blocking reason announced in words — the posted invoice, the issued material, the garment in another custodian's hands — rather than conveyed by a disabled button? | Cancellation is blocked in prohibited financial, stock and custody states with the reason named (**EX-08**). A disabled control announces "dimmed" and nothing else, which is indistinguishable from a broken screen |
-| **A11Y-BI-15** | Is a **credit note** announced with its number, the invoice it relieves and the amount — and is the three-tier confirmation for it a *confirm with a reason*, with the reason field labelled and announced as required? | A credit note is the only thing that reverses a posted invoice. "Credit note created" without the invoice it relieves cannot be checked by the customer standing there |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-BI-01** | `SR` | Is every amount announced **with its currency**, not as a bare number? | "Six hundred and nine" is not an amount |
+| **A11Y-BI-02** | `SR` | Is an Indian-grouped amount such as `₹12,34,567.89` read as a single amount? Record verbatim what the screen reader actually says | Lakh and crore grouping is not what every reader expects; the record is the evidence |
+| **A11Y-BI-03** | `SR` | Is each amount announced **with the line it belongs to**, so a line description and its amount are never separated? | An invoice read as a column of numbers cannot be checked |
+| **A11Y-BI-04** | `SR` | Are **CGST and SGST** announced separately, each with its rate and amount? | The accountant's requirement and the customer's question are the same question |
+| **A11Y-BI-05** | `SR` | Is the **total** announced with the word "Total" — never identifiable only by being last, bold, larger or a different colour? | Position and colour are exactly what a screen reader does not convey |
+| **A11Y-BI-06** | `SR` | Is any **round-off** line announced with its label and its sign? | Round-off to the nearest rupee is a document convention, and an unexplained rupee is a dispute |
+| **A11Y-BI-07** | `SR` | Is the allocation of an **advance** announced — which receipt it came from, and what remains? | Advances are allocated oldest first and are held unapplied until an invoice exists |
+| **A11Y-BI-08** | `SR` | Is the **balance due** announced as a labelled amount **before** the confirmation to take payment? | The confirmation must not be the first time the number is heard |
+| **A11Y-BI-09** | `K+SR` | Is each **payment mode** a named, keyboard-reachable option, and is the chosen mode announced? | Cash and UPI have different consequences at the cashier session close |
+| **A11Y-BI-10** | `SR` | Does the invoice-posting confirmation announce the **amount** and the fact that a posted invoice is **immutable**? | Posting is irreversible; only a credit note reverses it |
+| **A11Y-BI-11** | `SR` | After posting, is the **invoice number** announced and reachable, not only displayed? | It is the reference the customer and the accountant will use |
+| **A11Y-BI-12** | `SR` | Is a refund, reversal or credit announced with a **word**, not only a minus sign or a colour? | The rule already forbids the bare parenthesis convention; the spoken form must match |
+| **A11Y-BI-13** | `K` | Is typed confirmation absent from every **phone** layout, appearing only on desktop and tablet administration screens? | Typed confirmation is reserved for administration and is never asked of somebody on a phone in a workshop |
+| **A11Y-BI-14** | `SR` | Where a cancellation is **blocked**, is the blocking reason announced in words — the posted invoice, the issued material, the garment in another custodian's hands — rather than conveyed by a disabled button? | Cancellation is blocked in prohibited financial, stock and custody states with the reason named (**EX-08**). A disabled control announces "dimmed" and nothing else, which is indistinguishable from a broken screen |
+| **A11Y-BI-15** | `SR` | Is a **credit note** announced with its number, the invoice it relieves and the amount — and is the three-tier confirmation for it a *confirm with a reason*, with the reason field labelled and announced as required? | A credit note is the only thing that reverses a posted invoice. "Credit note created" without the invoice it relieves cannot be checked by the customer standing there |
 
 ### 5.6 Rendered and printed document previews — `A11Y-DP-nn`
 
 Estimates, invoices, receipts, measurement sheets and job cards, as previewed on screen.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-DP-01** | Is the document's content readable **as text on the screen**, rather than only inside an embedded rendering the screen reader cannot enter? | A preview that is a picture of a document is a picture, not a document |
-| **A11Y-DP-02** | Is the rendered document read with the **right phonetics** — English labels in English, a Tamil customer name or note in Tamil rather than spelled out? | That the language is declared is machine-checked. Whether the customer's own name is pronounced is what a customer standing at the counter actually hears |
-| **A11Y-DP-03** | Is the document's text **real text**, never an image of text? | Stated as a requirement for every rendered document |
-| **A11Y-DP-04** | Does the reading order of the rendered document match its visual order? | Two-column layouts are where this fails |
-| **A11Y-DP-05** | Do tables inside the document carry **header cells**? | Required of every rendered document |
-| **A11Y-DP-06** | Are "Print", "Send to print station" and "Download PDF" **distinct, named controls**, and is the outcome of each announced? | Three different things happen; three different names are needed |
-| **A11Y-DP-07** | Is "queued to the print station" announced with the branch and the job, and is a queue failure announced assertively? | A phone never drives a thermal printer directly; the queue is the normal path |
-| **A11Y-DP-08** | Where an amount in words appears, is it read as **words**? | It exists precisely to remove ambiguity, and must not add some |
-| **A11Y-DP-09** | Does the measurement sheet render in the reader's chosen display unit, with the **unit announced** on every value? | An unlabelled `14 1/2` is not a measurement |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-DP-01** | `SR` | Is the document's content readable **as text on the screen**, rather than only inside an embedded rendering the screen reader cannot enter? | A preview that is a picture of a document is a picture, not a document |
+| **A11Y-DP-02** | `SR` | Is the rendered document read with the **right phonetics** — English labels in English, a Tamil customer name or note in Tamil rather than spelled out? | That the language is declared is machine-checked. Whether the customer's own name is pronounced is what a customer standing at the counter actually hears |
+| **A11Y-DP-03** | `SR` | Is the document's text **real text**, never an image of text? | Stated as a requirement for every rendered document |
+| **A11Y-DP-04** | `SR` | Does the reading order of the rendered document match its visual order? | Two-column layouts are where this fails |
+| **A11Y-DP-05** | `SR` | Do tables inside the document carry **header cells**? | Required of every rendered document |
+| **A11Y-DP-06** | `K+SR` | Are "Print", "Send to print station" and "Download PDF" **distinct, named controls**, and is the outcome of each announced? | Three different things happen; three different names are needed |
+| **A11Y-DP-07** | `SR` | Is "queued to the print station" announced with the branch and the job, and is a queue failure announced assertively? | A phone never drives a thermal printer directly; the queue is the normal path |
+| **A11Y-DP-08** | `SR` | Where an amount in words appears, is it read as **words**? | It exists precisely to remove ambiguity, and must not add some |
+| **A11Y-DP-09** | `SR` | Does the measurement sheet render in the reader's chosen display unit, with the **unit announced** on every value? | An unlabelled `14 1/2` is not a measurement |
 
 ### 5.7 Order-status and custody timeline — `A11Y-TL-nn`
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-TL-01** | Is the timeline announced as a **list with a count**, in an order that is stated somewhere — newest first or oldest first? | Otherwise the runner cannot tell which end they are at |
-| **A11Y-TL-02** | Does each entry announce **what happened, who did it and when**, in words? | Custody history is audit evidence and is read under time pressure |
-| **A11Y-TL-03** | Is a relative time — "3 hours ago" — always accompanied by the **absolute** date and time? | The relative form is a convenience, never the only value |
-| **A11Y-TL-04** | Can the runner find the **current** status without reading the whole history? | The current custodian is the one question the timeline exists to answer |
-| **A11Y-TL-05** | Where a **correction event** exists, is its relationship to the corrected event announced, rather than shown only by indentation or a connecting line? | History is never edited; the correction and the original stand side by side, and both must be heard as a pair |
-| **A11Y-TL-06** | Does a blocked ready-for-delivery or dispatch state announce the **blocking reason** in words — the incomplete phase, the failed criteria, the hold, the sibling job, the open reconciliation case? | Each predicate of the ready gate returns its own reason code; "blocked" alone is unusable |
-| **A11Y-TL-07** | Is each phase or state icon accompanied by its **word**? | 1.4.1 on the screen with the most icons |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-TL-01** | `SR` | Is the timeline announced as a **list with a count**, in an order that is stated somewhere — newest first or oldest first? | Otherwise the runner cannot tell which end they are at |
+| **A11Y-TL-02** | `SR` | Does each entry announce **what happened, who did it and when**, in words? | Custody history is audit evidence and is read under time pressure |
+| **A11Y-TL-03** | `SR` | Is a relative time — "3 hours ago" — always accompanied by the **absolute** date and time? | The relative form is a convenience, never the only value |
+| **A11Y-TL-04** | `SR` | Can the runner find the **current** status without reading the whole history? | The current custodian is the one question the timeline exists to answer |
+| **A11Y-TL-05** | `SR` | Where a **correction event** exists, is its relationship to the corrected event announced, rather than shown only by indentation or a connecting line? | History is never edited; the correction and the original stand side by side, and both must be heard as a pair |
+| **A11Y-TL-06** | `SR` | Does a blocked ready-for-delivery or dispatch state announce the **blocking reason** in words — the incomplete phase, the failed criteria, the hold, the sibling job, the open reconciliation case? | Each predicate of the ready gate returns its own reason code; "blocked" alone is unusable |
+| **A11Y-TL-07** | `K+SR` | Is each phase or state icon accompanied by its **word**? | 1.4.1 on the screen with the most icons |
 
 ### 5.8 Offline, queue and sync-conflict states — `A11Y-OF-nn`
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-OF-01** | Is the network banner **persistent and announced**, and does it stay until the connection returns? | It is non-dismissible by rule, and never a toast |
-| **A11Y-OF-02** | Does a **blocked** action announce that it needs a connection and that it will **not** be queued — and does the typed input stay on the screen? | Money is never accepted into a queue, and the person must know that immediately |
-| **A11Y-OF-03** | Is a **queued** action announced with the queue count, and is the count kept visible? | The queue is bounded; the count is what tells a person to stop |
-| **A11Y-OF-04** | When the queue reaches its bound, is the refusal announced and explained rather than silently swallowing the action? | A queue at its bound refuses rather than discarding the oldest entry |
-| **A11Y-OF-05** | Is **stale** reference data announced as stale when the screen is read, rather than marked only by a faded colour? | Staleness marked only visually is 1.4.1 all over again |
-| **A11Y-OF-06** | On reconnect, is the outcome announced — how many actions replayed, how many conflicted? | Otherwise the person cannot know whether their morning's scans landed |
-| **A11Y-OF-07** | Is the **conflict list** reachable and actionable from the keyboard, with each conflict named by what it was and which job it belongs to? | A conflict named "error 409" is not resolvable at a counter |
-| **A11Y-OF-08** | Is the "client too old" update prompt announced with plain-language instructions and a keyboard-reachable action? | The 426 response drives it; a silent failure is the alternative |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-OF-01** | `K+SR` | Is the network banner **persistent and announced**, and does it stay until the connection returns? | It is non-dismissible by rule, and never a toast |
+| **A11Y-OF-02** | `K+SR` | Does a **blocked** action announce that it needs a connection and that it will **not** be queued — and does the typed input stay on the screen? | Money is never accepted into a queue, and the person must know that immediately |
+| **A11Y-OF-03** | `K+SR` | Is a **queued** action announced with the queue count, and is the count kept visible? | The queue is bounded; the count is what tells a person to stop |
+| **A11Y-OF-04** | `SR` | When the queue reaches its bound, is the refusal announced and explained rather than silently swallowing the action? | A queue at its bound refuses rather than discarding the oldest entry |
+| **A11Y-OF-05** | `SR` | Is **stale** reference data announced as stale when the screen is read, rather than marked only by a faded colour? | Staleness marked only visually is 1.4.1 all over again |
+| **A11Y-OF-06** | `SR` | On reconnect, is the outcome announced — how many actions replayed, how many conflicted? | Otherwise the person cannot know whether their morning's scans landed |
+| **A11Y-OF-07** | `K+SR` | Is the **conflict list** reachable and actionable from the keyboard, with each conflict named by what it was and which job it belongs to? | A conflict named "error 409" is not resolvable at a counter |
+| **A11Y-OF-08** | `K+SR` | Is the "client too old" update prompt announced with plain-language instructions and a keyboard-reachable action? | The 426 response drives it; a silent failure is the alternative |
 
 ### 5.9 Dashboard, reports and low-stock alerts — `A11Y-DB-nn`
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-DB-01** | Does every chart have a **table or text alternative** reachable from the keyboard? | Charts carry a table alternative by rule |
-| **A11Y-DB-02** | Are chart series distinguishable **without colour** — by pattern, label or direct annotation? | 1.4.1 on the screen with the most colour |
-| **A11Y-DB-03** | Is each figure announced with **its label and its period** — "orders confirmed, this week, 42" rather than "42"? | A tile read as a bare number is a number without a question |
-| **A11Y-DB-04** | Does each **low-stock alert** announce the item, the location and the shortfall **in words and units**, rather than being a red row? | Reorder rules drive low-stock evaluation; the alert is the action, and it must be heard |
-| **A11Y-DB-05** | Is the number of open alerts announced when the dashboard loads? | The dashboard's job is to say what needs attention today |
-| **A11Y-DB-06** | Is the action from an alert — reorder, view item, open the queue — a **named control**, not an unlabelled chevron? | An alert with no reachable action is a notification, not a dashboard |
-| **A11Y-DB-07** | Does the dashboard hold still until the reader asks for new data, rather than refreshing under them? | 2.2.2, on the screen most likely to poll |
-| **A11Y-DB-08** | Does opening and closing a drill-down return focus to the tile that opened it? | Otherwise every drill-down costs a full re-tab |
-| **A11Y-DB-09** | Are the **empty** and **permission-denied** states announced — for example a tile a Tailor may not read? | Deny-by-default means the forbidden state is a normal state, and DoD 7 requires a story for it |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-DB-01** | `K+SR` | Does every chart have a **table or text alternative** reachable from the keyboard? | Charts carry a table alternative by rule |
+| **A11Y-DB-02** | `Env` | Are chart series distinguishable **without colour** — by pattern, label or direct annotation? | 1.4.1 on the screen with the most colour |
+| **A11Y-DB-03** | `SR` | Is each figure announced with **its label and its period** — "orders confirmed, this week, 42" rather than "42"? | A tile read as a bare number is a number without a question |
+| **A11Y-DB-04** | `SR` | Does each **low-stock alert** announce the item, the location and the shortfall **in words and units**, rather than being a red row? | Reorder rules drive low-stock evaluation; the alert is the action, and it must be heard |
+| **A11Y-DB-05** | `SR` | Is the number of open alerts announced when the dashboard loads? | The dashboard's job is to say what needs attention today |
+| **A11Y-DB-06** | `K+SR` | Is the action from an alert — reorder, view item, open the queue — a **named control**, not an unlabelled chevron? | An alert with no reachable action is a notification, not a dashboard |
+| **A11Y-DB-07** | `K+SR` | Does the dashboard hold still until the reader asks for new data, rather than refreshing under them? | 2.2.2, on the screen most likely to poll |
+| **A11Y-DB-08** | `K` | Does opening and closing a drill-down return focus to the tile that opened it? | Otherwise every drill-down costs a full re-tab |
+| **A11Y-DB-09** | `SR` | Are the **empty** and **permission-denied** states announced — for example a tile a Tailor may not read? | Deny-by-default means the forbidden state is a normal state, and DoD 7 requires a story for it |
 
 ### 5.10 Stock receipt, material issue and stocktake — `A11Y-IN-nn`
 
@@ -696,18 +696,18 @@ posting step is one of the five actions [`accessibility-localisation.md`](access
 places under 3.3.4. **RG-05** names stock reservation and consumption among the journeys it checks, so RG-06 asks
 for these items whenever the surface changes.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-IN-01** | On stock entry, is each quantity announced **with its unit** — and where a purchase unit is converted to the base unit, is the converted figure announced as well as the typed one? | A metre typed where centimetres are stored is the inventory equivalent of the centimetre-into-inches defect the measurement bands exist to catch |
-| **A11Y-IN-02** | Is the **item** being received or issued announced by name, not only by code — and when it is chosen by scanning an `S-` barcode, is the resolved item announced before anything is entered against it? | Scanner-first item selection means the runner never sees the picker; the announcement is the only confirmation the right item was resolved |
-| **A11Y-IN-03** | On issue against a job, is the **job and phase** the material is being issued to announced with the item, before the quantity is committed? | Material issued against the wrong job is a ledger correction and a garment without cloth |
-| **A11Y-IN-04** | Does the **numeric stepper** announce the value after each step, can the same value be typed, and is the unit announced with it? | The same control and the same one-handed use as A11Y-ME-05, on a different screen |
-| **A11Y-IN-05** | On a stocktake, are the **count** and **recount** fields distinguishable by their announced names, so the second count is never typed into the first? | A recount typed over a count destroys the only evidence that a variance existed |
-| **A11Y-IN-06** | Is the **variance** announced with its **sign** and with the pair it came from — "counted 18, expected 20, short by 2" rather than "−2"? | A bare minus sign is A11Y-BI-12 again, on the screen where it decides whether stock is written off |
-| **A11Y-IN-07** | Does the **variance or negative-stock approval** announce what is being approved, that it needs a second person, and that posting is **irreversible** except by a compensating entry? | Approval is by a different user with step-up above the threshold, and ledger entries are append-only: there is no edit afterwards |
-| **A11Y-IN-08** | Is a **shortage** recorded against the job and phase announced with the hold it produces and the reason the hold carries? | **EX-02**: the shortage path ends in a hold on the Branch Manager's dashboard, and a hold nobody heard about is a job that stops silently |
-| **A11Y-IN-09** | Offline, is a blocked stock movement announced as **blocked and not queued**, with the typed quantity left on the screen? | Stock issue, return, wastage and stocktake posting are blocked offline because balances must not be reconciled against a stale view |
-| **A11Y-IN-10** | Is the **ledger browser** navigable row by row with each entry announcing its type, quantity, sign and reference, rather than as a stream of numbers? | It is the audit surface for everything above, and section 4.7's table items are the floor, not the whole answer |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-IN-01** | `SR` | On stock entry, is each quantity announced **with its unit** — and where a purchase unit is converted to the base unit, is the converted figure announced as well as the typed one? | A metre typed where centimetres are stored is the inventory equivalent of the centimetre-into-inches defect the measurement bands exist to catch |
+| **A11Y-IN-02** | `SR` | Is the **item** being received or issued announced by name, not only by code — and when it is chosen by scanning an `S-` barcode, is the resolved item announced before anything is entered against it? | Scanner-first item selection means the runner never sees the picker; the announcement is the only confirmation the right item was resolved |
+| **A11Y-IN-03** | `SR` | On issue against a job, is the **job and phase** the material is being issued to announced with the item, before the quantity is committed? | Material issued against the wrong job is a ledger correction and a garment without cloth |
+| **A11Y-IN-04** | `K+SR` | Does the **numeric stepper** announce the value after each step, can the same value be typed, and is the unit announced with it? | The same control and the same one-handed use as A11Y-ME-05, on a different screen |
+| **A11Y-IN-05** | `SR` | On a stocktake, are the **count** and **recount** fields distinguishable by their announced names, so the second count is never typed into the first? | A recount typed over a count destroys the only evidence that a variance existed |
+| **A11Y-IN-06** | `SR` | Is the **variance** announced with its **sign** and with the pair it came from — "counted 18, expected 20, short by 2" rather than "−2"? | A bare minus sign is A11Y-BI-12 again, on the screen where it decides whether stock is written off |
+| **A11Y-IN-07** | `SR` | Does the **variance or negative-stock approval** announce what is being approved, that it needs a second person, and that posting is **irreversible** except by a compensating entry? | Approval is by a different user with step-up above the threshold, and ledger entries are append-only: there is no edit afterwards |
+| **A11Y-IN-08** | `SR` | Is a **shortage** recorded against the job and phase announced with the hold it produces and the reason the hold carries? | **EX-02**: the shortage path ends in a hold on the Branch Manager's dashboard, and a hold nobody heard about is a job that stops silently |
+| **A11Y-IN-09** | `K+SR` | Offline, is a blocked stock movement announced as **blocked and not queued**, with the typed quantity left on the screen? | Stock issue, return, wastage and stocktake posting are blocked offline because balances must not be reconciled against a stale view |
+| **A11Y-IN-10** | `SR` | Is the **ledger browser** navigable row by row with each entry announcing its type, quantity, sign and reference, rather than as a stream of numbers? | It is the audit surface for everything above, and section 4.7's table items are the floor, not the whole answer |
 
 ### 5.11 Workboard, phase completion and QC — `A11Y-PH-nn`
 
@@ -715,16 +715,16 @@ Assignment, production and quality. [`accessibility-localisation.md`](accessibil
 dense tables and drag-to-assign as the risk that fails first for the Tailor Master, and sunlight, thread on fingers
 and machine noise as the risk for the Tailor.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-PH-01** | Can a job be **assigned without a drag** — by a named button or menu on the row — and does the assignment announce the job, the phase and the assignee? | 2.5.7 requires the alternative; A11Y-72 asks whether one exists, and this asks whether it does the same job |
-| **A11Y-PH-02** | When an assignment is **refused** — wrong branch, inactive user, no capability row for this category and phase — is the reason announced in words rather than the row simply not changing? | An assignment that silently does not happen is how a job sits unstarted for a day |
-| **A11Y-PH-03** | Does **start production** announce that the workflow version is now **pinned** and that revising the order is refused from this point? | The pinned version never changes and `orders.revise` is refused afterwards; this is the last moment the announcement can help |
-| **A11Y-PH-04** | On completing a phase, is the **next phase** announced — or, where the workflow ends, that the job is now awaiting QC? | The runner is holding a garment and needs to know where it goes next, not that a save succeeded |
-| **A11Y-PH-05** | Is the QC checklist announced with the **checklist version** it is being evaluated against, and is each criterion announced as a labelled member of a named group? | The result stores a copy of the criteria evaluated so it renders identically later; the version is part of the answer, not decoration |
-| **A11Y-PH-06** | Are **defect codes** announced by their **name**, not by their code — and is more than one selectable and re-readable before the result is submitted? | "Defect D-07" is not a defect anybody can act on, and a QC result is immutable once written |
-| **A11Y-PH-07** | Where the checklist requires **evidence media**, is that requirement announced as required **before** the submit is attempted, and is the attached evidence announced as a named list? | Learning the rule by failing the save is expensive when the garment is already off the machine |
-| **A11Y-PH-08** | Does opening a **rework** announce which phase the job returns to, and does the job's timeline then announce the rework as a new entry rather than as a changed one? | History is never edited; a rework that appears as a mutation of the old phase misreports who did what |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-PH-01** | `K+SR` | Can a job be **assigned without a drag** — by a named button or menu on the row — and does the assignment announce the job, the phase and the assignee? | 2.5.7 requires the alternative; A11Y-75 asks whether one exists, and this asks whether it does the same job |
+| **A11Y-PH-02** | `SR` | When an assignment is **refused** — wrong branch, inactive user, no capability row for this category and phase — is the reason announced in words rather than the row simply not changing? | An assignment that silently does not happen is how a job sits unstarted for a day |
+| **A11Y-PH-03** | `SR` | Does **start production** announce that the workflow version is now **pinned** and that revising the order is refused from this point? | The pinned version never changes and `orders.revise` is refused afterwards; this is the last moment the announcement can help |
+| **A11Y-PH-04** | `SR` | On completing a phase, is the **next phase** announced — or, where the workflow ends, that the job is now awaiting QC? | The runner is holding a garment and needs to know where it goes next, not that a save succeeded |
+| **A11Y-PH-05** | `SR` | Is the QC checklist announced with the **checklist version** it is being evaluated against, and is each criterion announced as a labelled member of a named group? | The result stores a copy of the criteria evaluated so it renders identically later; the version is part of the answer, not decoration |
+| **A11Y-PH-06** | `SR` | Are **defect codes** announced by their **name**, not by their code — and is more than one selectable and re-readable before the result is submitted? | "Defect D-07" is not a defect anybody can act on, and a QC result is immutable once written |
+| **A11Y-PH-07** | `SR` | Where the checklist requires **evidence media**, is that requirement announced as required **before** the submit is attempted, and is the attached evidence announced as a named list? | Learning the rule by failing the save is expensive when the garment is already off the machine |
+| **A11Y-PH-08** | `SR` | Does opening a **rework** announce which phase the job returns to, and does the job's timeline then announce the rework as a new entry rather than as a changed one? | History is never edited; a rework that appears as a mutation of the old phase misreports who did what |
 
 ### 5.12 Customer-facing estimate, status and feedback pages — `A11Y-CU-nn`
 
@@ -733,17 +733,17 @@ These are in scope under section 1, they are inside the WCAG 2.2 AA claim of
 the public with a disability actually meets. They are server-rendered outside the application shell, so nothing the
 staff shell provides can be assumed here.
 
-| ID | Question — Pass / Fail / Not applicable | Why it matters here |
-| --- | --- | --- |
-| **A11Y-CU-01** | Does the page render and read in the **customer's** language, not the operator's — and where a language switch is offered, is it named and reachable? | **NFR-LO-06** in [`traceability.md`](traceability.md), and the status page is explicitly rendered in the customer's language with an English/Tamil switch |
-| **A11Y-CU-02** | Is an **expired or already-consumed** link answered with a page that says the link has expired and **how to get a new one** — announced, keyboard-reachable, and not a bare error code? | The link is one-time and time-bounded. A customer who meets this page has no other route in, and "410" is not a route |
-| **A11Y-CU-03** | Is the **estimate** readable as text, with each line announced with its description and its amount, and the total announced with the word "Total"? | The customer-facing half of A11Y-BI-03 and A11Y-BI-05, on a page the staff checklist would otherwise never reach |
-| **A11Y-CU-04** | Are **CGST and SGST**, any round-off and the amount payable each announced with their label and currency? | Same reason as A11Y-BI-04 and A11Y-BI-06: this is the copy the customer checks against the one at the counter |
-| **A11Y-CU-05** | On the **status** page, is the current state announced in words, with the promised date — and where the order is blocked or held, is the blocking reason announced rather than shown as a stalled progress bar? | A progress bar with no text is the customer-facing version of A11Y-TL-06 |
-| **A11Y-CU-06** | Is the feedback **rating control** a named group whose options are individually announced with their values, and is the chosen value announced when it changes? | A star row is the classic unlabelled radio group, and the rating is what opens a service-recovery case (**EX-11**) |
-| **A11Y-CU-07** | Is the free-text comment field labelled and announced with any limit that applies, and is the **alteration request** control named as what it does rather than as a bare checkbox? | An accepted alteration request opens a garment job; it is not a comment |
-| **A11Y-CU-08** | Is a successful submission announced with **what happens next**, and is the one-time **edit window** announced with the fact that it closes? | Feedback is read-only after the edit window; a customer who did not hear that cannot use it |
-| **A11Y-CU-09** | Do the page's targets, contrast, zoom behaviour and focus indicator hold on a phone, given that none of the staff design system's shell is present here? | It is a separate, deliberately light bundle. Nothing it inherits is guaranteed, so section 4 is answered here in full rather than assumed |
+| ID | Which pass | Question — Pass / Fail / Not applicable | Why it matters here |
+| --- | --- | --- | --- |
+| **A11Y-CU-01** | `SR` | Does the page render and read in the **customer's** language, not the operator's — and where a language switch is offered, is it named and reachable? | **NFR-LO-06** in [`traceability.md`](traceability.md), and the status page is explicitly rendered in the customer's language with an English/Tamil switch |
+| **A11Y-CU-02** | `K+SR` | Is an **expired or already-consumed** link answered with a page that says the link has expired and **how to get a new one** — announced, keyboard-reachable, and not a bare error code? | The link is one-time and time-bounded. A customer who meets this page has no other route in, and "410" is not a route |
+| **A11Y-CU-03** | `SR` | Is the **estimate** readable as text, with each line announced with its description and its amount, and the total announced with the word "Total"? | The customer-facing half of A11Y-BI-03 and A11Y-BI-05, on a page the staff checklist would otherwise never reach |
+| **A11Y-CU-04** | `SR` | Are **CGST and SGST**, any round-off and the amount payable each announced with their label and currency? | Same reason as A11Y-BI-04 and A11Y-BI-06: this is the copy the customer checks against the one at the counter |
+| **A11Y-CU-05** | `SR` | On the **status** page, is the current state announced in words, with the promised date — and where the order is blocked or held, is the blocking reason announced rather than shown as a stalled progress bar? | A progress bar with no text is the customer-facing version of A11Y-TL-06 |
+| **A11Y-CU-06** | `K+SR` | Is the feedback **rating control** a named group whose options are individually announced with their values, and is the chosen value announced when it changes? | A star row is the classic unlabelled radio group, and the rating is what opens a service-recovery case (**EX-11**) |
+| **A11Y-CU-07** | `SR` | Is the free-text comment field labelled and announced with any limit that applies, and is the **alteration request** control named as what it does rather than as a bare checkbox? | An accepted alteration request opens a garment job; it is not a comment |
+| **A11Y-CU-08** | `SR` | Is a successful submission announced with **what happens next**, and is the one-time **edit window** announced with the fact that it closes? | Feedback is read-only after the edit window; a customer who did not hear that cannot use it |
+| **A11Y-CU-09** | `Env` | Do the page's targets, contrast, zoom behaviour and focus indicator hold on a phone, given that none of the staff design system's shell is present here? | It is a separate, deliberately light bundle. Nothing it inherits is guaranteed, so section 4 is answered here in full rather than assumed |
 
 ---
 
@@ -1053,7 +1053,7 @@ confirmed** (A11Y-OD-05).
 | The step **destroyed typed input** or performed the action **twice** | The step preserved the input and performed the action once |
 
 A **workaround** counts as "documented" for the S2 row only if it is written in the product — in the interface, or
-in the help the runner can reach from the screen under A11Y-82 — not merely known to the runner. A workaround
+in the help the runner can reach from the screen under A11Y-85 — not merely known to the runner. A workaround
 invented during the run is not a documented workaround, and the finding stays at its original severity.
 
 ### 7.3 What is recorded even when nothing blocks
@@ -1067,7 +1067,22 @@ is what makes the three-releases escalation rule enforceable.
 ## 8. The evidence record — copy this
 
 Copy this block into the pull request, or into a file under the location proposed in section 1, and fill it in
-during the run. Nothing in it is optional; a field that does not apply is filled in with `n/a` and a reason.
+during the run. **Every row is here in full** so that nothing has to be typed out before the run can start: the
+whole point of a checklist is defeated the moment a runner has to hand-build the sheet, because what gets built is
+only the rows they already suspect. Nothing in it is optional; a field that does not apply is filled in with `n/a`
+and a reason.
+
+Three rules for filling it in:
+
+1. **The core checklist is answered once per screen.** Copy the core table below once for each screen on the
+   DOR-14 screen list, and write the screen's name above it. One verdict for ten screens is not the per-screen
+   evidence RG-06 asks for.
+2. **`K`, `SR` and `Env` are the three passes of section 2.6** — keyboard, screen reader, environment. A cell is
+   pre-filled with `—` where that pass does not answer that item, so the only cells to fill are the blank ones.
+   Where two passes both answer an item and **disagree**, record both: that disagreement is the finding.
+3. **Delete the screen-family tables this journey does not touch**, and delete the unused screens' copies of the
+   core table. Deleting what does not apply is expected; leaving a family in and answering it `n/a` throughout is
+   not the same thing and is treated as an unanswered family.
 
 ```markdown
 # Manual accessibility record
@@ -1076,15 +1091,19 @@ during the run. Nothing in it is optional; a field that does not apply is filled
 
 | Field | Value |
 | --- | --- |
-| Journey identifier | e.g. A11Y-PZ-01 order confirmation / A11Y-WT-03 Salwar |
+| Journey identifier | e.g. A11Y-PZ-01 order confirmation / A11Y-RJ-04 workboard / A11Y-WT-03 Salwar |
 | Priority zero? | Yes / No  (Yes means a barrier here is S1 and cannot be waived) |
-| Reason for the run | New journey (DoD 7) / changed screens / release (RG-06) / milestone / design-system primitive |
+| Reason for the run | New journey (DoD 7) / changed screens / release (RG-06) / milestone / installed-mode leg / design-system primitive |
 | Pull request or release | #___ , or the release tag |
 | Runner | Name and role |
 | Reviewer who spot-checked | Name; which two items were re-run |
 | Date and time started / finished | yyyy-mm-dd hh:mm – hh:mm (Asia/Kolkata) |
 | Build under test | Commit or image digest, and the environment |
 | Data | Synthetic only — confirm: yes / no |
+| Screens walked | The DOR-14 screen list for this change; one core table below per screen |
+| States walked per screen | Loading / empty / error / offline / forbidden — name any not reachable and why |
+| Automated reports attached | The axe run, the overflow and obscured-focus helper, the target-size check and the text-spacing injection test for these screens — attached and clean: yes / no. This record does not repeat them |
+| Verbatim announcements captured | The transcript or recording file, per section 3.8. Required for the amount-grouping, announced-once, double-label, row-identity and amount-in-words items |
 
 ## Pairing and environment
 
@@ -1096,34 +1115,317 @@ during the run. Nothing in it is optional; a field that does not apply is filled
 | Browser and version | |
 | Screen reader and version | TalkBack __ / VoiceOver __ / NVDA __ |
 | Tier of this pairing | Tier 1 / Tier 2, per support-matrix.md section 8 |
-| Installed mode or browser tab | |
+| Installed mode or browser tab | Installed / tab — a record in one does not carry to the other (section 2.4) |
 | Keyboard used for the keyboard pass | Built-in / paired Bluetooth / wedge scanner acting as a keyboard |
-| Zoom, text size and theme | 100% / 200%; text size __%; light / dark / high contrast |
+| Wedge scanner, label sheet and print station available | Yes / no — and which items were recorded `N/A — kit unavailable` |
+| Fixtures used | Offline route; forced session expiry; lowered queue bound; old-client override; invalid-payload label sheet; the named synthetic seed set (section 3.7) |
+| Glove or finger guard worn (AL-04) | None / thin glove / finger guard — and on which steps |
+| Zoom, text size and theme | 100% / 200%; product text size 100 / 125 / 150%; light / dark / high contrast |
 | Reduced motion | On / off |
+| Greyscale | On / off |
 | Orientation | Portrait / landscape |
 
-## Core checklist (section 4)
+## Grading, reprinted from section 7.1 so it does not have to be looked up
 
-| ID | Pass / Fail / N/A | Screen where observed | Note, or reason for N/A | Severity | Defect |
-| --- | --- | --- | --- | --- | --- |
-| A11Y-01 | | | | | |
-| A11Y-02 | | | | | |
-| …  one row per item through A11Y-82 … | | | | | |
+| Outcome of a checklist item | Severity | Waivable? |
+| --- | --- | --- |
+| A barrier that stops a member of staff completing a priority-zero journey with a keyboard or a screen reader | S1 | No |
+| A critical violation on any screen, including a barrier on a customer-facing page | S1 | No |
+| A serious violation with a documented workaround written in the product | S2 | Owner, on the technical reviewer's recommendation, 30 days |
+| A moderate or minor violation | S3 | Advisory; recorded and counted across releases |
 
-## Screen-family checklists (section 5) — only the families this journey touches
+## Core checklist (section 4) — copy this table once per screen
 
-| ID | Pass / Fail / N/A | Screen where observed | Note, or reason for N/A | Severity | Defect |
-| --- | --- | --- | --- | --- | --- |
-| A11Y-ME-01 | | | | | |
-| …  | | | | | |
+### Screen: ______________________________
+
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-01 | — |  | — | | | |
+| A11Y-02 | — |  | — | | | |
+| A11Y-03 | — |  | — | | | |
+| A11Y-04 | — |  | — | | | |
+| A11Y-05 | — |  | — | | | |
+| A11Y-06 | — |  | — | | | |
+| A11Y-07 | — |  | — | | | |
+| A11Y-08 | — |  | — | | | |
+| A11Y-09 | — |  | — | | | |
+| A11Y-10 |  |  | — | | | |
+| A11Y-11 |  |  | — | | | |
+| A11Y-12 |  | — | — | | | |
+| A11Y-13 |  | — | — | | | |
+| A11Y-14 |  | — | — | | | |
+| A11Y-15 | — | — |  | | | |
+| A11Y-16 | — | — |  | | | |
+| A11Y-17 |  | — | — | | | |
+| A11Y-18 |  | — | — | | | |
+| A11Y-19 |  | — | — | | | |
+| A11Y-20 |  | — | — | | | |
+| A11Y-21 |  |  | — | | | |
+| A11Y-22 |  | — | — | | | |
+| A11Y-23 |  | — | — | | | |
+| A11Y-24 | — |  | — | | | |
+| A11Y-25 | — |  | — | | | |
+| A11Y-26 | — |  | — | | | |
+| A11Y-27 | — |  | — | | | |
+| A11Y-28 |  | — | — | | | |
+| A11Y-29 | — |  | — | | | |
+| A11Y-30 | — |  | — | | | |
+| A11Y-31 | — |  | — | | | |
+| A11Y-32 |  | — | — | | | |
+| A11Y-33 | — |  | — | | | |
+| A11Y-34 | — |  | — | | | |
+| A11Y-35 | — |  | — | | | |
+| A11Y-36 |  |  | — | | | |
+| A11Y-37 |  |  | — | | | |
+| A11Y-38 | — |  | — | | | |
+| A11Y-39 | — |  | — | | | |
+| A11Y-40 | — |  | — | | | |
+| A11Y-41 | — |  | — | | | |
+| A11Y-42 |  |  | — | | | |
+| A11Y-43 | — |  | — | | | |
+| A11Y-44 | — |  | — | | | |
+| A11Y-45 | — |  | — | | | |
+| A11Y-46 | — |  | — | | | |
+| A11Y-47 |  | — | — | | | |
+| A11Y-48 | — | — |  | | | |
+| A11Y-49 | — |  | — | | | |
+| A11Y-50 | — |  | — | | | |
+| A11Y-51 | — |  | — | | | |
+| A11Y-52 | — |  | — | | | |
+| A11Y-53 |  | — | — | | | |
+| A11Y-54 | — | — |  | | | |
+| A11Y-55 |  |  | — | | | |
+| A11Y-56 | — |  | — | | | |
+| A11Y-57 | — |  | — | | | |
+| A11Y-58 | — |  | — | | | |
+| A11Y-59 | — |  | — | | | |
+| A11Y-60 | — |  | — | | | |
+| A11Y-61 |  |  | — | | | |
+| A11Y-62 |  |  | — | | | |
+| A11Y-63 |  | — | — | | | |
+| A11Y-64 |  | — | — | | | |
+| A11Y-65 |  |  | — | | | |
+| A11Y-66 |  | — | — | | | |
+| A11Y-67 | — | — |  | | | |
+| A11Y-68 | — | — |  | | | |
+| A11Y-69 | — | — |  | | | |
+| A11Y-70 | — | — |  | | | |
+| A11Y-71 | — | — |  | | | |
+| A11Y-72 | — | — |  | | | |
+| A11Y-73 | — | — |  | | | |
+| A11Y-74 |  |  | — | | | |
+| A11Y-75 |  | — | — | | | |
+| A11Y-76 |  | — | — | | | |
+| A11Y-77 |  | — | — | | | |
+| A11Y-78 |  | — | — | | | |
+| A11Y-79 |  |  | — | | | |
+| A11Y-80 |  |  | — | | | |
+| A11Y-81 |  |  | — | | | |
+| A11Y-82 |  | — | — | | | |
+| A11Y-83 |  | — | — | | | |
+| A11Y-84 |  | — | — | | | |
+| A11Y-85 |  |  | — | | | |
+| A11Y-86 |  |  | — | | | |
+| A11Y-87 | — |  | — | | | |
+| A11Y-88 | — |  | — | | | |
+| A11Y-89 |  |  | — | | | |
+
+## Screen-family checklists (section 5) — delete the families this journey does not touch
+
+### 5.1 Measurement entry — `A11Y-ME-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-ME-01 | — |  | — | | | |
+| A11Y-ME-02 | — |  | — | | | |
+| A11Y-ME-03 | — |  | — | | | |
+| A11Y-ME-04 |  |  | — | | | |
+| A11Y-ME-05 |  |  | — | | | |
+| A11Y-ME-06 | — |  | — | | | |
+| A11Y-ME-07 |  |  | — | | | |
+| A11Y-ME-08 | — |  | — | | | |
+| A11Y-ME-09 | — |  | — | | | |
+| A11Y-ME-10 | — |  | — | | | |
+| A11Y-ME-11 | — |  | — | | | |
+
+### 5.2 Camera capture and image upload — `A11Y-IM-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-IM-01 |  | — | — | | | |
+| A11Y-IM-02 | — |  | — | | | |
+| A11Y-IM-03 |  |  | — | | | |
+| A11Y-IM-04 | — |  | — | | | |
+| A11Y-IM-05 | — |  | — | | | |
+| A11Y-IM-06 | — |  | — | | | |
+| A11Y-IM-07 | — |  | — | | | |
+| A11Y-IM-08 |  | — | — | | | |
+| A11Y-IM-09 | — |  | — | | | |
+| A11Y-IM-10 | — |  | — | | | |
+
+### 5.3 Barcode scanning — `A11Y-SC-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-SC-01 |  | — | — | | | |
+| A11Y-SC-02 | — |  | — | | | |
+| A11Y-SC-03 |  | — | — | | | |
+| A11Y-SC-04 | — |  | — | | | |
+| A11Y-SC-05 | — |  | — | | | |
+| A11Y-SC-06 |  |  | — | | | |
+| A11Y-SC-07 | — |  | — | | | |
+| A11Y-SC-08 | — |  | — | | | |
+| A11Y-SC-09 |  |  | — | | | |
+| A11Y-SC-10 |  | — | — | | | |
+| A11Y-SC-11 | — |  | — | | | |
+
+### 5.4 Lists, queues and filters with large result sets — `A11Y-LF-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-LF-01 | — |  | — | | | |
+| A11Y-LF-02 | — |  | — | | | |
+| A11Y-LF-03 | — |  | — | | | |
+| A11Y-LF-04 |  |  | — | | | |
+| A11Y-LF-05 | — |  | — | | | |
+| A11Y-LF-06 |  |  | — | | | |
+| A11Y-LF-07 | — |  | — | | | |
+| A11Y-LF-08 | — |  | — | | | |
+| A11Y-LF-09 |  | — | — | | | |
+| A11Y-LF-10 |  | — | — | | | |
+
+### 5.5 Billing, invoice and payment — `A11Y-BI-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-BI-01 | — |  | — | | | |
+| A11Y-BI-02 | — |  | — | | | |
+| A11Y-BI-03 | — |  | — | | | |
+| A11Y-BI-04 | — |  | — | | | |
+| A11Y-BI-05 | — |  | — | | | |
+| A11Y-BI-06 | — |  | — | | | |
+| A11Y-BI-07 | — |  | — | | | |
+| A11Y-BI-08 | — |  | — | | | |
+| A11Y-BI-09 |  |  | — | | | |
+| A11Y-BI-10 | — |  | — | | | |
+| A11Y-BI-11 | — |  | — | | | |
+| A11Y-BI-12 | — |  | — | | | |
+| A11Y-BI-13 |  | — | — | | | |
+| A11Y-BI-14 | — |  | — | | | |
+| A11Y-BI-15 | — |  | — | | | |
+
+### 5.6 Rendered and printed document previews — `A11Y-DP-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-DP-01 | — |  | — | | | |
+| A11Y-DP-02 | — |  | — | | | |
+| A11Y-DP-03 | — |  | — | | | |
+| A11Y-DP-04 | — |  | — | | | |
+| A11Y-DP-05 | — |  | — | | | |
+| A11Y-DP-06 |  |  | — | | | |
+| A11Y-DP-07 | — |  | — | | | |
+| A11Y-DP-08 | — |  | — | | | |
+| A11Y-DP-09 | — |  | — | | | |
+
+### 5.7 Order-status and custody timeline — `A11Y-TL-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-TL-01 | — |  | — | | | |
+| A11Y-TL-02 | — |  | — | | | |
+| A11Y-TL-03 | — |  | — | | | |
+| A11Y-TL-04 | — |  | — | | | |
+| A11Y-TL-05 | — |  | — | | | |
+| A11Y-TL-06 | — |  | — | | | |
+| A11Y-TL-07 |  |  | — | | | |
+
+### 5.8 Offline, queue and sync-conflict states — `A11Y-OF-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-OF-01 |  |  | — | | | |
+| A11Y-OF-02 |  |  | — | | | |
+| A11Y-OF-03 |  |  | — | | | |
+| A11Y-OF-04 | — |  | — | | | |
+| A11Y-OF-05 | — |  | — | | | |
+| A11Y-OF-06 | — |  | — | | | |
+| A11Y-OF-07 |  |  | — | | | |
+| A11Y-OF-08 |  |  | — | | | |
+
+### 5.9 Dashboard, reports and low-stock alerts — `A11Y-DB-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-DB-01 |  |  | — | | | |
+| A11Y-DB-02 | — | — |  | | | |
+| A11Y-DB-03 | — |  | — | | | |
+| A11Y-DB-04 | — |  | — | | | |
+| A11Y-DB-05 | — |  | — | | | |
+| A11Y-DB-06 |  |  | — | | | |
+| A11Y-DB-07 |  |  | — | | | |
+| A11Y-DB-08 |  | — | — | | | |
+| A11Y-DB-09 | — |  | — | | | |
+
+### 5.10 Stock receipt, material issue and stocktake — `A11Y-IN-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-IN-01 | — |  | — | | | |
+| A11Y-IN-02 | — |  | — | | | |
+| A11Y-IN-03 | — |  | — | | | |
+| A11Y-IN-04 |  |  | — | | | |
+| A11Y-IN-05 | — |  | — | | | |
+| A11Y-IN-06 | — |  | — | | | |
+| A11Y-IN-07 | — |  | — | | | |
+| A11Y-IN-08 | — |  | — | | | |
+| A11Y-IN-09 |  |  | — | | | |
+| A11Y-IN-10 | — |  | — | | | |
+
+### 5.11 Workboard, phase completion and QC — `A11Y-PH-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-PH-01 |  |  | — | | | |
+| A11Y-PH-02 | — |  | — | | | |
+| A11Y-PH-03 | — |  | — | | | |
+| A11Y-PH-04 | — |  | — | | | |
+| A11Y-PH-05 | — |  | — | | | |
+| A11Y-PH-06 | — |  | — | | | |
+| A11Y-PH-07 | — |  | — | | | |
+| A11Y-PH-08 | — |  | — | | | |
+
+### 5.12 Customer-facing estimate, status and feedback pages — `A11Y-CU-nn`
+
+| ID | K | SR | Env | Note, or reason for N/A | Severity | Defect |
+| --- | --- | --- | --- | --- | --- | --- |
+| A11Y-CU-01 | — |  | — | | | |
+| A11Y-CU-02 |  |  | — | | | |
+| A11Y-CU-03 | — |  | — | | | |
+| A11Y-CU-04 | — |  | — | | | |
+| A11Y-CU-05 | — |  | — | | | |
+| A11Y-CU-06 |  |  | — | | | |
+| A11Y-CU-07 | — |  | — | | | |
+| A11Y-CU-08 | — |  | — | | | |
+| A11Y-CU-09 | — | — |  | | | |
 
 ## Journey record (section 6)
+
+One row per step of this journey's record. Do not renumber the steps.
 
 | Step | Keyboard | Screen reader | Items failed | Severity | Defect |
 | --- | --- | --- | --- | --- | --- |
 | 1 | | | | | |
 | 2 | | | | | |
-| …  | | | | | |
+| 3 | | | | | |
+| 4 | | | | | |
+| 5 | | | | | |
+| 6 | | | | | |
+| 7 | | | | | |
+| 8 | | | | | |
+| 9 | | | | | |
+| 10 | | | | | |
 
 ## Result
 
@@ -1135,14 +1437,15 @@ during the run. Nothing in it is optional; a field that does not apply is filled
 | S1 findings | Identifiers and defect numbers, or "none" |
 | S2 findings and their waiver identifiers | Or "none" |
 | S3 observations | Or "none" |
-| Time taken, and whether the time-box was exceeded | |
+| Items recorded N/A, with which reason | Desktop pairing / kit unavailable / fixture unavailable / genuinely not present on this screen |
+| Time taken per pass, and against which budget | Keyboard __ ; screen reader __ ; environment __ ; against section 2.2 |
 | Anything the checklist did not cover | A gap here is a change to a11y-checklist.md, raised as an issue |
 
 ## Defects raised
 
-| Defect | Item id | Severity | Screen | One-line description | Assignee |
-| --- | --- | --- | --- | --- | --- |
-| | | | | | |
+| Defect | Item id | Which part of the item failed | Severity | Screen | One-line description | Assignee |
+| --- | --- | --- | --- | --- | --- | --- |
+| | | | | | | |
 
 ## Signatures
 
@@ -1152,7 +1455,6 @@ during the run. Nothing in it is optional; a field that does not apply is filled
 | Reviewer | | | I re-ran at least two Fail or N/A items and agree with the grading |
 | Owner (release only) | | | I accept the accessibility evidence for this release, including every S2 waiver listed |
 ```
-
 ---
 
 ## 9. Open decisions recorded by this document
@@ -1183,7 +1485,7 @@ appears here, because those are settled elsewhere.
 Two decisions this document **does not** own, and defers to their sources: **TRC-OD-02** in
 [`traceability.md`](traceability.md), which confirms the priority-zero journey list this checklist grades against;
 and **AL-03** in [`accessibility-localisation.md`](accessibility-localisation.md), which confirms the 56, 44 and
-32 px target sizes that A11Y-65 tests. If either changes, this document changes in the same pull request.
+32 px target sizes that A11Y-68 tests. If either changes, this document changes in the same pull request.
 
 ---
 
