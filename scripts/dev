@@ -373,6 +373,22 @@ cmd_build() {
   step dotnet build "$SOLUTION" --configuration "$DOTNET_CONFIGURATION"
   # `pnpm build` is `tsc -b && vite build`, so this also type-checks the client.
   step pnpm --dir "$PWA_DIR" build
+  publish_client
+}
+
+# Copies the built client into the web host's wwwroot, which is how the host serves it in a deployed
+# environment. Doing it here as well means a local build exercises the same routing a container does,
+# rather than only the dev server proxy — which is where an unmatched /api path behaves differently.
+publish_client() {
+  local target="$REPO_ROOT/src/Hosts/Tailor360.Web/wwwroot"
+  if [[ ! -d "$PWA_DIR/dist" ]]; then
+    warn "No client build found at $PWA_DIR/dist; skipping the wwwroot copy."
+    return 0
+  fi
+
+  info "Publishing the client into $target"
+  find "$target" -mindepth 1 ! -name '.gitkeep' -delete
+  cp -R "$PWA_DIR/dist/." "$target/"
 }
 
 cmd_test() {

@@ -379,6 +379,26 @@ function Invoke-Build {
   Invoke-Step -Command 'dotnet' -CommandArguments @('build', $Solution, '--configuration', $DotnetConfiguration)
   # `pnpm build` is `tsc -b && vite build`, so this also type-checks the client.
   Invoke-Step -Command 'pnpm' -CommandArguments @('--dir', $PwaDir, 'build')
+  Publish-Client
+}
+
+# Copies the built client into the web host's wwwroot, which is how the host serves it in a deployed
+# environment. Doing it here as well means a local build exercises the same routing a container does,
+# rather than only the dev server proxy, which is where an unmatched /api path behaves differently.
+function Publish-Client {
+  $target = Join-Path $RepoRoot 'src/Hosts/Tailor360.Web/wwwroot'
+  $source = Join-Path $PwaDir 'dist'
+
+  if (-not (Test-Path $source)) {
+    Write-Warn "No client build found at $source; skipping the wwwroot copy."
+    return
+  }
+
+  Write-Info "Publishing the client into $target"
+  Get-ChildItem -Path $target -Force |
+    Where-Object { $_.Name -ne '.gitkeep' } |
+    Remove-Item -Recurse -Force
+  Copy-Item -Path (Join-Path $source '*') -Destination $target -Recurse -Force
 }
 
 function Invoke-Test {
