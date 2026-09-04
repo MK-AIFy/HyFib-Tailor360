@@ -107,6 +107,11 @@ intake, at estimate, at confirmation and at design revision.
    themselves choices ("cut the lining 5 mm wider than the shell at the armhole").
 6. Rules are evaluated **server-side and authoritatively**. The picker's copy is a convenience; a selection set that
    reaches confirmation is re-validated against the published rules regardless of what the client believed.
+7. Every seeded rule carries a stable identifier, `DR-nn`, unique across the whole catalogue rather than per
+   category. Identifiers are never re-used: a deleted rule's number is retired with it. They exist because a rule
+   cannot be named reliably by the options it mentions — `DR-01` and `DR-06` both concern `padding = MOULDED_CUP`,
+   so a publish-time error or a test that named only the option would be ambiguous between them. A rule an
+   administrator adds is allocated the next free number by the catalogue, not by hand.
 
 ---
 
@@ -267,14 +272,14 @@ tablet screen.
 
 **Rules**
 
-| Type | Statement | Why |
-| --- | --- | --- |
-| requires | `padding` in (`LIGHT`, `MOULDED_CUP`) requires `lining` ≠ `NONE` | Padding stitched against a single layer shows through and works loose. This is the rule named in the plan's #30 blueprint and exercised in walkthrough 1. |
-| requires | `front_neck = KATORI` requires `lining = KATORI_CUP` | A katori neck is defined by its cup seam; it cannot be cut unlined |
-| excludes | `front_neck = HIGH_NECK` excludes `back_neck = HIGH_NECK` | A blouse closed at both neck edges cannot be got into; one edge must open |
-| excludes | `sleeve_style = SLEEVELESS` excludes `finish = LACE_EDGE` | Seeded as a shop preference, not a physical law — listed here as the worked example of a rule the Owner may well delete at review (**OD-DES-04**) |
-| note | `closure` in (`ZIP_BACK`, `ZIP_SIDE`) → "Match the zip tape to the shell fabric; check the zip runs freely after lining." | Craft instruction, printed on the job card |
-| note | `padding = MOULDED_CUP` → "Confirm the cup size against the customer's reference garment before cutting." | Cup sizing is not in the measurement set |
+| Id | Type | Statement | Why |
+| --- | --- | --- | --- |
+| **DR-01** | requires | `padding` in (`LIGHT`, `MOULDED_CUP`) requires `lining` ≠ `NONE` | Padding stitched against a single layer shows through and works loose. This is the rule named in the plan's #30 blueprint and exercised in walkthrough 1. |
+| **DR-02** | requires | `front_neck = KATORI` requires `lining = KATORI_CUP` | A katori neck is defined by its cup seam; it cannot be cut unlined |
+| **DR-03** | excludes | `front_neck = HIGH_NECK` excludes `back_neck = HIGH_NECK` | A blouse closed at both neck edges cannot be got into; one edge must open |
+| **DR-04** | excludes | `sleeve_style = SLEEVELESS` excludes `finish = LACE_EDGE` | Seeded as a shop preference, not a physical law — listed here as the worked example of a rule the Owner may well delete at review (**OD-DES-04**) |
+| **DR-05** | note | `closure` in (`ZIP_BACK`, `ZIP_SIDE`) → "Match the zip tape to the shell fabric; check the zip runs freely after lining." | Craft instruction, printed on the job card |
+| **DR-06** | note | `padding = MOULDED_CUP` → "Confirm the cup size against the customer's reference garment before cutting." | Cup sizing is not in the measurement set |
 
 Walkthrough 1 in [walkthroughs.md](./walkthroughs.md) selects `KATORI`, `ROUND_DEEP`, `THREE_QUARTER`, `HOOK`,
 `KATORI_CUP` and `PIPING`; only the katori cup lining (₹90.00) and the piping (₹40.00) reach the bill, which is
@@ -318,14 +323,14 @@ specialist works, and the embroidery groups are what the specialist phase is pla
 
 **Rules**
 
-| Type | Statement | Why |
-| --- | --- | --- |
-| requires | `aari_placement` includes `SLEEVE` requires `sleeve_style` ≠ `SLEEVELESS` | There is no sleeve to embroider. This rule and the measurement rule on `aari_sleeve_work_length` are the same fact stated on both sides of the contract in Section 8 |
-| requires | `aari_motif = CUSTOM_REFERENCE` requires a reference image on the garment (#31) | The specialist cannot work from a code alone |
-| requires | `aari_density = HEAVY` requires `aari_stone` to include `AD_STONE` or `KUNDAN` | Thread-only work at bridal density does not hold its shape |
-| note | Any `aari_placement` selection → "Do not cut the embroidered panel closer than 15 mm to the worked edge." | Printed on the job card and read at cutting |
-| note | Any `aari_placement` selection → "Back the worked area so knots and stone settings do not sit against the skin." | Seeded as a note rather than as `requires lining = FULL`, because the specialist backs the panel as part of the work; whether it should instead force a lining selection is **OD-DES-04** |
-| note | `aari_density = HEAVY` → "Confirm the specialist's capacity before promising the due date." | Heavy work is the most common cause of a missed date on this category |
+| Id | Type | Statement | Why |
+| --- | --- | --- | --- |
+| **DR-07** | requires | `aari_placement` includes `SLEEVE` requires `sleeve_style` ≠ `SLEEVELESS` | There is no sleeve to embroider. This rule and the measurement rule on `aari_sleeve_work_length` are the same fact stated on both sides of the contract in Section 8 |
+| **DR-08** | requires | `aari_motif = CUSTOM_REFERENCE` requires a reference image on the garment (#31) | The specialist cannot work from a code alone |
+| **DR-09** | requires | `aari_density = HEAVY` requires `aari_stone` to include `AD_STONE` or `KUNDAN` | Thread-only work at bridal density does not hold its shape |
+| **DR-10** | note | Any `aari_placement` selection → "Do not cut the embroidered panel closer than 15 mm to the worked edge." | Printed on the job card and read at cutting |
+| **DR-11** | note | Any `aari_placement` selection → "Back the worked area so knots and stone settings do not sit against the skin." | Seeded as a note rather than as `requires lining = FULL`, because the specialist backs the panel as part of the work; whether it should instead force a lining selection is **OD-DES-04** |
+| **DR-12** | note | `aari_density = HEAVY` → "Confirm the specialist's capacity before promising the due date." | Heavy work is the most common cause of a missed date on this category |
 
 **Placement is the price.** The impacts sit on `aari_placement`, not on the motif or the density, because the
 specialist is paid by the area worked. `MEDIUM` density and the common motifs are the ₹0 baseline, which is why
@@ -377,12 +382,12 @@ Six groups covering both pieces, because a salwar set is one garment job.
 
 **Rules**
 
-| Type | Statement | Why |
-| --- | --- | --- |
-| requires | `kameez_slit = FRONT_SLIT` requires `lining` in (`KAMEEZ_ONLY`, `FULL`) | A front slit exposes the inside of the kameez |
-| excludes | `bottom_style = CHURIDAR` excludes `lining = FULL` | A churidar is cut to gather at the ankle and cannot take a second layer |
-| note | `bottom_style = PATIALA` → "Confirm the fabric length covers the pleats before cutting; a patiala takes about 0.5 m more." | The most frequent material shortage on this category |
-| note | `dupatta_finish` ≠ `NONE` → "The dupatta is finished with the set and delivered with it; it is not a separate job." | Distinguishes this from the Lehenga treatment in Section 9.4 |
+| Id | Type | Statement | Why |
+| --- | --- | --- | --- |
+| **DR-13** | requires | `kameez_slit = FRONT_SLIT` requires `lining` in (`KAMEEZ_ONLY`, `FULL`) | A front slit exposes the inside of the kameez |
+| **DR-14** | excludes | `bottom_style = CHURIDAR` excludes `lining = FULL` | A churidar is cut to gather at the ankle and cannot take a second layer |
+| **DR-15** | note | `bottom_style = PATIALA` → "Confirm the fabric length covers the pleats before cutting; a patiala takes about 0.5 m more." | The most frequent material shortage on this category |
+| **DR-16** | note | `dupatta_finish` ≠ `NONE` → "The dupatta is finished with the set and delivered with it; it is not a separate job." | Distinguishes this from the Lehenga treatment in Section 9.4 |
 
 Walkthrough 3 adds two garments to one draft and uses "duplicate garment" to copy the first garment's selections
 into the second before changing `bottom_style` from `CHURIDAR` to `PALAZZO`. That is the only difference between the
@@ -420,12 +425,12 @@ Six groups. The choli reuses the blouse groups; the skirt and dupatta groups are
 
 **Rules**
 
-| Type | Statement | Why |
-| --- | --- | --- |
-| requires | `skirt_style = LAYERED` requires `waist_finish` in (`HOOK_BAND`, `ZIP`) | A drawstring will not hold the weight of a can-can layered skirt |
-| excludes | `skirt_style = MERMAID` excludes `waist_finish = ELASTIC_BACK` | A mermaid skirt is fitted through the hip and cannot gather at the waist |
-| note | `dupatta` ≠ `NONE` → "The dupatta is stitched as its own garment job on the same order, with a `deliver_together` dependency." | The reason this group carries no price impact — see below |
-| note | `skirt_style = KALI` → "Confirm the kali count with the Tailor Master against the flare before cutting." | `kali_count` is a measurement; the two must agree |
+| Id | Type | Statement | Why |
+| --- | --- | --- | --- |
+| **DR-17** | requires | `skirt_style = LAYERED` requires `waist_finish` in (`HOOK_BAND`, `ZIP`) | A drawstring will not hold the weight of a can-can layered skirt |
+| **DR-18** | excludes | `skirt_style = MERMAID` excludes `waist_finish = ELASTIC_BACK` | A mermaid skirt is fitted through the hip and cannot gather at the waist |
+| **DR-19** | note | `dupatta` ≠ `NONE` → "The dupatta is stitched as its own garment job on the same order, with a `deliver_together` dependency." | The reason this group carries no price impact — see below |
+| **DR-20** | note | `skirt_style = KALI` → "Confirm the kali count with the Tailor Master against the flare before cutting." | `kali_count` is a measurement; the two must agree |
 
 **Why the `dupatta` group is free.** On a lehenga the dupatta is a garment in its own right and is ordered as a
 separate `LEHENGA.STITCHING` job — job `-03` at ₹900.00 in walkthrough 4 — with a `deliver_together` dependency
@@ -484,14 +489,14 @@ Eight groups, the largest set: a gown is the category where the fewest customers
 
 **Rules**
 
-| Type | Statement | Why |
-| --- | --- | --- |
-| requires | `gown_slit` ≠ `NONE` requires `edge_finish` to include `BOUND_EDGE` | A raw slit edge frays on the first wear. This is the rule walkthrough 6 exercises: revising the gown to a thigh-high slit adds the bound edge automatically, and adds a QC criterion with it |
-| requires | `gown_slit` ≠ `NONE` requires `lining` ≠ `NONE` | An unlined slit shows the seam allowance |
-| requires | `trail` ≠ `NONE` requires `lining` in (`FULL`) | A trail drags on the floor and needs the second layer to hold its shape |
-| requires | `neckline = OFF_SHOULDER` requires `closure` in (`CONCEALED_ZIP`, `LACE_UP`) | The bodice must be held without shoulder support |
-| excludes | `neckline = HALTER` excludes `sleeve_style` other than `SLEEVELESS` | There is no shoulder to hang a sleeve from |
-| note | `trail = LONG_TRAIL` → "Measure the trail on the customer in the shoes she will wear." | Not in the measurement set; the most common gown remake |
+| Id | Type | Statement | Why |
+| --- | --- | --- | --- |
+| **DR-21** | requires | `gown_slit` ≠ `NONE` requires `edge_finish` to include `BOUND_EDGE` | A raw slit edge frays on the first wear. This is the rule walkthrough 6 exercises: revising the gown to a thigh-high slit adds the bound edge automatically, and adds a QC criterion with it |
+| **DR-22** | requires | `gown_slit` ≠ `NONE` requires `lining` ≠ `NONE` | An unlined slit shows the seam allowance |
+| **DR-23** | requires | `trail` ≠ `NONE` requires `lining` in (`FULL`) | A trail drags on the floor and needs the second layer to hold its shape |
+| **DR-24** | requires | `neckline = OFF_SHOULDER` requires `closure` in (`CONCEALED_ZIP`, `LACE_UP`) | The bodice must be held without shoulder support |
+| **DR-25** | excludes | `neckline = HALTER` excludes `sleeve_style` other than `SLEEVELESS` | There is no shoulder to hang a sleeve from |
+| **DR-26** | note | `trail = LONG_TRAIL` → "Measure the trail on the customer in the shoes she will wear." | Not in the measurement set; the most common gown remake |
 
 Walkthrough 6 confirms `A_LINE`, `BOAT`, `FULL` sleeve, `FULL` lining, `SHORT_TRAIL`, `CONCEALED_ZIP` and slit
 `NONE` — ₹350.00 + ₹350.00 + ₹100.00 of impacts on a ₹2,600.00 base, giving the ₹3,400.00 taxable value at
@@ -539,12 +544,12 @@ twenty choices. Age-band guidance is attached as notes rather than as rules, bec
 
 **Rules**
 
-| Type | Statement | Why |
-| --- | --- | --- |
-| requires | `garment_style = PATTU_PAVADAI` requires `lining = FULL` | Silk against a child's skin is lined as a matter of course |
-| excludes | `closure = ELASTIC` excludes `garment_style` in (`PATTU_PAVADAI`, `KIDS_GOWN`) | Neither garment can be pulled on over the head |
-| note | Every option → "Apply the published `KIDS` growth allowance at cutting; do not add it to the measurement." | The ease convention of [measurement-templates.md](./measurement-templates.md) Section 5, restated where the cutter reads it |
-| note | `trim = BOW` → "Stitch the bow down; a tied bow on a young child's garment is a safety hazard." | Safety instruction, always printed |
+| Id | Type | Statement | Why |
+| --- | --- | --- | --- |
+| **DR-27** | requires | `garment_style = PATTU_PAVADAI` requires `lining = FULL` | Silk against a child's skin is lined as a matter of course |
+| **DR-28** | excludes | `closure = ELASTIC` excludes `garment_style` in (`PATTU_PAVADAI`, `KIDS_GOWN`) | Neither garment can be pulled on over the head |
+| **DR-29** | note | Every option → "Apply the published `KIDS` growth allowance at cutting; do not add it to the measurement." | The ease convention of [measurement-templates.md](./measurement-templates.md) Section 5, restated where the cutter reads it |
+| **DR-30** | note | `trim = BOW` → "Stitch the bow down; a tied bow on a young child's garment is a safety hazard." | Safety instruction, always printed |
 
 Walkthrough 7's two jobs take `A_LINE_FRILL`, `PUFF`, `BACK_BUTTON` and `FULL` lining — one ₹30.00 lining impact
 per garment, the ₹60.00 line on the bill. The 20 April design revision adds `CONTRAST_FRILL` to job `-01` for
@@ -555,7 +560,10 @@ per garment, the ₹60.00 line on the bill. The 20 April design revision adds `C
 ## 10. Publish-time validation
 
 Registered by #30 as an `ICatalogDependencyValidator` and run by the catalogue publish command; a publish is
-refused while any error remains. Errors are returned as field-level problem details.
+refused while any error remains. Errors are returned as field-level problem details. An error about a rule names
+that rule's `DR-nn` identifier, because several of the checks below — a cycle, an unsatisfiable required group —
+involve two rules at once, and an administrator has to be told which pair to change rather than which options are
+implicated.
 
 | Check | Severity | Owning issue |
 | --- | --- | --- |
