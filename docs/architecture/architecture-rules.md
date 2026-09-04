@@ -51,7 +51,7 @@ than on the day someone first exercises it.
 | ARCH-010 | No Billing project references any Orders project. | `ModuleBoundaryTests` |
 | ARCH-011 | Reporting references only the `Contracts` projects of other modules. | `ModuleBoundaryTests` |
 | ARCH-012 | No project except a test project references `Tailor360.Web` or `Tailor360.Worker`. | `ModuleBoundaryTests` |
-| ARCH-013 | Every request and response payload type on the public API is declared in an `Api` project; no `Domain` type is ever returned from an endpoint. | `EndpointContractTests` |
+| ARCH-013 | Every request and response payload type on the public API is declared in an `Api` project; no `Domain` type is ever returned from an endpoint. | `EndpointPolicyTests` |
 | ARCH-014 | `DateTime.Now`, `DateTimeOffset.Now`, `DateTime.UtcNow`, `DateTimeOffset.UtcNow` and `DateTime.Today` appear nowhere in `src/` outside the clock abstraction. | `SourceConventionTests` |
 | ARCH-015 | `Guid.NewGuid()` appears nowhere in `src/` outside the identifier generator. | `SourceConventionTests` |
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp`. | `SourceConventionTests` |
@@ -235,7 +235,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Returning an aggregate publishes the domain model as an API: a renamed field becomes a breaking change for the PWA, an added property silently leaks data the caller is not entitled to — a customer's contact details, a measurement value, an internal cost — and the field-level minimisation policies that project DTOs per role have nothing to attach to. A DTO in the `Api` project is also the only place where a versioned, documented, `oasdiff`-checked shape can live. |
 | **Allowed exceptions** | Value objects declared in `Tailor360.Platform.Abstractions` that exist precisely to be serialised — `Money`, problem-details payloads, cursor tokens and the shared error contract — plus primitive and framework types. A module's `Contracts` types are for module-to-module use and are **not** an allowed HTTP payload unless the same shape is re-declared in the `Api` project. |
 | **How an exception is registered** | By adding a type to the named allowlist of serialisable platform types in the test, in a pull request that says why the type is safe to publish. |
-| **Test** | `EndpointContractTests.Arch013_EndpointPayloadTypesAreDeclaredInApiProjects` in `tests/Tailor360.ArchitectureTests/EndpointContractTests.cs`. **Specified, not yet implemented**: the #20 scaffold publishes no data-returning endpoint. Due with the first such endpoint (#25), and no later than the OpenAPI lint and diff gate (#53). |
+| **Test** | `EndpointPolicyTests.Arch013_EndpointPayloadTypesAreDeclaredInApiProjects`, to live in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` alongside ARCH-007 and ARCH-008 because it too reads the composed route table — see **ROD-01**. **Specified, not yet implemented**: the #20 scaffold publishes no data-returning endpoint. Due with the first such endpoint (#25), and no later than the OpenAPI lint and diff gate (#53). |
 
 ### ARCH-014 — The ambient clock is never read outside the clock abstraction
 
@@ -283,7 +283,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | --- | --- |
 | **Assertion** | Every endpoint whose required permission is marked `RequiresStepUp` in the permission catalogue also declares `.RequireStepUp()`. |
 | **Rationale** | Step-up re-authentication is what protects the small set of actions that can move money or erase evidence — approving a dispatch exception, reversing a payment, resetting another user's MFA, exporting personal data. The permission catalogue is the single place where that sensitivity is declared; without this rule the flag is documentation, and an endpoint can require the permission while silently accepting a session that has not re-authenticated within the five-minute window. |
-| **Allowed exceptions** | None. An action that should not need step-up has its permission's flag changed in the catalogue, which is an owner-visible change to [`../security/permission-matrix.md`](../security/permission-matrix.md). |
+| **Allowed exceptions** | None. An action that should not need step-up has its permission's flag changed in the catalogue, which is an owner-visible change to the permission matrix `docs/security/permission-matrix.md`, delivered by #24. |
 | **How an exception is registered** | It is not. The register is the permission catalogue itself. |
 | **Test** | `EndpointPolicyTests.Arch018_StepUpPermissionsRequireStepUpOnTheEndpoint`. **Specified, not yet implemented**: due with #24, alongside the authorisation matrix fixtures that exercise the fresh and stale dimensions. |
 

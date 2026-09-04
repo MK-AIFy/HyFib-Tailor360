@@ -256,6 +256,7 @@ These are non-negotiable across the whole documentation set (plan Section 2.2).
 | `walkthroughs.md`, `reviews/exception-review.md` | End-to-end walkthrough and exception review evidence | #17 |
 | [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md) | Architecture, decisions D1–D21, waves and per-issue blueprints | #1 |
 | `../architecture/`, `../adr/` | C4 views, module ownership, invariants, conventions, ADR-0001…0013 | #18 |
+| `../architecture/reviews/flow-review.md` | The review of the four representative flows against the diagrams | #18 |
 | `../nfr/`, `../process/` | Support matrix, capacity, SLOs, data classification, Definition of Done, release gates | #19 |
 | `../security/permission-matrix.md` | The owner-approved permission matrix | #24 |
 

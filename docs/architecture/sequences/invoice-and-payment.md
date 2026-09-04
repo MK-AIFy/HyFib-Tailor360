@@ -30,13 +30,20 @@ are in [`../conventions.md`](../conventions.md) sections 1 and 2; the invariants
 | Module | Part in this flow | Mechanism it is reached by |
 | --- | --- | --- |
 | Billing and Payments | Owns price list and tax configuration versions, invoices, tax components, document sequences, document artefacts, payments, allocations, advances, receipts, cashier sessions and dispatch exceptions | `POST /api/v1/billing/invoices/from-order/{orderId}`, then the post, payment and allocation endpoints |
-| Orders and Workflow | Supplies the order's status, garment jobs, price snapshot and the configuration versions used at confirmation. Billing never references Orders entities | `Orders.Contracts.IOrderSnapshotQuery` |
+| Orders and Workflow | Supplies the order's status, garment jobs, price snapshot and the configuration versions used at confirmation. Billing never references Orders entities, and makes no call into Orders in this flow | `orders.order-confirmed.v1`, stored by Billing in its own types when the order was confirmed, together with the order id, job ids and priced lines carried on the create-invoice command |
 | Customers and Measurements | Supplies the customer snapshot stored on the draft | `ICustomerSnapshotQuery` |
 | Custody and Barcode | Calls the eligibility contract at the delivery receive scan and records the dispatch authorisation. Custody never computes a balance and never reads `dispatch_exceptions` | `Billing.Contracts.IDispatchEligibilityQuery` |
 | Platform | Sequence allocator, idempotency store, audit writer, outbox, print queue, PDF port | `ISequenceAllocator`, `IPdfRenderer`, `IPrintQueue` |
 | Media and object storage | The `documents/` prefix is Billing's alone; no other module writes to it | Storage adapter under the per-module credential |
 | Notifications and Feedback | Invoice-issued and receipt messages, on the consented channel | Outbox consumer |
 | Reporting | Sales, GST, payment and receivables projections, never authoritative | Outbox consumer |
+
+Billing calls nothing in Orders here. **ARCH-010** in [`../architecture-rules.md`](../architecture-rules.md) admits no
+exception, and section 5.8 of [`../module-ownership.md`](../module-ownership.md) fixes the same reading, so the draft
+is built from the `orders.order-confirmed.v1` payload Billing already holds and from the identifiers and priced lines
+supplied on the command. Plan Section 6.2 note 13 and the issue #42 blueprint still name
+`Orders.Contracts.IOrderSnapshotQuery` among Billing's inputs; that wording is corrected with issue #42, and the rule
+stands meanwhile.
 
 ## 3. Sequence
 
@@ -46,7 +53,6 @@ sequenceDiagram
     actor csh as Cashier
     participant web as Web host BFF
     participant bil as Billing
-    participant ord as Orders
     participant db as PostgreSQL
     participant obj as Object storage
     participant wrk as Worker host
@@ -54,9 +60,8 @@ sequenceDiagram
     actor dlv as Delivery Staff
 
     csh->>web: POST /billing/invoices/from-order/... with Idempotency-Key
-    web->>bil: Create invoice draft
-    bil->>ord: IOrderSnapshotQuery for the order, jobs and price snapshot
-    ord-->>bil: Price snapshot with the price list and tax configuration versions
+    web->>bil: Create invoice draft with the order id, job ids and priced lines
+    bil->>db: Read the stored orders.order-confirmed.v1 facts - jobs, totals and configuration versions
     bil->>bil: Recalculate on the same versions and compare with the snapshot
     alt Totals differ
         bil-->>web: billing.snapshot-mismatch, nothing written

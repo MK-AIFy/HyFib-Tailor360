@@ -115,15 +115,15 @@ Notes on the graph:
 | Module | Schema | Object-storage prefix | `DbContext` | Introduced by |
 | --- | --- | --- | --- | --- |
 | Identity and Admin | `identity` | — | `IdentityDbContext` | #23, #25 |
-| Customers and Measurements | `customers` | — | `CustomersDbContext` | #26, #27, #28, #29 |
+| Customers and Measurements | `customers` | — | `CustomersDbContext` | #26, #27, #28 |
 | Catalog and Design | `catalog` | — | `CatalogDbContext` | #29, #30, #34 |
 | Media | `media` | `material/`, `reference/`, `diagram/`, `qc-evidence/`, `delivery-evidence/`, quarantine bucket | `MediaDbContext` | #31 |
-| Orders and Workflow | `orders` | — | `OrdersDbContext` | #32, #33, #34, #41 |
+| Orders and Workflow | `orders` | — | `OrdersDbContext` | #32, #33, #34 |
 | Custody and Barcode | `custody` | — | `CustodyDbContext` | #35, #36, #37 |
 | Inventory | `inventory` | — | `InventoryDbContext` | #38, #39, #40 |
-| Billing and Payments | `billing` | `documents/` | `BillingDbContext` | #41, #42, #43, #44 |
-| Reporting | `reporting` | `exports/` | `ReportingDbContext` | #45, #46 |
-| Notifications and Feedback | `notifications` | — | `NotificationsDbContext` | #47, #48, #49 |
+| Billing and Payments | `billing` | `documents/` | `BillingDbContext` | #41, #42, #43 |
+| Reporting | `reporting` | `exports/` | `ReportingDbContext` | #44, #45, #46 |
+| Notifications and Feedback | `notifications` | — | `NotificationsDbContext` | #32a (customer-link skeleton), #47, #48, #49 |
 | Integration | `integration` | — | `IntegrationDbContext` | #54, #55 |
 | Platform | `platform` | — | `PlatformDbContext` | #21 |
 
@@ -131,6 +131,12 @@ Every business module schema additionally carries its **own** `outbox_messages` 
 here rather than repeated in each section below. The table set given per module in section 5 is the set implied by
 plan Section 4.3 and 4.5; the exact columns and constraints of each table are fixed by the migration in the issue
 that introduces it, and a table may only be added to a schema by its owning module.
+
+**Reporting sequencing.** #44 is the first Reporting-module issue: it creates the `reporting` schema and
+`ReportingDbContext` together with the projection runner and checkpoints, the freshness and reconciliation
+framework, scheduled reports and the governed export service under `exports/`. #45 and #46 build on those
+foundations and **must not re-create them**; each adds only its own projections, one migration and its screens
+(plan Section 6.2 note 4).
 
 ---
 

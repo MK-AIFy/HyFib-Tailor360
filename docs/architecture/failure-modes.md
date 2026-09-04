@@ -260,6 +260,8 @@ compensating action for each. [`container.md`](container.md) and [`deployment.md
 containers and how they are released. [`invariants.md`](invariants.md) section 5 lists what is deliberately eventually
 consistent and why the lag is safe. [`../prd/exceptions.md`](../prd/exceptions.md) is the business-facing catalogue of
 the same situations, written for the people on the shop floor.
+[`reviews/flow-review.md`](reviews/flow-review.md) section 6 is where this analysis is reviewed with the people who
+meet these failures, rather than only written down.
 
 ## 14. Maintenance
 
