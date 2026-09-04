@@ -30,8 +30,10 @@ SKIPPED_SCHEMES = ("http://", "https://", "mailto:", "tel:", "ftp://", "data:")
 SEARCH_ROOTS = ("docs", ".github")
 EXTRA_FILES = ("README.md", "CONTRIBUTING.md", "SECURITY.md")
 
-# A fenced code block may contain an illustrative link that is not meant to resolve.
+# A fenced code block may contain an illustrative link that is not meant to resolve, and so may
+# an inline code span: `![x](diagram.png)` inside backticks renders as literal text, not a link.
 FENCE = re.compile(r"^\s*(```|~~~)")
+CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.S)
 
 
 def strip_fenced_blocks(text: str) -> str:
@@ -66,14 +68,25 @@ def markdown_files(repository: str) -> list[str]:
     return sorted(found)
 
 
+def strip_code_spans(text: str) -> str:
+    """Blank the contents of every inline code span, keeping the line and column count intact."""
+    return CODE_SPAN.sub(lambda m: m.group(1) + (" " * len(m.group(2))) + m.group(1), text)
+
+
 def targets(text: str):
-    body = strip_fenced_blocks(text)
+    body = strip_code_spans(strip_fenced_blocks(text))
     for pattern in (INLINE, REFERENCE):
         for match in pattern.finditer(body):
             yield match.group(1).strip()
 
 
-def check(repository: str) -> int:
+def find_broken(repository: str) -> tuple[list[tuple[str, str]], int]:
+    """Return every broken relative link under *repository*, and how many files were read.
+
+    This is the single detection path. `check` and `self_test` both go through it, so the
+    self-test genuinely exercises what the gate runs — a self-test with its own copy of this
+    loop would keep passing while the real check rotted.
+    """
     broken: list[tuple[str, str]] = []
     files = markdown_files(repository)
 
@@ -81,9 +94,15 @@ def check(repository: str) -> int:
         with open(path, encoding="utf-8") as handle:
             text = handle.read()
         for target in targets(text):
-            if target.startswith(SKIPPED_SCHEMES) or target.startswith("#"):
+            if target.startswith(SKIPPED_SCHEMES):
                 continue
-            # Keep the file part; an anchor is not checked, only the document it lives in.
+            # Keep the file part; an anchor is not checked, only the document it lives in. An
+            # anchor-only link such as (#section) leaves nothing to check and is skipped here.
+            # This guard is defensive rather than load-bearing: without it the empty path would
+            # resolve to the containing directory, which exists, so nothing would be reported
+            # either way. It is kept because relying on that coincidence would be a trap for
+            # whoever changes the resolution below, and it is the one guard here with no
+            # failing negative control — stated plainly rather than left to look tested.
             document = unquote(target.split("#", 1)[0])
             if not document:
                 continue
@@ -91,7 +110,13 @@ def check(repository: str) -> int:
             if not os.path.exists(resolved):
                 broken.append((os.path.relpath(path, repository), target))
 
-    print(f"checked {len(files)} markdown files")
+    return broken, len(files)
+
+
+def check(repository: str) -> int:
+    broken, file_count = find_broken(repository)
+
+    print(f"checked {file_count} markdown files")
 
     if not broken:
         print("every relative link resolves")
@@ -120,7 +145,15 @@ An image ![shot](missing-image.png) that is not there.
 This fenced block holds a [link](totally-missing.md) that must be ignored.
 ```
 
+~~~markdown
+A tilde-fenced block holds a [link](tilde-fenced-missing.md) that must be ignored too. Only
+strip_fenced_blocks handles this style; the backtick code-span pass does not see it.
+~~~
+
 A [reference link][ref].
+
+An inline code span holding `[a link](inside-code.md)` and `![an image](inside-code.png)`, both of
+which render as literal text and must be ignored.
 
 [ref]: c.md
 """
@@ -142,19 +175,7 @@ def self_test() -> int:
             handle.write(SELF_TEST_DOCUMENT)
         open(os.path.join(documents, "b.md"), "w", encoding="utf-8").close()
 
-        found = set()
-        for path in markdown_files(repository):
-            with open(path, encoding="utf-8") as handle:
-                text = handle.read()
-            for target in targets(text):
-                if target.startswith(SKIPPED_SCHEMES) or target.startswith("#"):
-                    continue
-                document = unquote(target.split("#", 1)[0])
-                if not document:
-                    continue
-                resolved = os.path.normpath(os.path.join(os.path.dirname(path), document))
-                if not os.path.exists(resolved):
-                    found.add((os.path.relpath(path, repository), target))
+        found = set(find_broken(repository)[0])
 
     missed = SELF_TEST_EXPECTED - found
     spurious = found - SELF_TEST_EXPECTED
