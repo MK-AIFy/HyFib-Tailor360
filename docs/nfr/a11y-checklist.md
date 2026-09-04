@@ -766,11 +766,14 @@ eight **per-role** journeys; [`../prd/walkthroughs.md`](../prd/walkthroughs.md) 
 walkthroughs. A runner sent here by the plan wants section 6.8; a runner sent here by the walkthroughs wants section
 6.10. Neither set is a subset of the other, and neither replaces the priority-zero records.
 
-**What is deliberately not covered yet.** No record here walks a **cancellation**, a **refund** or a **credit note**:
-[`../prd/walkthroughs.md`](../prd/walkthroughs.md) section 8 states plainly that no walkthrough ends in one, and
-those paths are **EX-08**, **EX-09** and **EX-11** rather than journeys the product has built. They are new journeys
-when #34 and #43 land, and **DoD 7** will require a record for each of them at that point; **A11Y-BI-14** and
-**A11Y-BI-15** are already written so the family checklist is ready. This is a deferral with a date, not a gap.
+**What is deliberately not covered yet.** No record here walks a **cancellation** (**EX-08**), a **refund** or a
+**credit note** (**EX-09**), a failed delivery (**EX-12**), a custody mismatch (**EX-13**) or a service-recovery case
+(**EX-11**). [`../prd/walkthroughs.md`](../prd/walkthroughs.md) section 8 states plainly that no walkthrough ends in
+any of them, so no record here can be built on one. Each becomes a **new journey** when the issue that builds it
+lands — #34 for cancellation, #43 for the refund and the credit note, #48 for the failed delivery, #37 for the
+custody mismatch, #49 for service recovery — and **DoD 7** then requires a record for it at that point.
+**A11Y-BI-14** and **A11Y-BI-15** are already written so that the family checklist is ready when cancellation and
+the credit note arrive. This is a deferral with a name against each date, not a gap.
 
 > **A barrier on a priority-zero journey is S1 under RG-06 and cannot be waived.** There is no signature that ships
 > it. This is the single most important sentence in this document, and it is why the priority-zero records are
@@ -786,7 +789,7 @@ Every per-journey record table below carries the same columns.
 | **Screens and families** | Pre-filled: which section 5 checklists apply at this step |
 | **Keyboard** | `Pass` / `Fail` / `N/A` — completed with the keyboard alone, screen reader off, mouse and touch untouched |
 | **Screen reader** | `Pass` / `Fail` / `N/A` — completed with the screen reader, using only what it announced |
-| **Items failed** | The identifiers from sections 4 and 5 that failed at this step, comma-separated |
+| **Items failed** | The identifiers from sections 4 and 5 that failed at this step, comma-separated. Where the failing item asks more than one thing, name the failing part beside the identifier — `A11Y-20 (focus not moved into main)` — because a bare identifier is not something a developer can act on |
 | **Severity** | From section 7 |
 | **Defect** | The defect or issue identifier raised. A Fail with no identifier is an incomplete record |
 
@@ -1014,10 +1017,11 @@ off, then the **screen-reader pass**, then the environment pass.
 
 The severities are **RG-06's**, quoted from the RG-06 detail table of
 [`../process/release-gates.md`](../process/release-gates.md) section 5, not invented here. This section only maps a
-checklist outcome onto them. One caution for a reviewer checking the source: that document carries RG-06's severity
-twice and the two statements disagree — the section 5 detail row reads *"S3 for moderate and minor"* while the
-section 4 summary row compresses the same ground to *"S2 otherwise"*. **The detail row governs here**, and the
-discrepancy is raised as an issue against release-gates.md rather than settled by this document.
+checklist outcome onto them. That document carries RG-06's severity twice, in a section 4 summary row and a
+section 5 detail row, and the two disagreed while this checklist was being written: the detail row read *"S3 for
+moderate and minor"* where the summary compressed the same ground to *"S2 otherwise"*, which decides whether a
+moderate finding blocks a release. The summary row now carries the three-way severity in full, as the RG-08 and
+RG-10 rows beside it already did, so the two agree and the mapping below is the same either way.
 
 ### 7.1 The mapping
 
@@ -1507,6 +1511,6 @@ and **AL-03** in [`accessibility-localisation.md`](accessibility-localisation.md
 | [`../prd/raci.md`](../prd/raci.md) | Which role is accountable for each journey, and therefore who a barrier actually stops |
 | [`../prd/measurement-templates.md`](../prd/measurement-templates.md) | The units, precision, hard bounds and confirmation bands that section 5.1 tests |
 | [`../prd/glossary.md`](../prd/glossary.md) | Every term used here, and the Tamil column A11Y-08 depends on |
-| [`../prd/exceptions.md`](../prd/exceptions.md) | The exception paths the reference journeys exercise, each of which is a screen state that needs its own answers |
+| [`../prd/exceptions.md`](../prd/exceptions.md) | The exception paths the walkthrough journeys exercise, each of which is a screen state that needs its own answers — and **EX-08**, **EX-09** and **EX-11** to **EX-13**, which section 6.1 defers with a named issue apiece |
 | [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) | Where the `A11Y-OD-nn` decisions of section 9 are mirrored |
-| [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md) | Section 5.1 item 7, which makes this checklist part of the Definition of Done; issues #50 and #52, which build the design system and the accessibility gate |
+| [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md) | Section 5.1 item 7, which makes this checklist part of the Definition of Done; issue **#50**, whose W1 evidence names the eight per-role reference journeys of section 6.8 and walks them against this document with VoiceOver and TalkBack; and issue **#52**, which is the full audit and adds NVDA |

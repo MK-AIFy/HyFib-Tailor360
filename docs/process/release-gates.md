@@ -104,7 +104,7 @@ flowchart TD
 | **RG-03** | Integration tests | S2 | Technical reviewer | 14 days, one release train |
 | **RG-04** | Contract and OpenAPI difference | S2 | Technical reviewer | 14 days |
 | **RG-05** | End-to-end journeys | S1 for a priority-zero journey; S2 otherwise | Technical reviewer (S2 only) | 14 days, one release train |
-| **RG-06** | Accessibility scan | S1 for a critical violation or a blocking barrier on a priority-zero journey; S2 otherwise | Owner, on the technical reviewer's recommendation | 30 days |
+| **RG-06** | Accessibility scan | S1 for a critical violation or a blocking barrier on a priority-zero journey; S2 for a serious violation with a documented workaround; S3 for moderate and minor | Owner, on the technical reviewer's recommendation | 30 days |
 | **RG-07** | Performance budget | S2 | Technical reviewer | 30 days |
 | **RG-08** | Security scan — dependencies and licences | S1 for critical or high, and for a licence outside the allowlist; S2 for medium; S3 for low | Security owner (medium only) | 30 days for medium, 90 days for low |
 | **RG-09** | Security scan — secrets | S1 | — | No waiver |
