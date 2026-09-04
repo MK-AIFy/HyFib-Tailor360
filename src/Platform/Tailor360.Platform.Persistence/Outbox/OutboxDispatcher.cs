@@ -59,9 +59,21 @@ public sealed class OutboxDispatcher(
         string owner,
         CancellationToken cancellationToken)
     {
-        // Only the oldest pending message per aggregate is eligible (rn = 1). A later message therefore
-        // cannot overtake an earlier one for the same aggregate even under two dispatchers, which is a
-        // stronger guarantee than ordering the claim query would give.
+        // Two properties have to hold at once, and both are enforced inside this one statement.
+        //
+        // Ordering: only the oldest undelivered message of an aggregate is a candidate (rn = 1), so a
+        // later message cannot overtake an earlier one for the same aggregate however many dispatchers
+        // are running. Different aggregates proceed in parallel, which is where the throughput comes from.
+        //
+        // Exclusivity: every eligibility condition — not yet processed, not dead-lettered, due, and not
+        // already leased — appears in the WHERE clause of the locking SELECT *and* of the UPDATE.
+        // That repetition is the point. A CTE is evaluated against the statement's snapshot, so if the
+        // conditions lived only in a separate CTE, a dispatcher whose statement began before a rival
+        // claim committed would take the row lock after that commit and still see its stale "unleased"
+        // view, claiming a message another dispatcher was already handling. Both would then find no
+        // inbox row and both would run the handler. Repeating the conditions where the row is locked
+        // and updated forces PostgreSQL to re-check them against the latest row version, so the second
+        // dispatcher claims nothing.
         const string sql = """
             WITH ranked AS (
                 SELECT id,
@@ -70,27 +82,28 @@ public sealed class OutboxDispatcher(
                  WHERE processed_at IS NULL
                    AND dead_lettered_at IS NULL
             ),
-            eligible AS (
+            candidates AS (
                 SELECT m.id
                   FROM platform.outbox_messages m
                   JOIN ranked r ON r.id = m.id AND r.rn = 1
-                 WHERE m.available_at <= now()
+                 WHERE m.processed_at IS NULL
+                   AND m.dead_lettered_at IS NULL
+                   AND m.available_at <= now()
                    AND (m.lease_expires_at IS NULL OR m.lease_expires_at < now())
-            ),
-            locked AS (
-                SELECT m.id
-                  FROM platform.outbox_messages m
-                 WHERE m.id IN (SELECT id FROM eligible)
                  ORDER BY m.occurred_at
                  LIMIT @batch
-                 FOR UPDATE SKIP LOCKED
+                 FOR UPDATE OF m SKIP LOCKED
             )
             UPDATE platform.outbox_messages m
                SET lease_owner = @owner,
                    lease_expires_at = now() + (@lease_seconds * interval '1 second'),
                    attempt_count = m.attempt_count + 1
-              FROM locked l
-             WHERE m.id = l.id
+              FROM candidates c
+             WHERE m.id = c.id
+               AND m.processed_at IS NULL
+               AND m.dead_lettered_at IS NULL
+               AND m.available_at <= now()
+               AND (m.lease_expires_at IS NULL OR m.lease_expires_at < now())
             RETURNING m.id, m.aggregate_id, m.event_type, m.schema_version, m.payload,
                       m.occurred_at, m.correlation_id, m.attempt_count;
             """;

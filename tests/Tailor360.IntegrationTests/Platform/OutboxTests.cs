@@ -145,9 +145,19 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
             await Task.WhenAll(first, second);
         }
 
-        handler.Deliveries.Count.ShouldBe(4, "the queue should have drained within the cycle budget");
-        handler.Deliveries.Select(d => d.OccurredAt)
-            .ShouldBe(handler.Deliveries.Select(d => d.OccurredAt).Order());
+        var delivered = handler.Deliveries;
+        var ids = delivered.Select(d => d.MessageId).ToList();
+
+        // Reported separately so a failure says which property broke: a repeated identifier is a
+        // duplicate delivery, a short count is an undrained queue, and out-of-order timestamps are a
+        // reordering. They have entirely different causes.
+        ids.Count.ShouldBe(
+            ids.Distinct().Count(),
+            $"no message may be handled twice; delivered: {string.Join(", ", ids)}");
+
+        ids.Distinct().Count().ShouldBe(4, "the queue should have drained within the cycle budget");
+
+        delivered.Select(d => d.OccurredAt).ShouldBe(delivered.Select(d => d.OccurredAt).Order());
     }
 
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
@@ -265,6 +275,53 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
         context.ChangeTracker.Clear();
         (await context.OutboxMessages.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken))
             .ProcessedAt.ShouldNotBeNull();
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
+    public async Task ManyDispatchersRacingNeverHandleOneMessageTwice()
+    {
+        // The regression this guards. Eligibility used to be decided in a separate common table
+        // expression, which PostgreSQL evaluates against the statement's snapshot. A dispatcher whose
+        // statement began just before a rival claim committed would take the row lock after that commit
+        // and still see its stale "unleased" view, so both claimed the same message, both found no
+        // inbox row, and both ran the handler — duplicate notifications, or worse, duplicate financial
+        // effects. Four dispatchers contending for one aggregate is the shape that reproduces it.
+        await using var context = await fixture.CreateDatabaseAsync("outboxrace");
+        var handler = new RecordingHandler(SampleEvent.TypeName, "test.recorder");
+        await using var provider = PlatformServiceHarness.Build(
+            context, services => services.AddSingleton<IOutboxMessageHandler>(handler));
+
+        // One aggregate, so exactly one message is eligible at any moment and every dispatcher
+        // contends for that same row. Spreading the messages over many aggregates would let each
+        // dispatcher find a different row and would barely exercise the race at all.
+        const int messageCount = 12;
+        var aggregateId = Guid.CreateVersion7();
+        var occurred = DateTimeOffset.UtcNow.AddMinutes(-10);
+
+        for (var i = 0; i < messageCount; i++)
+        {
+            await PublishAsync(provider, aggregateId, occurredAt: occurred.AddSeconds(i));
+        }
+
+        var dispatcher = provider.GetRequiredService<OutboxDispatcher>();
+
+        for (var round = 0; round < 60 && handler.Deliveries.Count < messageCount; round++)
+        {
+            await Task.WhenAll(
+                Enumerable.Range(1, 4).Select(n =>
+                    dispatcher.RunCycleAsync($"dispatcher-{n}", TestContext.Current.CancellationToken)));
+        }
+
+        var ids = handler.Deliveries.Select(d => d.MessageId).ToList();
+
+        ids.Count.ShouldBe(
+            ids.Distinct().Count(),
+            "no message may be handled twice, however many dispatchers race for it");
+        ids.Distinct().Count().ShouldBe(messageCount);
+
+        context.ChangeTracker.Clear();
+        (await context.OutboxMessages.CountAsync(
+            m => m.ProcessedAt == null, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
