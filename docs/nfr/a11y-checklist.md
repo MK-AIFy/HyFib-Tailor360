@@ -20,12 +20,13 @@ confirmed** and are collected in section 9.
 | --- | --- |
 | Status | **Draft — proposed**; binding once the stakeholder review in [`reviews/stakeholder-review.md`](reviews/stakeholder-review.md) is signed |
 | Drafted | 2026-09-04, issue #19, wave W0 |
+| Supersedes | The interim arrangement in [`accessibility-localisation.md`](accessibility-localisation.md) section 15, which expected this checklist to arrive with #50 and treated its own section 4 as the checklist until then. That clause is spent from this document's merge and is corrected in the same pull request |
 | Owner of the document | Technical reviewer, with the Owner as approver |
 | What it is | The **manual** accessibility checklist. Automated coverage — axe-core on every screen and state, the overflow and obscured-focus helper, the target-size and text-spacing checks — is defined in [`accessibility-localisation.md`](accessibility-localisation.md) section 14 and is not repeated here. This document holds only what a machine cannot decide |
 | Gate that consumes it | **RG-06 — Accessibility scan**. Its "What it checks" row names "the screen-reader items of `a11y-checklist.md` for any journey changed since the previous release", and its "Evidence produced" row names "the completed screen-reader checklist" |
 | Traceability row it proves | **NFR-AC-03** — *every priority-zero journey is completable with a keyboard alone and with a screen reader* — whose proof type is **Evidence only**, at a cadence of *per release for changed journeys*. It also supplies the evidence half of **NFR-AC-01** and the reviewer check behind **NFR-AC-05** |
 | Also required by | **DoD 7** in [`../process/definition-of-done.md`](../process/definition-of-done.md) — *"the screen-reader items in `a11y-checklist.md` are worked through for any new journey"*, verified by *"the completed checklist attached as evidence"*, enforced by *"Human — author, spot-checked by the reviewer"*; and **DOR-14** in [`../process/definition-of-ready.md`](../process/definition-of-ready.md), which requires the screens and states to be listed before the work starts, so the runner knows what to walk |
-| Who runs it | The author of the change, on the pairing chosen under section 2.3. The reviewer spot-checks at least two failed or not-applicable answers before approving |
+| Who runs it | The author of the change, on the pairing chosen under section 2.3. The reviewer spot-checks at least two failed or not-applicable answers before approving — **proposed, to be confirmed** (A11Y-OD-07) |
 | Who signs it | The runner signs the record; the reviewer counter-signs at the pull request. At a release, the **Owner** confirms the accessibility evidence, as release-evidence item 7 of [`../process/release-gates.md`](../process/release-gates.md) requires |
 | Where a completed record lives | Attached to the pull request, and carried into the release evidence index. The proposed file location is `docs/nfr/a11y-records/<yyyy-mm-dd>-<journey>-<pairing>.md` — **proposed, to be confirmed** (A11Y-OD-06) |
 | Standard tested against | **WCAG 2.2, Level AA**, plus the four AAA criteria [`accessibility-localisation.md`](accessibility-localisation.md) section 2 adopts — 2.3.3, 2.4.13, 3.3.9 and 1.4.6 |
@@ -65,8 +66,15 @@ flowchart TD
 | A pull request adds a **new journey** | The core checklist on every screen of the journey, every screen-family checklist that applies, and the section 6 record for that journey | DoD 7 |
 | A pull request changes an **existing screen or state** | The core checklist on the changed screens and states, and the screen-family checklist for each family touched | DoD 7, RG-06 |
 | A release | The section 6 record for **every journey changed since the previous release**; and for the priority-zero journeys, a record from this release train whether or not they changed | RG-06 |
-| A milestone | A full re-run of the core checklist across all journeys on the NVDA pairing, which [`support-matrix.md`](support-matrix.md) section 8 evidences per milestone | Support matrix section 8 |
+| A release, per Tier 1 device class | One walkthrough in a **browser tab** and one in **installed mode**, because the two differ where it matters most — no address bar to escape to, and a different route back out of the camera overlay | Support matrix section 9 |
+| A milestone | A manual walkthrough on the **NVDA with Chrome or Edge** pairing, which [`support-matrix.md`](support-matrix.md) section 8 evidences per milestone. Phone-only items are recorded `N/A — desktop pairing`, per section 2.3 | Support matrix section 8 |
 | The design system changes a shared primitive — field, dialog, live region, focus ring, target token | The core checklist sections 4.2, 4.3, 4.5 and 4.8 on two journeys, because a shared primitive fails everywhere at once — **proposed, to be confirmed** (A11Y-OD-03) | This document |
+
+**Which screens, and how often the core checklist is answered.** The core checklist is answered **once per screen**,
+not once per journey: on a new journey that means every screen of it, and on a change it means every changed screen.
+The screen list is the one **DOR-14** already produced before the work started, and each screen is walked in all five
+of the states DoD 7 requires a story for — **loading, empty, error, offline and forbidden**. That state list is the
+runner's worklist, and section 4.12 is where the empty and forbidden states are answered.
 
 A pull request that genuinely changes no screen deletes the item from its description and says why in one line, as
 [`../process/definition-of-done.md`](../process/definition-of-done.md) section 5 requires. "No time" is not a
@@ -77,11 +85,12 @@ reason.
 | Question | Answer |
 | --- | --- |
 | Who | The author of the change. Accessibility is not delegated to a specialist the project does not employ — [`accessibility-localisation.md`](accessibility-localisation.md) states plainly that no external audit is claimed (**AL-01**) |
-| Who checks the check | The reviewer, who re-runs at least two items the record marks **Fail** or **Not applicable** before approving. A record with no Fail and no Not applicable across a whole journey is itself suspicious and is re-run |
-| Does the runner need to be an accessibility specialist | No. Every item below is a yes-or-no question about something the runner can hear or see. Section 3 gives the gestures and keys so nothing has to be looked up |
-| How long | A time-box of **45 minutes per journey** is proposed, to be confirmed (A11Y-OD-02). A run that overruns is not abandoned — it is a finding that the journey is long, and the overrun is recorded on the record |
-| What the runner needs | The device and pairing of section 2.3; synthetic data only, per plan Section 2.2; a second person is **not** required, but is useful for the priority-zero journeys because one can read the checklist aloud while the other drives |
-| Eyes open or closed | Eyes open. This is not an empathy exercise. The rule is stricter and easier to apply: **an answer is Pass only if the information needed came through the assistive technology.** If the runner used the screen to know what to do next during the screen-reader pass, or the mouse during the keyboard pass, the item is a Fail |
+| Who checks the check | The reviewer, who re-runs at least two items the record marks **Fail** or **Not applicable** before approving. A record with no Fail and no Not applicable across a whole journey is itself suspicious and is re-run. An answer of `N/A — desktop pairing` or `N/A — kit unavailable: <item>` is expected rather than suspicious, and is counted as a gap in coverage instead |
+| Does the runner need to be an accessibility specialist | No. Every item below is a yes-or-no question about something the runner can hear or see. Section 3 gives the gestures and keys, the environment settings, the fixtures and the transcript method, so nothing has to be looked up |
+| How long | Budget by the work, not by the journey — **proposed, to be confirmed** (A11Y-OD-02). The proposal is **10 minutes per screen** for the core checklist, **10 minutes per screen-family checklist**, and **20 minutes for the section 6 journey record**, with the keyboard pass and the screen-reader pass budgeted **separately**. A priority-zero journey of ten screens touching six families is therefore a day's work, not an hour's, and is planned as one. A run that overruns is not abandoned — it is a finding that the journey is long, and the overrun is recorded on the record |
+| What the runner needs | A kit, not a laptop. The device and pairing of section 2.3; a paired Bluetooth keyboard for the keyboard pass; a configured **keyboard-wedge scanner**; a **printed synthetic label sheet**, including the deliberately invalid payloads of section 3.7; access to a branch **print-station queue**; the fixtures and forced states of section 3.7; a second device where a family checklist names a different device class — A11Y-BI-13 asks about phone layouts and cannot be answered on the NVDA desktop pairing alone; and synthetic data only, per plan Section 2.2. A second person is **not** required, but is useful for the priority-zero journeys because one can read the checklist aloud while the other drives |
+| When a piece of kit is missing | The affected items are recorded `N/A — kit unavailable: <item>` and the run **does not** count as covering them. The gap is then visible on the record and in the release evidence, rather than absorbed into a silent Pass |
+| Eyes open or closed | Eyes open. This is not an empathy exercise. The rule is stricter and easier to apply, and it is about **completing a step**: a step is Pass only if the information needed **to know what to do next** came through the assistive technology. If the runner used the screen to decide the next move during the screen-reader pass, or the mouse during the keyboard pass, the step is a Fail. The rule does **not** apply to the observation items, which deliberately ask the runner to compare what is announced with what is on the screen — every item marked `Env` in the **Pass** column of sections 4 and 5, and A11Y-09, which exists precisely to compare the two orders |
 
 ### 2.3 Which pairing a run uses
 
@@ -106,6 +115,16 @@ a counter or back-office journey — billing, payment, invoice posting, reports,
 with Chrome or Edge**; and **VoiceOver with Safari** is run at least once per release train on whichever journey
 changed most, because WebKit is the engine most likely to differ. A journey that behaves differently on iOS from
 Android is a finding, not a variation.
+
+Until **#52** stands up the Windows pairing, the rotation cannot start on it. Plan Section 9, issue **#50**, walks its
+journeys with VoiceOver on iOS and TalkBack on Android only, and states that #52 remains the full audit and is where
+NVDA arrives. Counter and back-office journeys therefore run on **VoiceOver with Safari** in the interim, and the NVDA
+leg of the rotation begins at #52.
+
+Some items cannot be answered on a desktop pairing at all, because they are about a phone: **A11Y-16**, the shop-floor
+rows of **A11Y-65**, **A11Y-67**, **A11Y-LF-09** and **A11Y-BI-13**. On NVDA they are recorded `N/A — desktop pairing`
+and stay with the TalkBack and VoiceOver runs. That is a legitimate Not applicable under section 2.2, and it does not
+trigger the re-run rule.
 
 ### 2.4 How long a pass is valid
 

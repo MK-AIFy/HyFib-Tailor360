@@ -513,7 +513,7 @@ waiver owners are [`../process/release-gates.md`](../process/release-gates.md).
 | Document | Why it matters here |
 | --- | --- |
 | [`support-matrix.md`](support-matrix.md) | The reference device, the browser and orientation matrix, and the assistive-technology pairings these rules are tested on |
-| [`a11y-checklist.md`](a11y-checklist.md) | The per-screen manual screen-reader items the Definition of Done and RG-06 require. It is created alongside the design system (#50); this document fixes what it must contain, and until it exists the criteria of section 4 are the checklist |
+| [`a11y-checklist.md`](a11y-checklist.md) | The per-screen manual screen-reader items the Definition of Done and RG-06 require. It exists: this document fixes what it must contain, and it holds the items themselves. The earlier arrangement — that it would arrive with the design system (#50) and that section 4 stood in for it meanwhile — no longer applies |
 | [`capacity-and-performance.md`](capacity-and-performance.md) | The budgets the Tamil bundle and font subsets must still meet |
 | [`data-classification.md`](data-classification.md) | Why labels carry no personal data, and why user-generated content is handled rather than transformed |
 | [`traceability.md`](traceability.md) | Maps each commitment here to its test, monitor, evidence and owner |
