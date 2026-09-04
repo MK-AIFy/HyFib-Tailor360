@@ -30,7 +30,7 @@ confirmed** and are collected in section 9.
 | Who signs it | The runner signs the record; the reviewer counter-signs at the pull request. At a release, the **Owner** confirms the accessibility evidence, as release-evidence item 7 of [`../process/release-gates.md`](../process/release-gates.md) requires |
 | Where a completed record lives | Attached to the pull request, and carried into the release evidence index. The proposed file location is `docs/nfr/a11y-records/<yyyy-mm-dd>-<journey>-<pairing>.md` — **proposed, to be confirmed** (A11Y-OD-06) |
 | Standard tested against | **WCAG 2.2, Level AA**, plus the four AAA criteria [`accessibility-localisation.md`](accessibility-localisation.md) section 2 adopts — 2.3.3, 2.4.13, 3.3.9 and 1.4.6 |
-| Invented numbers | Every number this document introduces — the time-box, the validity period, the sample size, the pairing rotation, the record location, the barrier definition — is **proposed, to be confirmed** and is listed in section 9 |
+| Invented numbers | Every number and rule this document introduces — the time budget, the validity period, the reviewer's sample size, the pairing rotation, the record location, the barrier definition, the kit and fixture list, the customer-page cadence and the mapping of the eight per-role journeys — is **proposed, to be confirmed** and is listed in section 9 |
 | Review cadence | Every release train; and in the same pull request whenever a new screen family or a new journey is added |
 
 **In scope**: the staff progressive web application on phone, tablet and desktop; the customer-facing estimate,
@@ -778,7 +778,7 @@ when #34 and #43 land, and **DoD 7** will require a record for each of them at t
 
 ### 6.2 The columns a runner fills in
 
-Every record table below carries the same seven columns.
+Every per-journey record table below carries the same columns.
 
 | Column | What goes in it |
 | --- | --- |
@@ -883,7 +883,8 @@ These are the set plan Section 9, issue **#50**, calls "the eight reference jour
 document at W1, with VoiceOver on iOS and TalkBack on Android. Three of them are already covered end to end by a
 priority-zero record and are **not walked twice**: the mapping column says so, and the runner completes the named
 record instead of a second one. The remaining five have no record anywhere else in this document and are written
-out below.
+out below. That the three mapped journeys are satisfied by the priority-zero record rather than re-walked under a
+second name is **proposed, to be confirmed** (A11Y-OD-13).
 
 | ID | Role and journey | Which record covers it |
 | --- | --- | --- |
@@ -970,7 +971,8 @@ out below.
 
 Section 1 puts the customer-facing estimate, status and feedback pages in scope, and every reference journey ends in
 a feedback response — so the surface is exercised six times over and, without this record, tested nowhere. It is
-walked from the **customer's** side: a phone, a link received as a message, and none of the staff shell.
+walked from the **customer's** side: a phone, a link received as a message, and none of the staff shell. How often
+it is re-run is **proposed, to be confirmed** (A11Y-OD-12).
 
 | Step | Screens and families | Keyboard | Screen reader | Items failed | Severity | Defect |
 | --- | --- | --- | --- | --- | --- | --- |
