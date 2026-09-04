@@ -129,7 +129,7 @@ client-measured rows depend on the telemetry endpoint of #52.
 | S1 | API availability | Good ÷ valid requests, section 3 | Web host request metrics at the host, plus an external uptime check on `/health/live` | Client network, device faults |
 | S2 | Read latency | Server time to first byte for safe `GET` requests under `/api/v1` | Web host histogram, per route group | Time on the client's network |
 | S3 | Command latency | Server processing time for state-changing requests | Web host histogram, per route group | Provider calls made asynchronously by the worker |
-| S4 | Scan round trip | Barcode decoded on the device to the server's answer rendered | Client telemetry, tagged with the connection type | Time spent aiming the camera |
+| S4 | Scan round trip | Barcode decoded on the device to the server's answer rendered | Client telemetry, tagged with the connection type and the browser engine | Time spent aiming the camera |
 | S5 | MFA challenge | Submission of the second factor to the answer | Web host histogram on the identity routes | Time the user spends reading the code |
 | S6 | Error rate | Share of valid requests answered `5xx` | Web host request metrics | The exclusions in section 3 |
 | S7 | Outbox lag | Age of the oldest unprocessed outbox message, per module | Worker gauge over `outbox_messages` | Messages already dead-lettered, counted by S8 |
@@ -153,12 +153,12 @@ under which each model can actually hold them.
 | --- | --- | --- | --- | --- |
 | Read latency (S2) | **p95 < 400 ms** | Rolling 28 days at the load in [`capacity-and-performance.md`](capacity-and-performance.md) | Same | Same |
 | Command latency (S3) | **p95 < 800 ms** | Rolling 28 days | Same | Same |
-| Scan round trip (S4) | **p95 < 1 s on a 4G connection** | Rolling 28 days, client-measured | Same, conditional on section 5.2 | Same |
+| Scan round trip (S4) | **p95 < 1 s on a 4G connection** on Blink-based browsers; **< 1.5 s** on WebKit, whose camera decode is slower — the split is derived in [`capacity-and-performance.md`](capacity-and-performance.md) | Rolling 28 days, client-measured | Same, conditional on section 5.2 | Same |
 | MFA challenge (S5) | **p95 < 2 s** | Rolling 28 days | Same | Same |
 | Error rate (S6) | **≤ 0.5% of valid requests per month; commands ≤ 0.2%** | Calendar month | Same | Same |
 | Outbox lag (S7) | **p95 < 30 s**, p99 < 5 min | Rolling 28 days | Same | Same |
 | Dead-letter rate (S8) | **≤ 0.1% of messages per month**, and every dead letter is triaged within one working day | Calendar month | Same | Same |
-| Projection lag (S9) | **p95 < 60 s**, p99 < 5 min | Rolling 28 days | Same | Same |
+| Projection lag (S9) | **p95 < 5 min** for reporting read models, alerted as `ReportFreshnessBreached` | Rolling 28 days | Same | Same |
 | Notification hand-off (S10) | **p95 < 60 s**, p99 < 5 min for transactional messages | Rolling 28 days | Same | Same |
 | In-app notification visible | **p95 < 10 s** | Rolling 28 days | Same | Same |
 | Revocation effectiveness (S11) | **≤ 60 s at p99, on every host** | Rolling 28 days | Same | Same |
@@ -182,6 +182,12 @@ flowchart LR
     telemetry --> collector
     collector --> backend["Telemetry backend — dashboards and burn-rate alerts"]
 ```
+
+**Route classes with their own budgets are excluded from S2 and S3** and are stated instead in
+[`capacity-and-performance.md`](capacity-and-performance.md): report and read-model queries (p95 < 1.5 s),
+authorised media streaming (p95 < 500 ms to first byte for a preview), export generation (p95 < 60 s) and document
+sequence allocation (p95 < 50 ms). Folding a 1.5-second report into the 400-millisecond read objective would either
+flatter the reports or condemn the counter screens.
 
 S2, S3, S5 and S6 are **server-side**: they stop at the web host and say nothing about the customer-facing counter
 experience on a bad line. S4 is **client-side** and is the only objective that includes the network the staff member
@@ -416,7 +422,7 @@ in [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-deci
 | --- | --- | --- | --- | --- |
 | **OD-02** (plan Section 11 item 2) | Which hosting model, and the indicative monthly budget | The selection in section 13, ADR-0010's final status, #59 environments, #60 backup design | Business owner | **Open** — needed before the W1 exit gate |
 | **SLO-01** | Confirm the 09:00–21:00 Asia/Kolkata service window, or replace it with the branch working calendars of **OD-06** | The availability SLI, the out-of-hours objective, the on-call arrangement | Business owner, with each Branch Manager | **Proposed** — the stated window stands until OD-06 is answered |
-| **SLO-02** | Confirm the error-rate objectives (0.5% overall, 0.2% commands) and the dead-letter, projection-lag, notification hand-off and in-app targets introduced here | The alert thresholds of #58 and the performance release gate | Technical reviewer, approved by the Owner | **Proposed** — confirm at the stakeholder review |
+| **SLO-02** | Confirm the error-rate objectives (0.5% overall, 0.2% commands) and the dead-letter, notification hand-off and in-app targets introduced here | The alert thresholds of #58 and the performance release gate | Technical reviewer, approved by the Owner | **Proposed** — confirm at the stakeholder review |
 | **SLO-03** | Accept the three Model A conditions in section 5.2 and the pre-agreed replacement host in section 6.1, or lower the Model A availability and RTO targets to match reality | Whether Model A can be signed at 99.5% and four hours | Business owner | **Open** |
 | **SLO-04** | Under Model B, is high availability purchased for the managed database | The RTO row in section 6 and the cost band in section 9 | Business owner | **Open** — only relevant if Model B is selected |
 | **SLO-05** | Replace the indicative cost bands with quotations | The budget line of OD-02 | Business owner | **Open** |
@@ -447,7 +453,7 @@ this document is binding, and both models continue to be maintained. Signing it 
 | Availability in the service window | 99.5% per calendar month | ☐ |
 | Service window | 09:00–21:00 Asia/Kolkata, or the branch working calendars once OD-06 is answered | ☐ |
 | Read and command latency | p95 < 400 ms and < 800 ms | ☐ |
-| Scan round trip | p95 < 1 s on 4G | ☐ |
+| Scan round trip | p95 < 1 s on 4G on Blink, < 1.5 s on WebKit | ☐ |
 | Error rate | ≤ 0.5% of valid requests; commands ≤ 0.2% | ☐ |
 | Outbox lag | p95 < 30 s | ☐ |
 | Notification hand-off to the provider | p95 < 60 s | ☐ |

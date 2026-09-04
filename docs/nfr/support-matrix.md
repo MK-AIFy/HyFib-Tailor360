@@ -207,7 +207,7 @@ flowchart TD
     WEDGE -- yes --> WEDGEREAD[KeyboardWedgeSource buffers until the terminator]
     WEDGE -- no --> CAM{Camera permitted and the label is readable}
     CAM -- yes --> CAMREAD[CameraSource decodes with BarcodeDetector or ZXing]
-    CAM -- no --> MANUAL[ManualEntrySource: type the namespace letter and twelve characters with a reason]
+    CAM -- no --> MANUAL["ManualEntrySource - type the namespace letter and twelve characters with a reason"]
     WEDGEREAD --> SERVER[Server revalidates namespace, check character, identity status and branch]
     CAMREAD --> SERVER
     MANUAL --> SERVER
@@ -247,7 +247,7 @@ flowchart TD
     STATION -- yes --> QUEUE[Queue the job to platform.print_jobs for the branch station]
     STATION -- no --> PDF[Download the label PDF and print from a connected device]
     QUEUE --> DRAIN[Print station drains the queue and marks the job printed]
-    PDF --> EXC[Unprinted label is an exception: record it and print before handover]
+    PDF --> EXC["Unprinted label is an exception - record it and print before handover"]
     DIRECT --> AUDITED[Print action audited with document type, branch and actor]
     DRAIN --> AUDITED
 ```
