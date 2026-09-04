@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Billing\Tailor360.Modules.Billing.Api\Tailor360.Modules.Billing.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Billing\Tailor360.Modules.Billing.Infrastructure\Tailor360.Modules.Billing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Catalog\Tailor360.Modules.Catalog.Api\Tailor360.Modules.Catalog.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Catalog\Tailor360.Modules.Catalog.Infrastructure\Tailor360.Modules.Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Custody\Tailor360.Modules.Custody.Api\Tailor360.Modules.Custody.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Custody\Tailor360.Modules.Custody.Infrastructure\Tailor360.Modules.Custody.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Customers\Tailor360.Modules.Customers.Api\Tailor360.Modules.Customers.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Customers\Tailor360.Modules.Customers.Infrastructure\Tailor360.Modules.Customers.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\Tailor360.Modules.Identity.Api\Tailor360.Modules.Identity.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\Tailor360.Modules.Identity.Infrastructure\Tailor360.Modules.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Integration\Tailor360.Modules.Integration.Api\Tailor360.Modules.Integration.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Integration\Tailor360.Modules.Integration.Infrastructure\Tailor360.Modules.Integration.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Inventory\Tailor360.Modules.Inventory.Api\Tailor360.Modules.Inventory.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Inventory\Tailor360.Modules.Inventory.Infrastructure\Tailor360.Modules.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Media\Tailor360.Modules.Media.Api\Tailor360.Modules.Media.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Media\Tailor360.Modules.Media.Infrastructure\Tailor360.Modules.Media.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Notifications\Tailor360.Modules.Notifications.Api\Tailor360.Modules.Notifications.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Notifications\Tailor360.Modules.Notifications.Infrastructure\Tailor360.Modules.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Orders\Tailor360.Modules.Orders.Api\Tailor360.Modules.Orders.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Orders\Tailor360.Modules.Orders.Infrastructure\Tailor360.Modules.Orders.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Reporting\Tailor360.Modules.Reporting.Api\Tailor360.Modules.Reporting.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Reporting\Tailor360.Modules.Reporting.Infrastructure\Tailor360.Modules.Reporting.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
+    <ProjectReference Include="..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
+    <ProjectReference Include="..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
+  </ItemGroup>
+
+</Project>

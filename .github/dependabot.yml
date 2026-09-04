@@ -1,0 +1,92 @@
+# Dependabot configuration.
+#
+# SECURITY-UPDATE POLICY. Two different things arrive from Dependabot and they are treated
+# differently:
+#
+#   * Version updates — the scheduled pull requests configured below. They are grouped so that a
+#     week's minor and patch updates arrive as one reviewable pull request per ecosystem, and they
+#     wait for the normal review and CI cycle. A major update is deliberately left ungrouped: it
+#     gets its own pull request and its own reading of the release notes.
+#   * Security updates — raised by Dependabot when an advisory matches a dependency actually in
+#     use, and they ignore the schedule below entirely. They are never grouped by these rules
+#     (grouping applies to version updates only, `applies-to: version-updates`), so each one stays
+#     individually traceable to its advisory. Treat them as priority work: triage on the day, and
+#     if one cannot be merged straight away, record the exception and its compensating control
+#     through the documented security exception process rather than letting the alert age.
+#
+# Dependabot names its own branches (`dependabot/…`), which the pull-request policy check exempts
+# from the branch-naming rule for that reason.
+version: 2
+updates:
+  # .NET packages. Versions live in one place — Directory.Packages.props, central package
+  # management — so a single manifest at the repository root covers all 66 projects.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      # The shop and its maintainers are in India; a Monday-morning pull request is read on Monday.
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - dotnet
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      dotnet-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # The progressive web application. pnpm workspace root is clients/pwa, where package.json and
+  # pnpm-lock.yaml live.
+  - package-ecosystem: npm
+    directory: /clients/pwa
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - pwa
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      pwa-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions. Every action in .github/workflows is pinned by commit SHA; this is what keeps
+  # those pins current — Dependabot rewrites the SHA and the version comment together, so pinning
+  # does not mean running old action code.
+  - package-ecosystem: github-actions
+    # "/" is the whole repository for this ecosystem: it covers .github/workflows and any
+    # composite action the repository adds later.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch

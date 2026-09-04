@@ -1,0 +1,95 @@
+# syntax=docker/dockerfile:1
+#
+# HyFib Tailor360 web host — BFF, API and the static progressive web application (Section 4.2).
+#
+# The build context is the REPOSITORY ROOT, because central package management means a restore needs
+# Directory.Packages.props, Directory.Build.props and global.json as well as the project files:
+#   docker build -f infra/docker/Dockerfile.pwa --target assets -t tailor360-pwa:local .
+#   docker build -f infra/docker/Dockerfile.web -t tailor360-web:local
+#     --build-arg PWA_IMAGE=tailor360-pwa:local --build-arg VERSION=0.1.0
+#     --build-arg SOURCE_REVISION=<short git sha> .
+#
+# No secret is ever passed as a build argument or copied into a layer: build arguments are visible
+# in the image history. Connection strings and storage keys are mounted at run time as files under
+# /run/secrets (Section 4.4).
+
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0
+# The built client shell, produced by Dockerfile.pwa. Its only content is /pwa/dist.
+ARG PWA_IMAGE=tailor360-pwa:local
+
+FROM ${PWA_IMAGE} AS pwa
+
+FROM ${DOTNET_SDK_IMAGE} AS build
+ARG VERSION=0.0.0
+ARG SOURCE_REVISION=local
+ENV DOTNET_NOLOGO=1 \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+WORKDIR /source
+
+# .editorconfig is part of the build: EnforceCodeStyleInBuild is on and warnings are errors, so a
+# missing rule set changes the outcome of the compilation.
+COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/ ./src/
+
+# The repository root may not carry a .dockerignore, and a developer's working tree contains bin/
+# and obj/ directories full of absolute host paths. Removing them makes the build independent of
+# whoever ran it.
+RUN find ./src -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+
+RUN dotnet restore src/Hosts/Tailor360.Web/Tailor360.Web.csproj
+
+# Version and SourceRevisionId become AssemblyInformationalVersion ("<version>+<revision>"), which
+# is what GET /api/version returns and what the client compares to detect an outdated shell (#51).
+RUN dotnet publish src/Hosts/Tailor360.Web/Tailor360.Web.csproj \
+      --configuration Release \
+      --no-restore \
+      --output /app \
+      -p:Version=${VERSION} \
+      -p:SourceRevisionId=${SOURCE_REVISION}
+
+FROM ${DOTNET_RUNTIME_IMAGE} AS final
+ARG VERSION=0.0.0
+ARG SOURCE_REVISION=local
+LABEL org.opencontainers.image.title="tailor360-web" \
+      org.opencontainers.image.description="HyFib Tailor360 web host (API, BFF and PWA)" \
+      org.opencontainers.image.vendor="HyFib" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}"
+
+# DOTNET_EnableDiagnostics=0 removes the diagnostic IPC socket: it is of no use in a deployed
+# container, it would need a writable /tmp, and it is one more local attack surface.
+ENV ASPNETCORE_HTTP_PORTS=8080 \
+    DOTNET_NOLOGO=1 \
+    DOTNET_EnableDiagnostics=0
+
+# The runtime image ships no HTTP client, and HEALTHCHECK has to run inside the container. curl is
+# the smallest thing that answers a probe honestly. (The chiselled variants have no shell at all, so
+# a container health check is impossible there; they become an option when orchestration performs
+# the probing instead — #59.)
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build /app ./
+# The web host serves the client from wwwroot: UseStaticFiles plus MapFallbackToFile("index.html"),
+# so a deep link opened from a scanner or a message resolves in the client router.
+COPY --from=pwa /pwa/dist/ ./wwwroot/
+
+# The .NET runtime images define the unprivileged `app` user and export its id as APP_UID (1654).
+# Nothing in /app is writable by it, which is what makes read_only: true possible in compose.
+USER $APP_UID
+
+EXPOSE 8080
+
+# Readiness, not liveness: "healthy" must mean "can serve requests", because compose uses it for
+# depends_on and for `up --wait`, and the proxy must never be pointed at an instance whose database
+# is unreachable. Liveness (/health/live) performs no dependency call and is probed by the
+# orchestrator, which is the only thing that can usefully restart the process.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=5 \
+  CMD curl --fail --silent --show-error http://127.0.0.1:8080/health/ready || exit 1
+
+ENTRYPOINT ["dotnet", "Tailor360.Web.dll"]

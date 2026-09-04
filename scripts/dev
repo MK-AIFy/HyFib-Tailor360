@@ -1,0 +1,848 @@
+#!/usr/bin/env bash
+#
+# HyFib Tailor360 — developer entry point (issue #20).
+#
+#   ./scripts/dev up | restore | build | test | run | reset | status | doctor
+#
+# The same verbs exist in scripts/dev.ps1 for Windows 11 without WSL, and both print the same
+# output shape, so that documentation, pull-request evidence and continuous integration can quote
+# either one. Everything is resolved from the location of this script, so every verb works from any
+# working directory.
+#
+# Design rules for this file:
+#   * bash 4 features only, and no GNU-only tools, so that macOS and WSL behave the same;
+#   * colour only when stdout is a terminal, so that logs and CI output stay readable;
+#   * every non-obvious choice carries a comment.
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------------------------
+# Repository location
+# ---------------------------------------------------------------------------------------------
+
+# Resolved by walking symlinks by hand: `readlink -f` is GNU-only and macOS gained it only
+# recently, and a developer may well have this script linked into a directory on PATH.
+script_source=${BASH_SOURCE[0]}
+while [ -L "$script_source" ]; do
+  script_dir=$(cd -P "$(dirname "$script_source")" && pwd)
+  script_source=$(readlink "$script_source")
+  case $script_source in
+    /*) ;;
+    *) script_source="$script_dir/$script_source" ;;
+  esac
+done
+SCRIPT_DIR=$(cd -P "$(dirname "$script_source")" && pwd)
+REPO_ROOT=$(cd -P "$SCRIPT_DIR/.." && pwd)
+
+# Every command runs from the repository root. This is not cosmetic: `dotnet` resolves global.json
+# from the working directory, and global.json is what selects the SDK version and the
+# Microsoft.Testing.Platform test runner — from another directory `dotnet test` silently falls back
+# to VSTest and rejects the runner's own options.
+cd "$REPO_ROOT"
+
+SOLUTION="$REPO_ROOT/HyFib.Tailor360.slnx"
+PWA_DIR="$REPO_ROOT/clients/pwa"
+WEB_PROJECT="$REPO_ROOT/src/Hosts/Tailor360.Web/Tailor360.Web.csproj"
+WORKER_PROJECT="$REPO_ROOT/src/Hosts/Tailor360.Worker/Tailor360.Worker.csproj"
+CLI_PROJECT="$REPO_ROOT/src/Tools/Tailor360.Cli/Tailor360.Cli.csproj"
+COMPOSE_DIR="$REPO_ROOT/infra/compose"
+COMPOSE_FILE="$COMPOSE_DIR/docker-compose.yml"
+# artifacts/ is already git-ignored, so run logs never appear in `git status`.
+LOG_DIR="$REPO_ROOT/artifacts/logs"
+
+# ---------------------------------------------------------------------------------------------
+# Configuration (every value can be overridden from the environment)
+# ---------------------------------------------------------------------------------------------
+
+# The web host listens on 8080 in containers (infra/compose/docker-compose.app.yml) and the Vite
+# dev server proxies /api and /health to that origin, so an SDK run must use the same port.
+WEB_PORT=${TAILOR360_WEB_PORT:-8080}
+# The worker serves only its own probes, on its own port (Worker:HealthPort, appsettings.json).
+WORKER_HEALTH_PORT=${TAILOR360_WORKER_HEALTH_PORT:-8081}
+# vite.config.ts pins the dev server with strictPort, so this is the only port it will use.
+PWA_PORT=${TAILOR360_PWA_PORT:-5173}
+MINIO_PORT=${TAILOR360_MINIO_PORT:-9000}
+# Probes are local, so a short timeout keeps `status` fast; a slow answer is itself a finding.
+PROBE_TIMEOUT=${TAILOR360_PROBE_TIMEOUT:-5}
+DOTNET_CONFIGURATION=${TAILOR360_CONFIGURATION:-Debug}
+
+# ---------------------------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------------------------
+
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != "dumb" ]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_RED=$'\033[31m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+else
+  C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""
+fi
+
+heading() { printf '\n%s==> %s%s\n' "$C_BOLD" "$1" "$C_RESET"; }
+info() { printf '%s\n' "$1"; }
+detail() { printf '%s%s%s\n' "$C_DIM" "$1" "$C_RESET"; }
+warn() { printf '%swarning:%s %s\n' "$C_YELLOW" "$C_RESET" "$1" >&2; }
+fail() { printf '%serror:%s %s\n' "$C_RED" "$C_RESET" "$1" >&2; }
+
+# Echoes the command before running it, so that the transcript of a session is also a record of
+# exactly what was executed — this is what pull-request evidence is quoted from.
+step() {
+  printf '%s$ %s%s\n' "$C_DIM" "$*" "$C_RESET"
+  "$@"
+}
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+require_tool() {
+  if ! have "$1"; then
+    fail "required tool not found on PATH: $1"
+    fail "install it as described in docs/dev/setup.md, then run './scripts/dev doctor'."
+    exit 127
+  fi
+}
+
+usage() {
+  cat <<'USAGE'
+HyFib Tailor360 developer entry point.
+
+Usage: ./scripts/dev <verb> [arguments]
+
+Verbs:
+  up                 Restore, then start the compose backing services (PostgreSQL, MinIO,
+                     Mailpit; ClamAV and the collector are opt-in profiles).
+  restore            dotnet restore the solution and pnpm install the progressive web application.
+  build              dotnet build the solution and build the progressive web application.
+  test [tier]        Run the tests. Tier: all (default), unit, architecture, contract,
+                     integration, pwa, e2e.
+  run                Start the web host, the worker and the PWA dev server together.
+  reset              Destroy the local data and re-create it: compose down -v, migrate,
+                     init-reference-data, seed-synthetic. Never runs against Production.
+  status             Print the state of the five components and exit non-zero when an essential
+                     one is down. This output is the evidence for issue #20.
+  doctor             Report the toolchain and which test tiers can run in this environment.
+
+Common options:
+  --yes              Skip the confirmation prompt of `reset` (also TAILOR360_ASSUME_YES=1).
+
+Environment overrides:
+  TAILOR360_WEB_PORT (8080), TAILOR360_WORKER_HEALTH_PORT (8081), TAILOR360_PWA_PORT (5173),
+  TAILOR360_MINIO_PORT (9000), TAILOR360_PROBE_TIMEOUT (5), TAILOR360_CONFIGURATION (Debug),
+  TAILOR360_TEST_DATABASE_URL, TAILOR360_TEST_S3_ENDPOINT.
+
+Documentation: docs/dev/setup.md, docs/dev/commands.md, docs/dev/ports.md,
+docs/dev/troubleshooting.md.
+USAGE
+}
+
+# ---------------------------------------------------------------------------------------------
+# Docker and compose
+# ---------------------------------------------------------------------------------------------
+
+docker_daemon_available() {
+  have docker || return 1
+  # `docker info` is the only reliable check: the CLI is present in plenty of environments that
+  # have no daemon at all (a Claude Code cloud session is exactly that).
+  docker info >/dev/null 2>&1
+}
+
+compose() {
+  # --project-directory keeps infra/compose/.env as the environment file and the relative volume
+  # paths inside the compose file resolvable, whatever the caller's working directory is.
+  docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" "$@"
+}
+
+no_docker_guidance() {
+  cat <<GUIDANCE
+No Docker daemon is reachable, so the compose backing services cannot be started here.
+This is expected in a Claude Code cloud session and on a machine without Docker Desktop.
+
+Use the services the environment already provides instead:
+
+  1. PostgreSQL — point the integration tests and the hosts at an instance you have:
+       export TAILOR360_TEST_DATABASE_URL="Host=127.0.0.1;Port=5432;Database=tailor360;Username=postgres"
+     Without that variable the Integration tier skips with a visible warning, and CI=true turns
+     that skip into a failure, so nothing merges unverified.
+
+  2. Object storage — when a MinIO or other S3-compatible endpoint is available:
+       export TAILOR360_TEST_S3_ENDPOINT="http://127.0.0.1:${MINIO_PORT}"
+
+  3. Check what can run here:
+       ./scripts/dev doctor
+
+  4. If this machine should have Docker, see docs/dev/troubleshooting.md ("No Docker daemon").
+GUIDANCE
+}
+
+# ---------------------------------------------------------------------------------------------
+# Probe targets
+# ---------------------------------------------------------------------------------------------
+
+# Reads one key from infra/compose/.env without sourcing it: the file is developer-owned and must
+# not be able to execute code through this script.
+compose_env_value() {
+  local key=$1 file="$COMPOSE_DIR/.env"
+  [ -f "$file" ] || return 0
+  sed -n "s/^[[:space:]]*${key}=//p" "$file" | tail -n 1
+}
+
+# Extracts one keyword from an ADO.NET connection string, case-insensitively. Only Host, Port,
+# Database and Username are ever read — a password must never reach the output of this script.
+connection_keyword() {
+  printf '%s' "$1" | awk -v key="$2" '
+    BEGIN { RS = ";" }
+    {
+      equals = index($0, "=")
+      if (equals == 0) next
+      name = substr($0, 1, equals - 1)
+      value = substr($0, equals + 1)
+      gsub(/^[ \t\n]+|[ \t\n]+$/, "", name)
+      gsub(/^[ \t\n]+|[ \t\n]+$/, "", value)
+      if (tolower(name) == tolower(key)) print value
+    }'
+}
+
+PG_HOST=""; PG_PORT=""; PG_DB=""; PG_USER=""; PG_SOURCE=""
+
+resolve_postgres_target() {
+  PG_HOST=${TAILOR360_POSTGRES_HOST:-127.0.0.1}
+  PG_PORT=${TAILOR360_POSTGRES_PORT:-}
+  PG_DB=${POSTGRES_DB:-tailor360}
+  PG_USER=${POSTGRES_USER:-tailor360}
+  PG_SOURCE="compose defaults"
+
+  local url=${TAILOR360_TEST_DATABASE_URL:-}
+  if [ -n "$url" ]; then
+    # An externally provided instance is the one the integration tests use, so it is the one
+    # `status` must report — not a compose service that is not running.
+    PG_SOURCE="TAILOR360_TEST_DATABASE_URL"
+    case $url in
+      postgres://*|postgresql://*)
+        local rest=${url#*://}
+        rest=${rest#*@}                      # drop any credentials before anything is printed
+        local hostport=${rest%%/*}
+        local database=${rest#*/}
+        database=${database%%\?*}
+        PG_HOST=${hostport%%:*}
+        case $hostport in
+          *:*) PG_PORT=${hostport##*:} ;;
+        esac
+        [ -n "$database" ] && PG_DB=$database
+        ;;
+      *=*)
+        local value
+        value=$(connection_keyword "$url" Host); [ -n "$value" ] && PG_HOST=$value
+        value=$(connection_keyword "$url" Port); [ -n "$value" ] && PG_PORT=$value
+        value=$(connection_keyword "$url" Database); [ -n "$value" ] && PG_DB=$value
+        value=$(connection_keyword "$url" Username); [ -n "$value" ] && PG_USER=$value
+        ;;
+    esac
+  elif [ -z "$PG_PORT" ]; then
+    local from_env
+    from_env=$(compose_env_value POSTGRES_PUBLISHED_PORT)
+    [ -n "$from_env" ] && PG_PORT=$from_env
+    from_env=$(compose_env_value POSTGRES_DB)
+    [ -n "$from_env" ] && PG_DB=$from_env
+    from_env=$(compose_env_value POSTGRES_USER)
+    [ -n "$from_env" ] && PG_USER=$from_env
+  fi
+
+  PG_PORT=${PG_PORT:-5432}
+}
+
+object_storage_url() {
+  # The test endpoint wins for the same reason as the database: it is the instance actually in use.
+  if [ -n "${TAILOR360_TEST_S3_ENDPOINT:-}" ]; then
+    printf '%s' "${TAILOR360_TEST_S3_ENDPOINT%/}"
+    return 0
+  fi
+  local port
+  port=$(compose_env_value MINIO_API_PUBLISHED_PORT)
+  printf 'http://127.0.0.1:%s' "${port:-$MINIO_PORT}"
+}
+
+# ---------------------------------------------------------------------------------------------
+# Probes. Each sets PROBE_DETAIL and returns 0 (up) or 1 (down).
+# ---------------------------------------------------------------------------------------------
+
+PROBE_DETAIL=""
+
+probe_http() {
+  local url=$1 code status=0
+  if ! have curl; then
+    PROBE_DETAIL="curl is not installed"
+    return 2
+  fi
+  # No --fail: a 503 from a readiness probe is a meaningful answer, not a transport error, and the
+  # status code is more useful in the table than curl's generic message.
+  code=$(curl --silent --output /dev/null --max-time "$PROBE_TIMEOUT" \
+    --write-out '%{http_code}' "$url" 2>/dev/null) || status=$?
+  if [ "$status" -ne 0 ]; then
+    case $status in
+      6) PROBE_DETAIL="host not found" ;;
+      7) PROBE_DETAIL="connection refused" ;;
+      28) PROBE_DETAIL="no answer within ${PROBE_TIMEOUT}s" ;;
+      *) PROBE_DETAIL="curl exit $status" ;;
+    esac
+    return 1
+  fi
+  PROBE_DETAIL="HTTP $code"
+  case $code in
+    2*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+probe_health_endpoint() {
+  local url=$1 body code status=0
+  if ! have curl; then
+    PROBE_DETAIL="curl is not installed"
+    return 2
+  fi
+  # The health payload is {"Status":"Healthy","DurationMs":n,"Components":[...]} and the top-level
+  # Status is the first match, so no JSON parser is needed and jq stays an optional tool.
+  body=$(curl --silent --max-time "$PROBE_TIMEOUT" --write-out '\n%{http_code}' "$url" 2>/dev/null) || status=$?
+  if [ "$status" -ne 0 ]; then
+    case $status in
+      6) PROBE_DETAIL="host not found" ;;
+      7) PROBE_DETAIL="connection refused" ;;
+      28) PROBE_DETAIL="no answer within ${PROBE_TIMEOUT}s" ;;
+      *) PROBE_DETAIL="curl exit $status" ;;
+    esac
+    return 1
+  fi
+  code=$(printf '%s' "$body" | tail -n 1)
+  local reported
+  reported=$(printf '%s' "$body" | sed -n 's/.*"Status":"\([A-Za-z]*\)".*/\1/p' | head -n 1)
+  if [ -n "$reported" ]; then
+    PROBE_DETAIL="HTTP $code, $reported"
+  else
+    PROBE_DETAIL="HTTP $code"
+  fi
+  case $code in
+    2*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+probe_postgres() {
+  if have pg_isready; then
+    # pg_isready only asks whether the server accepts connections; it performs no authentication,
+    # so it needs no password and cannot fail because of one.
+    if pg_isready --host="$PG_HOST" --port="$PG_PORT" --dbname="$PG_DB" --timeout="$PROBE_TIMEOUT" --quiet; then
+      PROBE_DETAIL="accepting connections"
+      return 0
+    fi
+    PROBE_DETAIL="not accepting connections"
+    return 1
+  fi
+  # Fallback for a machine with no PostgreSQL client tools: a TCP connect is weaker evidence (it
+  # proves the port is open, not that the cluster is ready) and the detail says so.
+  if (exec 3<>"/dev/tcp/$PG_HOST/$PG_PORT") 2>/dev/null; then
+    PROBE_DETAIL="port open (no psql client, readiness unverified)"
+    return 0
+  fi
+  PROBE_DETAIL="connection refused"
+  return 1
+}
+
+# ---------------------------------------------------------------------------------------------
+# Verbs
+# ---------------------------------------------------------------------------------------------
+
+cmd_restore() {
+  require_tool dotnet
+  require_tool pnpm
+  heading "Restore"
+  step dotnet restore "$SOLUTION"
+  if [ "${CI:-}" = "true" ]; then
+    # In continuous integration a lockfile that does not match package.json must fail the run
+    # rather than be silently updated.
+    step pnpm --dir "$PWA_DIR" install --frozen-lockfile
+  else
+    step pnpm --dir "$PWA_DIR" install
+  fi
+}
+
+cmd_build() {
+  require_tool dotnet
+  require_tool pnpm
+  heading "Build"
+  step dotnet build "$SOLUTION" --configuration "$DOTNET_CONFIGURATION"
+  # `pnpm build` is `tsc -b && vite build`, so this also type-checks the client.
+  step pnpm --dir "$PWA_DIR" build
+}
+
+cmd_test() {
+  local tier=${1:-all}
+  require_tool dotnet
+  case $tier in
+    all)
+      require_tool pnpm
+      heading "Tests — all tiers"
+      step dotnet test --solution "$SOLUTION"
+      step pnpm --dir "$PWA_DIR" test
+      ;;
+    unit|architecture|contract|integration)
+      # Each tier is one project, and the trait values are the ones the test classes carry, e.g.
+      # [Trait("Category", "Unit")]. The project is named as well as the trait because a
+      # solution-wide filtered run exits 8 ("zero tests ran") from the projects that hold no test
+      # of that tier, which would report a green tier as a failure.
+      local category project
+      case $tier in
+        unit) category=Unit; project=Tailor360.UnitTests ;;
+        architecture) category=Architecture; project=Tailor360.ArchitectureTests ;;
+        contract) category=Contract; project=Tailor360.ContractTests ;;
+        integration) category=Integration; project=Tailor360.IntegrationTests ;;
+      esac
+      heading "Tests — $category tier"
+      if [ "$tier" = "integration" ] && [ -z "${TAILOR360_TEST_DATABASE_URL:-}" ] && ! docker_daemon_available; then
+        warn "No database and no Docker daemon: the Integration tier will skip. Set TAILOR360_TEST_DATABASE_URL."
+      fi
+      step dotnet test --project "$REPO_ROOT/tests/$project/$project.csproj" -- --filter-trait "Category=$category"
+      ;;
+    pwa)
+      require_tool pnpm
+      heading "Tests — progressive web application"
+      step pnpm --dir "$PWA_DIR" test
+      ;;
+    e2e)
+      heading "Tests — end to end"
+      if [ ! -d "$REPO_ROOT/tests/e2e" ]; then
+        # tests/e2e and its Playwright configuration are owned by issue #52; saying so is more
+        # useful than a missing-directory error.
+        warn "tests/e2e does not exist yet: the Playwright suite arrives with issue #52."
+        return 0
+      fi
+      require_tool pnpm
+      step pnpm --dir "$REPO_ROOT/tests/e2e" test
+      ;;
+    *)
+      fail "unknown test tier: $tier (expected all, unit, architecture, contract, integration, pwa or e2e)"
+      exit 64
+      ;;
+  esac
+}
+
+cmd_up() {
+  # `up` restores first so that a clean clone reaches a working state with one command.
+  cmd_restore
+
+  heading "Backing services"
+  if ! docker_daemon_available; then
+    no_docker_guidance
+    return 1
+  fi
+
+  if [ ! -f "$COMPOSE_DIR/.env" ]; then
+    # Every value in .env.example is a development placeholder and none of them is a secret, so
+    # copying it is safe and saves a confusing first run with mismatched ports.
+    step cp "$COMPOSE_DIR/.env.example" "$COMPOSE_DIR/.env"
+    detail "created infra/compose/.env from .env.example (development placeholders, no secrets)"
+  fi
+
+  # --wait blocks until every service with a healthcheck reports healthy, so a green return here
+  # means the services really are usable, not merely started.
+  step compose up --detach --wait
+
+  resolve_postgres_target
+  local console_port mailpit_port
+  console_port=$(compose_env_value MINIO_CONSOLE_PUBLISHED_PORT)
+  mailpit_port=$(compose_env_value MAILPIT_UI_PUBLISHED_PORT)
+  info ""
+  info "PostgreSQL      ${PG_HOST}:${PG_PORT}/${PG_DB}"
+  info "MinIO API       $(object_storage_url)"
+  info "MinIO console   http://127.0.0.1:${console_port:-9001}"
+  info "Mailpit         http://127.0.0.1:${mailpit_port:-8025}"
+  detail "ClamAV and the OpenTelemetry collector are opt-in profiles; see docs/dev/commands.md."
+  info ""
+  info "Next: ./scripts/dev run    (web host, worker and PWA dev server)"
+}
+
+cmd_run() {
+  require_tool dotnet
+  require_tool pnpm
+  mkdir -p "$LOG_DIR"
+
+  resolve_postgres_target
+  if ! probe_postgres; then
+    warn "PostgreSQL at $PG_HOST:$PG_PORT is not answering ($PROBE_DETAIL)."
+    warn "Start it with './scripts/dev up', or set TAILOR360_TEST_DATABASE_URL to an instance you have."
+  fi
+
+  heading "Running web host, worker and PWA dev server"
+  info "Web host        http://127.0.0.1:${WEB_PORT}"
+  info "  health        http://127.0.0.1:${WEB_PORT}/health/ready"
+  info "  version       http://127.0.0.1:${WEB_PORT}/api/version"
+  info "  OpenAPI       http://127.0.0.1:${WEB_PORT}/openapi/v1.json  (Development only)"
+  info "Worker health   http://127.0.0.1:${WORKER_HEALTH_PORT}/health/ready"
+  info "PWA dev server  http://127.0.0.1:${PWA_PORT}"
+  detail "The PWA proxies /api and /health to the web host, so open the PWA URL, not the host URL."
+  detail "Logs: $LOG_DIR/{web,worker,pwa}.log — press Ctrl-C to stop all three."
+  info ""
+
+  WEB_PID=""; WORKER_PID=""; PWA_PID=""; TAIL_PID=""
+  trap stop_all INT TERM EXIT
+
+  # Each component is started with `exec` inside its own subshell so that $! is the process itself
+  # rather than a shell that would have to forward the signal.
+  (
+    cd "$REPO_ROOT"
+    # Loopback by default, for the same reason every compose port is bound to 127.0.0.1: a laptop
+    # is regularly on an untrusted shop, home or cafe network. Export ASPNETCORE_URLS yourself
+    # (http://0.0.0.0:8080) together with `pnpm dev --host` to test from a phone on the same LAN.
+    ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development} \
+    ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://127.0.0.1:$WEB_PORT} \
+    exec dotnet run --project "$WEB_PROJECT" --configuration "$DOTNET_CONFIGURATION"
+  ) >"$LOG_DIR/web.log" 2>&1 &
+  WEB_PID=$!
+
+  (
+    cd "$REPO_ROOT"
+    ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development} \
+    Worker__HealthPort="$WORKER_HEALTH_PORT" \
+    exec dotnet run --project "$WORKER_PROJECT" --configuration "$DOTNET_CONFIGURATION"
+  ) >"$LOG_DIR/worker.log" 2>&1 &
+  WORKER_PID=$!
+
+  (
+    exec pnpm --dir "$PWA_DIR" dev --port "$PWA_PORT"
+  ) >"$LOG_DIR/pwa.log" 2>&1 &
+  PWA_PID=$!
+
+  # The three logs are followed in one stream so that a single terminal shows everything; the file
+  # headers tail prints make it obvious which component a line came from.
+  tail -n +1 -f "$LOG_DIR/web.log" "$LOG_DIR/worker.log" "$LOG_DIR/pwa.log" &
+  TAIL_PID=$!
+
+  # Ctrl-C reaches every child directly (they share this script's process group) and the trap then
+  # cleans up whatever ignored it.
+  wait "$WEB_PID" "$WORKER_PID" "$PWA_PID" || true
+}
+
+stop_all() {
+  trap - INT TERM EXIT
+  local pid
+  for pid in "$TAIL_PID" "$PWA_PID" "$WORKER_PID" "$WEB_PID"; do
+    [ -n "$pid" ] || continue
+    kill "$pid" 2>/dev/null || true
+    # `dotnet run` and `pnpm` both start the real process as a child; killing only the launcher
+    # can leave the application holding port 8080 or 5173.
+    if have pkill; then
+      pkill -TERM -P "$pid" 2>/dev/null || true
+    fi
+  done
+  wait 2>/dev/null || true
+  printf '\n%s\n' "Stopped. Logs remain in $LOG_DIR."
+}
+
+cmd_reset() {
+  local assume_yes=${TAILOR360_ASSUME_YES:-0}
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --yes|-y) assume_yes=1 ;;
+      *) fail "unknown option for reset: $1"; exit 64 ;;
+    esac
+    shift
+  done
+
+  # The CLI refuses synthetic data in production unconditionally; refusing here as well means the
+  # volumes are never destroyed on the way to that refusal.
+  if [ "${ASPNETCORE_ENVIRONMENT:-Development}" = "Production" ]; then
+    fail "refusing to reset: ASPNETCORE_ENVIRONMENT is Production."
+    exit 3
+  fi
+
+  if [ "$assume_yes" != "1" ]; then
+    if [ -t 0 ]; then
+      printf '%s' "This destroys the local database, object storage and mail volumes. Continue? [y/N] "
+      local answer
+      read -r answer
+      case $answer in
+        y|Y|yes|Yes) ;;
+        *) info "Cancelled."; return 0 ;;
+      esac
+    else
+      fail "reset is destructive and stdin is not a terminal; pass --yes to confirm."
+      exit 64
+    fi
+  fi
+
+  require_tool dotnet
+
+  heading "Reset — destroying local data"
+  if docker_daemon_available; then
+    # --volumes is the point of the verb: it removes the PostgreSQL, MinIO and Mailpit volumes.
+    step compose down --volumes --remove-orphans
+    step compose up --detach --wait
+  else
+    warn "No Docker daemon: skipping 'compose down -v' and 'compose up'."
+    warn "The database named by TAILOR360_TEST_DATABASE_URL is re-initialised in place instead."
+  fi
+
+  heading "Reset — re-creating data"
+  # Order matters: schema first, then the reference data every installation needs, then the
+  # synthetic dataset that development and tests use.
+  step dotnet run --project "$CLI_PROJECT" --configuration "$DOTNET_CONFIGURATION" -- migrate
+  step dotnet run --project "$CLI_PROJECT" --configuration "$DOTNET_CONFIGURATION" -- init-reference-data
+  step dotnet run --project "$CLI_PROJECT" --configuration "$DOTNET_CONFIGURATION" -- seed-synthetic
+  info ""
+  info "Reset complete. Run './scripts/dev status' to confirm."
+}
+
+# ---------------------------------------------------------------------------------------------
+# status
+# ---------------------------------------------------------------------------------------------
+
+STATUS_ESSENTIAL_FAILURES=0
+STATUS_OTHER_FAILURES=0
+STATUS_SKIPPED=0
+
+status_row() {
+  local name=$1 endpoint=$2 state=$3 note=$4 colour=""
+  case $state in
+    OK) colour=$C_GREEN ;;
+    FAIL) colour=$C_RED ;;
+    SKIPPED) colour=$C_YELLOW ;;
+  esac
+  # The state is padded before it is coloured: escape sequences have width in printf but not on
+  # screen, so colouring a padded field would misalign every following column.
+  printf '%-16s %-44s %s%-8s%s %s\n' "$name" "$endpoint" "$colour" "$state" "$C_RESET" "$note"
+}
+
+# report <name> <endpoint> <essential:yes|no> <probe result code>
+status_report() {
+  local name=$1 endpoint=$2 essential=$3 result=$4
+  if [ "$result" -eq 0 ]; then
+    status_row "$name" "$endpoint" "OK" "$PROBE_DETAIL"
+  elif [ "$result" -eq 2 ]; then
+    STATUS_SKIPPED=$((STATUS_SKIPPED + 1))
+    status_row "$name" "$endpoint" "SKIPPED" "$PROBE_DETAIL"
+  elif [ "$essential" = "yes" ]; then
+    STATUS_ESSENTIAL_FAILURES=$((STATUS_ESSENTIAL_FAILURES + 1))
+    status_row "$name" "$endpoint" "FAIL" "$PROBE_DETAIL"
+  else
+    STATUS_OTHER_FAILURES=$((STATUS_OTHER_FAILURES + 1))
+    status_row "$name" "$endpoint" "FAIL" "$PROBE_DETAIL"
+  fi
+}
+
+cmd_status() {
+  resolve_postgres_target
+  local storage_url
+  storage_url=$(object_storage_url)
+
+  printf '%sHyFib Tailor360 — local environment status%s\n' "$C_BOLD" "$C_RESET"
+  printf '%s\n\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '%-16s %-44s %-8s %s\n' "COMPONENT" "ENDPOINT" "STATE" "DETAIL"
+  printf '%-16s %-44s %-8s %s\n' "----------------" \
+    "--------------------------------------------" "--------" "----------------------------------"
+
+  local result
+
+  # Essential: the two hosts and the database. Losing any of them means the application cannot
+  # serve a request at all.
+  result=0; probe_health_endpoint "http://127.0.0.1:${WEB_PORT}/health/ready" || result=$?
+  status_report "Web host" "http://127.0.0.1:${WEB_PORT}/health/ready" yes "$result"
+
+  result=0; probe_health_endpoint "http://127.0.0.1:${WORKER_HEALTH_PORT}/health/ready" || result=$?
+  status_report "Worker host" "http://127.0.0.1:${WORKER_HEALTH_PORT}/health/ready" yes "$result"
+
+  result=0; probe_postgres || result=$?
+  status_report "PostgreSQL" "${PG_HOST}:${PG_PORT}/${PG_DB}" yes "$result"
+
+  # Not essential: Section 4.4 classifies object storage as a degraded dependency (media stops
+  # working, the instance keeps serving), and the PWA dev server is a developer convenience that
+  # is deliberately not running when the built shell is served by the web host.
+  result=0; probe_http "${storage_url}/minio/health/ready" || result=$?
+  status_report "Object storage" "${storage_url}/minio/health/ready" no "$result"
+
+  result=0; probe_http "http://127.0.0.1:${PWA_PORT}/" || result=$?
+  status_report "PWA dev server" "http://127.0.0.1:${PWA_PORT}/" no "$result"
+
+  printf '\n'
+  detail "PostgreSQL target from: ${PG_SOURCE}"
+  if [ "$STATUS_ESSENTIAL_FAILURES" -eq 0 ] && [ "$STATUS_OTHER_FAILURES" -eq 0 ] && [ "$STATUS_SKIPPED" -eq 0 ]; then
+    printf '%sAll five components are up.%s\n' "$C_GREEN" "$C_RESET"
+    return 0
+  fi
+
+  printf '%d essential component(s) down, %d non-essential down, %d skipped.\n' \
+    "$STATUS_ESSENTIAL_FAILURES" "$STATUS_OTHER_FAILURES" "$STATUS_SKIPPED"
+  if [ "$STATUS_ESSENTIAL_FAILURES" -gt 0 ]; then
+    info "Start the backing services with './scripts/dev up' and the hosts with './scripts/dev run'."
+    info "See docs/dev/troubleshooting.md when a component stays down."
+    return 1
+  fi
+  info "Every essential component is up."
+  return 0
+}
+
+# ---------------------------------------------------------------------------------------------
+# doctor
+# ---------------------------------------------------------------------------------------------
+
+DOCTOR_MISSING_REQUIRED=0
+
+doctor_row() {
+  local name=$1 state=$2 note=$3 colour=""
+  case $state in
+    OK|FOUND|AVAILABLE) colour=$C_GREEN ;;
+    MISSING|UNAVAILABLE) colour=$C_RED ;;
+    *) colour=$C_YELLOW ;;
+  esac
+  printf '%-28s %s%-12s%s %s\n' "$name" "$colour" "$state" "$C_RESET" "$note"
+}
+
+# doctor_tool <label> <command> <required:yes|no> <version command...>
+doctor_tool() {
+  local label=$1 tool=$2 required=$3
+  shift 3
+  if have "$tool"; then
+    local first_line version
+    first_line=$("$@" 2>/dev/null | head -n 1) || first_line=""
+    # Only the first version-looking token is kept: `psql --version` and `curl --version` print a
+    # paragraph, and a wrapped detail column would make this table unreadable.
+    version=$(printf '%s' "$first_line" | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /[0-9]+\.[0-9]+/) { print $i; exit } }')
+    doctor_row "$label" "FOUND" "${version:-${first_line:-$(command -v "$tool")}}"
+    return 0
+  fi
+  if [ "$required" = "yes" ]; then
+    DOCTOR_MISSING_REQUIRED=$((DOCTOR_MISSING_REQUIRED + 1))
+    doctor_row "$label" "MISSING" "required — see docs/dev/setup.md"
+  else
+    doctor_row "$label" "MISSING" "optional"
+  fi
+  return 1
+}
+
+playwright_browsers_path() {
+  if [ -n "${PLAYWRIGHT_BROWSERS_PATH:-}" ]; then
+    printf '%s' "$PLAYWRIGHT_BROWSERS_PATH"
+    return 0
+  fi
+  case $(uname -s) in
+    Darwin) printf '%s' "$HOME/Library/Caches/ms-playwright" ;;
+    *) printf '%s' "$HOME/.cache/ms-playwright" ;;
+  esac
+}
+
+cmd_doctor() {
+  printf '%sHyFib Tailor360 — environment report%s\n\n' "$C_BOLD" "$C_RESET"
+  printf '%-28s %-12s %s\n' "TOOL" "STATE" "DETAIL"
+  printf '%-28s %-12s %s\n' "----------------------------" "------------" "----------------------------------"
+
+  doctor_tool ".NET SDK" dotnet yes dotnet --version || true
+  doctor_tool "Node.js" node yes node --version || true
+  doctor_tool "pnpm" pnpm yes pnpm --version || true
+  doctor_tool "psql (PostgreSQL)" psql no psql --version || true
+  doctor_tool "curl" curl no curl --version || true
+
+  local docker_daemon=no
+  if have docker; then
+    if docker_daemon_available; then
+      docker_daemon=yes
+      doctor_row "Docker daemon" "AVAILABLE" "$(docker version --format '{{.Server.Version}}' 2>/dev/null || printf 'reachable')"
+    else
+      doctor_row "Docker daemon" "UNAVAILABLE" "CLI present, no daemon — Testcontainers cannot run"
+    fi
+  else
+    doctor_row "Docker daemon" "MISSING" "optional — see docs/dev/troubleshooting.md"
+  fi
+
+  local database_url_set=no storage_url_set=no
+  if [ -n "${TAILOR360_TEST_DATABASE_URL:-}" ]; then
+    database_url_set=yes
+    resolve_postgres_target
+    # The value itself is never printed: it normally carries a password.
+    doctor_row "TAILOR360_TEST_DATABASE_URL" "SET" "${PG_HOST}:${PG_PORT}/${PG_DB} (value not printed)"
+  else
+    doctor_row "TAILOR360_TEST_DATABASE_URL" "UNSET" "Integration tier falls back to Testcontainers"
+  fi
+  if [ -n "${TAILOR360_TEST_S3_ENDPOINT:-}" ]; then
+    storage_url_set=yes
+    doctor_row "TAILOR360_TEST_S3_ENDPOINT" "SET" "${TAILOR360_TEST_S3_ENDPOINT}"
+  else
+    doctor_row "TAILOR360_TEST_S3_ENDPOINT" "UNSET" "media tests use Testcontainers or skip"
+  fi
+
+  local browsers_path browsers=no
+  browsers_path=$(playwright_browsers_path)
+  if [ -d "$browsers_path" ] && ls "$browsers_path" 2>/dev/null | grep -q '^chromium'; then
+    browsers=yes
+    doctor_row "Playwright browsers" "FOUND" "$browsers_path"
+  else
+    doctor_row "Playwright browsers" "MISSING" "$browsers_path (pnpm exec playwright install chromium)"
+  fi
+
+  printf '\n%-28s %-12s %s\n' "TEST TIER" "STATE" "DETAIL"
+  printf '%-28s %-12s %s\n' "----------------------------" "------------" "----------------------------------"
+  doctor_row "Unit" "RUNS" "no external dependency"
+  doctor_row "Architecture" "RUNS" "no external dependency"
+  doctor_row "Contract" "RUNS" "no external dependency"
+
+  if [ "$database_url_set" = "yes" ]; then
+    doctor_row "Integration" "RUNS" "against TAILOR360_TEST_DATABASE_URL"
+  elif [ "$docker_daemon" = "yes" ]; then
+    doctor_row "Integration" "RUNS" "Testcontainers on the local Docker daemon"
+  else
+    doctor_row "Integration" "SKIPPED" "no database and no Docker daemon"
+  fi
+
+  local e2e_suite="tests/e2e arrives with issue #52"
+  [ -d "$REPO_ROOT/tests/e2e" ] && e2e_suite="tests/e2e present"
+  if [ "$browsers" = "yes" ]; then
+    doctor_row "E2E (Playwright)" "RUNS" "browsers installed; ${e2e_suite}"
+  else
+    doctor_row "E2E (Playwright)" "SKIPPED" "browsers not installed; ${e2e_suite}"
+  fi
+
+  printf '\n'
+  if [ "$database_url_set" != "yes" ] && [ "$docker_daemon" != "yes" ]; then
+    info "Integration tests will skip with a visible warning here. Set TAILOR360_TEST_DATABASE_URL"
+    info "(and TAILOR360_TEST_S3_ENDPOINT for media) to run them, or use a machine with Docker."
+    info "CI=true turns that skip into a failure, so the tier is never silently lost on the way to main."
+  fi
+  if [ "$storage_url_set" != "yes" ] && [ "$docker_daemon" != "yes" ]; then
+    info "Object-storage tests have no endpoint here and will skip for the same reason."
+  fi
+  if [ "$browsers" != "yes" ]; then
+    info "Install the E2E browsers with: pnpm --dir clients/pwa exec playwright install chromium"
+    info "(the Playwright CDN must be reachable — see infra/dev-environment/README.md)."
+  fi
+
+  if [ "$DOCTOR_MISSING_REQUIRED" -gt 0 ]; then
+    fail "$DOCTOR_MISSING_REQUIRED required tool(s) missing; see docs/dev/setup.md."
+    return 1
+  fi
+  return 0
+}
+
+# ---------------------------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------------------------
+
+main() {
+  local verb=${1:-help}
+  [ $# -gt 0 ] && shift
+  case $verb in
+    up) cmd_up "$@" ;;
+    restore) cmd_restore "$@" ;;
+    build) cmd_build "$@" ;;
+    test) cmd_test "$@" ;;
+    run) cmd_run "$@" ;;
+    reset) cmd_reset "$@" ;;
+    status) cmd_status "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    help|-h|--help) usage ;;
+    *)
+      fail "unknown verb: $verb"
+      usage >&2
+      exit 64
+      ;;
+  esac
+}
+
+main "$@"

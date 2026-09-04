@@ -1,0 +1,167 @@
+/*
+ * Base layer for the application shell. Component styles arrive with the design system (#50); this
+ * file only makes the skeleton legible, operable by keyboard and safe on a notched phone.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Never disable zoom; text size is a stated accessibility requirement. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--colour-surface-sunken);
+  color: var(--colour-ink);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-base);
+}
+
+:where(a) {
+  color: var(--colour-focus);
+}
+
+/* One visible focus style for everything. It must never be removed. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--colour-focus);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* The main landmark receives focus from the skip link; it must not draw a ring when clicked. */
+.app-main:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  /* Respect the notch and the home indicator on installed iOS and Android devices. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+/* Visible only when focused, and then pinned above everything else. */
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip-link:focus {
+  position: static;
+  display: inline-block;
+  width: auto;
+  height: auto;
+  min-height: var(--touch-target-min);
+  padding: var(--space-3) var(--space-4);
+  background: var(--colour-surface);
+  color: var(--colour-ink);
+  font-weight: var(--font-weight-bold);
+}
+
+.training-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  /* Fixed high-contrast pair, not theme tokens: this warning must stay legible in dark mode, in
+     sunlight and on a poorly calibrated shop tablet. */
+  background: var(--colour-warning-surface);
+  color: var(--colour-warning-ink);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  border-bottom: 2px solid var(--colour-warning-ink);
+}
+
+.training-banner__detail {
+  font-weight: var(--font-weight-regular);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-target-min);
+  padding: var(--space-3) var(--space-4);
+  background: var(--colour-brand);
+  color: var(--colour-brand-contrast);
+}
+
+.app-header__shop {
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+}
+
+.app-nav {
+  background: var(--colour-surface);
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.app-nav__list {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+.app-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  padding: 0 var(--space-3);
+  color: var(--colour-ink);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
+
+/* The active route is marked by weight and a rule, not by colour alone. */
+.app-nav__link[aria-current='page'] {
+  font-weight: var(--font-weight-bold);
+  border-bottom-color: var(--colour-accent);
+}
+
+.app-main {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+}
+
+.page > h1 {
+  margin-top: 0;
+  font-size: var(--font-size-500);
+  line-height: var(--line-height-tight);
+}
+
+.app-footer {
+  padding: var(--space-3) var(--space-4);
+  color: var(--colour-ink-muted);
+  font-size: var(--font-size-100);
+  text-align: center;
+}

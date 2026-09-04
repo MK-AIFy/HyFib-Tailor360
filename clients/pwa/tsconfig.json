@@ -1,0 +1,7 @@
+{
+  // Solution-style configuration: it owns no files and only references the two real projects, so that
+  // application code (browser, JSX) and build tooling (Node) are checked against different libraries.
+  // Build or check both with `tsc -b`.
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}

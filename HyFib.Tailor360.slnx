@@ -1,0 +1,98 @@
+<Solution>
+  <Folder Name="/src/Hosts/">
+    <Project Path="src/Hosts/Tailor360.Web/Tailor360.Web.csproj" />
+    <Project Path="src/Hosts/Tailor360.Worker/Tailor360.Worker.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Billing/">
+    <Project Path="src/Modules/Billing/Tailor360.Modules.Billing.Api/Tailor360.Modules.Billing.Api.csproj" />
+    <Project Path="src/Modules/Billing/Tailor360.Modules.Billing.Application/Tailor360.Modules.Billing.Application.csproj" />
+    <Project Path="src/Modules/Billing/Tailor360.Modules.Billing.Contracts/Tailor360.Modules.Billing.Contracts.csproj" />
+    <Project Path="src/Modules/Billing/Tailor360.Modules.Billing.Domain/Tailor360.Modules.Billing.Domain.csproj" />
+    <Project Path="src/Modules/Billing/Tailor360.Modules.Billing.Infrastructure/Tailor360.Modules.Billing.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Catalog/">
+    <Project Path="src/Modules/Catalog/Tailor360.Modules.Catalog.Api/Tailor360.Modules.Catalog.Api.csproj" />
+    <Project Path="src/Modules/Catalog/Tailor360.Modules.Catalog.Application/Tailor360.Modules.Catalog.Application.csproj" />
+    <Project Path="src/Modules/Catalog/Tailor360.Modules.Catalog.Contracts/Tailor360.Modules.Catalog.Contracts.csproj" />
+    <Project Path="src/Modules/Catalog/Tailor360.Modules.Catalog.Domain/Tailor360.Modules.Catalog.Domain.csproj" />
+    <Project Path="src/Modules/Catalog/Tailor360.Modules.Catalog.Infrastructure/Tailor360.Modules.Catalog.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Custody/">
+    <Project Path="src/Modules/Custody/Tailor360.Modules.Custody.Api/Tailor360.Modules.Custody.Api.csproj" />
+    <Project Path="src/Modules/Custody/Tailor360.Modules.Custody.Application/Tailor360.Modules.Custody.Application.csproj" />
+    <Project Path="src/Modules/Custody/Tailor360.Modules.Custody.Contracts/Tailor360.Modules.Custody.Contracts.csproj" />
+    <Project Path="src/Modules/Custody/Tailor360.Modules.Custody.Domain/Tailor360.Modules.Custody.Domain.csproj" />
+    <Project Path="src/Modules/Custody/Tailor360.Modules.Custody.Infrastructure/Tailor360.Modules.Custody.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Customers/">
+    <Project Path="src/Modules/Customers/Tailor360.Modules.Customers.Api/Tailor360.Modules.Customers.Api.csproj" />
+    <Project Path="src/Modules/Customers/Tailor360.Modules.Customers.Application/Tailor360.Modules.Customers.Application.csproj" />
+    <Project Path="src/Modules/Customers/Tailor360.Modules.Customers.Contracts/Tailor360.Modules.Customers.Contracts.csproj" />
+    <Project Path="src/Modules/Customers/Tailor360.Modules.Customers.Domain/Tailor360.Modules.Customers.Domain.csproj" />
+    <Project Path="src/Modules/Customers/Tailor360.Modules.Customers.Infrastructure/Tailor360.Modules.Customers.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/Tailor360.Modules.Identity.Api/Tailor360.Modules.Identity.Api.csproj" />
+    <Project Path="src/Modules/Identity/Tailor360.Modules.Identity.Application/Tailor360.Modules.Identity.Application.csproj" />
+    <Project Path="src/Modules/Identity/Tailor360.Modules.Identity.Contracts/Tailor360.Modules.Identity.Contracts.csproj" />
+    <Project Path="src/Modules/Identity/Tailor360.Modules.Identity.Domain/Tailor360.Modules.Identity.Domain.csproj" />
+    <Project Path="src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Tailor360.Modules.Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Integration/">
+    <Project Path="src/Modules/Integration/Tailor360.Modules.Integration.Api/Tailor360.Modules.Integration.Api.csproj" />
+    <Project Path="src/Modules/Integration/Tailor360.Modules.Integration.Application/Tailor360.Modules.Integration.Application.csproj" />
+    <Project Path="src/Modules/Integration/Tailor360.Modules.Integration.Contracts/Tailor360.Modules.Integration.Contracts.csproj" />
+    <Project Path="src/Modules/Integration/Tailor360.Modules.Integration.Domain/Tailor360.Modules.Integration.Domain.csproj" />
+    <Project Path="src/Modules/Integration/Tailor360.Modules.Integration.Infrastructure/Tailor360.Modules.Integration.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/">
+    <Project Path="src/Modules/Inventory/Tailor360.Modules.Inventory.Api/Tailor360.Modules.Inventory.Api.csproj" />
+    <Project Path="src/Modules/Inventory/Tailor360.Modules.Inventory.Application/Tailor360.Modules.Inventory.Application.csproj" />
+    <Project Path="src/Modules/Inventory/Tailor360.Modules.Inventory.Contracts/Tailor360.Modules.Inventory.Contracts.csproj" />
+    <Project Path="src/Modules/Inventory/Tailor360.Modules.Inventory.Domain/Tailor360.Modules.Inventory.Domain.csproj" />
+    <Project Path="src/Modules/Inventory/Tailor360.Modules.Inventory.Infrastructure/Tailor360.Modules.Inventory.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Media/">
+    <Project Path="src/Modules/Media/Tailor360.Modules.Media.Api/Tailor360.Modules.Media.Api.csproj" />
+    <Project Path="src/Modules/Media/Tailor360.Modules.Media.Application/Tailor360.Modules.Media.Application.csproj" />
+    <Project Path="src/Modules/Media/Tailor360.Modules.Media.Contracts/Tailor360.Modules.Media.Contracts.csproj" />
+    <Project Path="src/Modules/Media/Tailor360.Modules.Media.Domain/Tailor360.Modules.Media.Domain.csproj" />
+    <Project Path="src/Modules/Media/Tailor360.Modules.Media.Infrastructure/Tailor360.Modules.Media.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notifications/">
+    <Project Path="src/Modules/Notifications/Tailor360.Modules.Notifications.Api/Tailor360.Modules.Notifications.Api.csproj" />
+    <Project Path="src/Modules/Notifications/Tailor360.Modules.Notifications.Application/Tailor360.Modules.Notifications.Application.csproj" />
+    <Project Path="src/Modules/Notifications/Tailor360.Modules.Notifications.Contracts/Tailor360.Modules.Notifications.Contracts.csproj" />
+    <Project Path="src/Modules/Notifications/Tailor360.Modules.Notifications.Domain/Tailor360.Modules.Notifications.Domain.csproj" />
+    <Project Path="src/Modules/Notifications/Tailor360.Modules.Notifications.Infrastructure/Tailor360.Modules.Notifications.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Orders/">
+    <Project Path="src/Modules/Orders/Tailor360.Modules.Orders.Api/Tailor360.Modules.Orders.Api.csproj" />
+    <Project Path="src/Modules/Orders/Tailor360.Modules.Orders.Application/Tailor360.Modules.Orders.Application.csproj" />
+    <Project Path="src/Modules/Orders/Tailor360.Modules.Orders.Contracts/Tailor360.Modules.Orders.Contracts.csproj" />
+    <Project Path="src/Modules/Orders/Tailor360.Modules.Orders.Domain/Tailor360.Modules.Orders.Domain.csproj" />
+    <Project Path="src/Modules/Orders/Tailor360.Modules.Orders.Infrastructure/Tailor360.Modules.Orders.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reporting/">
+    <Project Path="src/Modules/Reporting/Tailor360.Modules.Reporting.Api/Tailor360.Modules.Reporting.Api.csproj" />
+    <Project Path="src/Modules/Reporting/Tailor360.Modules.Reporting.Application/Tailor360.Modules.Reporting.Application.csproj" />
+    <Project Path="src/Modules/Reporting/Tailor360.Modules.Reporting.Contracts/Tailor360.Modules.Reporting.Contracts.csproj" />
+    <Project Path="src/Modules/Reporting/Tailor360.Modules.Reporting.Domain/Tailor360.Modules.Reporting.Domain.csproj" />
+    <Project Path="src/Modules/Reporting/Tailor360.Modules.Reporting.Infrastructure/Tailor360.Modules.Reporting.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/Platform/Tailor360.Platform.Abstractions/Tailor360.Platform.Abstractions.csproj" />
+    <Project Path="src/Platform/Tailor360.Platform.Observability/Tailor360.Platform.Observability.csproj" />
+    <Project Path="src/Platform/Tailor360.Platform.Persistence/Tailor360.Platform.Persistence.csproj" />
+    <Project Path="src/Platform/Tailor360.Platform.Security/Tailor360.Platform.Security.csproj" />
+  </Folder>
+  <Folder Name="/src/Tools/">
+    <Project Path="src/Tools/Tailor360.Cli/Tailor360.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tailor360.ArchitectureTests/Tailor360.ArchitectureTests.csproj" />
+    <Project Path="tests/Tailor360.ContractTests/Tailor360.ContractTests.csproj" />
+    <Project Path="tests/Tailor360.IntegrationTests/Tailor360.IntegrationTests.csproj" />
+    <Project Path="tests/Tailor360.UnitTests/Tailor360.UnitTests.csproj" />
+  </Folder>
+</Solution>

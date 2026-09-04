@@ -1,0 +1,206 @@
+# HyFib Tailor360 — overlay that runs the built web and worker images locally (issue #20).
+#
+# docker-compose.yml on its own provides only the backing services, because during normal
+# development the hosts run from the SDK. This overlay adds the container images themselves, so a
+# developer can verify what will actually be deployed: the same Dockerfiles, the same non-root user,
+# the same read-only filesystem, the same secret files under /run/secrets and the same reverse
+# proxy that fronts the interim staging environment.
+#
+# Build the images first (the web image copies the built PWA from the asset image, so that one is
+# built first), then bring the stack up:
+#   docker build -f infra/docker/Dockerfile.pwa --target assets -t tailor360-pwa:local .
+#   docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.app.yml build
+#   docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.app.yml up -d --wait
+#
+# Only the reverse proxy publishes a port. The web host, the worker health port, PostgreSQL, MinIO
+# and ClamAV are reachable only from inside the compose network (the backing services in
+# docker-compose.yml keep their loopback ports so that SDK runs and integration tests still work).
+#
+# Create the secret files before the first run — they are read as files, never as environment
+# values, and infra/compose/secrets/ is git-ignored. See infra/README.md for the exact contents.
+
+# YAML anchors are not shared between compose files, so the log cap of Section 4.7 is declared
+# again here for the services this overlay adds.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        # Stamped into AssemblyInformationalVersion, which is what GET /api/version returns and what
+        # the PWA compares against to detect that it is running an outdated shell (#51).
+        VERSION: ${TAILOR360_VERSION:-0.1.0-local}
+        SOURCE_REVISION: ${TAILOR360_SOURCE_REVISION:-local}
+        PWA_IMAGE: ${TAILOR360_PWA_IMAGE:-tailor360-pwa:local}
+    image: ${TAILOR360_WEB_IMAGE:-tailor360-web:local}
+    container_name: tailor360-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+      # ClamAV is deliberately absent: it is an optional profile, and losing the scanner degrades
+      # the media feature rather than the instance (see HealthCheckTags.NonEssential).
+      # The one-shot `migrate` service arrives with #21 together with infra/docker/Dockerfile.cli;
+      # web and worker then gain `migrate: {condition: service_completed_successfully}`.
+    environment:
+      # Development keeps the training banner and the OpenAPI document; override to Staging to
+      # exercise the production code paths (HSTS, no OpenAPI).
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      # Explicit because appsettings.Development.json points Secrets:Directory at ./secrets for SDK
+      # runs; in a container the secrets are always the files Docker mounts.
+      Secrets__Directory: /run/secrets
+      Observability__ServiceName: tailor360-web
+      # Empty means "export nothing", which is the default deployment (Section 11 item 14, D13).
+      # With the observability profile up, set http://otel-collector:4317.
+      Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
+      Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
+      # The proxy is the only hop in front of the host, and it is on this bridge network.
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+      # Bound from #31 (object storage) and #44 (e-mail). The hosts ignore them until then; they are
+      # declared now so that the deployment shape does not change when those issues land.
+      ObjectStorage__Endpoint: http://minio:9000
+      ObjectStorage__ForcePathStyle: "true"
+      Email__SmtpHost: mailpit
+      Email__SmtpPort: "1025"
+    secrets:
+      - ConnectionStrings__Tailor360
+      - ObjectStorage__AccessKey
+      - ObjectStorage__SecretKey
+    # Section 4.7: read-only root filesystem, no privilege escalation, no capabilities. The host
+    # writes nothing to disk — the Data Protection key ring lives in platform.data_protection_keys
+    # (#21) and logs go to stdout.
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      # Readiness, not liveness: `depends_on: service_healthy` and `up --wait` must mean "can serve
+      # requests", and the proxy must not be pointed at an instance whose database is unreachable.
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:8080/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
+    networks: [tailor360]
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.worker
+      args:
+        VERSION: ${TAILOR360_VERSION:-0.1.0-local}
+        SOURCE_REVISION: ${TAILOR360_SOURCE_REVISION:-local}
+    image: ${TAILOR360_WORKER_IMAGE:-tailor360-worker:local}
+    container_name: tailor360-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      Secrets__Directory: /run/secrets
+      Observability__ServiceName: tailor360-worker
+      Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
+      Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
+      # The worker serves nothing but its own probes, on its own port, never published.
+      Worker__HealthPort: "8081"
+      ObjectStorage__Endpoint: http://minio:9000
+      ObjectStorage__ForcePathStyle: "true"
+      Email__SmtpHost: mailpit
+      Email__SmtpPort: "1025"
+    secrets:
+      - ConnectionStrings__Tailor360
+      - ObjectStorage__AccessKey
+      - ObjectStorage__SecretKey
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:8081/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
+    networks: [tailor360]
+
+  caddy:
+    # The same reverse proxy and the same Caddyfile as the interim staging environment, so that a
+    # proxy problem is found on a laptop rather than on the server.
+    image: caddy:2.11.4-alpine
+    container_name: tailor360-caddy
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      # A bare port makes Caddy serve plain HTTP: locally there is no hostname to get a certificate
+      # for, and TLS is terminated by the network gate in the interim staging environment.
+      TAILOR360_SITE_ADDRESS: ":8080"
+      TAILOR360_UPSTREAM: "web:8080"
+      TAILOR360_ROBOTS_TAG: "noindex, nofollow, noarchive"
+    ports:
+      # The only published port of this overlay.
+      - "127.0.0.1:${TAILOR360_HTTP_PUBLISHED_PORT:-8080}:8080"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      # Proves the whole path — proxy, routing and the web host — rather than just the proxy
+      # process. busybox wget is present in the alpine image; --spider would send HEAD, which the
+      # version endpoint does not map, so the body is fetched and discarded instead.
+      test: ["CMD-SHELL", "wget --quiet --output-document=/dev/null http://127.0.0.1:8080/api/version || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks: [tailor360]
+
+secrets:
+  # Infrastructure secrets are files (Section 4.4, secret class c): the hosts read them with the
+  # key-per-file configuration provider, so the file name is the configuration key and "__" is the
+  # section separator. A value in an `environment:` block would show up in `docker inspect`, in a
+  # crash dump of the environment block and in any process listing.
+  #
+  # The container runs as UID 1654 (the `app` user of the .NET runtime image) and Compose
+  # bind-mounts these files with their host ownership, so they must be readable by that UID:
+  #   chmod 0444 infra/compose/secrets/*      (development values only — see infra/README.md)
+  ConnectionStrings__Tailor360:
+    file: ${TAILOR360_SECRETS_DIR:-./secrets}/ConnectionStrings__Tailor360
+  ObjectStorage__AccessKey:
+    file: ${TAILOR360_SECRETS_DIR:-./secrets}/ObjectStorage__AccessKey
+  ObjectStorage__SecretKey:
+    file: ${TAILOR360_SECRETS_DIR:-./secrets}/ObjectStorage__SecretKey
+
+volumes:
+  caddy-data:
+    name: tailor360-caddy-data
+  caddy-config:
+    name: tailor360-caddy-config

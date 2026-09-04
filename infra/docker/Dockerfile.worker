@@ -1,0 +1,73 @@
+# syntax=docker/dockerfile:1
+#
+# HyFib Tailor360 background worker — outbox dispatch, scheduled jobs, media processing (#21, #31).
+#
+# Build from the REPOSITORY ROOT, for the same central-package-management reason as the web image:
+#   docker build -f infra/docker/Dockerfile.worker -t tailor360-worker:local
+#     --build-arg VERSION=0.1.0 --build-arg SOURCE_REVISION=<short git sha> .
+#
+# The worker serves nothing but its own health probes, on port 8081, which is never published. No
+# secret is passed as a build argument or copied into a layer.
+
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+# The ASP.NET runtime rather than the plain runtime: the worker takes a FrameworkReference on
+# Microsoft.AspNetCore.App to host its three health endpoints.
+ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0
+
+FROM ${DOTNET_SDK_IMAGE} AS build
+ARG VERSION=0.0.0
+ARG SOURCE_REVISION=local
+ENV DOTNET_NOLOGO=1 \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+WORKDIR /source
+
+COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/ ./src/
+
+# See Dockerfile.web: the working tree may carry host bin/ and obj/ directories.
+RUN find ./src -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+
+RUN dotnet restore src/Hosts/Tailor360.Worker/Tailor360.Worker.csproj
+
+RUN dotnet publish src/Hosts/Tailor360.Worker/Tailor360.Worker.csproj \
+      --configuration Release \
+      --no-restore \
+      --output /app \
+      -p:Version=${VERSION} \
+      -p:SourceRevisionId=${SOURCE_REVISION}
+
+FROM ${DOTNET_RUNTIME_IMAGE} AS final
+ARG VERSION=0.0.0
+ARG SOURCE_REVISION=local
+LABEL org.opencontainers.image.title="tailor360-worker" \
+      org.opencontainers.image.description="HyFib Tailor360 background processing host" \
+      org.opencontainers.image.vendor="HyFib" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}"
+
+# DOTNET_EnableDiagnostics=0: see Dockerfile.web. Worker__HealthPort matches Worker:HealthPort in
+# appsettings.json, which is what the host binds http://0.0.0.0:8081 from.
+ENV DOTNET_NOLOGO=1 \
+    DOTNET_EnableDiagnostics=0 \
+    Worker__HealthPort=8081
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=build /app ./
+
+USER $APP_UID
+
+# Documented, never published: the probes answer on the compose network only.
+EXPOSE 8081
+
+# Readiness reports database connectivity and the freshness of this instance's heartbeat row in
+# platform.worker_heartbeats — a stale heartbeat is unhealthy (#21).
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=5 \
+  CMD curl --fail --silent --show-error http://127.0.0.1:8081/health/ready || exit 1
+
+ENTRYPOINT ["dotnet", "Tailor360.Worker.dll"]

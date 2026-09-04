@@ -1,0 +1,118 @@
+name: Bug
+description: Something behaves differently from the way it is meant to behave.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the problem is a security weakness, close this form and use the **Security** form
+        instead — and read its warning before you write anything down.
+
+        Use synthetic examples only. Never paste a real customer's name, phone number,
+        measurements or photographs into an issue; reproduce the problem with seeded synthetic data
+        and quote that instead. Order and invoice numbers from a live shop are personal data too:
+        describe them as "an order in the Ready state", not by number.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The behaviour you saw, including any message the screen showed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from a signed-in session and the role you were using.
+      placeholder: |
+        1. Sign in as a Cashier at the Main branch.
+        2. Open a synthetic order in the Ready state.
+        3. Record a part payment of 500.00 in cash.
+        4. The invoice still shows the full amount outstanding.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: >-
+        How much of the shop's work stops because of this? The label decides how quickly it is
+        triaged, so choose honestly rather than defensively.
+      options:
+        - Blocking — the shop cannot take orders, bill or dispatch
+        - Serious — a journey is broken but there is a workaround
+        - Moderate — wrong or confusing behaviour, work continues
+        - Minor — cosmetic or rare
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modules
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Identity and administration
+        - Customers and measurements
+        - Catalog and design
+        - Media
+        - Orders and workflow
+        - Custody and barcode
+        - Inventory
+        - Billing and payments
+        - Reporting
+        - Notifications and feedback
+        - Integration
+        - Platform (shared kernel)
+        - PWA client
+        - Infrastructure, CI or tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: >-
+        Where it happened, and on what. The version string comes from the About screen or from
+        `GET /api/version`.
+      value: |
+        - Environment: development / interim staging / production
+        - Version and build hash:
+        - Device and browser: (for example, Android 14, Chrome 126, installed as an app)
+        - Role used:
+        - Branch (own or another):
+        - Network: online / offline / intermittent
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: >-
+        Screenshots or a short recording, the correlation id shown on the error screen, and any log
+        lines. Redact anything identifying a real person before attaching it.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: This report contains no real customer data and no secrets, tokens or passwords.
+          required: true
+        - label: This is not a security weakness (those go through the Security form).
+          required: true

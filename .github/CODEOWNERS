@@ -1,0 +1,34 @@
+# Code owners for HyFib Tailor360.
+#
+# The last pattern that matches a file decides its owners, so the broad rule comes first and the
+# tighter rules follow it. Owners listed here are requested for review automatically, and — once
+# branch protection requires a review from a code owner — a pull request touching those paths
+# cannot merge without one.
+#
+# PLACEHOLDER HANDLES. `@MK-AIFy/tailor360-maintainers` and `@MK-AIFy/tailor360-platform` do not
+# exist yet. The repository owner replaces both with the real handles before enabling code-owner
+# review:
+#   * an organisation-owned repository uses team handles (`@org/team`), and the team must have
+#     write access to this repository or GitHub ignores the entry;
+#   * a personally owned repository cannot use team handles at all — use the personal handle
+#     (`@MK-AIFy`) on every line instead, otherwise GitHub reports the file as invalid and applies
+#     none of it.
+
+# Everything, unless a tighter rule below claims it.
+*                       @MK-AIFy/tailor360-maintainers
+
+# Deployment topology, compose stacks, Dockerfiles and the reverse proxy: a change here can expose
+# a port, weaken a container or break the migrate-before-serve ordering, and none of that shows up
+# in a test.
+/infra/                 @MK-AIFy/tailor360-platform
+
+# Workflows, governance and repository policy. A workflow change can alter what CI is allowed to do
+# with the workflow token, so it is reviewed by the same people who own the deployment.
+/.github/               @MK-AIFy/tailor360-platform
+
+# Architecture decision records: an ADR is the record of a decision that binds every later issue,
+# so it is not amended in passing.
+/docs/adr/              @MK-AIFy/tailor360-platform
+
+# The shared kernel. Every module depends on it, so a change here is a change to all of them.
+/src/Platform/          @MK-AIFy/tailor360-platform

@@ -1,0 +1,42 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+artifacts/
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.received.*
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
+.pnpm-store/
+
+# Environment and secrets — never commit real values
+.env
+.env.*
+!.env.example
+secrets/
+*.pfx
+*.key
+!tests/**/*.test.key
+
+# Editors and OS
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local infrastructure state
+infra/compose/data/

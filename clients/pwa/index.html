@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <!-- viewport-fit=cover so the shell can pad itself with the safe-area insets on notched phones;
+         interactive-widget=resizes-content keeps the focused field visible when the on-screen
+         keyboard opens (WCAG 2.4.11, plan #50). -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="description" content="HyFib Tailor360 — tailoring shop management" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0f3d3e" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#07211f" media="(prefers-color-scheme: dark)" />
+    <!-- iOS ignores the web manifest, so installed mode needs these two tags as well (plan #50). -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Tailor360" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>HyFib Tailor360</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <p>
+        HyFib Tailor360 needs JavaScript. Please enable it in your browser settings and reload this
+        page, or ask your shop administrator for help.
+      </p>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

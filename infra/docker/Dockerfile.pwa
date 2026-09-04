@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+#
+# HyFib Tailor360 progressive web application — build only (Section 4.6).
+#
+# This image contains no server. Its final stage is FROM scratch and holds nothing but the built
+# client bundle under /pwa/dist, so that the web image can copy the assets straight out of it:
+#
+#   docker build -f infra/docker/Dockerfile.pwa --target assets -t tailor360-pwa:local .
+#   docker build -f infra/docker/Dockerfile.web --build-arg PWA_IMAGE=tailor360-pwa:local .
+#
+# The web host serves that bundle from its own wwwroot (UseStaticFiles plus
+# MapFallbackToFile("index.html")), which is why the client and the API share an origin: the session
+# cookie is a __Host- cookie, and same-origin delivery is what makes that possible without CORS.
+#
+# The build context is the REPOSITORY ROOT so that this file sits beside the .NET Dockerfiles and
+# uses the same `docker build ... .` invocation.
+
+ARG NODE_IMAGE=node:22-alpine
+
+FROM ${NODE_IMAGE} AS build
+# CI=true makes pnpm and Vite non-interactive and turns a lockfile mismatch into a failure.
+ENV CI=true \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+WORKDIR /pwa
+
+# pnpm is pinned to the version the repository's lockfile was written with; corepack honours a
+# stricter "packageManager" field in clients/pwa/package.json if one is declared there.
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+
+# The whole package is copied in one step rather than manifests first: it keeps this file honest
+# whether the lockfile lives in clients/pwa or (later) in a workspace root, at the cost of
+# reinstalling dependencies when any source file changes. CI caches the pnpm store instead.
+COPY clients/pwa/ ./
+
+# A developer's working tree carries node_modules and a previous dist; neither belongs in the image.
+RUN rm -rf node_modules dist .vite
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
+
+# Assets only. A scratch image cannot be run — it exists so that another Dockerfile can COPY --from
+# it, and so that CI can push exactly the bundle the web image was built with.
+FROM scratch AS assets
+COPY --from=build /pwa/dist/ /pwa/dist/
