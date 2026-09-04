@@ -196,10 +196,13 @@ Each carries an interim position so that no step above is left undefined, and ea
 [`../module-ownership.md`](../module-ownership.md), [`../invariants.md`](../invariants.md) and
 [`../conventions.md`](../conventions.md) fix the ownership, the invariants and the money, time and identifier rules
 this flow relies on.
+[`../reviews/flow-review.md`](../reviews/flow-review.md) is the agenda and record of the session that walks this flow
+against the diagram above with Reception and the module owners.
 
 ## 10. Maintenance
 
 This document is amended in the same pull request that changes the flow. A new participant in T2 needs a row in
 section 2 and a message in the diagram; a new event needs a row in section 5 with its consumers; a new refusal needs a
 row in section 6 with its compensating action. Issues #32a, #32b, #35, #41, #43 and #47 each check this file before
-merging, and the review record of the four flows against the diagrams is the evidence item for issue #18.
+merging, and [`../reviews/flow-review.md`](../reviews/flow-review.md), the review record of the four flows against
+the diagrams, is the evidence item for issue #18.

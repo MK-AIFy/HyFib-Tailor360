@@ -249,11 +249,13 @@ These are non-negotiable across the whole documentation set (plan Section 2.2).
 | [`assumptions-and-open-decisions.md`](assumptions-and-open-decisions.md) | Assumptions, the owner decision register and scope exclusions | #17 |
 | `workflows/` | Current practice and target workflow per category, plus branch scenarios | #17 |
 | `state-transitions.md` | Transition, actor, preconditions, outputs, audit event, exception behaviour | #17 |
+| [`exceptions.md`](exceptions.md) | The EX-01…EX-15 exception catalogue: trigger, detection, immediate action, compensating record and owning issue | #17 |
 | `raci.md` | Responsibility assignment across the eight roles | #17 |
 | `category-hierarchy.md` | The confirmed initial category hierarchy and the links each service type carries | #17 |
 | `measurement-templates.md` | Proposed field sets per category, the seed source for #27 | #17 |
 | `design-options.md` | Proposed design option groups and rules, the seed source for #30 | #17 |
 | `walkthroughs.md`, `reviews/exception-review.md` | End-to-end walkthrough and exception review evidence | #17 |
+| [`traceability.md`](traceability.md) | Original request → workflow(s) → owning module → backlog issue(s), with a decision for every request no issue claims | #17 |
 | [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md) | Architecture, decisions D1–D21, waves and per-issue blueprints | #1 |
 | `../architecture/`, `../adr/` | C4 views, module ownership, invariants, conventions, ADR-0001…0013 | #18 |
 | `../architecture/reviews/flow-review.md` | The review of the four representative flows against the diagrams | #18 |
