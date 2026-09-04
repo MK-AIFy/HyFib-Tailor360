@@ -329,11 +329,34 @@ jobs:
           # carries the findings and #22 replaces this with a SARIF upload.
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
+      - name: Report that dependency review is not enabled
+        # Visible rather than silent. A skipped check that nobody can see is indistinguishable from a
+        # passing one, and this is a security gate.
+        if: ${{ github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED != 'true' }}
+        run: |
+          echo "::warning title=Dependency review not enabled::The dependency graph is not available \
+          on this repository, so new dependencies are not being checked against advisories."
+          {
+            echo "### Dependency review is not running"
+            echo
+            echo "This repository does not have the dependency graph available, which the check needs."
+            echo "On a private repository that means GitHub Advanced Security."
+            echo
+            echo "To turn the gate on:"
+            echo "1. Enable the dependency graph under Settings → Code security."
+            echo "2. Set the repository variable \`DEPENDENCY_REVIEW_ENABLED\` to \`true\`."
+            echo
+            echo "Until then a new dependency with a known high-severity advisory would not be caught"
+            echo "here. Tracked with the security exception process in \`docs/process/waivers.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Review dependency changes
         # Compares the dependency graph of the base and head commits and fails on a vulnerable or
-        # disallowed new dependency. It is a pull-request-only check, and on a private repository
-        # it needs the dependency graph (GitHub Advanced Security) to be enabled.
-        if: ${{ github.event_name == 'pull_request' }}
+        # disallowed new dependency. It is a pull-request-only check and needs the dependency graph,
+        # which on a private repository means GitHub Advanced Security. The repository variable makes
+        # it opt-in: the alternative was a step that fails on every run for a reason no code change can
+        # fix, which trains reviewers to ignore a red security job.
+        if: ${{ github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED == 'true' }}
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
