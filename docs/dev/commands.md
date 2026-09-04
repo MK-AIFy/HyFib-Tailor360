@@ -164,7 +164,8 @@ run:
   skip into a failure.
 - `E2E` runs when the Playwright browsers are present.
 
-`doctor` exits non-zero only when a required tool (`dotnet`, `node`, `pnpm`) is missing.
+`doctor` exits non-zero only when a required tool (`dotnet`, `node`, `pnpm`) is missing. `psql`, `curl`,
+Docker and Python are reported as optional: Python is needed only by `docs`, and that check also runs in CI.
 
 ## `docs`
 

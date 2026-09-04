@@ -778,7 +778,9 @@ function Invoke-Doctor {
     @{ Label = 'Node.js'; Tool = 'node'; Args = @('--version'); Required = $true },
     @{ Label = 'pnpm'; Tool = 'pnpm'; Args = @('--version'); Required = $true },
     @{ Label = 'psql (PostgreSQL)'; Tool = 'psql'; Args = @('--version'); Required = $false },
-    @{ Label = 'curl'; Tool = 'curl'; Args = @('--version'); Required = $false }
+    @{ Label = 'curl'; Tool = 'curl'; Args = @('--version'); Required = $false },
+    # Optional: only '.\scripts\dev.ps1 docs' needs it, and that check also runs in CI.
+    @{ Label = 'python3 or python'; Tool = 'python'; Args = @('--version'); Required = $false }
   )
   foreach ($tool in $tools) {
     if (Test-Tool $tool.Tool) {
