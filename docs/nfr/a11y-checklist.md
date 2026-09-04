@@ -138,6 +138,10 @@ trigger the re-run rule.
 A record older than that is history, not evidence. Priority-zero journeys are re-run every release train
 regardless, because RG-06 makes a barrier on one of them unshippable and a stale record cannot carry that weight.
 
+A record made in a **browser tab** does not carry to **installed mode**, and a record made in installed mode does not
+carry to a tab. They are separate runs on the same journey, because the shell differs: there is no address bar to
+escape to, no browser back button, and a different route out of the camera overlay.
+
 ### 2.5 How the completed record becomes evidence
 
 1. The runner fills in the template of **section 8** — one record per journey per pairing — during the run, not
@@ -145,13 +149,36 @@ regardless, because RG-06 makes a barrier on one of them unshippable and a stale
    [`../process/waivers.md`](../process/waivers.md) applies to waivers applies here.
 2. Every **Fail** is graded under section 7 and raises a defect **with an identifier**, before the record is
    signed. A Fail with no defect identifier is an incomplete record.
-3. The record is attached to the pull request in the evidence section, which
-   [`../process/definition-of-done.md`](../process/definition-of-done.md) section 4 requires to contain *"the
-   actual outputs, not descriptions of them"*.
+3. The record is attached to the pull request in the evidence section, which **DoD 9** in
+   [`../process/definition-of-done.md`](../process/definition-of-done.md) requires to contain *"the actual outputs,
+   not descriptions of them"*.
 4. The reviewer spot-checks, counter-signs and merges — or refuses, if an S1 stands.
 5. At the release, the records for every changed journey are gathered into the accessibility report of
    release-evidence item 7, alongside the axe reports, the keyboard walkthrough record and the accepted-violation
    list with their waiver identifiers. The **Owner** confirms that item.
+
+### 2.6 The order of a run
+
+This decides how the whole run is sequenced, so it is settled before the first table is opened rather than after.
+
+For every record in this document, run the **keyboard pass first** with the screen reader **off**, then the
+**screen-reader pass**. Doing it the other way round hides keyboard defects behind the screen reader's own
+navigation, which is the commonest way a run produces a false Pass. Record both columns even where they agree; the
+case where they disagree is the case this ordering exists to expose.
+
+The environment items — greyscale, zoom, text spacing, reduced motion, the themes — are answered in a third
+**environment pass**, after both, using the settings of section 3.6. Every item in sections 4 and 5 says which pass
+answers it in its **Pass** column:
+
+| Marker | Pass it belongs to |
+| --- | --- |
+| `K` | The keyboard pass, screen reader off |
+| `SR` | The screen-reader pass |
+| `K+SR` | Both, separately — the two answers can differ, and both are recorded |
+| `Env` | The environment pass: a display, zoom, theme, spacing or motion setting is changed and the screen is looked at |
+
+Grade every Fail as it happens, using the severity table of section 7.1, which is reprinted inside the section 8
+record so the runner grades without leaving the sheet they are filling in.
 
 ---
 
@@ -231,6 +258,19 @@ listening to what comes out. This is that table.
 | **By table** | Reading control → *Controls* reaches the table; explore by touch inside it | Rotor → *Tables* | `T` / `Shift+T`, then `Ctrl+Alt+` arrows inside |
 | **See the whole structure at once** | TalkBack menu → reading controls | Item chooser: two-finger triple tap | `NVDA+F7` |
 
+Three caveats that decide whether these moves work at all, and each of which otherwise produces a false Fail:
+
+- **On NVDA every single-key move works only in browse mode.** NVDA switches to focus mode by itself the moment
+  focus enters a text field — which is most of the time on the intake, measurement and billing screens this
+  checklist is about. Press `Escape` or `NVDA+Space` to return to browse mode before using these keys, and listen
+  for the mode-change sound if you are unsure. If a single-key press types a letter into a field, you were in focus
+  mode: undo it and try again. **That is not a product defect** and is not recorded as one.
+- **On TalkBack the reading control is per-application and resets.** Re-select *Headings*, *Controls* or
+  *Landmarks* after each screen change before concluding that a screen has none.
+- **On VoiceOver the rotor is per-application and per-page.** Re-select the rotor setting after each navigation for
+  the same reason. A rotor with no *Headings* entry means the page has no headings; a rotor still set to
+  *Characters* means nothing has been proved either way.
+
 ### 3.5 The keyboard-only pass
 
 Same on every platform, with a physical or paired keyboard and the screen reader **off**:
@@ -244,15 +284,94 @@ Same on every platform, with a physical or paired keyboard and the screen reader
 | `Escape` | Close the dialog, sheet, menu or overlay that is open, and return focus to what opened it |
 | `Home` / `End` | Move to the first and last item of a list or a composite control, where the design offers it |
 
+### 3.6 Environment settings this checklist asks you to change
+
+The items marked `Env` in sections 4 and 5 need a display, zoom, theme, spacing or motion setting changed. A
+developer who has never set an Android display to greyscale with TalkBack running should not have to find out how
+mid-run, so the routes are here. Menu names move between versions; where one does, search the platform's own
+accessibility settings rather than concluding the setting is gone.
+
+| Setting the item needs | Android | iOS / iPadOS | Windows |
+| --- | --- | --- | --- |
+| **Greyscale display** (A11Y-47) | Settings → Accessibility → Colour and motion → Colour correction → Greyscale | Settings → Accessibility → Display & Text Size → Colour Filters → on → Greyscale | `Ctrl+Win+C` toggles the greyscale colour filter, once it is enabled in Settings → Accessibility → Colour filters |
+| **Reduce motion** (A11Y-70) | Settings → Accessibility → Colour and motion → Remove animations | Settings → Accessibility → Motion → Reduce Motion | Settings → Accessibility → Visual effects → Animation effects off |
+| **200% zoom** (A11Y-68) | Chrome → ⋮ → Settings → Accessibility → Text scaling to 200%, plus Desktop site where the layout is being checked at desktop width | Safari → the `ᴀA` menu in the address bar → 200% | `Ctrl` and `+` in the browser, to 200% |
+| **The three themes** (A11Y-14) | **The product's own theme switch**, on the display-preferences screen — theme is a stored user preference (system, light, dark, high contrast), not an operating-system setting. Set it there, then confirm the operating-system dark mode and `prefers-contrast` do not override it | Same | Same |
+| **Product text size** (A11Y-69) | The product's own display preferences — 100%, 125%, 150% — set alongside the device font size at its largest | Same | Same |
+
+Two of these are worth stating plainly, because they are the ones a runner most often gets wrong. **"High contrast"
+in this document means the product's own high-contrast theme**, the one that exists for sunlight at the counter, not
+a Windows contrast theme and not `prefers-contrast` alone; the operating-system preference is what the product
+*honours*, and the item is about what the product *renders*. And **200% zoom on a phone browser is a text-scaling
+setting, not `Ctrl` and `+`** — the two produce different layouts, and only the first is what a person with
+presbyopia actually has switched on.
+
+Where an item names a **CSS pixel measurement** — A11Y-15's 2 px indicator and 3:1 contrast, A11Y-65's 56, 44 and
+32 px, A11Y-67's bottom 8 px — it cannot be eyeballed. Measure it: connect the device to a desktop with remote
+debugging (Chrome DevTools for Android at `chrome://inspect`, Safari's Develop menu for iOS) and read the computed
+box on the focused element; for contrast, take a screenshot of the focused control and sample the two colours with
+a contrast tool. Record the measured number on the record, not the verdict alone.
+
+### 3.7 Fixtures and forced states the run needs
+
+Several items can only be answered with the system in a state that does not occur by waiting. Nobody invents these
+mid-run: they are prepared before it, and the table says who owns preparing them. The whole table is **proposed, to
+be confirmed** (A11Y-OD-11).
+
+| State the run needs | Items | How it is reached | Who owns providing it |
+| --- | --- | --- | --- |
+| **Offline, repeatably, mid-journey** | All of 5.8, plus the offline step of every section 6 record | Airplane mode on the device is the primary route, because it is the one the shop floor actually meets. Where a journey must stay mid-form, use the remote-debug route instead — DevTools → Network → Offline over `chrome://inspect` for Android, the Network Link Conditioner profile for iOS | Technical reviewer, as a documented route per platform |
+| **A session about to expire** | A11Y-76, A11Y-77, and step 9 of `A11Y-PZ-05` | A short-timeout environment flag on the test environment, or an administration action that expires the runner's own session on demand. Waiting out a production timeout is not a fixture | Technical reviewer, with #23 |
+| **An offline queue at its bound** | A11Y-OF-04 | A lowered queue bound on the test environment. The real bound is 200 queued scans per device ([`support-matrix.md`](support-matrix.md) section 7.4) and is not reachable by hand inside any budget | Technical reviewer, with #51 |
+| **A client the server refuses as too old** | A11Y-OF-08 | A pinned old client build, or an `X-Client-Version` override that provokes the 426 response | Technical reviewer, with #53 |
+| **Five distinct scan rejections** | A11Y-SC-05, step 9 of `A11Y-PZ-02` | A printed synthetic label sheet carrying one pre-made payload per rule — wrong namespace, bad check character, unknown identity, wrong branch, wrong custodian. The check-character payload is generated by the seed tool, never hand-crafted: the checksum is a Damm-style check character over the Crockford base32 alphabet and cannot be guessed at a desk | Technical reviewer, with #35 and #36 |
+| **A named synthetic seed set** | A11Y-08, A11Y-BI-02, A11Y-ME-08, A11Y-TL-05 | One seeded organisation containing at least: a customer whose name is in **Tamil script**; an invoice at **lakh scale** (`₹12,34,567.89`); a customer with **two confirmed measurement versions**; and a custody timeline carrying a **correction event** | Technical reviewer, as part of the synthetic seed data |
+| **A print-station queue** | A11Y-DP-07, step 9 of `A11Y-PZ-01` | A branch print station draining the queue on the test environment, or the queue screen itself where no hardware is present | Technical reviewer, with #35 |
+| **A forbidden state** | The forbidden-state item of section 4.12 | A second synthetic account in a role that may not see the screen — a Tailor against a billing screen is the standard pair | Technical reviewer |
+
+Where a state genuinely cannot be forced on the environment the runner has, the affected items are recorded
+`N/A — fixture unavailable: <state>` with the reason, exactly as for missing kit. They are then a known gap in the
+release evidence rather than an answer nobody can trust.
+
+### 3.8 Capturing what the screen reader actually said
+
+A few items are answered by a **transcript**, not by a verdict: A11Y-BI-02 (an Indian-grouped amount), A11Y-42
+(announced once, not doubled), A11Y-51 (a double-labelled control), A11Y-57 (row identity in an action name) and
+A11Y-DP-08 (an amount in words). For these, the words themselves are the evidence, and "sounded right" is not a
+record.
+
+| Pairing | How to capture the words |
+| --- | --- |
+| **NVDA with Chrome or Edge** | Turn on the **Speech Viewer** — NVDA menu → Tools → Speech Viewer — and copy its buffer into the record. Where more detail is needed, set the log level to debug in NVDA's general settings and take the speech from the log |
+| **TalkBack with Chrome** | Screen-record with **audio** and transcribe the phrases the items ask for. Where the installed TalkBack version offers speech output logging in its developer settings, use it and attach the log instead |
+| **VoiceOver with Safari** | Screen-record with audio and transcribe, or open the VoiceOver **caption panel** — VoiceOver Utility on a paired Mac, or the on-screen caption where the device offers it — and copy the text |
+
+The transcript or the recording is attached to the record and named in the **Verbatim announcements captured** row
+of the section 8 run table. A record that answers one of those five items without a transcript is incomplete.
+
 ---
 
 ## 4. The core checklist — items that apply to every screen
 
 Every item is written so that **yes means Pass**. Answer each one **Pass**, **Fail** or **Not applicable**; "Not
-applicable" needs a one-line reason on the record, and "Fail" needs a defect identifier. The **WCAG** column names
-the success criterion where one exists; where it says *product rule*, the requirement comes from
+applicable" needs a one-line reason on the record, and "Fail" needs a defect identifier. The **Pass** column says
+which of the three passes of section 2.6 answers the item — `K`, `SR`, `K+SR` or `Env` — so the runner can work one
+pass from end to end instead of filtering the list three times. The **WCAG** column names the success criterion where
+one exists; where it says *product rule*, the requirement comes from
 [`accessibility-localisation.md`](accessibility-localisation.md) rather than from the standard, and the identifier
 in brackets is that document's open decision.
+
+Two standing rules for the whole of sections 4 and 5:
+
+- **Where an item asks more than one thing, any failing part fails the item**, and the Note column must name which
+  part failed. The defect is raised against that part, not against the item as a whole — a bare `A11Y-19` on a
+  journey record tells the developer nothing about which of its three conditions is broken.
+- **The automated checks are not repeated here.** axe-core on every screen and state, the overflow and
+  obscured-focus helper, the target-size check and the text-spacing injection test belong to
+  [`accessibility-localisation.md`](accessibility-localisation.md) section 14 and to **NFR-AC-02** and **NFR-AC-04**.
+  Their report is attached to the same record — the section 8 run table has a row for it — and where an item below
+  sits next to one of those checks, it asks only the half a machine cannot answer: whether the words are the right
+  words, whether the order is the order a person reads, whether the thing can actually be done.
 
 ### 4.1 Page identity, structure and language
 
@@ -260,11 +379,11 @@ in brackets is that document's open decision.
 | --- | --- | --- | --- |
 | **A11Y-01** | On arriving, does the screen reader announce a title that names **this** screen and tells it apart from every other screen in the journey? | A shared device is picked up mid-task. "HyFib Tailor 360" on nine screens tells nobody where they are | 2.4.2 Page Titled (A) |
 | **A11Y-02** | When moving to another screen without a full page reload, does the announced title change to the new screen's title? | A single-page application that never changes its title leaves a screen-reader user navigating blind | 2.4.2 (A) |
-| **A11Y-03** | Is there exactly one level-1 heading naming the screen, and does every following heading step down by at most one level with no level skipped? | Headings are the map. A skipped level reads as missing content | 1.3.1 Info and Relationships (A) |
+| **A11Y-03** | Moving by heading from the top, do the levels describe the **actual nesting** of this screen's content — is what sounds like a sub-section really inside the section above it? | The machine checks that no level is skipped; only a person can say whether the nesting matches the content. A correctly ordered set of headings that groups the wrong things is still a wrong map | 1.3.1 Info and Relationships (A) |
 | **A11Y-04** | Moving by heading alone and reading nothing else, can the runner say what each section contains? | A heading that says "Details" three times is a heading that does not work | 2.4.6 Headings and Labels (AA) |
-| **A11Y-05** | Does the landmark list contain a banner, a navigation and exactly one main — and is every piece of content inside some landmark? | Landmarks are how a returning user skips the shell they already know | 1.3.1 (A) |
-| **A11Y-06** | Where a landmark type appears more than once — two navigations, several regions — does each carry a distinct name? | "Navigation, navigation, navigation" is the same as no landmarks | 1.3.1 (A) |
-| **A11Y-07** | Is English text read with English phonetics — that is, does the document declare its language? | Wrong language means wrong pronunciation for every word on the screen | 3.1.1 Language of Page (A) |
+| **A11Y-05** | Moving by landmark alone, can the runner reach the working part of the screen without stepping through the shell — and does `main` begin where the **work** begins rather than at the top of the page? | Landmarks are how a returning user skips the shell they already know. A `main` that starts above the navigation is present, valid and useless | 1.3.1 (A) |
+| **A11Y-06** | Where a landmark type appears more than once, does each name say **what is inside it**, so a returning user can choose which one to skip to? | "Navigation, navigation, navigation" is the same as no landmarks — and so is "Region 1, Region 2", which is distinct and still says nothing | 1.3.1 (A) |
+| **A11Y-07** | Listening to a paragraph of the screen's own text, is it read with **English phonetics** rather than through another language's voice? | Wrong language means wrong pronunciation for every word on the screen. The markup is machine-checked; whether the voice actually changed is not | 3.1.1 Language of Page (A) |
 | **A11Y-08** | Is a Tamil name, note or configuration label read with Tamil phonetics rather than spelled out as English? | User-generated content is never translated ([`accessibility-localisation.md`](accessibility-localisation.md) section 11.4); tagging its language is what makes it readable | 3.1.2 Language of Parts (AA) |
 | **A11Y-09** | Moving element by element, does the order match what a sighted person reads — including sticky headers, bottom bars and anything positioned by CSS? | Visual order and reading order drift apart silently, and only a human notices | 1.3.2 Meaningful Sequence (A) |
 | **A11Y-10** | Are the navigation, the help entry point and the support contact in the same place, with the same names, as on the previous screen in this journey? | [`accessibility-localisation.md`](accessibility-localisation.md) section 4.5 fixes consistent help as a product rule | 3.2.3, 3.2.4, 3.2.6 (A/AA) |
@@ -277,8 +396,8 @@ in brackets is that document's open decision.
 | **A11Y-12** | Does every reached control **work** from the keyboard — `Enter` or `Space`, and arrow keys inside tabs, menus, the fraction control and date pickers? | Reachable but inert is the commonest keyboard defect | 2.1.1 (A) |
 | **A11Y-13** | Does `Tab` move through the screen in the visual order, without jumping backwards or into content that is not visible? | Focus order is the keyboard user's reading order | 2.4.3 Focus Order (A) |
 | **A11Y-14** | Is there a visible focus indicator on **every** focusable element, in the light theme, the dark theme and the high-contrast theme? | The high-contrast theme exists for sunlight at the counter and is where indicators usually vanish | 2.4.7 Focus Visible (AA) |
-| **A11Y-15** | Is the indicator at least 2 px thick and clearly distinguishable against both the control and the background behind it? | Adopted AAA criterion — [`accessibility-localisation.md`](accessibility-localisation.md) section 4.4 | 2.4.13 Focus Appearance (AAA, adopted) |
-| **A11Y-16** | Tabbing through the whole screen on a phone, is the focused control ever **wholly** hidden behind the bottom navigation, a sticky action bar, a banner, a toast or the virtual keyboard? Pass = never | Named in [`accessibility-localisation.md`](accessibility-localisation.md) as the single most common failure on a phone form | 2.4.11 Focus Not Obscured (Minimum) (AA) |
+| **A11Y-15** | Is the indicator at least **2 px** thick and does it contrast at least **3:1** with both the focused control and the background behind it? Measure it by the method of section 3.6 — the computed outline width in remote DevTools, and a colour sample from a screenshot — and record the two numbers, not the verdict alone | The source states both numbers; "clearly distinguishable" would be a matter of opinion and could not be adjudicated by a spot-check. Adopted AAA criterion — [`accessibility-localisation.md`](accessibility-localisation.md) section 4.4 assigns it to design-system review, and this item is where it is checked on a real screen | 2.4.13 Focus Appearance (AAA, adopted) |
+| **A11Y-16** | On a **real phone with the real virtual keyboard open**, tabbing through the whole screen, is the focused control ever **wholly** hidden behind the bottom navigation, a sticky action bar, a banner, a toast, a sticky table header or the keyboard itself? Pass = never | The obscured-focus helper of **NFR-AC-04** runs at fixed breakpoints in a headless browser and never sees a real on-screen keyboard resize a real viewport. This item is that gap, not a repeat of the helper — attach the helper's report as well | 2.4.11 Focus Not Obscured (Minimum) (AA) |
 | **A11Y-17** | Is the focused control **fully** visible, with no part of it covered? Record partial obscuring even where A11Y-16 passes | The aspiration, not the floor. A half-covered field is still hard to use one-handed | 2.4.12 Focus Not Obscured (Enhanced) (AAA) |
 | **A11Y-18** | From every dialog, bottom sheet, camera overlay, date picker and embedded frame, can the keyboard get **out** using `Tab` or `Escape` alone? | 2.1.2 is absolute: an overlay that cannot be dismissed from the keyboard is a trap, camera or not | 2.1.2 No Keyboard Trap (A) |
 | **A11Y-19** | Is a skip-to-content control the first thing `Tab` reaches, does it become visible when focused, and does it move focus into `main`? | Without it every keyboard user re-tabs the shell on every screen | 2.4.1 Bypass Blocks (A) |
@@ -291,14 +410,14 @@ in brackets is that document's open decision.
 | ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
 | --- | --- | --- | --- |
 | **A11Y-23** | Does the screen reader announce a meaningful name for every control, including icon-only buttons? Pass requires the name to say what the control **does**, not what it looks like | "Button" and "graphic" are the two most common things a screen reader says on an unfinished screen | 4.1.2 Name, Role, Value (A) |
-| **A11Y-24** | Does the accessible name contain the **visible label**, word for word and in the same order? | Voice control is used one-handed with a garment in the other. "Tap Confirm order" must work | 2.5.3 Label in Name (A) |
+| **A11Y-24** | With voice control switched on, **say the visible label aloud as a command** — does the control activate? | Voice control is used one-handed with a garment in the other. That the name contains the label is machine-checked ([`accessibility-localisation.md`](accessibility-localisation.md) section 4.3 marks 2.5.3 automated); that saying it actually works is not | 2.5.3 Label in Name (A) |
 | **A11Y-25** | Is each control announced with the right **role** — button, link, checkbox, tab, dialog, alert? | A link announced as a button teaches the wrong key to press | 4.1.2 (A) |
 | **A11Y-26** | Are expanded, collapsed, selected, checked, pressed and current **states** announced, and re-announced when they change? | A filter chip that never says "selected" cannot be used without sight | 4.1.2 (A) |
 | **A11Y-27** | Does every field have a **visible label that stays visible** while the field holds a value, with no field labelled only by its placeholder? | The one form contract of [`accessibility-localisation.md`](accessibility-localisation.md) section 8.1 leaves nowhere to put a placeholder-only label; this item catches a screen that bypasses it | 3.3.2 Labels or Instructions (A) |
 | **A11Y-28** | Does every numeric field announce its **unit**, and where a range is enforced, the expected range — and is the hint reachable by the screen reader, not merely printed beside the field? | A centimetre value typed into an inch field is the defect the confirmation band exists to catch ([`../prd/measurement-templates.md`](../prd/measurement-templates.md)) | 3.3.2 (A) |
 | **A11Y-29** | Is any instruction needed to complete a field announced **with or before** the field, rather than only after a failed save? | Learning the rule by breaking it is expensive when the customer is standing at the counter | 3.3.2 (A) |
-| **A11Y-30** | Read out of context, does each link's name say where it goes — no "click here", no bare "view", no repeated "details"? | Screen-reader users list the links; a list of nine "view"s is a list of nothing | 2.4.4 Link Purpose (In Context) (A) |
-| **A11Y-31** | Do name, phone, address and one-time-code fields carry the right autocomplete purpose, so the device fills them? | Less typing on a phone at a busy counter, and 3.3.8 depends on the one-time-code field accepting help | 1.3.5 Identify Input Purpose (AA) |
+| **A11Y-30** | Does each link's name, **together with the row, sentence or list item it sits in**, say where it goes — and is it still distinctive when the links are listed on their own? | 2.4.4 allows the enclosing row or sentence to supply the context, which is exactly the pattern A11Y-57 and A11Y-LF-08 rely on. But screen-reader users also list the links, and a list of nine "view"s is a list of nothing | 2.4.4 Link Purpose (In Context) (A) |
+| **A11Y-31** | With a saved contact card on the device, does the keyboard actually **offer to fill** name, phone and address — and does an incoming one-time code appear as a suggestion above the keyboard? | That the attribute is present and valid is machine-checked; that the device honours it is not. Less typing on a phone at a busy counter, and 3.3.8 depends on the one-time-code field accepting help | 1.3.5 Identify Input Purpose (AA) |
 
 ### 4.4 Required, invalid and error handling
 
@@ -310,7 +429,7 @@ in brackets is that document's open decision.
 | **A11Y-35** | On a failed save, does focus move to the error summary, is the summary announced, and does each entry move focus to its field? | The shared step-aware summary is a design-system component; this is the item that proves it is wired up on this screen | 3.3.1 (A) |
 | **A11Y-36** | Is every error a sentence a person can act on — no code, no field key, no stack, no "validation failed"? | Server problem details are mapped to plain language by rule ([`accessibility-localisation.md`](accessibility-localisation.md) section 8.2) | 3.3.1 (A) |
 | **A11Y-37** | Where the correct value is knowable — an out-of-range measurement, a badly formed phone number, a duplicate customer — is the suggestion **in the announced error text**? | "Waist must be between 45.0 cm and 150.0 cm" is a fix; "invalid" is a dead end | 3.3.3 Error Suggestion (AA) |
-| **A11Y-38** | Before an irreversible action, is the confirmation announced with **what will happen** and **what cannot be undone**, and does the confirming control's name say what it does? | Order confirmation, invoice posting, dispatch and payment recording are all irreversible ([`../prd/state-transitions.md`](../prd/state-transitions.md) section 7) | 3.3.4 Error Prevention (AA) |
+| **A11Y-38** | Before an irreversible action, is the confirmation announced with **what will happen** and **what cannot be undone**, and does the confirming control's name say what it does? | [`accessibility-localisation.md`](accessibility-localisation.md) section 4.5 names five actions under 3.3.4: **posting an invoice, recording a payment, approving a dispatch exception, posting a stocktake and cancelling an order**. Order confirmation joins them as irreversible in its own right ([`../prd/state-transitions.md`](../prd/state-transitions.md) section 7) | 3.3.4 Error Prevention (AA) |
 
 ### 4.5 Announcements, live regions and status
 
@@ -322,7 +441,7 @@ in brackets is that document's open decision.
 | **A11Y-42** | Is each change announced **once** — not repeated on every re-render, and not doubled by both a live region and a focus move? | Chatter is as disabling as silence; the runner starts ignoring the voice | 4.1.3 (AA) |
 | **A11Y-43** | Is a busy state announced when it starts **and** its outcome announced when it ends, so silence never has to be interpreted? | On the shop's 4G, "nothing is happening" and "it failed" sound identical | 4.1.3 (AA) |
 | **A11Y-44** | After navigating, does the screen reader say where it now is — a changed title, or a heading that takes focus? | Complements A11Y-02: the title may change without anything being said | 2.4.2 (A), 4.1.3 (AA) |
-| **A11Y-45** | When a list reloads under a filter or a search, is the new result **count** announced rather than the list changing silently? | "Nothing found" and "not finished loading" must not sound the same | 4.1.3 (AA) |
+| **A11Y-45** | Where a **count outside a list** changes — the offline queue depth, an alert badge, a selected-item count, a pending-upload count — is the new figure announced rather than changing silently? | The list case belongs to **A11Y-LF-01** and is not asked twice, so that a recurring S3 can be counted against one identifier across releases. This item covers the counts that have no list under them | 4.1.3 (AA) |
 
 ### 4.6 Colour, contrast and non-text content
 
@@ -361,12 +480,12 @@ in brackets is that document's open decision.
 
 | ID | Question — Pass / Fail / Not applicable | Why it matters here | WCAG 2.2 |
 | --- | --- | --- | --- |
-| **A11Y-64** | Is every target at least **24 × 24 CSS px**, or separated from its neighbours by 24 px of clear space? | The standard's floor. Nothing on a phone or tablet layout should be near it | 2.5.8 Target Size (Minimum) (AA) |
+| **A11Y-64** | Wearing a **thin glove or a finger guard**, does every primary shop-floor action on this screen activate on the first tap, without a neighbour firing instead? | The 24 × 24 px floor is measured by the automated target-size check and is not re-measured here. What no machine can measure is whether a tap aimed with a finger guard lands where it was aimed — which is the reason the product sets sizes above the floor at all. This is the walkthrough **AL-04** asks for, recorded on this record per A11Y-OD-09 | 2.5.8 Target Size (Minimum) (AA); product rule, section 5 (**AL-04**) |
 | **A11Y-65** | Do the product sizes hold — **56 × 56** with 12 px spacing for primary shop-floor actions, **44 × 44** with 8 px for standard controls, and **32 × 32** for dense controls **on desktop only**? | 24 px is not usable with a needle, chalk or a finger guard in the hand | Product rule, section 5 (**AL-03**) |
 | **A11Y-66** | Is every destructive or irreversible action separated from the frequent action beside it by at least 24 px, different in weight and colour, and confirmed? | Dispatch does not sit beside Cancel order; Delete evidence does not sit beside Add evidence | Product rule, section 5 |
 | **A11Y-67** | Is every control clear of the **bottom 8 px** of a phone viewport, where the system gesture bar takes the touch? | A control there is not merely small; it is unreachable | Product rule, section 5 |
 | **A11Y-68** | At **200% zoom**, is everything still reachable and operable — bottom navigation, dialogs, the scanner overlay — with no horizontal scrolling of the page? | Reading glasses left at home is the normal case after forty | 1.4.4 Resize Text (AA), 1.4.10 Reflow (AA) |
-| **A11Y-69** | With the text-spacing overrides applied — line height 1.5, paragraph spacing 2×, letter spacing 0.12em, word spacing 0.16em — does any text clip, overlap or disappear? Pass = none | The automated injection test catches most of it; a human catches the rest | 1.4.12 Text Spacing (AA) |
+| **A11Y-69** | With the product's own **text-size preference at 150%** and the device font size at its largest, does any label, amount, unit or error message become clipped, overlapped or unreachable? Pass = none | The 1.4.12 overrides are applied by an automated injection test and are not repeated here. The product additionally offers 100 / 125 / 150% as a stored preference, which is what a person with presbyopia actually switches on, and nothing else tests it | 1.4.4 Resize Text (AA); product rule, section 4.2 |
 | **A11Y-70** | With reduce-motion on, do transitions, parallax and the scanner sweep stop — and is **nothing lost**, with every state change still signalled some other way? | Motion is never the only channel ([`accessibility-localisation.md`](accessibility-localisation.md) section 6) | 2.3.3 Animation from Interactions (AAA, adopted) |
 | **A11Y-71** | Does the screen hold still — nothing auto-advancing, auto-rotating, auto-refreshing or reordering under the reader — or is there a control that holds it? | A queue that reorders while being read loses the row the runner was on | 2.2.2 Pause, Stop, Hide (A) |
 
