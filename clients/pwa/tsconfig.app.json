@@ -28,5 +28,8 @@
     "noUncheckedSideEffectImports": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["src"]
+  // .storybook/preview.tsx carries JSX and imports application code, so it belongs to the browser
+  // project rather than the Node one. ESLint resolves types through the project service, and a file
+  // in no project is a parse error, not a lint warning.
+  "include": ["src", ".storybook/preview.tsx"]
 }

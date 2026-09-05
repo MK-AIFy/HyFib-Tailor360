@@ -1,0 +1,87 @@
+/*
+ * The filter region.
+ *
+ * The chips wrap rather than scroll. A horizontal chip strip hides filters off the end of the row,
+ * and a filter nobody can see is the reason a job appears to have vanished from a queue; wrapping
+ * costs a line of height and keeps every applied filter on screen at 320 px and at 200% zoom.
+ */
+@layer components {
+  .filters {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--density-padding-block) var(--density-padding-inline);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+  }
+
+  .filters__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .filters__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--font-size-200);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .filters__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .filters__applied {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-standard);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .filters__none {
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  .filters__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3) var(--space-1);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-pill);
+    background: var(--colour-surface-sunken);
+    font-size: var(--font-size-100);
+  }
+
+  .filters__chip-label {
+    overflow-wrap: anywhere;
+  }
+
+  /*
+   * The remove control keeps a real target. `dense` resolves through --control-height, which the
+   * coarse-pointer rule in themes.css holds at 44 px on any touch device, so this chip cannot shrink
+   * below the standard control size on a phone however the density preference is set.
+   */
+  .filters__chip-remove {
+    border-radius: var(--radius-pill);
+  }
+
+  .filters__results {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    font-variant-numeric: tabular-nums;
+  }
+}

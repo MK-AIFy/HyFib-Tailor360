@@ -7,7 +7,12 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { router } from './app/router'
 import { AppIntlProvider } from './i18n/IntlProvider'
+// Stylesheet order is the cascade-layer order: layers.css declares the layers, tokens.css and
+// themes.css fill the tokens layer, global.css fills base, layout and utilities. Importing them
+// out of order would leave a layer undeclared and let it win over the ones after it.
+import './styles/layers.css'
 import './styles/tokens.css'
+import './styles/themes.css'
 import './styles/global.css'
 
 const container = document.getElementById('root')

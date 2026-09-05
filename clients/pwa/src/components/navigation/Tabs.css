@@ -1,0 +1,75 @@
+/*
+ * Tabs.
+ *
+ * The strip scrolls sideways when it runs out of room rather than wrapping onto a second line: a
+ * wrapped tab strip changes height as the selection moves, which pushes the panel under the reader's
+ * eye. Scrolling is confined to the strip, so 1.4.10 is satisfied — the page itself never scrolls
+ * sideways at 320 px.
+ *
+ * The selected tab is marked by weight and a 3 px rule, never by colour alone (1.4.1), and the rule
+ * is reserved transparently at rest so nothing moves when the selection changes.
+ */
+@layer components {
+  .tabs {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+  }
+
+  .tabs__list {
+    display: flex;
+    gap: var(--target-spacing-standard);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border-block-end: 1px solid var(--colour-border-subtle);
+    /* Room for the focus ring, which would otherwise be clipped by the scroll container. */
+    padding-block-end: var(--space-1);
+    padding-inline: var(--space-1);
+    /* A tab dragged into view stops at a tab boundary rather than halfway through a word. */
+    scroll-snap-type: inline proximity;
+  }
+
+  .tabs__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 0 0 auto;
+    min-block-size: var(--target-standard);
+    padding: var(--space-2) var(--space-4);
+    border: 0;
+    border-block-end: 3px solid transparent;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    background: transparent;
+    color: var(--colour-ink);
+    font-family: inherit;
+    font-size: var(--font-size-200);
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-tight);
+    white-space: nowrap;
+    cursor: pointer;
+    scroll-snap-align: start;
+
+    --icon-size: 1.25rem;
+  }
+
+  .tabs__tab:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  .tabs__tab[aria-selected='true'] {
+    border-block-end-color: var(--colour-brand);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .tabs__panel {
+    padding-block-start: var(--space-4);
+    min-inline-size: 0;
+  }
+
+  /* The panel takes focus programmatically and by Tab; it should not draw a ring on a mouse click
+     inside it, which the global :focus-visible rule already handles — this only removes the
+     non-visible case for browsers that still paint one. */
+  .tabs__panel:focus:not(:focus-visible) {
+    outline: none;
+  }
+}

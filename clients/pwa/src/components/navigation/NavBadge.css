@@ -1,0 +1,23 @@
+/*
+ * The attention count on a navigation destination.
+ *
+ * A filled pill with a border, because the fill disappears in the high-contrast theme where every
+ * surface collapses towards white and the border is the only thing left holding the shape.
+ */
+@layer components {
+  .nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 1.5em;
+    padding-inline: 0.4em;
+    border: 1px solid var(--colour-danger-border);
+    border-radius: var(--radius-pill);
+    background: var(--colour-danger-surface);
+    color: var(--colour-danger-ink);
+    font-size: var(--font-size-050);
+    font-weight: var(--font-weight-bold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+  }
+}

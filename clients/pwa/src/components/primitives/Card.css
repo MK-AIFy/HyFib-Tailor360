@@ -1,0 +1,79 @@
+/*
+ * Cards.
+ *
+ * A border is always drawn and the shadow is added on top of it. That order matters: the
+ * high-contrast sunlight theme sets every elevation token to `none`, so a card whose only edge was a
+ * shadow would dissolve into the page exactly where the light is worst.
+ *
+ * Selection is marked by an inline rule and a background, never by colour alone — the same rule the
+ * shell applies to the current navigation item.
+ */
+@layer components {
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--density-padding-block) var(--density-padding-inline);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+  }
+
+  .card[data-raised='true'] {
+    background: var(--colour-surface-raised);
+    box-shadow: var(--elevation-1);
+  }
+
+  .card[data-selected='true'] {
+    background: var(--colour-surface-selected);
+    border-color: var(--colour-border-strong);
+    border-inline-start: 4px solid var(--colour-brand);
+  }
+
+  .card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .card__title {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+  }
+
+  .card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-inline-size: 0;
+  }
+
+  .card__body > :first-child {
+    margin-block-start: 0;
+  }
+
+  .card__body > :last-child {
+    margin-block-end: 0;
+  }
+
+  .card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-standard);
+    /* Pushed to the foot so a column of cards has its actions on a predictable line. */
+    margin-block-start: auto;
+    padding-block-start: var(--space-2);
+  }
+}

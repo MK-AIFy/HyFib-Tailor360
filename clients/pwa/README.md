@@ -73,5 +73,13 @@ clients/pwa
 - **Router imports come from `react-router` only, never `react-router/dom`.** The two entry points
   ship separate CommonJS bundles, so under Node's resolution (which Vitest uses) mixing them loads
   two copies of the router context and every router hook throws. One entry point everywhere.
-- **Every interactive target is at least 48px** and colour never carries meaning alone. These are
-  enforced by review now and by the component library from #50.
+- **Target sizes come from `docs/nfr/accessibility-localisation.md` section 5 (AL-03), not from the
+  WCAG floor**: 56 x 56 CSS px for a primary shop-floor action with 12 px spacing, 44 x 44 for a
+  standard control with 8 px, and 32 x 32 for a dense control **on desktop only** — the compact
+  density collapses back to 44 px on a coarse pointer, so the dense size cannot reach a phone. The
+  tokens are `--target-primary`, `--target-standard` and `--target-dense`; `--touch-target-min`
+  remains 48 px as the shell's comfortable default. The scaffold's flat "at least 48px" rule and the
+  plan's "44 px touch targets" line are both superseded by AL-03, which is the binding requirement.
+- **Colour never carries meaning alone**: every status badge carries an icon and a word as well.
+  Both rules are enforced by the design-system tokens, by the token-pair contrast test in
+  `src/design-system/testing/tokenContrast.test.ts`, and by checklist items A11Y-68 and A11Y-70.

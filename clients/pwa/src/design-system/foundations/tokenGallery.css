@@ -1,0 +1,105 @@
+/*
+ * The token gallery's own styles. Component-layer, like every other component stylesheet, and
+ * entirely token-driven: the gallery cannot show a colour the token file does not define, which is
+ * the point of it.
+ */
+
+@layer components {
+  .token-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    max-width: var(--layout-max-width);
+    padding: var(--space-5);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+  }
+
+  .token-gallery__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .token-gallery__heading {
+    margin: 0;
+    font-size: var(--font-size-400);
+  }
+
+  .token-gallery__note {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    max-width: var(--layout-reading-width);
+  }
+
+  .token-gallery__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .token-gallery__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--target-standard);
+    padding: var(--space-2);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .token-gallery__swatch {
+    flex: 0 0 auto;
+    width: var(--target-standard);
+    height: var(--target-standard);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    /* Set from the token name by the story, through the one sanctioned CSSOM escape hatch. */
+    background: var(--token-value);
+  }
+
+  .token-gallery__name {
+    font-family: var(--font-family-numeric);
+    font-size: var(--font-size-100);
+    overflow-wrap: anywhere;
+  }
+
+  .token-gallery__bar {
+    height: var(--space-3);
+    width: var(--token-size);
+    background: var(--colour-brand);
+    border-radius: var(--radius-sm);
+  }
+
+  .token-gallery__sample {
+    font-size: var(--token-size);
+    line-height: var(--line-height-tight);
+  }
+
+  .token-gallery__target {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--token-size);
+    height: var(--token-size);
+    background: var(--colour-surface-selected);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-050);
+  }
+
+  .token-gallery__raised {
+    min-height: var(--target-primary);
+    padding: var(--space-3);
+    background: var(--colour-surface-raised);
+    /* Shadow is never the only signal: a raised surface carries a border too, because the
+       high-contrast theme removes every shadow. */
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: var(--token-shadow);
+  }
+}

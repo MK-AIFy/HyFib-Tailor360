@@ -1,0 +1,53 @@
+/*
+ * Frames for the navigation stories.
+ *
+ * Stories only. The bottom bar is `position: fixed`, so a story has to give it something to be fixed
+ * inside; `contain: layout` is what makes the frame a containing block for it without an inline
+ * style anywhere.
+ */
+@layer components {
+  .nav-story-phone {
+    position: relative;
+    contain: layout;
+    inline-size: 360px;
+    max-inline-size: 100%;
+    block-size: 560px;
+    overflow: hidden;
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-lg);
+    background: var(--colour-surface-sunken);
+  }
+
+  .nav-story-phone__content {
+    block-size: 100%;
+    overflow-y: auto;
+    padding: var(--space-4);
+    /* The 2.4.11 reservation: the last control on a phone screen never ends up under the bar. */
+    padding-block-end: calc(var(--bottom-bar-height) + var(--space-6));
+  }
+
+  .nav-story-rail {
+    display: flex;
+    block-size: 32rem;
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .nav-story-rail__content {
+    flex: 1 1 auto;
+    padding: var(--space-4);
+    background: var(--colour-surface-sunken);
+  }
+
+  .nav-story-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--colour-brand);
+    color: var(--colour-brand-contrast);
+    border-radius: var(--radius-md);
+  }
+}

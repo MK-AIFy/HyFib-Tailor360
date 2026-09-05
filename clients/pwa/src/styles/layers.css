@@ -1,0 +1,19 @@
+/*
+ * Cascade layers, declared once and before anything else.
+ *
+ * The order below is the order of the cascade: a later layer always wins over an earlier one,
+ * whatever the selector specificity. That is what lets a component style a heading without an
+ * escalating specificity war against the base layer, and what lets a utility class override a
+ * component without !important.
+ *
+ *   tokens      custom properties only — no selectors that paint anything
+ *   base        element defaults: body, headings, links, the focus ring
+ *   layout      the shells and their bars: app shell, header, navigation, main, footer
+ *   components  the design-system families (actions, forms, numeric, navigation, overlays,
+ *               data, status, media), each in its own file next to its component
+ *   utilities   the few single-purpose helpers, such as visually-hidden
+ *
+ * Anything written outside a layer beats every layer, so unlayered CSS is reserved for nothing:
+ * every file in src/styles and every component stylesheet opens with @layer.
+ */
+@layer tokens, base, layout, components, utilities;

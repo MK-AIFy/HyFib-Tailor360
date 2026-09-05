@@ -1,0 +1,101 @@
+/*
+ * The phone bottom navigation.
+ *
+ * Fixed to the bottom edge of the glass, and it pads its own safe area rather than inheriting one:
+ * an ancestor that had already applied `env(safe-area-inset-bottom)` would leave a strip of page
+ * showing under the bar on a notched device, and the bar would stop short of the edge it is meant to
+ * own. The gesture-bar clearance on top of that inset is checklist item A11Y-70 — no control may sit
+ * in the bottom 8 px, where the system gesture takes the touch.
+ */
+@layer components {
+  .bottom-nav {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: var(--z-bottom-bar);
+    background: var(--colour-surface);
+    border-block-start: 1px solid var(--colour-border);
+    padding-inline: var(--safe-area-left) var(--safe-area-right);
+    padding-block-end: calc(var(--safe-area-bottom) + var(--gesture-bar-clearance));
+  }
+
+  /*
+   * The author-level rule the `hidden` attribute needs: the user-agent `[hidden] { display: none }`
+   * loses to any author `display`, and this element has one. Without this the bar stays on screen
+   * over the keyboard, which is the 2.4.11 failure the attribute was set to prevent.
+   */
+  .bottom-nav[hidden] {
+    display: none;
+  }
+
+  .bottom-nav__list {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .bottom-nav__item {
+    flex: 1 1 0;
+    min-inline-size: 0;
+  }
+
+  .bottom-nav__link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    /* Well above the 44 px standard: this is a primary shop-floor target aimed with a thumb while
+       the other hand holds a garment (AL-03, checklist item A11Y-68). */
+    min-block-size: var(--target-primary);
+    padding: var(--space-2) var(--space-1);
+    color: var(--colour-ink);
+    text-decoration: none;
+    /* Reserved at rest so the row does not shift height when a destination becomes current. */
+    border-block-start: 3px solid transparent;
+
+    --icon-size: 1.5rem;
+  }
+
+  .bottom-nav__glyph {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* The count sits above and after the glyph without taking part in the layout, so a badge appearing
+     never reflows the bar under a thumb that is already moving. */
+  .bottom-nav__glyph .nav-badge {
+    position: absolute;
+    inset-block-start: -0.5em;
+    inset-inline-start: 60%;
+  }
+
+  .bottom-nav__label {
+    font-size: var(--font-size-050);
+    line-height: var(--line-height-tight);
+    text-align: center;
+    /* Wraps rather than truncating: at 150% text size and in the pseudo-locale a clipped destination
+       name is a destination nobody can identify. */
+    overflow-wrap: anywhere;
+  }
+
+  /*
+   * Current: weight, a rule and a filled glyph. Three signals and not one of them is colour, which
+   * is what 1.4.1 asks for and what makes the bar readable in sunlight.
+   */
+  .bottom-nav__link[aria-current='page'] {
+    font-weight: var(--font-weight-bold);
+    border-block-start-color: var(--colour-brand);
+    background: var(--colour-surface-selected);
+  }
+
+  .bottom-nav__link[aria-current='page'] .icon {
+    stroke-width: 2.5;
+  }
+
+  .bottom-nav__link:hover {
+    background: var(--colour-surface-hover);
+  }
+}

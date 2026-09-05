@@ -3,30 +3,29 @@ import type { ReactNode } from 'react'
 import { IntlProvider } from 'react-intl'
 import { enIN } from './en-IN'
 import type { MessageCatalogue } from './en-IN'
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, resolveLocale } from './locales'
+import type { SupportedLocale } from './locales'
+import { PSEUDO_LOCALE, pseudoCatalogue } from './pseudo'
 import { taIN } from './ta-IN'
 
-/** The locales the shell can render today. Tamil ships behind the review gate described in ta-IN.ts. */
-export const SUPPORTED_LOCALES = ['en-IN', 'ta-IN'] as const
-
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]
-
-/** English (India) is the default: it is the only complete catalogue. */
-export const DEFAULT_LOCALE: SupportedLocale = 'en-IN'
+/**
+ * The locale list, the storage key and the resolver live in `./locales`, which has no React in it
+ * and can therefore be imported by the formatters, by the pseudo-locale builder and by a plain unit
+ * test. Only the types are re-exported here, because a type export costs a component file nothing.
+ */
+export type { SupportedLocale }
 
 /**
- * Where the preference lives until the identity module exists. The durable home is
- * identity.user_preferences on the server (#50), so that a shared shop device does not leak or lose
- * one user's choice to the next.
+ * A locale the shell can be asked to render. The pseudo-locale is included because Storybook and the
+ * layout-growth tests render it; it is not in `SUPPORTED_LOCALES` and is never offered to staff.
  */
-export const LOCALE_STORAGE_KEY = 'tailor360.locale'
+export type RenderableLocale = SupportedLocale | typeof PSEUDO_LOCALE
 
-const CATALOGUES: Record<SupportedLocale, MessageCatalogue> = {
-  'en-IN': enIN,
-  'ta-IN': taIN,
-}
-
-function isSupported(candidate: string): candidate is SupportedLocale {
-  return (SUPPORTED_LOCALES as readonly string[]).includes(candidate)
+function catalogueFor(locale: RenderableLocale): MessageCatalogue {
+  if (locale === PSEUDO_LOCALE) {
+    return pseudoCatalogue()
+  }
+  return locale === 'ta-IN' ? taIN : enIN
 }
 
 function readStoredPreference(): string | null {
@@ -39,35 +38,20 @@ function readStoredPreference(): string | null {
   }
 }
 
-/**
- * Picks a catalogue for a preference string. An exact match wins; otherwise the language subtag is
- * matched (so "ta" and "ta-LK" both reach the Tamil catalogue); otherwise English (India).
- */
-function resolveLocale(preference: string | null | undefined): SupportedLocale {
-  if (!preference) {
-    return DEFAULT_LOCALE
-  }
-  if (isSupported(preference)) {
-    return preference
-  }
-  const language = preference.split('-')[0]?.toLowerCase()
-  const byLanguage = SUPPORTED_LOCALES.find((locale) => locale.split('-')[0] === language)
-  return byLanguage ?? DEFAULT_LOCALE
-}
-
 interface AppIntlProviderProps {
   readonly children: ReactNode
-  /** Overrides the stored and browser preference. Used by tests and by the language switcher. */
-  readonly locale?: SupportedLocale
+  /** Overrides the stored and browser preference. Used by tests, stories and the language switcher. */
+  readonly locale?: RenderableLocale
 }
 
 /**
- * Wraps the application in react-intl and keeps <html lang> in step, which screen readers and
+ * Wraps the application in react-intl and keeps `<html lang>` in step, which screen readers and
  * hyphenation both depend on.
  */
 export function AppIntlProvider({ children, locale }: AppIntlProviderProps) {
   const active = useMemo(
-    () => locale ?? resolveLocale(readStoredPreference() ?? window.navigator.language),
+    (): RenderableLocale =>
+      locale ?? resolveLocale(readStoredPreference() ?? window.navigator.language),
     [locale],
   )
 
@@ -76,7 +60,7 @@ export function AppIntlProvider({ children, locale }: AppIntlProviderProps) {
   }, [active])
 
   return (
-    <IntlProvider locale={active} defaultLocale={DEFAULT_LOCALE} messages={CATALOGUES[active]}>
+    <IntlProvider locale={active} defaultLocale={DEFAULT_LOCALE} messages={catalogueFor(active)}>
       {children}
     </IntlProvider>
   )

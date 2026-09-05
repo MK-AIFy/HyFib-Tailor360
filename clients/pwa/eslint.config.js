@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   {
     // Build output and generated service-worker artefacts are never linted.
-    ignores: ['dist', 'dev-dist', 'coverage', 'node_modules'],
+    ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', 'storybook-static'],
   },
   {
     // The configuration files themselves run in Node and are plain JavaScript.
@@ -46,15 +46,24 @@ export default tseslint.config(
         'warn',
         {
           allowConstantExport: true,
-          // Two module-level values live next to the components that define their meaning: the data
-          // router object and the list of supported locales. Splitting either into its own file would
-          // buy nothing but an extra import, and neither is edited during a hot-reload session.
-          allowExportNames: ['router', 'SUPPORTED_LOCALES'],
+          // One module-level value lives next to the component that defines its meaning: the data
+          // router object. Splitting it into its own file would buy nothing but an extra import, and
+          // it is not edited during a hot-reload session.
+          allowExportNames: ['router'],
         },
       ],
       // Unused arguments are allowed when prefixed with an underscore, which keeps handler signatures
       // readable.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    // A story file exports a meta object and a set of story objects, none of which are components.
+    // Fast refresh does not apply to them at all: Storybook has its own hot-reload path, and the
+    // same is true of the preview configuration.
+    files: ['**/*.stories.{ts,tsx}', '.storybook/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 )

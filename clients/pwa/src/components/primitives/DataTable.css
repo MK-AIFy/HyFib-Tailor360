@@ -1,0 +1,202 @@
+/*
+ * The table that becomes cards.
+ *
+ * Two layouts, one DOM tree, switched by a container query. The query is on the *container*, not the
+ * viewport: a queue inside a narrow master-detail pane on a 1280 px desktop should be cards, and a
+ * three-column table on a 768 px tablet in landscape should stay a table. A media query cannot tell
+ * those apart; a container query is the whole reason this component is one tree instead of two.
+ *
+ * The threshold is in rem, so a browser whose base font size has been raised — which is what a
+ * person with presbyopia does before they discover the zoom control — reaches the card layout sooner
+ * rather than being handed a table with four words per line.
+ */
+@layer components {
+  .data-table {
+    container-type: inline-size;
+    container-name: data-table;
+    inline-size: 100%;
+  }
+
+  /*
+   * 1.4.10 Reflow: the page never scrolls sideways; this does. The focus ring is the global one, and
+   * it matters here because this element is focusable purely so the far columns can be reached from
+   * a keyboard.
+   */
+  .data-table__scroll {
+    overflow-x: auto;
+    /* Stops a sideways drag from turning into a browser back gesture halfway through a queue. */
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+  }
+
+  .data-table__table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    /* Numbers line up column to column, which is what makes a ledger scannable. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table__caption {
+    padding: var(--space-3) var(--density-padding-inline);
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    text-align: start;
+  }
+
+  .data-table__header-cell {
+    padding: var(--space-3) var(--density-padding-inline);
+    border-block-end: 2px solid var(--colour-border);
+    color: var(--colour-ink);
+    font-size: var(--font-size-100);
+    font-weight: var(--font-weight-bold);
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  .data-table__header-cell[data-numeric='true'] {
+    text-align: end;
+  }
+
+  .data-table__cell {
+    padding: var(--space-3) var(--density-padding-inline);
+    border-block-start: 1px solid var(--colour-border-subtle);
+    vertical-align: middle;
+  }
+
+  .data-table__cell[data-numeric='true'] {
+    text-align: end;
+  }
+
+  .data-table__cell[data-primary='true'] {
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* A row is at least one standard target tall, so a row action never has to be aimed at a sliver. */
+  .data-table__row {
+    block-size: var(--row-height);
+  }
+
+  .data-table__row:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  .data-table__empty {
+    padding: var(--space-6) var(--density-padding-inline);
+    color: var(--colour-ink-muted);
+    text-align: center;
+  }
+
+  .data-table__row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--target-spacing-standard);
+  }
+
+  /* In the table layout the column name is already in the header row. */
+  .data-table__cell-label {
+    display: none;
+  }
+
+  /* =========================================================================================
+   * The card layout.
+   *
+   * `display: block` on table elements is what strips their implicit semantics, which is why
+   * DataTable.tsx writes every ARIA role out by hand. The header row is clipped rather than
+   * removed: it must stay in the accessibility tree so each cell keeps its column association,
+   * and only `display: none` would take it out.
+   * ======================================================================================= */
+  @container data-table (width < 45rem) {
+    .data-table__scroll {
+      border: 0;
+      background: transparent;
+    }
+
+    .data-table__table,
+    .data-table__head,
+    .data-table__body,
+    .data-table__row,
+    .data-table__cell {
+      display: block;
+      inline-size: 100%;
+    }
+
+    .data-table__head {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .data-table__row {
+      block-size: auto;
+      margin-block-end: var(--space-3);
+      padding: var(--space-2) 0;
+      border: 1px solid var(--colour-border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--colour-surface);
+    }
+
+    .data-table__cell {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-2) var(--space-4);
+      padding-block: var(--space-2);
+      border-block-start: 0;
+      text-align: start;
+    }
+
+    .data-table__cell[data-numeric='true'] {
+      text-align: start;
+    }
+
+    .data-table__cell-label {
+      display: block;
+      color: var(--colour-ink-muted);
+      font-size: var(--font-size-100);
+      font-weight: var(--font-weight-medium);
+    }
+
+    .data-table__cell-value {
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+    }
+
+    /* The identifying column becomes the card's leading line: no label, larger, and on its own row. */
+    .data-table__cell[data-primary='true'] {
+      display: block;
+      padding-block-end: var(--space-1);
+      font-size: var(--font-size-300);
+      font-weight: var(--font-weight-bold);
+    }
+
+    .data-table__cell[data-primary='true'] .data-table__cell-label {
+      display: none;
+    }
+
+    .data-table__cell[data-hide-when-narrow='true'] {
+      display: none;
+    }
+
+    .data-table__cell--actions {
+      display: block;
+      padding-block-start: var(--space-3);
+    }
+
+    .data-table__row-actions {
+      justify-content: flex-start;
+    }
+
+    .data-table__empty {
+      border: 1px dashed var(--colour-border);
+      border-radius: var(--radius-md);
+    }
+  }
+}
