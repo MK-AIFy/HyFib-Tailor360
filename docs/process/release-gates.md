@@ -269,7 +269,7 @@ flowchart TD
 | Field | Content |
 | --- | --- |
 | What it checks | That the GitHub Release for the tag carries the complete evidence set, and that the deployment workflow refuses to run without it |
-| The checklist | See section 6 |
+| The checklist | See section 6; the fillable form a release copies is [`release-evidence.md`](release-evidence.md) |
 | Blocking severity | **S1 — no waiver** |
 | Why there is no waiver | Every other gate produces evidence; this gate is the one that makes the evidence findable a year later, when the accountant, an auditor or the next engineer needs it. Waiving it would mean shipping a release nobody can reconstruct |
 | Evidence produced | The release record itself, indexed in `docs/launch/release-evidence-index.md` (#61c) |
@@ -279,7 +279,9 @@ flowchart TD
 
 ## 6. The release evidence checklist
 
-The GitHub Release for the tag carries every item below, or the deployment workflow fails.
+The GitHub Release for the tag carries every item below, or the deployment workflow fails. The list here is the
+definition; [`release-evidence.md`](release-evidence.md) is the form a release copies and fills in, with one row per
+item, the person who confirms it and the date. Both are changed in the same pull request or not at all.
 
 | # | Item | Produced by | Who confirms |
 | --- | --- | --- | --- |
@@ -365,6 +367,8 @@ Raised 2026-09-04 by issue #19; mirrored in
 
 | Document | Why it matters here |
 | --- | --- |
+| [`release-evidence.md`](release-evidence.md) | The per-release form that carries the section 6 checklist, the gate results and the go or no-go record |
+| [`branch-protection.md`](branch-protection.md) | The `main` protection and required checks the gates run under, and the read-back the release evidence attaches |
 | [`waivers.md`](waivers.md) | The register every S2 waiver is written into, and the expiry rule that blocks the next release |
 | [`definition-of-done.md`](definition-of-done.md) | The same checks applied to one pull request |
 | [`definition-of-ready.md`](definition-of-ready.md) | Where a gate's requirements are anticipated before work starts |

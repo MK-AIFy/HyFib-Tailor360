@@ -1,14 +1,20 @@
 name: PR policy
 
-# The required status check of Section 5.1: a pull request links exactly one issue and comes from a
-# branch whose name says which issue it belongs to. Issue #22 adds the rest of the policy (the
-# mandatory evidence-checklist items once the pull request is ready for review, and the
-# `release-ready` label this check alone applies).
+# The required status check of Section 5.1. A pull request links exactly one open issue, comes from
+# a branch whose name says which issue it belongs to, and — once it is out of draft — carries a
+# complete evidence checklist. The `release-ready` label is applied by this workflow and by nothing
+# else, so the label means "the policy check passed on the current head" rather than "somebody
+# thought it looked ready".
 #
 # `pull_request`, never `pull_request_target`. The pull-request body and branch name are attacker
 # controlled, so they are passed to the shell through the environment and never interpolated into
 # a script — an expression such as `${{ github.event.pull_request.body }}` inside `run:` would let
 # a body ending in a backtick or `$( )` execute on the runner.
+#
+# Two jobs, because they need different permissions. `policy` reads and decides; it is the job that
+# branch protection requires. `label` writes one label and is deliberately not a required check,
+# because it is skipped on a fork pull request (see its own comment) and a required check that can
+# legitimately be skipped blocks every merge.
 on:
   pull_request:
     types:
@@ -17,11 +23,12 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+      - converted_to_draft
 
-# The checks read event payload fields that are already in the workflow context; no repository
-# content is checked out and nothing is written back.
-permissions:
-  pull-requests: read
+# Deny everything at the workflow level and let each job grant itself exactly what it needs. An
+# empty mapping is not the same as omitting the key: omitting it would fall back to the
+# repository's default token scopes, which may be read-write.
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,30 +36,39 @@ concurrency:
 
 jobs:
   policy:
-    name: Linked issue and branch name
+    name: Pull-request policy
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
+    # `pull-requests: read` for the event payload the rules parse; `issues: read` so rule 1 can ask
+    # whether the linked number is an issue and whether it is still open. Nothing here writes.
+    permissions:
+      pull-requests: read
+      issues: read
+
     steps:
-      - name: Check the linked issue and the branch name
+      - name: Check the linked issue, the branch name and the evidence checklist
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
           PR_BODY: ${{ github.event.pull_request.body }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           AUTHOR: ${{ github.event.pull_request.user.login }}
           AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
           # The job always runs and always reports a conclusion: a required check that is skipped
           # rather than passed is awkward to reason about in branch protection.
           if [ "$AUTHOR_TYPE" = "Bot" ]; then
-            echo "Pull request opened by the automation account '$AUTHOR'; the branch-name and"
-            echo "linked-issue rules describe human work and do not apply. Nothing to check."
+            echo "Pull request opened by the automation account '$AUTHOR'; the branch-name,"
+            echo "linked-issue and checklist rules describe human work and do not apply."
             echo "Policy checks skipped for the automation account \`$AUTHOR\`." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
           failed=0
 
-          # --- Rule 1: exactly one linked issue -------------------------------------------------
+          # --- Rule 1: exactly one linked issue, and it is open ---------------------------------
           # Only `Refs #NN` and `Closes #NN` count. `Refs` records a relationship; `Closes` also
           # closes the issue on merge. Repeating the same number is accepted (a body may mention
           # the issue twice); two different numbers are not, because a pull request that serves two
@@ -66,8 +82,51 @@ jobs:
             | grep -oE '[0-9]+' | sort -u || true)
           issue_count=$(printf '%s' "$issues" | grep -c . || true)
 
+          issue_cell="$issue_count found"
+          issue_verdict="fail"
+
           if [ "$issue_count" -eq 1 ]; then
             echo "Linked issue: #$issues"
+            # Parsing the body proves only that a number was typed. `Refs #99999`, a typo, or a
+            # link to an issue somebody closed a month ago all pass a text check and all mean the
+            # pull request is not traceable to live work, so the number is resolved against the
+            # API. A pull-request number is rejected too: `repos/.../issues/NN` answers for both,
+            # and "Refs #<some other pull request>" is not a linked issue.
+            lookup_error="${RUNNER_TEMP:-/tmp}/linked-issue.err"
+            if linked=$(gh api "repos/$REPOSITORY/issues/$issues" \
+                          --jq '[.state, (if .pull_request then "pull-request" else "issue" end)] | join(" ")' \
+                          2>"$lookup_error"); then
+              issue_state=${linked%% *}
+              issue_kind=${linked##* }
+              if [ "$issue_kind" != "issue" ]; then
+                failed=1
+                issue_cell="#$issues is a pull request"
+                echo "::error title=Linked number is a pull request::#$issues is a pull request, not an issue."
+                echo "Link the issue the work belongs to. A pull request is not a unit of scope."
+              elif [ "$issue_state" != "open" ]; then
+                failed=1
+                issue_cell="#$issues is $issue_state"
+                echo "::error title=Linked issue is not open::Issue #$issues is $issue_state."
+                echo "Work merges against a live issue. Reopen #$issues, or link the issue that"
+                echo "actually tracks this change, so the merge lands somewhere a reader can follow."
+              else
+                issue_cell="#$issues (open)"
+                issue_verdict="pass"
+              fi
+            elif grep -q '404' "$lookup_error"; then
+              failed=1
+              issue_cell="#$issues does not exist"
+              echo "::error title=Linked issue does not exist::No issue #$issues in $REPOSITORY."
+              echo "Check the number: a mistyped link reads as traceable and is not."
+            else
+              # An API failure is not the author's fault and must not be reported as a policy
+              # breach. The text rules above have already run, so the check still has value; this
+              # one condition degrades to a warning rather than a red check nobody can turn green.
+              issue_cell="#$issues (state not verified)"
+              issue_verdict="pass"
+              echo "::warning title=Linked issue not verified::The GitHub API could not be reached; #$issues was accepted on the body text alone."
+              cat "$lookup_error" || true
+            fi
           elif [ "$issue_count" -eq 0 ]; then
             failed=1
             echo "::error title=No linked issue::The pull-request body must link exactly one issue with 'Refs #NN' or 'Closes #NN'."
@@ -84,17 +143,20 @@ jobs:
 
           # --- Rule 2: branch name --------------------------------------------------------------
           # feat|fix|docs|chore / <issue slug> - <description>, where the issue slug is either the
-          # epic-feature identifier (e02-f01, e02-f01a) or a plain slug. `claude/…` is reserved for
-          # branches Claude Code names for its own sessions, and `dependabot/…` for branches
-          # Dependabot names for its update pull requests; neither tool lets the branch name be
-          # chosen, so both prefixes are exempt from the rule rather than exceptions to it.
+          # epic-feature identifier (e02-f01, e02-f01a) or a plain slug. Automation prefixes are
+          # exempt from the rule rather than exceptions to it: neither the session tooling nor
+          # Dependabot lets the branch name be chosen.
           naming_rule='^(feat|fix|docs|chore)/(e[0-9]{2}-f[0-9]{2}[a-c]?|[a-z0-9-]+)-[a-z0-9-]+$'
           automation_rule='^(claude|dependabot)/[a-zA-Z0-9._/-]+$'
 
+          branch_verdict="fail"
+
           if printf '%s' "$HEAD_REF" | grep -qE "$naming_rule"; then
             echo "Branch name: $HEAD_REF"
+            branch_verdict="pass"
           elif printf '%s' "$HEAD_REF" | grep -qE "$automation_rule"; then
             echo "Branch name: $HEAD_REF (reserved automation prefix)"
+            branch_verdict="pass"
           else
             failed=1
             echo "::error title=Branch name does not match the convention::'$HEAD_REF' does not match $naming_rule"
@@ -105,22 +167,234 @@ jobs:
             echo "Allowed types: feat, fix, docs, chore."
           fi
 
+          # --- Rule 3: the mandatory evidence-checklist items -----------------------------------
+          # The nine numbered items of docs/process/definition-of-done.md, rendered by
+          # .github/pull_request_template.md as `- [ ] N. …`. That document is the contract this
+          # rule enforces, in two parts:
+          #   * items 1, 3, 6 and 9 always apply — they may not be deleted and they must be ticked;
+          #   * items 2, 4, 5, 7 and 8 may be deleted with a one-line reason when they genuinely do
+          #     not apply, so a deleted optional item is "not applicable" and only a present-but-
+          #     unchecked one is worth a word.
+          # The author's own "How it was verified" list is not parsed: those entries carry no item
+          # number, and the template invites the author to replace them.
+          # Draft pull requests are exempt. A draft is opened early on purpose, with the plan and an
+          # empty evidence list; asserting the checklist against it would train authors to tick the
+          # boxes before the evidence exists, which is the opposite of what the checklist is for.
+          # `ready_for_review` and `converted_to_draft` are both triggers, so the verdict is
+          # re-computed the moment the pull request changes state.
+          checklist_cell="not asserted (draft)"
+          checklist_verdict="skipped"
+
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "Draft pull request: the evidence checklist is not asserted yet."
+            echo "Marking it ready for review re-runs this check."
+          else
+            checklist_verdict="pass"
+            mandatory_missing=""
+            mandatory_unchecked=""
+            optional_unchecked=""
+
+            for item in 1 2 3 4 5 6 7 8 9; do
+              line=$(printf '%s\n' "$PR_BODY" \
+                | grep -m1 -E "^[[:space:]]*[-*][[:space:]]+\[[ xX]\][[:space:]]*${item}\." || true)
+
+              case " 1 3 6 9 " in
+                *" $item "*) mandatory="yes" ;;
+                *) mandatory="no" ;;
+              esac
+
+              if [ -z "$line" ]; then
+                if [ "$mandatory" = "yes" ]; then
+                  mandatory_missing="$mandatory_missing $item"
+                fi
+              elif printf '%s' "$line" | grep -qE '^[[:space:]]*[-*][[:space:]]+\[[xX]\]'; then
+                : # ticked
+              elif [ "$mandatory" = "yes" ]; then
+                mandatory_unchecked="$mandatory_unchecked $item"
+              else
+                optional_unchecked="$optional_unchecked $item"
+              fi
+            done
+
+            if [ -n "$mandatory_missing" ]; then
+              failed=1
+              checklist_verdict="fail"
+              checklist_cell="deleted:$mandatory_missing"
+              echo "::error title=A mandatory Definition-of-Done item was deleted::Missing from the description:$mandatory_missing"
+              echo "Items 1, 3, 6 and 9 always apply — a linked issue and branch, tests, secrets and"
+              echo "personal data, and the evidence itself — so they are not among the items a pull"
+              echo "request may delete. Restore them from .github/pull_request_template.md."
+            fi
+
+            if [ -n "$mandatory_unchecked" ]; then
+              failed=1
+              checklist_verdict="fail"
+              checklist_cell="unchecked:$mandatory_unchecked"
+              echo "::error title=A mandatory Definition-of-Done item is unchecked::Not ticked:$mandatory_unchecked"
+              echo "The pull request is ready for review, so every mandatory item must be true and"
+              echo "ticked. Tick it once the evidence is in the description; if it cannot be true"
+              echo "yet, move the pull request back to draft rather than ticking it."
+              echo "See docs/process/definition-of-done.md for what each item requires."
+            fi
+
+            if [ -n "$optional_unchecked" ]; then
+              echo "::warning title=Optional Definition-of-Done items left unchecked::Present but not ticked:$optional_unchecked"
+              echo "An item that does not apply is deleted with a one-line reason, not left blank."
+              echo "A reviewer cannot tell a deliberate 'not applicable' from an oversight."
+            fi
+
+            if [ "$checklist_verdict" = "pass" ]; then
+              checklist_cell="1, 3, 6 and 9 ticked"
+            fi
+          fi
+
           # --- Summary --------------------------------------------------------------------------
           {
             echo "## Pull-request policy"
             echo
             echo "| Rule | Value | Result |"
             echo "| --- | --- | --- |"
-            if [ "$issue_count" -eq 1 ]; then
-              echo "| Exactly one linked issue | #$issues | pass |"
-            else
-              echo "| Exactly one linked issue | $issue_count found | fail |"
-            fi
-            if printf '%s' "$HEAD_REF" | grep -qE "$naming_rule|$automation_rule"; then
-              echo "| Branch name | \`$HEAD_REF\` | pass |"
-            else
-              echo "| Branch name | \`$HEAD_REF\` | fail |"
-            fi
+            echo "| Exactly one open linked issue | $issue_cell | $issue_verdict |"
+            echo "| Branch name | \`$HEAD_REF\` | $branch_verdict |"
+            echo "| Mandatory evidence-checklist items (1, 3, 6, 9) | $checklist_cell | $checklist_verdict |"
+            echo
+            echo "The rules are defined in \`docs/process/definition-of-done.md\`; the branch"
+            echo "protection that makes this check binding is in \`docs/process/branch-protection.md\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
           exit "$failed"
+
+  label:
+    name: release-ready label
+    needs: policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # `!cancelled()` rather than `always()`: a run cancelled by the concurrency group has decided
+    # nothing, and a superseded run must not remove a label the newer run is about to re-apply.
+    #
+    # Fork pull requests are skipped. Under `pull_request` a fork's workflow token is read-only
+    # whatever this `permissions:` block says, so the write would fail for a reason the author
+    # cannot fix; the alternative — `pull_request_target` — is not available here, and the
+    # repository is private with no forks, so nothing real is lost. If that ever changes, the fix
+    # is a separate `pull_request_target` workflow that labels and never checks out the head.
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+
+    # The only write scope anywhere in this repository's workflows, and it is scoped to this one
+    # job for that reason: the job exists to add or remove one label on one pull request. It cannot
+    # read or write repository contents, cannot approve or merge, and cannot touch a release.
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Apply or remove the release-ready label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          POLICY_RESULT: ${{ needs.policy.result }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+        run: |
+          label="release-ready"
+
+          # Removing the label is as load-bearing as applying it: the label means "the policy check
+          # passed on the current head", so one left standing on a head that has since gone red is
+          # a lie the merge button believes. `|| true` on the delete would hide exactly that — a
+          # 403, a secondary rate limit or a transient failure is indistinguishable from the
+          # ordinary "the label was not applied" case once the exit code is thrown away.
+          #
+          # So the state is read first and the outcome is asserted rather than assumed: nothing to
+          # do if the label is absent, and a failed delete is only forgiven if a re-read shows the
+          # label gone anyway (a concurrent run may have removed it in between).
+          labels_on_pull_request() {
+            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/labels" --paginate --jq '.[].name' 2>&1
+          }
+
+          remove_label() {
+            local names delete_failed=0
+
+            set +e
+            names=$(labels_on_pull_request)
+            local read_status=$?
+            set -e
+
+            if [ "$read_status" -ne 0 ]; then
+              echo "::error title=Could not read the labels on #$PR_NUMBER::The \`$label\` label may still be applied to a head that did not pass."
+              printf '%s\n' "$names"
+              exit 1
+            fi
+
+            if ! printf '%s\n' "$names" | grep -qFx "$label"; then
+              echo "\`$label\` is not applied; nothing to remove."
+              return 0
+            fi
+
+            gh api --method DELETE "repos/$REPOSITORY/issues/$PR_NUMBER/labels/$label" --silent \
+              || delete_failed=1
+
+            if [ "$delete_failed" -eq 0 ]; then
+              echo "Removed \`$label\`."
+              return 0
+            fi
+
+            set +e
+            names=$(labels_on_pull_request)
+            set -e
+            if printf '%s\n' "$names" | grep -qFx "$label"; then
+              echo "::error title=Could not remove the release-ready label::\`$label\` is still on #$PR_NUMBER, whose policy check is not green."
+              echo "The label means \"the policy check passed on the current head\" — see"
+              echo "docs/process/branch-protection.md, section 7. Remove it by hand and find out why"
+              echo "this job could not."
+              exit 1
+            fi
+            echo "The delete reported a failure but \`$label\` is no longer applied."
+          }
+
+          if [ "$AUTHOR_TYPE" = "Bot" ]; then
+            # The policy job exits 0 for an automation account without evaluating a single rule, so
+            # a green `policy` result here means "not checked" rather than "passed". Applying the
+            # label on that basis would make it assert something no check established — and on a
+            # plan without branch protection the label is the merge signal, so the difference is
+            # load-bearing. Recorded in docs/process/branch-protection.md section 7.
+            echo "Author is the automation account '$AUTHOR'; the policy rules were not evaluated,"
+            echo "so \`$label\` is not applied."
+            {
+              echo "\`$label\` **not applied**: the author is the automation account \`$AUTHOR\`,"
+              echo "whose pull requests the policy check does not evaluate. A human applies the"
+              echo "judgement the check would have — see \`docs/process/branch-protection.md\`,"
+              echo "section 7."
+            } >> "$GITHUB_STEP_SUMMARY"
+            remove_label
+            exit 0
+          fi
+
+          if [ "$POLICY_RESULT" = "success" ] && [ "$IS_DRAFT" != "true" ]; then
+            # First use creates the label. The call is allowed to fail: on a repository where the
+            # label already exists it answers 422, and where the token cannot create labels it
+            # answers 403 — neither is a reason to fail the job, because the add below reports the
+            # only outcome that matters.
+            gh api --method POST "repos/$REPOSITORY/labels" \
+              -f "name=$label" \
+              -f "color=0e8a16" \
+              -f "description=Applied only by the pull-request policy check: one open linked issue, a conforming branch name, a complete evidence checklist" \
+              >/dev/null 2>&1 || true
+
+            if gh api --method POST "repos/$REPOSITORY/issues/$PR_NUMBER/labels" \
+                 -f "labels[]=$label" >/dev/null; then
+              echo "Applied \`$label\`."
+              echo "\`$label\` applied by the policy check." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error title=Could not apply the release-ready label::The label could not be added to #$PR_NUMBER."
+              echo "If the failure is 'not found', create the \`$label\` label once in the"
+              echo "repository's label settings — see docs/process/branch-protection.md, section 7."
+              exit 1
+            fi
+          else
+            # The head moved, the description changed or the pull request went back to draft: the
+            # label describes the current head or it describes nothing, so it comes off.
+            echo "Policy result '$POLICY_RESULT', draft '$IS_DRAFT': removing \`$label\` if set."
+            remove_label
+            echo "\`$label\` not applied (policy result \`$POLICY_RESULT\`, draft \`$IS_DRAFT\`)." >> "$GITHUB_STEP_SUMMARY"
+          fi

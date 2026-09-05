@@ -1,8 +1,19 @@
 name: CI
 
-# Continuous integration for issue #20's scaffold: build, format, test and a first security pass.
-# Issue #22 extends this same workflow with CodeQL, Trivy, SBOM upload, migration checks and the
-# per-project coverage floor.
+# Continuous integration: build, format, test, and the security and quality gates of Section 5.
+#
+# Issue #20 built the first four jobs. Issue #22 added the per-project coverage floor, the Prettier
+# check, the migration check, CodeQL, Trivy and the software bill of materials. Each of the added
+# gates is a separate job rather than more steps inside `security`, so that a red status names the
+# gate that failed, the jobs run in parallel rather than in series, and each holds only the token
+# permissions it needs.
+#
+# The budget in Section 5.3 is 15 minutes of wall clock for a pull-request pipeline. That is the
+# target, not a measurement: the timeouts below (30 for the .NET job, 25 for CodeQL, 20 for the
+# bill of materials and the migration check, 15 for the rest) are ceilings that stop a hung job,
+# and they permit considerably more than the budget. `docs/process/workflow-demo.md` section 7 is
+# where the real per-job durations are recorded; until it has numbers, nothing here should be read
+# as a claim that the pipeline fits.
 #
 # `pull_request` (never `pull_request_target`): `pull_request_target` runs with the base
 # repository's secrets and a write-scoped token, so checking out the pull-request head under it
@@ -22,8 +33,9 @@ on:
 permissions:
   contents: read
 
-# One run per ref: a second push to the same branch cancels the run already in flight, which keeps
-# the pull-request pipeline inside the 15-minute budget of Section 5 and saves runner minutes.
+# One run per ref: a second push to the same branch cancels the run already in flight, which saves
+# runner minutes and keeps the queue short — both of which the 15-minute budget of Section 5
+# depends on, though neither on its own proves the budget is met.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -37,6 +49,20 @@ env:
   DOTNET_COVERAGE_NOLOGO: "1"
   # Pinned so a coverage-tool release cannot change a build's result without a commit.
   DOTNET_COVERAGE_VERSION: "18.11.0"
+
+# ADVANCED SECURITY
+# Two things this workflow would like to use need GitHub Advanced Security, which a private
+# repository owned by a personal account cannot have: the code-scanning alerts page that SARIF is
+# published to, and the dependency graph the dependency review compares. Every step that needs one
+# of them is opt-in behind a repository variable — `CODE_SCANNING_ENABLED` and
+# `DEPENDENCY_REVIEW_ENABLED` — because a step that fails on every run for a reason no code change
+# can fix trains reviewers to ignore a red security job.
+#
+# What is *not* made optional is the scanning. CodeQL and Trivy run on every pull request either
+# way; only the publication of their findings is gated. When the variable is off, the findings are
+# written into the job summary by `scripts/sarif-gate.py`, uploaded as an artefact, and still fail
+# the build at the severity each job gates on — and the step that would have published them says so
+# in a warning, because a silently skipped security check is indistinguishable from a passing one.
 
 # ACTION PINNING POLICY
 # Every third-party action is referenced by the full 40-character commit SHA of a released tag,
@@ -232,6 +258,30 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Prove the coverage checker still detects a shortfall
+        # Same reasoning as the documentation link checker: a gate that has quietly stopped
+        # detecting is indistinguishable from code that meets it. The self-test runs the checker
+        # over a report it knows the answer to before the real report is trusted.
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python3 scripts/coverage-floor.py --self-test
+
+      - name: Enforce the per-project coverage floor
+        # Runs after the uploads so that a failure here still leaves the reports downloadable.
+        #
+        # The floors are in .github/coverage-floors.json, each one measured on this repository
+        # rather than chosen: the file records what the project achieved and puts the floor two to
+        # three points under it. They ratchet upward — the checker prints a notice naming any
+        # project that has outgrown its floor.
+        #
+        # These numbers are the measured baseline DOD-OD-02 in docs/process/definition-of-done.md
+        # was waiting for; the decision itself stays "proposed, to be confirmed" until its owner
+        # confirms it. Lowering a floor is a change under /.github/, which CODEOWNERS would route
+        # to a reviewer — but CODEOWNERS applies none of its rules on this repository today (see
+        # docs/process/branch-protection.md section 5.2, BP-OD-03), so that routing is a convention
+        # until BP-OD-03 is answered, not an enforced control.
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python3 scripts/coverage-floor.py artifacts/coverage
+
   build-test-pwa:
     name: PWA build and tests
     runs-on: ubuntu-latest
@@ -265,20 +315,38 @@ jobs:
           cache-dependency-path: clients/pwa/pnpm-lock.yaml
 
       - name: Install dependencies
+        id: install
         # --frozen-lockfile fails rather than updating the lockfile, so CI installs exactly what
         # was reviewed.
         run: pnpm install --frozen-lockfile
 
+      # Every check below runs even when an earlier one failed, for the same reason the .NET test
+      # tiers do: one push should report every broken check at once. Without this a single Prettier
+      # nit would abort the job and say nothing about whether the code lints, type-checks, tests or
+      # builds. None of them runs when the install failed, because they would all then fail with a
+      # missing-module error that hides the real cause.
+      - name: Check formatting
+        # Prettier owns formatting in this tree (clients/pwa/.prettierrc.json), and ESLint carries
+        # no formatting rules, so `pnpm lint` passing says nothing about it. `--check` reports
+        # rather than rewrites, which is the counterpart of `dotnet format --verify-no-changes`
+        # above: a formatting failure is reported, not silently fixed in CI.
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm format:check
+
       - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm lint
 
       - name: Type-check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm typecheck
 
       - name: Test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm test
 
       - name: Build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm build
 
       - name: Upload the build output
@@ -331,10 +399,9 @@ jobs:
       contents: read
       pull-requests: read
 
-    # Issue #22 adds CodeQL (JavaScript/TypeScript and C#), Trivy over the images and the compose
-    # and IaC files, and the Syft SBOM upload, together with their SARIF uploads — which need
-    # `security-events: write`. The scaffold keeps this job to the two checks that need no further
-    # configuration, so the token stays read-only.
+    # This job stays at the two checks that need nothing but a read-only token. CodeQL, Trivy and
+    # the bill of materials are their own jobs below, because they need `security-events: write`
+    # and there is no reason for secret scanning to hold a token that can write security events.
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -353,8 +420,10 @@ jobs:
           # No pull-request comments: the finding belongs in the job log and the branch-protection
           # status, and commenting would need `pull-requests: write` on every run.
           GITLEAKS_ENABLE_COMMENTS: "false"
-          # The action's own artifact upload uses a deprecated upload-artifact version; the job log
-          # carries the findings and #22 replaces this with a SARIF upload.
+          # The action's own artifact upload uses a deprecated upload-artifact version. The
+          # findings are in the job log and the step's exit code is the gate, so nothing is lost by
+          # turning it off; the SARIF path would need the code-scanning alerts page this repository
+          # does not have.
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
       - name: Report that dependency review is not enabled
@@ -375,7 +444,9 @@ jobs:
             echo "2. Set the repository variable \`DEPENDENCY_REVIEW_ENABLED\` to \`true\`."
             echo
             echo "Until then a new dependency with a known high-severity advisory would not be caught"
-            echo "here. Tracked with the security exception process in \`docs/process/waivers.md\`."
+            echo "here. The Trivy dependency scan in the \`Container and dependency scan\` job is what"
+            echo "covers it in the meantime. No waiver has been granted for this gap; record one in"
+            echo "\`docs/process/waivers.md\` if it is still open at the first release."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Review dependency changes
@@ -389,3 +460,496 @@ jobs:
         with:
           fail-on-severity: high
           comment-summary-in-pr: never
+
+  migration-check:
+    name: Database migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Reads the repository and nothing else. The database it talks to is a service container that
+    # exists for the length of this job.
+    permissions:
+      contents: read
+
+    services:
+      # A database of its own, empty, so that "the migrations apply to an empty database" is what is
+      # actually tested. The test job's database has been written to by the Integration tier and
+      # would hide a migration that only works against an already-migrated schema. Same digest pin
+      # as that job: the schema must be proved against the PostgreSQL version production runs.
+      postgres:
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: postgres
+          POSTGRES_DB: tailor360_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tailor360_migrations"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The command line reads the same configuration the hosts read, so the connection string
+      # arrives the way it does in a deployment: as an environment variable whose `__` separator
+      # maps onto the `Database:ConnectionString` configuration key. Nothing is passed on the
+      # command line, where it would land in the process list.
+      Database__ConnectionString: "Host=localhost;Port=5432;Database=tailor360_migrations;Username=postgres"
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore and build the command line
+        # Only the command line and what it references, not the whole solution: this job proves the
+        # migrations, and the .NET job already proves the build. Building the tool also builds
+        # Tailor360.Platform.Persistence into its own output directory, which is what the EF Core
+        # tooling below loads with --no-build.
+        run: |
+          dotnet restore src/Tools/Tailor360.Cli
+          dotnet build src/Tools/Tailor360.Cli --configuration Release --no-restore
+
+      - name: Install the EF Core tooling
+        # The tool version has to match the EF Core packages, so it is read from the central package
+        # versions rather than repeated here, where the two would drift apart silently.
+        run: |
+          version=$(sed -n \
+            's/.*Include="Microsoft.EntityFrameworkCore.Design"[[:space:]]*Version="\([^"]*\)".*/\1/p' \
+            Directory.Packages.props | head -n 1)
+          if [ -z "$version" ]; then
+            echo "::error::No EntityFrameworkCore.Design version in Directory.Packages.props."
+            exit 1
+          fi
+          echo "Installing dotnet-ef $version."
+          dotnet tool install --global dotnet-ef --version "$version"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Apply the migrations to an empty database
+        id: apply
+        # The real command an operator and the deployment both run, not a re-implementation of it.
+        # Migrations are applied by this tool rather than at application start-up so that a rolling
+        # deployment cannot have two versions racing to change the schema.
+        run: dotnet run --project src/Tools/Tailor360.Cli --configuration Release --no-build -- migrate
+
+      - name: Check that a second run changes nothing
+        # A migration that is not idempotent fails the second deployment, not the first, which is
+        # the worst time to find out. Both assertions are on the tool's own words: `migrate` says
+        # "already up to date" per schema when it applied nothing, and `--dry-run` reports what
+        # would be applied without applying it.
+        run: |
+          set -o pipefail
+          dotnet run --project src/Tools/Tailor360.Cli --configuration Release --no-build \
+            -- migrate | tee second-run.log
+          dotnet run --project src/Tools/Tailor360.Cli --configuration Release --no-build \
+            -- migrate --dry-run | tee dry-run.log
+
+          if grep -q "applied" second-run.log; then
+            echo "::error title=Migrations are not idempotent::A second migrate applied something."
+            exit 1
+          fi
+
+          if ! grep -q "The database is up to date with this build." dry-run.log; then
+            echo "::error title=Migrations are not idempotent::migrate --dry-run still reports work."
+            exit 1
+          fi
+
+      - name: Check that the model has no pending changes
+        # Compares the entity configuration against PlatformDbContextModelSnapshot and exits
+        # non-zero when they disagree, which is the state where the code expects a schema no
+        # migration builds. Without this check that only shows up at run time, as a column the
+        # application reads and the database does not have.
+        #
+        # It is a design-time check and needs no database. The persistence project is its own
+        # startup project because that is where PlatformDbContextFactory lives, and that factory
+        # uses a placeholder connection string, so this cannot reach a real database by accident.
+        #
+        # One thing it does not cover: an entity mapped with ExcludeFromMigrations — the audit
+        # table is one — is outside the model differ entirely, so a change to its configuration is
+        # invisible here and has to be carried by hand-written SQL in a migration.
+        run: >-
+          dotnet ef migrations has-pending-model-changes
+          --project src/Platform/Tailor360.Platform.Persistence
+          --startup-project src/Platform/Tailor360.Platform.Persistence
+          --context PlatformDbContext
+          --configuration Release
+          --no-build
+
+      - name: Record the schema the migrations produced
+        # A dump of the schema the migrations actually built, so that a reviewer can see what a
+        # migration did rather than infer it from the C#. `--schema-only` because the database holds
+        # no data at this point and never should: nothing seeds it here.
+        #
+        # This is a reporting step, not a gate. It does not fail the job when pg_dump is missing,
+        # because losing the report is not a reason to reject a migration that applied cleanly.
+        # Comparing the dump against a committed fixture — the `tests/fixtures/db-snapshots/`
+        # directory docs/dev/migrations.md describes — is not done here: pg_dump output carries the
+        # server's own version banner, so the comparison needs a normalisation step that is worth
+        # writing only once there is a schema worth diffing.
+        if: ${{ !cancelled() && steps.apply.outcome == 'success' }}
+        run: |
+          if ! command -v pg_dump > /dev/null; then
+            echo "::warning title=Schema dump skipped::pg_dump is not on this runner."
+            exit 0
+          fi
+
+          mkdir -p artifacts/db-snapshots
+          pg_dump --schema-only --no-owner --no-privileges \
+            "postgresql://postgres@localhost:5432/tailor360_migrations" \
+            > artifacts/db-snapshots/tailor360-schema.sql
+
+          migrations=$(find src/Platform/Tailor360.Platform.Persistence/Migrations \
+            -name '*.cs' ! -name '*.Designer.cs' ! -name '*ModelSnapshot.cs' | wc -l)
+          tables=$(grep -c '^CREATE TABLE' artifacts/db-snapshots/tailor360-schema.sql || true)
+
+          {
+            echo "## Database migrations"
+            echo
+            echo "Applied to an empty PostgreSQL 16 database, applied a second time to prove the"
+            echo "run is idempotent, and the model checked against the migration snapshot."
+            echo
+            echo "| Measure | Value |"
+            echo "| --- | ---: |"
+            echo "| Migrations in this build | ${migrations} |"
+            echo "| Tables in the resulting schema | ${tables} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the schema snapshot
+        if: ${{ !cancelled() && steps.apply.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: database-schema
+          path: artifacts/db-snapshots/
+          if-no-files-found: warn
+          retention-days: 14
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    permissions:
+      contents: read
+      # Only for the SARIF upload, and only when CODE_SCANNING_ENABLED is on. The scan itself needs
+      # nothing but read access.
+      security-events: write
+      # CodeQL reads the workflow run's own metadata to label the analysis. Without this the action
+      # fails on a private repository with a 403 that reads like a bug in the action.
+      actions: read
+
+    strategy:
+      # One language failing must not hide the other language's findings.
+      fail-fast: false
+      matrix:
+        # `javascript-typescript` is one language to CodeQL, and covers clients/pwa.
+        language: [csharp, javascript-typescript]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prove the SARIF gate still detects a finding
+        # The gate below is what makes this scan a build result rather than a report. A gate that
+        # has quietly stopped detecting is indistinguishable from code with nothing wrong with it,
+        # so it proves itself against a report it knows the answer to first.
+        run: python3 scripts/sarif-gate.py --self-test
+
+      - name: Prepare the report directory
+        run: mkdir -p artifacts/security/codeql
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          languages: ${{ matrix.language }}
+          # No build. C# analysis without a build is supported and is much the cheaper of the two
+          # modes; building the 66-project solution a second time here would add minutes for
+          # findings the .NET job's compiler warnings already cover. How much it actually costs is
+          # measured in workflow-demo.md section 7, not asserted here. The trade-off
+          # is that source generated during the build is not analysed, which is acceptable while the
+          # only generated code is the OpenAPI comment support the coverage floor also excludes.
+          build-mode: none
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          category: "/language:${{ matrix.language }}"
+          # The SARIF is always written to disk, whether or not it can be published, because the
+          # gate below reads it from there.
+          output: artifacts/security/codeql
+          # Publishing needs Advanced Security. Attempting it without makes the step fail with a
+          # 403 on every run; see the ADVANCED SECURITY note at the top of this file.
+          upload: ${{ vars.CODE_SCANNING_ENABLED == 'true' && 'always' || 'never' }}
+
+      - name: Upload the CodeQL report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: artifacts/security/codeql/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Report that code scanning alerts are not enabled
+        # Visible rather than silent, for the same reason the dependency-review notice is: a check
+        # whose findings go nowhere looks exactly like a check that found nothing.
+        if: ${{ !cancelled() && vars.CODE_SCANNING_ENABLED != 'true' }}
+        run: |
+          echo "::warning title=Code scanning alerts not enabled::CodeQL ran and gates this build, \
+          but its findings cannot be published to the alerts page, so there is no history and no \
+          triage there."
+          {
+            echo "### CodeQL findings are not being published"
+            echo
+            echo "The scan ran and failed the build if it found anything at high severity or above."
+            echo "What is missing is the alerts page: publishing SARIF needs GitHub Advanced"
+            echo "Security, which a private repository owned by a personal account cannot have."
+            echo
+            echo "Until then the findings are in the job summary above and in the"
+            echo "\`codeql-sarif-${{ matrix.language }}\` artefact, and there is no alert history"
+            echo "and no dismissal trail."
+            echo
+            echo "To turn publication on:"
+            echo "1. Enable code scanning under Settings → Code security."
+            echo "2. Set the repository variable \`CODE_SCANNING_ENABLED\` to \`true\`."
+            echo
+            echo "The scan itself still gates this build, so nothing is being carried silently. No"
+            echo "waiver has been granted for the missing alerts page; record one in"
+            echo "\`docs/process/waivers.md\` if it is still missing at the first release."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gate on the CodeQL findings
+        # Reads the SARIF the analysis wrote and fails at high severity or above, so the scan gates
+        # the build whether or not the alerts page is available. A finding is either fixed or
+        # waived under docs/process/waivers.md; nothing is dismissed by lowering this number.
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/sarif-gate.py artifacts/security/codeql
+          --label "CodeQL: ${{ matrix.language }}"
+          --fail-on-severity 7.0
+
+  infrastructure-scan:
+    name: Container and dependency scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      # Only for the SARIF upload, and only when CODE_SCANNING_ENABLED is on.
+      security-events: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prove the SARIF gate still detects a finding
+        # Same reasoning as in the CodeQL job: the gate proves itself before it is trusted.
+        run: python3 scripts/sarif-gate.py --self-test
+
+      - name: Prepare the report directory
+        # Trivy writes its report with a plain file create, which fails when the directory is not
+        # already there.
+        run: mkdir -p artifacts/security/trivy
+
+      - name: Scan the container definitions
+        # Trivy's configuration scanner reads the Dockerfiles under infra/docker (it matches
+        # `Dockerfile.*` as well as `Dockerfile`) and any other infrastructure format it recognises
+        # there. It has no policy set for Compose or for the Caddyfile, so those two are read by the
+        # filesystem scan below and by gitleaks, not by this step — saying otherwise here would
+        # claim coverage the tool does not provide.
+        #
+        # exit-code stays 0 and the gate is applied afterwards from the SARIF, so that one run
+        # produces both the report and the build result and every finding reaches the summary
+        # whatever its severity.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          format: sarif
+          output: artifacts/security/trivy/config.sarif
+          exit-code: "0"
+
+      - name: Scan the dependency tree
+        # This is the gate that the disabled dependency review would otherwise have been. Trivy
+        # reads clients/pwa/pnpm-lock.yaml directly — no install, no dependency graph, no Advanced
+        # Security — and reports the known advisories against it.
+        #
+        # Secret scanning is left off here because gitleaks already scans the whole history in the
+        # security job, and two secret scanners means two sets of false positives to triage for one
+        # signal. `ignore-unfixed` keeps the gate to advisories somebody can actually clear: a
+        # permanently red job for a vulnerability with no released fix teaches people to ignore it.
+        # Those are handled through docs/process/waivers.md instead.
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          ignore-unfixed: true
+          format: sarif
+          output: artifacts/security/trivy/dependencies.sarif
+          exit-code: "0"
+          # The binary and the vulnerability database the previous step installed are reused.
+          skip-setup-trivy: true
+
+      - name: Upload the Trivy reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-sarif
+          path: artifacts/security/trivy/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish the Trivy findings to code scanning
+        if: ${{ !cancelled() && vars.CODE_SCANNING_ENABLED == 'true' }}
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          sarif_file: artifacts/security/trivy
+          category: trivy
+
+      - name: Report that code scanning alerts are not enabled
+        if: ${{ !cancelled() && vars.CODE_SCANNING_ENABLED != 'true' }}
+        run: |
+          echo "::warning title=Code scanning alerts not enabled::Trivy ran and gates this build, \
+          but its findings cannot be published to the alerts page, so there is no history and no \
+          triage there."
+          {
+            echo "### Trivy findings are not being published"
+            echo
+            echo "The scans ran and failed the build at the severities the job gates on. What is"
+            echo "missing is the alerts page: publishing SARIF needs GitHub Advanced Security,"
+            echo "which a private repository owned by a personal account cannot have."
+            echo
+            echo "Until then the findings are in the job summary above and in the \`trivy-sarif\`"
+            echo "artefact. Set the repository variable \`CODE_SCANNING_ENABLED\` to \`true\` once"
+            echo "code scanning is available. The scans still gate this build; no waiver has been"
+            echo "granted, and one belongs in \`docs/process/waivers.md\` if this is still the state"
+            echo "at the first release."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gate on the container definitions
+        # Critical only, for now. The container misconfiguration rules have not been triaged against
+        # these Dockerfiles yet, and a first run that fails on a rule nobody has read is how a gate
+        # gets bypassed rather than fixed. Every finding at any severity is in the summary; once the
+        # high-severity ones are fixed or waived this drops to 7.0 and stays there. It ratchets in
+        # one direction, like the coverage floor.
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/sarif-gate.py artifacts/security/trivy/config.sarif
+          --label "Trivy: container and infrastructure definitions"
+          --fail-on-severity 9.0
+
+      - name: Gate on the dependency tree
+        # High and critical, with a fix available. This one is not provisional: a dependency with a
+        # known, fixed, high-severity advisory is upgraded, or the upgrade is waived in writing.
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/sarif-gate.py artifacts/security/trivy/dependencies.sarif
+          --label "Trivy: dependencies"
+          --fail-on-severity 7.0
+
+  sbom:
+    name: Software bill of materials
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Produces an artefact and nothing else.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore and build
+        # The .NET half of the bill of materials is read out of the `*.deps.json` files, which only
+        # exist after a build: central package management keeps the versions in
+        # Directory.Packages.props, and no lock file is committed for the cataloguer to read
+        # instead. Without this step the document would list the client's dependencies, omit every
+        # server dependency, and give no sign that it had — an incomplete bill of materials that
+        # looks complete is worse than none.
+        run: |
+          dotnet restore HyFib.Tailor360.slnx
+          dotnet build HyFib.Tailor360.slnx --configuration Release --no-restore
+
+      - name: Prepare the output directory
+        run: mkdir -p artifacts/sbom
+
+      - name: Generate the bill of materials
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: .
+          # CycloneDX because that is what the vulnerability tooling downstream of a release reads.
+          format: cyclonedx-json
+          output-file: artifacts/sbom/tailor360.cyclonedx.json
+          # The action's own artefact upload is turned off in favour of the pinned upload step
+          # below, so every artefact in this workflow is produced the same way and retained for the
+          # same period.
+          upload-artifact: false
+          # Posting the components to the dependency submission API needs the dependency graph,
+          # which is the same unavailable feature the dependency review is gated on, and it needs a
+          # write-scoped token this job deliberately does not have.
+          dependency-snapshot: false
+          # This workflow never runs on a release event; saying so explicitly keeps it that way if
+          # a release trigger is added later without reading this job.
+          upload-release-assets: false
+
+      - name: Summarise the bill of materials
+        if: ${{ !cancelled() }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import collections, json, os
+
+          path = "artifacts/sbom/tailor360.cyclonedx.json"
+          print("## Software bill of materials")
+          print()
+          if not os.path.exists(path):
+              print("The document was not produced.")
+              raise SystemExit(0)
+
+          with open(path, encoding="utf-8") as handle:
+              document = json.load(handle)
+
+          components = document.get("components") or []
+          ecosystems = collections.Counter(
+              (component.get("purl") or "pkg:unknown/").split(":", 1)[1].split("/", 1)[0]
+              for component in components
+          )
+
+          print(f"{len(components)} component(s), CycloneDX "
+                f"{document.get('specVersion', 'unknown')}.")
+          print()
+          print("| Ecosystem | Components |")
+          print("| --- | ---: |")
+          for name, count in sorted(ecosystems.items()):
+              print(f"| {name} | {count} |")
+          print()
+          print("Downloadable as the `sbom` artefact.")
+          PY
+
+      - name: Upload the bill of materials
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: artifacts/sbom/
+          if-no-files-found: error
+          retention-days: 14

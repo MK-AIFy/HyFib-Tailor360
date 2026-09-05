@@ -10,19 +10,27 @@
 # hostname decision (Section 11 item 2) is taken, the ACME DNS-01 block in infra/caddy/Caddyfile is
 # enabled and this file gains the hostname.
 #
-# The environment holds synthetic data only (`seed-synthetic`), no production secrets and no
-# provider credentials: e-mail goes to Mailpit, and payment, SMS and WhatsApp adapters stay on their
-# fakes. It is deployed by the same pull-based tailor360-deploy script production will use
-# (Section 4.7): verify the image signature, run `migrate`, then `up -d --wait --pull always`.
+# The environment holds synthetic data only, no production secrets and no provider credentials:
+# e-mail goes to Mailpit, and the payment, SMS and WhatsApp adapters stay on their fakes. It is
+# deployed by the same pull-based tailor360-deploy script production will use (Section 4.7): verify
+# the image signature, then `up -d --wait --pull always`, which runs the one-shot `migrate` service
+# below before web and worker are allowed to serve. When that migration fails the environment is
+# reset rather than repaired in place — `down -v`, `up`, then the `seed` profile — the run is
+# labelled `staging-reset` and an issue is opened. A half-migrated staging database is worse than
+# an empty one.
 #
 # Images are built once by CI and promoted by digest; nothing is built on the VM.
 #   TAILOR360_WEB_IMAGE=ghcr.io/<owner>/tailor360-web@sha256:...
 #   TAILOR360_WORKER_IMAGE=ghcr.io/<owner>/tailor360-worker@sha256:...
+#   TAILOR360_CLI_IMAGE=ghcr.io/<owner>/tailor360-cli@sha256:...
 #   docker compose -f infra/compose/docker-compose.staging.yml up -d --wait --pull always
 #
 # PostgreSQL, MinIO and ClamAV publish no ports at all: they are reachable only from the compose
 # network. The worker's health port is internal for the same reason. Mailpit's interface is
 # published on the gated address only, so that notification rehearsals can be inspected.
+#
+# The operating manual for this stack — provisioning, the reset sequence, the network gate, what the
+# environment holds and what is still owed — is docs/dev/staging.md.
 
 name: tailor360-staging
 
@@ -34,8 +42,9 @@ x-logging: &default-logging
 
 x-app-hardening: &app-hardening
   # Section 4.7: non-root (set in the image), read-only root filesystem, no privilege escalation and
-  # no capabilities. The hosts write nothing to disk: logs go to stdout and the Data Protection key
-  # ring lives in platform.data_protection_keys (#21).
+  # no capabilities. The hosts write nothing to disk: logs go to stdout, and the Data Protection key
+  # ring is to live in platform.data_protection_keys — nothing persists it yet, so each container
+  # holds an ephemeral ring today (docs/dev/staging.md section 12 item 4).
   read_only: true
   security_opt:
     - no-new-privileges:true
@@ -44,7 +53,10 @@ x-app-hardening: &app-hardening
 
 services:
   caddy:
-    image: caddy:2.11.4-alpine
+    # A variable with the pinned stock image as its default. Enabling ACME DNS-01 needs a Caddy built
+    # with the chosen provider's DNS module — the official image carries none — and that build is then
+    # promoted by digest like every other image, rather than by editing this file on the VM.
+    image: ${TAILOR360_CADDY_IMAGE:-caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648}
     restart: unless-stopped
     depends_on:
       web:
@@ -71,6 +83,10 @@ services:
       start_period: 30s
     security_opt:
       - no-new-privileges:true
+    # The site address is a port above 1024, so the proxy needs no capability at all. It is not
+    # read-only: Caddy writes its certificate and configuration state into the two volumes.
+    cap_drop:
+      - ALL
     logging: *default-logging
     networks: [edge]
 
@@ -86,17 +102,22 @@ services:
         condition: service_completed_successfully
       clamav:
         condition: service_healthy
-      # #21 adds the one-shot `migrate` service (infra/docker/Dockerfile.cli) that web and worker
-      # wait for with `condition: service_completed_successfully`. Until then the deploy script runs
-      # the migration step itself; if it fails, the deploy job resets the environment
-      # (down -v, migrate, init-reference-data, seed-synthetic) and opens an issue.
+      # The schema is at this build's level before the new version answers a single request, and the
+      # deploy stops here if it is not. The application never migrates itself: during a deployment
+      # two versions run at once and would race for the schema.
+      migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Staging
       ASPNETCORE_HTTP_PORTS: "8080"
       Secrets__Directory: /run/secrets
-      # A separate Data Protection ring: staging has its own database and its own discriminator, so
-      # a session cookie, anti-forgery token or protected payload from staging can never be
-      # decrypted by production and vice versa, even if an image or a backup is copied by mistake.
+      # Staging's own Data Protection ring. Two things separate it from production: this environment
+      # has its own database, and this discriminator, so a session cookie, anti-forgery token or
+      # protected payload minted here cannot be decrypted there even if an image or a backup is
+      # copied by mistake. The discriminator is declared now and takes effect when the persisted key
+      # ring is configured against platform.data_protection_keys; until then each container holds an
+      # ephemeral ring, because the root filesystem is read-only, and a restart signs staging users
+      # out. Both are recorded in docs/dev/staging.md.
       DataProtection__ApplicationDiscriminator: tailor360-staging
       Observability__ServiceName: tailor360-web-staging
       Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
@@ -139,9 +160,12 @@ services:
         condition: service_completed_successfully
       clamav:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Staging
       Secrets__Directory: /run/secrets
+      # The same ring as the web host, and the same caveat — see the web service above.
       DataProtection__ApplicationDiscriminator: tailor360-staging
       Observability__ServiceName: tailor360-worker-staging
       Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
@@ -169,8 +193,98 @@ services:
     logging: *default-logging
     networks: [backend]
 
+  migrate:
+    # The one-shot migration step: run by `up` before web and worker may serve, and again by the
+    # reset sequence after a failed deploy. Migrations are applied by the operator command line
+    # rather than by the application, so that a deployment in which two versions overlap cannot have
+    # them racing for the schema, and so that the migrator can hold a role the application does not.
+    #
+    # The image is the promoted tailor360-cli digest, built by the release pipeline from
+    # infra/docker/Dockerfile.cli. That Dockerfile and the job that builds it are still owed — see
+    # "Still owed" in docs/dev/staging.md.
+    image: ${TAILOR360_CLI_IMAGE:?set TAILOR360_CLI_IMAGE to the promoted image digest}
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The command line reads DOTNET_ENVIRONMENT first and ASPNETCORE_ENVIRONMENT second. Naming
+      # the environment here is what keeps appsettings.Development.json, and the development
+      # connection string in it, out of the configuration this process builds.
+      DOTNET_ENVIRONMENT: Staging
+      Secrets__Directory: /run/secrets
+    secrets:
+      # The migrator holds t360_migrator once the per-role grants of Section 4.4 exist; today all
+      # three processes read the same connection string.
+      - Database__ConnectionString
+    <<: *app-hardening
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    healthcheck:
+      # A one-shot has no steady state; dependants wait with service_completed_successfully.
+      disable: true
+    logging: *default-logging
+    networks: [backend]
+
+  init-reference-data:
+    # Idempotent and production-safe: the audit partitions for the coming months and the reference
+    # rows every installation needs. It sits under a profile because it belongs to provisioning and
+    # to the reset sequence, not to every deploy:
+    #   docker compose -f infra/compose/docker-compose.staging.yml \
+    #     --profile seed run --rm init-reference-data
+    profiles: ["seed"]
+    image: ${TAILOR360_CLI_IMAGE:?set TAILOR360_CLI_IMAGE to the promoted image digest}
+    command: ["init-reference-data"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOTNET_ENVIRONMENT: Staging
+      Secrets__Directory: /run/secrets
+    secrets:
+      - Database__ConnectionString
+    <<: *app-hardening
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    healthcheck:
+      disable: true
+    logging: *default-logging
+    networks: [backend]
+
+  seed-synthetic:
+    # The deterministic synthetic dataset this environment holds, and the only dataset it is allowed
+    # to hold. The command refuses to run when the environment resolves to Production, unconditionally
+    # — there is no override flag and deliberately none, so the service cannot be pointed at a live
+    # database by changing a variable.
+    #   docker compose -f infra/compose/docker-compose.staging.yml \
+    #     --profile seed run --rm seed-synthetic
+    profiles: ["seed"]
+    image: ${TAILOR360_CLI_IMAGE:?set TAILOR360_CLI_IMAGE to the promoted image digest}
+    command: ["seed-synthetic"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOTNET_ENVIRONMENT: Staging
+      Secrets__Directory: /run/secrets
+    secrets:
+      - Database__ConnectionString
+    <<: *app-hardening
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    healthcheck:
+      disable: true
+    logging: *default-logging
+    networks: [backend]
+
   postgres:
-    image: postgres:16.13-alpine
+    # Digest as well as tag, like every third-party image in this file: a tag is a mutable pointer,
+    # and staging is the environment a release is rehearsed in. Dependabot's `docker` ecosystem
+    # raises these digests weekly.
+    image: postgres:16.13-alpine@sha256:4e6e670bb069649261c9c18031f0aded7bb249a5b6664ddec29c013a89310d50
     restart: unless-stopped
     command:
       - "postgres"
@@ -200,6 +314,12 @@ services:
     networks: [backend]
 
   minio:
+    # DIGEST OWED. Every other third-party image here carries `tag@sha256:...`; these two do not,
+    # because quay.io was unreachable from the environment this file was last edited in and a
+    # guessed digest that looks pinned is worse than an honest tag. Resolve and add both before the
+    # first deployment:
+    #   docker buildx imagetools inspect quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # Tracked as item 9 in docs/dev/staging.md section 12.
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
@@ -223,6 +343,7 @@ services:
     networks: [backend]
 
   createbuckets:
+    # Digest owed, for the same reason as `minio` above.
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
@@ -254,7 +375,7 @@ services:
   clamav:
     # Not behind a profile here: staging must exercise the real scanner, because that is where the
     # media pipeline of #31 is rehearsed before it reaches a shop.
-    image: clamav/clamav:1.4.6
+    image: clamav/clamav:1.4.6@sha256:b25d9199257ae7ef45e0cc4c7eaa60ce7e5447796f0090d5ff311d1a30980cc3
     restart: unless-stopped
     volumes:
       - clamav-data:/var/lib/clamav
@@ -271,7 +392,7 @@ services:
   mailpit:
     # Staging has no provider credentials, so every notification lands here and nothing can reach a
     # real customer. The interface is published on the gated address only.
-    image: axllent/mailpit:v1.31.0
+    image: axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24
     restart: unless-stopped
     environment:
       MP_MAX_MESSAGES: "5000"
@@ -295,7 +416,7 @@ services:
     # Optional here as well: with no OTLP endpoint configured the hosts export nothing, and the
     # telemetry backend is decided with Section 11 item 14 (D13).
     profiles: ["observability"]
-    image: otel/opentelemetry-collector-contrib:0.160.0
+    image: otel/opentelemetry-collector-contrib:0.160.0@sha256:799dc6cf12c96192af37b5bdba804da8c10b3bc563b43cb90c3f3c58d9572ad6
     restart: unless-stopped
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:

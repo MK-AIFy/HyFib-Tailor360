@@ -228,8 +228,8 @@ Raised 2026-09-04 by issue #19; mirrored in
 
 | ID | Question | Blocks | Owner | Status |
 | --- | --- | --- | --- | --- |
-| **DOD-OD-01** | The minimum number of approving reviews on a pull request into `main`, and whether the technical reviewer may approve their own work during a single-maintainer period | Branch protection configuration in #22 and #59 | Business owner, with the technical reviewer | **Open** — needed before the W1 exit gate |
-| **DOD-OD-02** | The per-project code-coverage floor enforced in CI | The coverage gate of #22 | Technical reviewer | **Proposed, to be confirmed** — no floor is asserted here until #22 measures a baseline |
+| **DOD-OD-01** | The minimum number of approving reviews on a pull request into `main`, and whether the technical reviewer may approve their own work during a single-maintainer period | Branch protection configuration in #22 and #59 | Business owner, with the technical reviewer | **Open** — needed before the W1 exit gate; the proposed settings and the interim single-maintainer arrangement are in [`branch-protection.md`](branch-protection.md) as **BP-OD-01** |
+| **DOD-OD-02** | The per-project code-coverage floor enforced in CI | The coverage gate of #22 | Technical reviewer | **Proposed, to be confirmed** — the baseline exists now: #22 measured **82.8% solution-wide** on 2026-09-05 and wrote the per-project floors, each two to three points under what the project achieved, into [`../../.github/coverage-floors.json`](../../.github/coverage-floors.json), where the CI gate reads them. What is outstanding is the owner's confirmation of those numbers, not the measurement |
 | **DOD-OD-03** | Whether an end-to-end journey must run on Firefox and WebKit per pull request, or nightly only with Chromium per pull request | The pull-request pipeline budget of 15 minutes | Technical reviewer | **Proposed** — the plan's split stands: Chromium per pull request, the full matrix nightly |
 | **DOD-OD-04** | Who holds the "security owner" role that DoD 6 escalates a high-rated flow to, before #56a appoints one | DoD 6 review of high-risk flows in waves W1 and W2 | Business owner | **Open** — needed before W2 |
 
@@ -241,6 +241,8 @@ Raised 2026-09-04 by issue #19; mirrored in
 | --- | --- |
 | [`definition-of-ready.md`](definition-of-ready.md) | The conditions before the branch is cut |
 | [`release-gates.md`](release-gates.md) | The gates a release must pass, several of which are the same checks run again over a whole release |
+| [`branch-protection.md`](branch-protection.md) | The required status checks and review rules that make the mechanical items of this checklist binding |
+| [`release-evidence.md`](release-evidence.md) | Where a pull request's evidence ends up at the release |
 | [`waivers.md`](waivers.md) | The register for anything a release ships without |
 | [`../../.github/pull_request_template.md`](../../.github/pull_request_template.md) | The template that mirrors this checklist |
 | [`../dev/migrations.md`](../dev/migrations.md) | The expand–migrate–contract rules DoD 4 relies on |

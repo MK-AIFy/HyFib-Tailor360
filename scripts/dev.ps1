@@ -150,6 +150,7 @@ Verbs:
   status             Print the state of the five components and exit non-zero when an essential
                      one is down. This output is the evidence for issue #20.
   doctor             Report the toolchain and which test tiers can run in this environment.
+  migrate [--dry-run] Apply outstanding database migrations. Safe to re-run; --dry-run only reports.
   docs               Check that every relative link in the documentation resolves.
 
 Common options:
@@ -879,6 +880,17 @@ function Invoke-Doctor {
   return 0
 }
 
+# docs/dev/migrations.md documents this verb, and it did not exist: a developer following the
+# document met "unknown verb" instead of a migration. It is a thin wrapper over the operator
+# command line, which holds one advisory lock for the whole run, so two of these racing is safe.
+function Invoke-Migrate {
+  param([string[]]$Options = @())
+  Assert-Tool 'dotnet'
+  Write-Heading 'Migrate'
+  Invoke-Step -Command 'dotnet' -CommandArguments (
+    @('run', '--project', $CliProject, '--configuration', $DotnetConfiguration, '--', 'migrate') + $Options)
+}
+
 function Invoke-Docs {
   # Windows installs the interpreter as `python`; the Microsoft Store shim and most Unix-like
   # setups provide `python3`. Either satisfies the check, so accept whichever is on PATH rather
@@ -914,6 +926,7 @@ try {
     'reset' { Invoke-Reset -Options $Arguments; exit 0 }
     'status' { exit (Invoke-Status) }
     'doctor' { exit (Invoke-Doctor) }
+    'migrate' { Invoke-Migrate -Options $Arguments; exit 0 }
     'docs' { Invoke-Docs; exit 0 }
     { $_ -in @('help', '-h', '--help') } { Show-Usage; exit 0 }
     default {

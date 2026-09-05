@@ -276,7 +276,7 @@ flowchart LR
 | **NFR-MQ-05** | Configuration, not code: categories, measurement templates, workflow phases, quality-control checklists, taxes, prices, alerts, retention and feature availability are versioned data | Test: integration tests that add a category and a template without deployment | RG-03 | Owner | Proof scheduled (#27, #29, #30, #33, #34, #41) |
 | **NFR-MQ-06** | Every published configuration version is immutable, enforced in the database | Test: trigger tests attempting to modify a published version | RG-03 | Technical reviewer | Proof scheduled (#27, #29) |
 | **NFR-MQ-07** | A pull request stays under about 1,500 changed lines excluding generated code and tests | Evidence: the diff statistics, reviewed at the Definition of Done | RG-14 | Technical reviewer | Proposed, to be confirmed |
-| **NFR-MQ-08** | Test coverage does not fall below the agreed per-project floor | Test: the coverage gate | RG-02 | Technical reviewer | Target open — **DOD-OD-02** in [`../process/definition-of-done.md`](../process/definition-of-done.md) |
+| **NFR-MQ-08** | Test coverage does not fall below the agreed per-project floor | Test: the coverage gate | RG-02 | Technical reviewer | Enforced from #22 against the measured floors in [`../../.github/coverage-floors.json`](../../.github/coverage-floors.json) (82.8% solution-wide at the baseline); the floors themselves are still **proposed, to be confirmed** as **DOD-OD-02** in [`../process/definition-of-done.md`](../process/definition-of-done.md) |
 
 ## 20. Portability
 

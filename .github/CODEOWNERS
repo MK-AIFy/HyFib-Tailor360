@@ -5,30 +5,33 @@
 # branch protection requires a review from a code owner — a pull request touching those paths
 # cannot merge without one.
 #
-# PLACEHOLDER HANDLES. `@MK-AIFy/tailor360-maintainers` and `@MK-AIFy/tailor360-platform` do not
-# exist yet. The repository owner replaces both with the real handles before enabling code-owner
-# review:
-#   * an organisation-owned repository uses team handles (`@org/team`), and the team must have
-#     write access to this repository or GitHub ignores the entry;
-#   * a personally owned repository cannot use team handles at all — use the personal handle
-#     (`@MK-AIFy`) on every line instead, otherwise GitHub reports the file as invalid and applies
-#     none of it.
+# HANDLES. This repository is owned by a personal account, not an organisation. GitHub rejects a
+# team handle (`@org/team`) on a personally owned repository and then applies **none** of the file,
+# so every line below uses the personal handle. An earlier revision carried placeholder team
+# handles, which meant the whole file was silently inert: code-owner review looked configured and
+# was not. If the repository ever moves to an organisation, replace these with team handles and
+# give each team write access, or GitHub ignores the entry.
+#
+# One caveat while there is a single maintainer: GitHub does not request review from the author of
+# a pull request, so a file owned only by the author gets no code-owner reviewer. That is a
+# limitation of a one-person repository rather than of this file, and it is recorded as DOD-OD-01
+# in `docs/process/definition-of-done.md`.
 
 # Everything, unless a tighter rule below claims it.
-*                       @MK-AIFy/tailor360-maintainers
+*                       @MK-AIFy
 
 # Deployment topology, compose stacks, Dockerfiles and the reverse proxy: a change here can expose
 # a port, weaken a container or break the migrate-before-serve ordering, and none of that shows up
 # in a test.
-/infra/                 @MK-AIFy/tailor360-platform
+/infra/                 @MK-AIFy
 
 # Workflows, governance and repository policy. A workflow change can alter what CI is allowed to do
 # with the workflow token, so it is reviewed by the same people who own the deployment.
-/.github/               @MK-AIFy/tailor360-platform
+/.github/               @MK-AIFy
 
 # Architecture decision records: an ADR is the record of a decision that binds every later issue,
 # so it is not amended in passing.
-/docs/adr/              @MK-AIFy/tailor360-platform
+/docs/adr/              @MK-AIFy
 
 # The shared kernel. Every module depends on it, so a change here is a change to all of them.
-/src/Platform/          @MK-AIFy/tailor360-platform
+/src/Platform/          @MK-AIFy

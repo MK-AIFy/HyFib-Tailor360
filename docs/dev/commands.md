@@ -22,6 +22,7 @@ and it silently falls back to VSTest, which rejects the runner's own options.
 | `reset` | Destroy the local data and re-create it |
 | `status` | State of the five components; non-zero exit when an essential one is down |
 | `doctor` | Toolchain and which test tiers can run here |
+| `migrate` | Apply outstanding database migrations; `--dry-run` reports without applying |
 | `docs` | Check that every relative link in the documentation resolves |
 
 ## `restore`
@@ -166,6 +167,33 @@ run:
 
 `doctor` exits non-zero only when a required tool (`dotnet`, `node`, `pnpm`) is missing. `psql`, `curl`,
 Docker and Python are reported as optional: Python is needed only by `docs`, and that check also runs in CI.
+
+## `migrate [--dry-run]`
+
+Applies outstanding database migrations through the operator command line
+(`dotnet run --project src/Tools/Tailor360.Cli -- migrate`). `--dry-run` reports what would be
+applied and changes nothing.
+
+`docs/dev/migrations.md` documented this verb before it existed, so a developer following that
+document met `unknown verb: migrate` instead of a migration. It is a thin wrapper rather than a
+second implementation: the command line holds one PostgreSQL advisory lock for the whole run, so
+two of these racing is safe, and `reset` already used the same command internally.
+
+It needs a connection string, which comes from configuration rather than from the test variable:
+`Database:ConnectionString` in `src/Tools/Tailor360.Cli/appsettings.Development.json`, or the
+`Database__ConnectionString` environment variable. Running it without one fails with a named
+options-validation error rather than a stack trace about a missing service.
+
+```
+$ ./scripts/dev migrate --dry-run
+platform: 3 migration(s) would be applied
+
+$ ./scripts/dev migrate
+platform: applied 3 migration(s)
+
+$ ./scripts/dev migrate
+platform: already up to date
+```
 
 ## `docs`
 

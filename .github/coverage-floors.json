@@ -1,0 +1,68 @@
+{
+  "$comment": [
+    "Per-project line-coverage floors, enforced by scripts/coverage-floor.py in the .NET job of",
+    ".github/workflows/ci.yml. These numbers are the measured baseline that DOD-OD-02 in",
+    "docs/process/definition-of-done.md was waiting for — 82.8% solution-wide on 2026-09-05, and",
+    "the per-project figures below. The decision itself is still **proposed, to be confirmed**: its",
+    "owner (the technical reviewer) confirms the floors, and until they do this file is the",
+    "proposal, not the answer.",
+    "",
+    "Every floor here was measured, not chosen. `measured` records what the project achieved on the",
+    "baseline run (all four tiers, the Integration tier against a real PostgreSQL 16), and `floor`",
+    "sits two to three points under it so that an ordinary change does not fail the build over a",
+    "line or two. The floors ratchet upward: when a project runs at or above its floor plus",
+    "`ratchet_slack` the check says so on the run, and the floor is raised to match.",
+    "",
+    "Lowering a floor needs the same written reason any other gate relaxation needs",
+    "(docs/process/waivers.md). It is a change under /.github/, which CODEOWNERS would route to a",
+    "reviewer — but every rule in .github/CODEOWNERS names a team handle, and GitHub applies none",
+    "of them on a personally owned repository, so that routing is a convention today rather than an",
+    "enforced control. See docs/process/branch-protection.md section 5.2, decision BP-OD-03.",
+    "",
+    "Generated code and the test projects are excluded; scripts/coverage-floor.py explains why.",
+    "Projects with fewer than `minimum_lines` coverable lines are not gated unless they are named",
+    "below: the module Contracts, Domain and Application projects currently hold nothing but an",
+    "assembly marker class, and a percentage over two lines measures nothing."
+  ],
+
+  "minimum_lines": 50,
+  "default_floor": 65.0,
+  "aggregate_floor": 80.0,
+  "ratchet_slack": 5.0,
+
+  "exclude_projects": ["*Tests"],
+  "exclude_files": ["*/obj/*", "*.g.cs", "*.generated.cs"],
+
+  "projects": {
+    "Tailor360.Platform.Persistence": {
+      "floor": 92.0,
+      "measured": 94.2,
+      "note": "The persistence platform of #21. Exercised by all four tiers."
+    },
+    "Tailor360.Platform.Observability": {
+      "floor": 94.0,
+      "measured": 96.9,
+      "note": "Correlation, logging and health reporting."
+    },
+    "Tailor360.Web": {
+      "floor": 85.0,
+      "measured": 88.2,
+      "note": "The web host, covered by the Contract and Integration tiers."
+    },
+    "Tailor360.Platform.Security": {
+      "floor": 74.0,
+      "measured": 76.6,
+      "note": "Rises as #23 and #24 land authentication and authorisation."
+    },
+    "Tailor360.Platform.Abstractions": {
+      "floor": 65.0,
+      "measured": 68.2,
+      "note": "Mostly contracts and result types; the uncovered part is guard clauses."
+    },
+    "Tailor360.Cli": {
+      "floor": 4.0,
+      "measured": 4.3,
+      "note": "Recorded debt, not an accepted standard: the operator commands of #21 have no tests beyond their argument parsing. This floor stops the number falling further while that is open, and rises to the default once the commands are covered."
+    }
+  }
+}
