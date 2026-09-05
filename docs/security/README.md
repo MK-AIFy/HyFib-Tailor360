@@ -17,7 +17,7 @@ name its model and close the controls the model maps to it).
 
 | Field | Value |
 | --- | --- |
-| Status | **Index only.** The template is ready; the models themselves are not written yet |
+| Status | **One model written.** The authentication flow is covered by [`threat-models/authentication.md`](threat-models/authentication.md); the rest of the set is scheduled in section 3.2 |
 | Drafted | 2026-09-05, issue #22, wave W1 |
 | Owner of the directory | The security owner once #56a appoints one; until then the Owner, with the technical reviewer |
 | Review cadence | At every wave exit gate, and whenever a flow listed in section 3 changes |
@@ -28,7 +28,7 @@ name its model and close the controls the model maps to it).
 
 | Path | Contents | Delivered by | State today |
 | --- | --- | --- | --- |
-| `threat-models/<flow>.md` | One model per flow: assets, data flow diagram, trust boundaries, STRIDE table, abuse cases, controls mapped to tests, residual risk | #23 (authentication), then #56a for the rest | W1 | **Not written.** The template is [`../templates/threat-model.md`](../templates/threat-model.md) |
+| `threat-models/<flow>.md` | One model per flow: assets, data flow diagram, trust boundaries, STRIDE table, abuse cases, controls mapped to tests, residual risk | #23 (authentication), then #56a for the rest | [`threat-models/authentication.md`](threat-models/authentication.md) is **written and reviewed** (#23, 2026-09-05). The rest are not; the template is [`../templates/threat-model.md`](../templates/threat-model.md) |
 | `abuse-cases.md` | The cross-cutting abuse catalogue — insecure direct object reference, privilege escalation, workflow bypass, barcode replay, invoice and payment tampering, stock manipulation, malicious upload, export leakage, server-side request forgery, credential abuse, denial of service | #56a | Not written |
 | `asvs-traceability.md` | ASVS L2 with selected L3: requirement, control, issue or pull request, test, evidence, residual risk, owner, review date | #56a | Not written |
 | `vulnerability-management.md` | Triage, the remediation service levels of [`../nfr/security-operations-targets.md`](../nfr/security-operations-targets.md), and disclosure | #56a | Not written |
@@ -66,7 +66,7 @@ is a finding at that gate.
 
 | Flow | Model | Covered by | When (wave) | What stands in until then |
 | --- | --- | --- | --- | --- |
-| Authentication, sessions, multi-factor authentication, recovery | `threat-models/authentication.md` | #23 | W1 | Plan Section 4.4 and [`../adr/0006-bff-cookie-session.md`](../adr/0006-bff-cookie-session.md) |
+| Authentication, sessions, multi-factor authentication, recovery | [`threat-models/authentication.md`](threat-models/authentication.md) | #23 | W1 — **written 2026-09-05** | Nothing: the model is the authority |
 | Authorisation, roles and branch scope | `threat-models/authorisation.md` | #24, alongside `permission-matrix.md` | W1 | [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) and the deny-by-default rule it asserts |
 | Customer data, measurements and media | `threat-models/customer-and-media.md` | #56a | W2 | [`../nfr/data-classification.md`](../nfr/data-classification.md) handling rules, and [`../adr/0005-object-storage-authorised-delivery.md`](../adr/0005-object-storage-authorised-delivery.md) |
 | Order and garment workflow | `threat-models/order-workflow.md` | #56a | W2 | The workflow invariants in [`../architecture/invariants.md`](../architecture/invariants.md) |

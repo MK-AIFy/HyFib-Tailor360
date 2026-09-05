@@ -21,6 +21,14 @@ public static partial class LogRedaction
         "secret", "clientsecret", "apikey", "apitoken", "token", "accesstoken", "refreshtoken",
         "authorization", "cookie", "setcookie", "sessionticket", "antiforgerytoken",
         "mfasecret", "totpsecret", "recoverycode", "recoverycodes", "otp",
+        // #23 returns an authenticator secret in three forms and a recovery link in two. Each is a
+        // working credential, so each is named here rather than trusted to stay out of a log line.
+        "secretkey", "secretbase32", "manualentrykey", "otpauthuri", "otpauth",
+        "recoverytoken", "resetlink", "recoverylink", "invitationlink", "tokenvalue",
+        // The sign-in surface also carries a remembered-device cookie value, a WebAuthn ceremony handle
+        // that is single-use and binds a challenge to one browser, the authenticator response itself,
+        // and a human-verification answer. None of them is a password; all of them are bearer values.
+        "trusteddevicetoken", "devicetoken", "ceremonyid", "credentialjson", "captcharesponse",
         "connectionstring", "privatekey", "certificate", "certificatepassword",
         "backupkey", "encryptionkey", "dataprotectionkey", "webhooksecret", "signature",
         "aadhaar", "pan", "upiid", "cardnumber", "cvv",

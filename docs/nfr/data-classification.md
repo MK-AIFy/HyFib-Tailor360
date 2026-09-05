@@ -417,13 +417,13 @@ and an auditor can find the gap. "Owning module" uses the module names of plan S
 | Attribute | Treatment |
 | --- | --- |
 | Class | **Personal**, with the credentials of section 6 attached to it |
-| Examples | Staff name, contact details, role and permission grants, branch assignments, assignee capabilities, session and device inventory, last strong authentication time, workload and throughput figures attributable to a named tailor |
+| Examples | Staff name, contact details, role and permission grants, branch assignments, assignee capabilities, session and device inventory — including the client address and user agent held on `identity.sessions` so a person can recognise their own devices — last strong authentication time, workload and throughput figures attributable to a named tailor |
 | Purpose | To authenticate and authorise staff, to assign work to people who can do it, and to answer "who did this" |
 | Lawful basis or consent | Employment and legitimate business operation; **DC-01** confirms the position |
 | Who may access | `admin.users` for administration; the Branch Manager for their own branch's assignments; the individual for their own profile, sessions and devices. **Throughput and workload figures about a named person are shown to the Tailor Master, the Branch Manager and the Owner only**, and are never published on a shop-floor leaderboard — measuring people is a management conversation, not a wall display |
 | Retention | Account retained while employed and **proposed** for a period after leaving, so that audit events remain attributable; then the account is deactivated and pseudonymised while its identifier survives in the audit chain — **OD-08** |
 | In backups | Yes, with the database |
-| In logs | The `actor_id` and role appear in every audited action, which is the point. **The staff member's name, phone number and e-mail address do not appear in application logs** |
+| In logs | The `actor_id` and role appear in every audited action, which is the point. **The staff member's name, phone number and e-mail address do not appear in application logs**, and neither does the client address or user agent held on a session: those are shown to the person in their own device inventory, not written to a log line |
 | In exports | Workload and productivity reports under an authorised permission; access-review exports for the quarterly review of [`security-operations-targets.md`](security-operations-targets.md) |
 | Deletion and anonymisation | Deactivation, then pseudonymisation of name and contact fields; the `user_id` is retained forever so the hash-chained audit record stays interpretable |
 

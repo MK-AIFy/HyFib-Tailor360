@@ -57,7 +57,7 @@ than on the day someone first exercises it.
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp`. | `SourceConventionTests` |
 | ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue. | `EndpointPolicyTests` |
 | ARCH-018 | Every endpoint whose required permission is marked `RequiresStepUp` declares `.RequireStepUp()`. | `EndpointPolicyTests` |
-| ARCH-019 | No endpoint accepts more than one authentication scheme. | `EndpointPolicyTests` |
+| ARCH-019 | No endpoint accepts more than one authentication scheme. | `AuthenticationSchemeTests` |
 
 ### 2.1 Implementation status
 
@@ -70,7 +70,7 @@ than on the day someone first exercises it.
 | ARCH-014 … ARCH-016 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
 | ARCH-017 | Specified | — | #53 |
 | ARCH-018 | Specified | — | #24 |
-| ARCH-019 | Specified | — | #23 |
+| ARCH-019 | Enforced | `tests/Tailor360.ContractTests` | #23 |
 
 ### 2.2 The dependency shape the rules defend
 
@@ -175,7 +175,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Deny by default is the only safe default for a system holding customer contact details, measurements, garment images and financial documents. The failure this rule prevents is silent: a new endpoint that simply omits `.RequirePermission(…)` is reachable by anyone who can reach the host, and no reviewer reliably notices an absence. Requiring an explicit, written justification turns every anonymous route into a deliberate, reviewable decision. |
 | **Allowed exceptions** | The health probes `/health/live`, `/health/startup`, `/health/ready` and `/health/detail`; and any endpoint declared with `AllowAnonymousWithJustification`. The anonymous set sanctioned by plan Section 4.4 is: customer link pages under `/c/{purpose}/{token}`, payment provider callbacks, telemetry ingest, the version endpoint, the PWA shell fallback, the OpenAPI document in Development only, and the sign-in, MFA-challenge, passkey and recovery endpoints, which are anonymous by nature and are protected instead by anti-forgery, the `auth-anon` and `mfa-challenge` rate-limit policies and the `Sec-Fetch-Site`/`Origin` check. |
 | **How an exception is registered** | In code, by calling `.AllowAnonymousWithJustification(justification, reviewedIn)` from `Tailor360.Platform.Security.Endpoints`. The justification must be longer than 20 characters and `reviewedIn` must name the issue, ADR or threat model where the exposure was reviewed; `EndpointPolicyTests.EveryAnonymousExposureRecordsItsReview` fails otherwise. From #56a onward the referenced threat model must also list the endpoint. |
-| **Test** | `EndpointPolicyTests.Arch007_EveryEndpointDeclaresAPolicyOrAJustifiedAnonymousExposure`, currently in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` because it needs a composed application to read the route table — see **ROD-01**. |
+| **Test** | `EndpointPolicyTests.Arch007_EveryEndpointDeclaresAPolicyOrAJustifiedAnonymousExposure`, currently in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` because it needs a composed application to read the route table — see **ROD-01**. The citation each exemption carries is checked separately by `EndpointReviewCitationTests.EveryReviewCitationNamesADocumentThatExists`: a `reviewedIn` naming a document that is not in the repository makes the register circular, and because the citation lives in a C# string literal the markdown link checker cannot see it. |
 
 ### ARCH-008 — Every state-changing endpoint carries the audit filter
 
@@ -183,6 +183,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | --- | --- |
 | **Assertion** | Every endpoint whose HTTP methods include `POST`, `PUT`, `PATCH` or `DELETE` carries `AuditedEndpointMetadata`. |
 | **Rationale** | Complete auditability is a product outcome, not a nicety: the business needs to know which Cashier posted an invoice, which Tailor Master reassigned a garment job, which Delivery Staff recorded a dispatch and which Branch Manager approved a variance. The audit event is written in the same transaction as the mutation and hash-chained, so a command endpoint without the filter leaves a permanent hole in a chain that is otherwise verifiable — and the hole is only discovered when someone asks who did something. |
+| **What this rule does and does not assert** | It asserts the **declaration**, not the effect. `.Audited("module.action")` attaches metadata and writes nothing; the row is written by the handler through `IAuditWriter`. That split is deliberate — the entry belongs in the same unit of work as the change it describes, which only the handler holds — but it means the rule can be green over a handler that records nothing, and #23 shipped five such endpoints before the gap was found. Until a generic filter exists (deferred: it would have to skip every handler that already self-audits, or double-write the sign-in and passkey actions), the effect is asserted per flow, by tests named in that flow's threat model — for authentication, CTL-37 to CTL-39 of [`../security/threat-models/authentication.md`](../security/threat-models/authentication.md). **A pull request adding an `.Audited(…)` endpoint owes an integration test that the row appears.** |
 | **Allowed exceptions** | None for state-changing endpoints. Read endpoints carry the filter only where the read is itself sensitive — a measurement sheet, a media stream, a governed export — and those are added by explicit `.Audited(…)` calls rather than by this rule. |
 | **How an exception is registered** | It is not. `.Audited("module.action")` is one line; a command that genuinely must not be audited requires an ADR in [`../adr/`](../adr/) and an amendment to this rule. Note that audit coverage and idempotency are separate obligations: see plan Section 5.1 item 2. |
 | **Test** | `EndpointPolicyTests.Arch008_EveryStateChangingEndpointIsAudited`, currently in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` — see **ROD-01**. |
@@ -295,7 +296,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Version 1 registers exactly two authentication paths — the cookie scheme behind the BFF, and justified anonymous endpoints. An endpoint that accepted both a cookie and a future API key would be reachable by a client that carries neither anti-forgery protection nor the browser guarantees the cookie scheme depends on, and confused-deputy bugs of that shape are hard to see in review. Third-party and trusted clients get their own surface at `/api/ext/v1/**` in a later issue. |
 | **Allowed exceptions** | None inside `/api/v1/**`. When `/api/ext/v1/**` arrives, its endpoints accept exactly one scheme too, and the rule gains a per-prefix expectation rather than an exemption. |
 | **How an exception is registered** | It is not; a second scheme on one route requires an ADR in [`../adr/`](../adr/) amending ADR-0006. |
-| **Test** | `EndpointPolicyTests.Arch019_NoEndpointAcceptsMoreThanOneAuthenticationScheme`. **Specified, not yet implemented**: due with #23. |
+| **Test** | `AuthenticationSchemeTests.Arch019_TheApplicationRegistersExactlyOneAuthenticationScheme`, over the composed host's `IAuthenticationSchemeProvider`. Asserting the registered set rather than each endpoint's metadata is the stronger form: while one scheme exists, no endpoint can name a second, so the rule holds by construction and cannot be broken one route at a time. The per-endpoint assertion returns when `/api/ext/v1/**` arrives and there is more than one scheme to tell apart. |
 
 ---
 

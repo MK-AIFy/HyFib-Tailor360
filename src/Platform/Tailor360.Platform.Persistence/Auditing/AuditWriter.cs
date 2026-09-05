@@ -32,8 +32,12 @@ public sealed class AuditWriter(
         {
             Id = idGenerator.NewId(),
             OccurredAt = clock.UtcNow,
-            ActorId = auditContext.ActorId,
-            ActorDisplayName = auditContext.ActorDisplayName,
+            // The entry's own actor wins where it names one. That is how a sign-in is attributed to the
+            // account it signed in, on a request where nobody was authenticated when it arrived.
+            ActorId = entry.ActorId ?? auditContext.ActorId,
+            ActorDisplayName = entry.ActorDisplayName is { Length: > 0 } named
+                ? named
+                : auditContext.ActorDisplayName,
             Action = entry.Action,
             EntityType = entry.EntityType,
             EntityId = entry.EntityId,
@@ -52,6 +56,10 @@ public sealed class AuditWriter(
 
         return Task.CompletedTask;
     }
+
+    /// <inheritdoc />
+    public Task SaveAsync(CancellationToken cancellationToken = default)
+        => context.SaveChangesAsync(cancellationToken);
 
     /// <summary>
     /// Serialises a state snapshot to JSON. The column is <c>jsonb</c>, so a caller passing a plain

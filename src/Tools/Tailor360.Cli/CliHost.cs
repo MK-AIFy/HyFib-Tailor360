@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tailor360.Modules.Identity.Infrastructure;
 using Tailor360.Platform.Persistence;
 
 namespace Tailor360.Cli;
@@ -49,6 +50,12 @@ public static class CliHost
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
 
         builder.Services.AddTailor360Platform();
+
+        // The command line applies every module's migrations, so each module that owns a schema is
+        // registered here as well as in the web host. A module missing from this list would have a
+        // schema `migrate` never creates, and the omission would only surface when the application
+        // refused to serve.
+        builder.Services.AddIdentityModule(builder.Configuration);
 
         return builder.Build();
     }

@@ -14,6 +14,15 @@ namespace Tailor360.Platform.Abstractions.Auditing;
 /// column will reject. Null for creations.
 /// </param>
 /// <param name="After">Redacted resulting state, serialised the same way. Null for deletions.</param>
+/// <param name="ActorId">
+/// Who acted, when the entry cannot take it from <c>IAuditContext</c>. Almost every entry leaves this
+/// null and is attributed to the caller the request resolved. The exception is the sign-in path, where
+/// the actor is established by the very action being recorded: on the login request nobody is
+/// authenticated yet, so an entry that deferred to the context would attribute a person's own sign-in
+/// to <c>system</c> and leave it out of every "what did this person do" query. A failed attempt against
+/// an identifier that matches no account stays anonymous, because there is nobody to name.
+/// </param>
+/// <param name="ActorDisplayName">The actor's name, supplied with <paramref name="ActorId"/>.</param>
 public sealed record AuditEntry(
     string Action,
     string EntityType,
@@ -21,4 +30,6 @@ public sealed record AuditEntry(
     string Summary,
     string? Reason = null,
     object? Before = null,
-    object? After = null);
+    object? After = null,
+    Guid? ActorId = null,
+    string? ActorDisplayName = null);

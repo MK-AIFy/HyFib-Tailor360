@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Entities;
@@ -6,12 +7,12 @@ namespace Tailor360.Platform.Persistence.Contexts;
 
 /// <summary>
 /// The Platform module's context: the outbox and inbox, idempotency, document sequences, the audit
-/// trail, feature flags, job leases and worker heartbeats. It owns the <c>platform</c> schema and
-/// nothing else touches it directly.
+/// trail, feature flags, job leases, worker heartbeats and the data-protection key ring. It owns the
+/// <c>platform</c> schema and nothing else touches it directly.
 /// </summary>
 /// <param name="options">Context options.</param>
 public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> options)
-    : ModuleDbContext(options, SchemaName)
+    : ModuleDbContext(options, SchemaName), IDataProtectionKeyContext
 {
     /// <summary>The schema this context owns.</summary>
     public const string SchemaName = "platform";
@@ -39,6 +40,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     /// <summary>Per-instance worker heartbeats.</summary>
     public DbSet<WorkerHeartbeat> WorkerHeartbeats => Set<WorkerHeartbeat>();
+
+    /// <summary>
+    /// The ASP.NET Core data-protection key ring. It lives here rather than on a container's disk
+    /// because the images run with a read-only root file system and because a second web replica with
+    /// its own ring would reject the first replica's anti-forgery tokens (Section 4.4). The rows are
+    /// written and read by the framework, never by application code.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -146,6 +155,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(e => e.InstanceName);
             entity.Property(e => e.InstanceName).HasMaxLength(128);
             entity.Property(e => e.Version).HasMaxLength(64).IsRequired();
+        });
+
+        modelBuilder.Entity<DataProtectionKey>(entity =>
+        {
+            entity.ToTable("data_protection_keys");
+            entity.HasKey(e => e.Id);
+
+            // The framework's own mapping leaves both columns unbounded. Naming them explicitly keeps
+            // the column names in this table's snake-case style and documents that the XML is the
+            // key material: the application role may read and write it, and nothing else may.
+            entity.Property(e => e.FriendlyName).HasColumnName("friendly_name");
+            entity.Property(e => e.Xml).HasColumnName("xml").IsRequired();
         });
     }
 }

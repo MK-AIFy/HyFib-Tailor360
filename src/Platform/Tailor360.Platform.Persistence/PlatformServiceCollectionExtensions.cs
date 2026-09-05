@@ -38,6 +38,38 @@ public static class PlatformServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Declares that a module context takes part in migrations, and where in the order it belongs.
+    /// </summary>
+    /// <remarks>
+    /// Each module contributes its own context here, and the registry is composed from what the
+    /// container holds. A module that adds a context and forgets this call has a schema no migration run
+    /// will ever create, which the startup migration check turns into a refusal to serve rather than
+    /// into a runtime error on the first query.
+    /// </remarks>
+    /// <typeparam name="TContext">The module's context.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="schema">The schema the module owns.</param>
+    /// <param name="order">
+    /// Migration order. Platform is 0 and Identity is 100; every other module leaves the default so
+    /// that they are applied alphabetically among themselves.
+    /// </param>
+    public static IServiceCollection AddModuleContext<TContext>(
+        this IServiceCollection services,
+        string schema,
+        int order = ModuleContextRegistry.DefaultModuleOrder)
+        where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(schema);
+
+        services.AddSingleton(new ModuleContextRegistration(typeof(TContext), schema, order));
+        services.TryAddSingleton(provider =>
+            new ModuleContextRegistry(provider.GetServices<ModuleContextRegistration>()));
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers the platform database context and everything built on it: migrations, the audit
     /// writer, document sequences, idempotency, feature flags and the outbox.
     /// </summary>
@@ -76,7 +108,7 @@ public static class PlatformServiceCollectionExtensions
         {
             var options = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
-            builder.UseNpgsql(BuildConnectionString(options), npgsql =>
+            builder.UseNpgsql(options.BuildPooledConnectionString(), npgsql =>
             {
                 npgsql.MigrationsHistoryTable(
                     ModuleDbContext.MigrationsHistoryTable, PlatformDbContext.SchemaName);
@@ -90,8 +122,8 @@ public static class PlatformServiceCollectionExtensions
             .UseSnakeCaseNamingConvention();
         });
 
-        services.TryAddSingleton(_ => new ModuleContextRegistry()
-            .Add<PlatformDbContext>(PlatformDbContext.SchemaName, ModuleContextRegistry.PlatformOrder));
+        services.AddModuleContext<PlatformDbContext>(
+            PlatformDbContext.SchemaName, ModuleContextRegistry.PlatformOrder);
 
         services.TryAddScoped<MigrationRunner>();
         services.TryAddScoped<JobLeaseService>();
@@ -118,18 +150,4 @@ public static class PlatformServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>
-    /// Builds the connection string with the pool size the budget check validated, so the value that was
-    /// checked is the value that is used.
-    /// </summary>
-    private static string BuildConnectionString(DatabaseOptions options)
-    {
-        var builder = new Npgsql.NpgsqlConnectionStringBuilder(options.ConnectionString)
-        {
-            MaxPoolSize = options.MaxPoolSize,
-            Pooling = true,
-        };
-
-        return builder.ConnectionString;
-    }
 }

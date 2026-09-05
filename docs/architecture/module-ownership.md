@@ -194,14 +194,23 @@ touching `platform.feature_flags` directly.
 
 | Table | Holds |
 | --- | --- |
-| `users` | Staff principals, status, locale, MFA enrolment state |
+| `users` | Staff principals, status, multi-factor enrolment state, lockout counters |
+| `user_preferences` | Locale, timezone, theme, density and landing route — returned by `GET /me` (#23), edited by #25, applied by #50 |
 | `roles`, `role_permissions`, `user_roles` | Default permission bundles and their grants; the permission *catalogue* itself is code in `Platform.Security` |
 | `user_branch_assignments` | The branch scope of each principal |
-| `sessions` | Server-side session tickets, `last_strong_auth_at`, revocation state, device inventory |
-| `user_credentials`, `mfa_secrets`, `passkey_credentials`, `recovery_codes` | Password hashes, TOTP secrets, WebAuthn credentials, one-time recovery codes |
+| `sessions` | Server-side session tickets — digest of the cookie value, `last_strong_auth_at`, idle and absolute expiry, revocation state, device inventory |
+| `user_credentials`, `totp_enrolments`, `passkey_credentials`, `recovery_codes` | Argon2id password hashes, authenticator enrolments, WebAuthn credentials, hashed single-use recovery codes |
+| `recovery_tokens` | Digest of the single-use expiring value in a recovery or invitation link, its purpose, and when it was spent or withdrawn (#23; #25 issues the invitation purpose) |
 | `trusted_devices` | Optional revocable shared-counter device cookie, subject to **OD-12** |
 | `branches` | Branch code, name, IANA timezone (default `Asia/Kolkata`), status |
 | `branch_calendars`, `branch_calendar_days` | Working calendar and holidays used by due-date and SLA clocks |
+
+**Concurrency note.** `users` and `user_preferences` carry the `xmin` token of
+[`conventions.md`](conventions.md) section 4.1, and the root's token is what serialises a race on its children —
+which is what makes a recovery code single-use under concurrent redemption. `sessions` and `trusted_devices`
+deliberately carry none: their rows are written by ordinary requests sliding an inactivity deadline, and a client
+that issues several requests at once would turn that into a stream of conflicts. Their correctness comes from
+last-write-wins on a timestamp and from revocation being a conditional update.
 
 **Owned object-storage prefix.** None.
 
@@ -597,7 +606,7 @@ in `Platform.Abstractions`.
 | `feature_flags`, `feature_flag_evaluations` | Organisation- and branch-scoped flags, mandatory change reason, evaluation audit |
 | `retention_policies` | The configured lifetime of each data class, executed by the retention worker |
 | `print_jobs` | Document type, format, artefact key, branch, requester, target station, status |
-| `data_protection_keys` | The ASP.NET Core Data Protection key ring, protected by a certificate or KMS key |
+| `data_protection_keys` | The ASP.NET Core Data Protection key ring. **Stored unencrypted today:** the ring is persisted to this table and nothing calls `ProtectKeysWith…`, because no key-encryption certificate is provisioned. It wraps every stored TOTP shared secret, so anyone who can read this table can read those secrets — recorded as **W-002** in `docs/process/waivers.md` and as **RR-04** in `docs/security/threat-models/authentication.md`, and closed by #59 |
 | `job_leases`, `worker_heartbeats` | Scheduled-job leases and per-instance liveness |
 
 Per-module `outbox_messages` tables live in each module's own schema; Platform owns the dispatcher, the claim

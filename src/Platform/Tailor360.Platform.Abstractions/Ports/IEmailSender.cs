@@ -2,9 +2,14 @@ namespace Tailor360.Platform.Abstractions.Ports;
 
 /// <summary>
 /// Sends transactional email. Introduced by #23 for account recovery and consumed later by
-/// Notifications (#47); adapters live in Integration.Infrastructure so no vendor SDK leaks into a
-/// business module (ARCH-009).
+/// Notifications (#47).
 /// </summary>
+/// <remarks>
+/// The adapters ship in <c>Identity.Infrastructure</c> for now, because Identity is the only module
+/// that sends a message in this release and the shipped adapter is the framework's own SMTP client
+/// rather than a provider SDK, so ARCH-009 has nothing to catch. Issue #47 moves them under
+/// <c>Integration.Infrastructure</c> along with the first adapter that does carry a vendor SDK.
+/// </remarks>
 public interface IEmailSender
 {
     /// <summary>Sends one message. Implementations must not log the body or the recipient address.</summary>

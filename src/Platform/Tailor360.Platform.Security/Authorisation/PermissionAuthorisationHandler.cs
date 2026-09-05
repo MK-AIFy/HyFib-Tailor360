@@ -43,6 +43,15 @@ public sealed class PermissionAuthorisationHandler(
             return Task.CompletedTask;
         }
 
+        // A session that has answered only the first factor holds no permission, whatever its roles
+        // grant. It exists to finish the sign-in and to end itself, and this is the second place that
+        // says so — the first being the assurance requirement on the self-service endpoints.
+        if (!currentUser.IsSignInComplete)
+        {
+            context.Fail(new AuthorizationFailureReason(this, "The sign-in has not been completed."));
+            return Task.CompletedTask;
+        }
+
         if (permission.RequiresMfa && !currentUser.MfaSatisfied)
         {
             context.Fail(new AuthorizationFailureReason(this, "Multi-factor authentication required."));

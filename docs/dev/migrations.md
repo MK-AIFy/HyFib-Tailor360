@@ -85,6 +85,22 @@ Never edit a migration that has been applied anywhere but a developer machine. A
 applies this build's migrations to an empty database and to that snapshot; both must succeed. Older
 snapshots are deleted, and migrations older than two releases may be squashed.
 
+## Register
+
+Every migration is recorded here when it merges, with its phase and the evidence that it was applied.
+Conventions section 6.4 requires this alongside the pull-request evidence, so that a reviewer looking at
+a schema six months later can see what each change was for without reading the code.
+
+| Migration | Schema | Phase | Issue | Applied and verified |
+| --- | --- | --- | --- | --- |
+| `20260904185922_InitialPlatformSchema` | `platform` | Expand — initial | #21 | Empty database; re-run reports up to date |
+| `20260904185927_AuditTrailStructure` | `platform` | Expand — initial | #21 | Empty database; re-run reports up to date |
+| `20260904195746_AuditPartitionSafety` | `platform` | Expand | #21 | Empty database; re-run reports up to date |
+| `20260905155743_InitialIdentitySchema` | `identity` | Expand — initial | #23 | Applied to an empty PostgreSQL 16 database; re-run reports `identity: already up to date`; `Down` reverted to an empty schema and the migration re-applied cleanly |
+| `20260905162158_DataProtectionKeyRing` | `platform` | Expand | #23 | Applied to an empty PostgreSQL 16 database (`tailor360_dp_check`); re-run reports `platform: already up to date`; `Down` dropped `platform.data_protection_keys` and the migration re-applied cleanly |
+| `20260905170018_AddRecoveryTokens` | `identity` | Expand | #23 | Applied to an empty PostgreSQL 16 database (`tailor360_mig_check`); both check constraints present afterwards — `ck_recovery_tokens_token_hash_is_digest` and `ck_recovery_tokens_lifetime`, the second of which is the domain's one-hour cap restated in the schema; `Down` dropped the table and the migration re-applied cleanly |
+| `20260905193715_AddSessionPendingStep` | `identity` | Expand | #23 | Applied to `tailor360_mig_check`; `identity.sessions.pending_step` is `character varying(30) NOT NULL DEFAULT 'None'` — the default is `None` rather than the scaffolder's empty string, because rows written by the previous build were issued only after the first factor and an empty string parses as no enum member at all; `Down` dropped the column and the migration re-applied cleanly |
+
 ## Checklist
 
 - [ ] The migration touches only its own module's schema.

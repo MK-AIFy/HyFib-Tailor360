@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 // "must be used within a data router". One entry point everywhere avoids that class of bug.
 import { RouterProvider } from 'react-router'
 import { DisplayPreferencesProvider } from './app/DisplayPreferencesProvider'
+import { SessionProvider } from './auth/SessionProvider'
 import { router } from './app/router'
 import { AppIntlProvider } from './i18n/IntlProvider'
 // Stylesheet order is the cascade-layer order: layers.css declares the layers, tokens.css and
@@ -30,7 +31,12 @@ createRoot(container).render(
           the screen: they are applied once, to the document, and survive every navigation. The store
           behind them is a local stub until identity.user_preferences exists (#25). */}
       <DisplayPreferencesProvider>
-        <RouterProvider router={router} />
+        {/* Outside the router, because the session outlives every navigation and because the
+            re-authentication dialog it owns has to be able to open over any screen without that
+            screen unmounting — which is the whole point of re-authenticating in place. */}
+        <SessionProvider>
+          <RouterProvider router={router} />
+        </SessionProvider>
       </DisplayPreferencesProvider>
     </AppIntlProvider>
   </StrictMode>,

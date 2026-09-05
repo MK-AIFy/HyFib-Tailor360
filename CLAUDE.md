@@ -60,13 +60,10 @@ elsewhere and it silently falls back to VSTest.
 | `build` | `dotnet build` the solution and build the client |
 | `test [tier]` | `all` (default), `unit`, `architecture`, `contract`, `integration`, `pwa`, `e2e` |
 | `run` | Web host, worker and client dev server together, logging to `artifacts/logs/` |
+| `migrate [--dry-run]` | Apply outstanding migrations through the command-line tool. Safe to re-run; `--dry-run` only reports |
 | `reset` | Destructive: compose `down -v`, then `migrate`, `init-reference-data`, `seed-synthetic`. Refuses in Production |
 | `status` | Probe the five components; non-zero exit when an essential one is down |
 | `docs` | Check that every relative link in the documentation resolves |
-
-**There is no `migrate` verb.** Migrations are applied by the command-line tool; `reset` runs it as one of its
-steps. If you find `./scripts/dev migrate` written anywhere, it is a documentation error — use the CLI command
-below.
 
 The scripts deliberately wrap nothing that is already a one-liner. Run these directly:
 
@@ -116,7 +113,7 @@ with the reason.**
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp` | Enforced |
 | ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue | Specified (#53) |
 | ARCH-018 | Every endpoint whose permission is marked `RequiresStepUp` declares `.RequireStepUp()` | Specified (#24) |
-| ARCH-019 | No endpoint accepts more than one authentication scheme | Specified (#23) |
+| ARCH-019 | No endpoint accepts more than one authentication scheme | Enforced |
 
 Crossing a boundary has exactly five sanctioned mechanisms — a read contract, a versioned integration event through
 the transactional outbox, a confirmation-participant hook, composition in the web host, or a platform port. A new

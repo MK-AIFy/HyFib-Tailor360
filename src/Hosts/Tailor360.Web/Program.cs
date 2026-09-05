@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -26,12 +27,14 @@ using Tailor360.Modules.Orders.Api;
 using Tailor360.Modules.Orders.Infrastructure;
 using Tailor360.Modules.Reporting.Api;
 using Tailor360.Modules.Reporting.Infrastructure;
+using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Observability.Correlation;
 using Tailor360.Platform.Observability.Health;
 using Tailor360.Platform.Observability.Logging;
 using Tailor360.Platform.Observability.Telemetry;
 using Tailor360.Platform.Persistence;
+using Tailor360.Platform.Persistence.DataProtection;
 using Tailor360.Platform.Security;
 using Tailor360.Platform.Security.Endpoints;
 using Tailor360.Web.Configuration;
@@ -58,8 +61,19 @@ builder.Services.AddOpenApi();
 builder.Services.AddRateLimiter(options => options.AddTailor360Policies());
 
 builder.Services.AddTailor360Platform();
+
+// The key ring encrypts the anti-forgery token pair, so it has to be shared by every instance and to
+// survive a restart. Persisting it in the database is what makes both true; the container images run
+// with a read-only root file system, so the framework's own default could not work here anyway.
+builder.Services.AddTailor360DataProtection(builder.Configuration);
+
 builder.Services.AddTailor360Security();
 builder.Services.AddTailor360Observability(builder.Configuration, BuildInformation.Version);
+
+// Audit entries name the person who acted, not "system". The host composes this because it is the one
+// place that sees both the session-backed caller and the request's correlation identifier.
+builder.Services.RemoveAll<IAuditContext>();
+builder.Services.AddScoped<IAuditContext, SessionAuditContext>();
 
 // Readiness reports the database only. Object storage, the malware scanner and provider APIs are
 // reported as degraded rather than unhealthy, because losing them disables a feature, not the instance.
@@ -100,12 +114,30 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
-app.UseRateLimiter();
+
+// A cross-site attempt is refused on a header comparison, before it can reach the session lookup or
+// spend a rate-limit permit that belongs to the person being attacked.
+app.UseTailor360OriginChecks();
+
 app.UseAuthentication();
+
+// Rate limiting runs after authentication so that the authenticated policies can key on the account.
+// A whole shop reaches this system through one broadband connection, so keying on the address would
+// throttle a dozen people as one caller; the credential policies key on the address anyway, because
+// before a session exists there is nothing else to key on. Authenticating first costs one indexed
+// lookup, and only for a request that presented a cookie.
+app.UseRateLimiter();
+
+// Anti-forgery runs after authentication because the request token is bound to the signed-in account,
+// and before authorisation so that a forged request is refused without reaching an endpoint's policy.
+// It covers sign-in, the multi-factor challenge, passkeys and recovery as well as ordinary commands.
+app.UseTailor360Antiforgery();
+
 app.UseAuthorization();
 
 app.MapTailor360HealthEndpoints();
 app.MapVersionEndpoint(app.Environment);
+app.MapAntiForgeryEndpoint();
 
 app.MapIdentityEndpoints()
     .MapCustomersEndpoints()

@@ -50,4 +50,25 @@ public sealed class DatabaseOptions
 
     /// <summary>True when the configured pools fit inside the server's capacity.</summary>
     public bool BudgetFits => TotalBudget <= AvailableForApplication;
+
+    /// <summary>
+    /// The connection string with the pool size the budget check validated, so the value that was
+    /// checked is the value that is used.
+    /// </summary>
+    /// <remarks>
+    /// Every module context in a process builds its connection string here rather than using the raw
+    /// configured value. Npgsql keys its pool by the exact connection string, so a module that used a
+    /// slightly different one would open a second pool of its own — and the startup budget, which
+    /// counts one pool per process, would be wrong by exactly that much.
+    /// </remarks>
+    public string BuildPooledConnectionString()
+    {
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            MaxPoolSize = MaxPoolSize,
+            Pooling = true,
+        };
+
+        return builder.ConnectionString;
+    }
 }

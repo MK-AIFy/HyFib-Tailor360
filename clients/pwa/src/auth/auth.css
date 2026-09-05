@@ -1,0 +1,252 @@
+/*
+ * The authentication screens.
+ *
+ * Every value here is a token. The two exceptions are the QR code's own colours, which are tokens
+ * that deliberately do not follow the theme — see `--colour-code-surface` in tokens.css — and the
+ * print block at the foot, which exists so that a sheet of recovery codes prints as a sheet of
+ * recovery codes rather than as a screenshot of an application.
+ */
+@layer components {
+  /* The shell the signing-in screens live in, which has no navigation by design ---------------- */
+  .auth-shell {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100dvh;
+    background: var(--colour-surface-sunken);
+  }
+
+  .auth-shell__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    padding-block-start: calc(var(--space-4) + var(--safe-area-top));
+  }
+
+  .auth-shell__brand {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+    color: var(--colour-brand);
+  }
+
+  .auth-shell__main {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    padding: var(--space-4);
+    padding-block-end: calc(var(--space-6) + var(--safe-area-bottom));
+  }
+
+  .auth-panel {
+    inline-size: 100%;
+    max-inline-size: var(--container-sm);
+    padding: var(--space-5);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elevation-1);
+  }
+
+  .auth-panel > h1 {
+    margin-block: 0 var(--space-2);
+  }
+
+  /* Forms and the blocks around them ---------------------------------------------------------- */
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-block-start: var(--space-4);
+  }
+
+  .auth-section {
+    margin-block-start: var(--space-6);
+    padding-block-start: var(--space-5);
+    border-block-start: 1px solid var(--colour-border-subtle);
+  }
+
+  .auth-section > h2,
+  .auth-section > h3 {
+    margin-block: 0 var(--space-2);
+  }
+
+  .auth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-primary);
+    margin-block-start: var(--space-4);
+  }
+
+  .auth-hint,
+  .auth-identity {
+    margin-block: 0;
+    color: var(--colour-ink-muted);
+  }
+
+  .auth-identity {
+    font-weight: var(--font-weight-medium);
+    color: var(--colour-ink);
+  }
+
+  .auth-countdown {
+    margin-block: var(--space-2) 0;
+    font-size: var(--font-size-400);
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--font-weight-bold);
+  }
+
+  /* The authenticator setup key: read aloud, typed in, or copied ------------------------------ */
+  .setup-key {
+    display: inline-block;
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-family-numeric);
+    font-size: var(--font-size-300);
+    /* Groups of four, spaced, so a person can read one group at a time onto a phone keypad. */
+    letter-spacing: var(--letter-spacing-wide);
+    word-break: break-all;
+    background: var(--colour-surface-sunken);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .copy-control {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .copy-control__outcome:not(:empty) {
+    color: var(--colour-success-ink);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* The QR code ------------------------------------------------------------------------------- */
+  .qr-frame {
+    display: flex;
+    justify-content: center;
+    margin-block: var(--space-4);
+  }
+
+  .qr-code {
+    inline-size: 100%;
+    /* Big enough to scan across a counter, and never wider than the panel it sits in. */
+    max-inline-size: 15rem;
+    block-size: auto;
+    border-radius: var(--radius-md);
+  }
+
+  .qr-code__ground {
+    fill: var(--colour-code-surface);
+  }
+
+  .qr-code__modules {
+    fill: var(--colour-code-ink);
+    /* Adjacent modules must join rather than leave hairlines a decoder reads as light. */
+    shape-rendering: crispedges;
+  }
+
+  /* The recovery-code sheet -------------------------------------------------------------------- */
+  .recovery-sheet__codes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--space-2) var(--space-4);
+    margin-block: var(--space-4);
+    padding-inline-start: var(--space-6);
+  }
+
+  .recovery-sheet__code {
+    font-family: var(--font-family-numeric);
+    font-size: var(--font-size-300);
+    letter-spacing: var(--letter-spacing-wide);
+  }
+
+  .recovery-sheet__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-primary);
+    margin-block-end: var(--space-5);
+  }
+
+  /* The device inventory ----------------------------------------------------------------------- */
+  .device-list {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .device {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--density-padding-block) var(--density-padding-inline);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .device[data-current='true'] {
+    border-color: var(--colour-brand);
+    border-inline-start-width: 4px;
+  }
+
+  .device__name {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .device__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  .device__facts > * {
+    margin: 0;
+  }
+
+  .device__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-standard);
+    margin-block-start: var(--space-2);
+  }
+
+  /* Printing ------------------------------------------------------------------------------------
+   * A person printing this wants the codes on paper and nothing else. Hiding the rest of the
+   * document rather than styling it is what keeps a sheet of recovery codes from arriving as three
+   * pages of navigation, and `visibility` rather than `display` so the sheet keeps its place.
+   */
+  @media print {
+    body:has(.recovery-sheet) * {
+      visibility: hidden;
+    }
+
+    body:has(.recovery-sheet) .recovery-sheet,
+    body:has(.recovery-sheet) .recovery-sheet * {
+      visibility: visible;
+    }
+
+    .recovery-sheet {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      inline-size: 100%;
+    }
+
+    .recovery-sheet__actions,
+    .recovery-sheet .field--choice,
+    .recovery-sheet .button {
+      display: none;
+    }
+  }
+}

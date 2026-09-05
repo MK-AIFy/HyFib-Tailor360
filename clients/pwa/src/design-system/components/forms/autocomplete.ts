@@ -34,6 +34,16 @@ export const AUTOCOMPLETE = {
   /** A date of birth, for the kids templates' age band. */
   birthDate: 'bday',
   organisation: 'organization',
+  /**
+   * The sign-in name field. Paired with `currentPassword` below, it is what lets a password manager
+   * fill a sign-in in one action — which on a shared counter device is the difference between a
+   * strong password and one somebody can remember while holding a garment.
+   */
+  username: 'username',
+  /** The password field of a sign-in and of every step-up re-authentication. */
+  currentPassword: 'current-password',
+  /** The password field of a recovery or a change: it asks the manager to offer a new one. */
+  newPassword: 'new-password',
   /** The one-time code field of sign-in and of every step-up re-authentication. */
   oneTimeCode: 'one-time-code',
   /** Explicitly off, for a field a browser must not remember — a reason, a note, a variance. */

@@ -141,6 +141,19 @@
     --colour-warning-surface: var(--palette-gold-500);
     --colour-warning-border: var(--palette-gold-900);
 
+    /* ---------------------------------------------------------------------------------------
+     * Machine-readable surfaces: a QR code today, a barcode and a printed label later.
+     *
+     * These are the only tokens in this file that no theme overrides, and that is the point. A
+     * camera decoding a QR code needs dark modules on a light ground: inverting them for the dark
+     * theme produces a code many scanners — and most authenticator apps — will not read at all, and
+     * tinting them for the sunlight theme costs the contrast the decode depends on. So a scannable
+     * surface is white with black ink in every theme, and the component draws on it rather than on
+     * the page.
+     * ------------------------------------------------------------------------------------- */
+    --colour-code-surface: var(--palette-white);
+    --colour-code-ink: var(--palette-black);
+
     --colour-info-ink: var(--palette-blue-800);
     --colour-info-surface: var(--palette-blue-100);
     --colour-info-border: var(--palette-blue-700);

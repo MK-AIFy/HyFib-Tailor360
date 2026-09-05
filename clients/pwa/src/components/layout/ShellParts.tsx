@@ -1,6 +1,7 @@
 import { FormattedMessage, useIntl } from 'react-intl'
 import { NavLink } from 'react-router'
 import type { ReactNode } from 'react'
+import { AUTH_ROUTES } from '../../auth/authRoutes'
 import { cx } from '../../design-system/foundations/cx'
 import { useVersion } from '../../app/version'
 import { HelpEntry } from '../navigation/HelpEntry'
@@ -21,7 +22,7 @@ export interface ShellUtilitiesProps {
 }
 
 /**
- * Help, support and display settings — the three shell entries that are not destinations.
+ * Help, support, display settings and the account — the shell entries that are not destinations.
  *
  * They travel together and they sit in one reserved slot per shell: the foot of the rail on a
  * desktop, the header on a tablet and a phone. WCAG 3.2.6 Consistent Help and checklist items
@@ -44,6 +45,18 @@ export function ShellUtilities({ placement, showSupport = false, className }: Sh
         <Icon name="settings" />
         <span className="shell-utilities__label">
           {intl.formatMessage({ id: 'layout.settings.display' })}
+        </span>
+      </NavLink>
+      {/*
+        The account's own security screen — authenticator, recovery codes, passkeys, devices, and
+        signing out. It sits here for the same reason display settings do: only three of the eight
+        roles have a Settings destination, and every one of the eight has to be able to sign out of a
+        shared counter device and to see where their account is signed in.
+      */}
+      <NavLink className="shell-utilities__link" to={AUTH_ROUTES.security}>
+        <Icon name="users" />
+        <span className="shell-utilities__label">
+          {intl.formatMessage({ id: 'layout.settings.account' })}
         </span>
       </NavLink>
     </div>

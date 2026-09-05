@@ -21,6 +21,12 @@
     <ProjectReference Include="..\..\src\Modules\Identity\Tailor360.Modules.Identity.Application\Tailor360.Modules.Identity.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Tailor360.Modules.Identity.Contracts\Tailor360.Modules.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Tailor360.Modules.Identity.Domain\Tailor360.Modules.Identity.Domain.csproj" />
+    <!--
+      Identity's infrastructure is referenced for the password hasher alone. It is a pure function with
+      no database and no host behind it, so its tests belong in this tier; everything else in that
+      project is exercised from the integration tier.
+    -->
+    <ProjectReference Include="..\..\src\Modules\Identity\Tailor360.Modules.Identity.Infrastructure\Tailor360.Modules.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Application\Tailor360.Modules.Integration.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Contracts\Tailor360.Modules.Integration.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Domain\Tailor360.Modules.Integration.Domain.csproj" />

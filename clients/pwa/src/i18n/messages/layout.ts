@@ -20,6 +20,7 @@
  */
 export const layoutEn = {
   /* Shell ---------------------------------------------------------------------------------- */
+  'layout.settings.account': 'Sign-in and security',
   'layout.settings.display': 'Display settings',
   'layout.settings.displayBody':
     'Choose how this application looks. The change takes effect at once and applies to every screen.',
@@ -76,6 +77,8 @@ export const layoutEn = {
 
 export const layoutTa: Record<keyof typeof layoutEn, string> = {
   // not translated — awaiting native-speaker review
+  // not translated — awaiting native-speaker review
+  'layout.settings.account': 'Sign-in and security',
   'layout.settings.display': 'Display settings',
   // not translated — awaiting native-speaker review
   'layout.settings.displayBody':
