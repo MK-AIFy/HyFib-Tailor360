@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tailor360.Modules.Integration.Application\Tailor360.Modules.Integration.Application.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

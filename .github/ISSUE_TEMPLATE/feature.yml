@@ -1,0 +1,142 @@
+name: Feature
+description: Propose a change to what the product does, or a piece of planned work.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Planned work already has an issue: check the roadmap in issue #1 and its epics before
+        opening a new one. Use this form for work that is not on the roadmap yet, or to split a
+        planned feature into a sub-issue.
+
+        Use synthetic examples only. Never paste a real customer's name, phone number,
+        measurements or photographs into an issue.
+
+  - type: textarea
+    id: need
+    attributes:
+      label: The need
+      description: >-
+        Who needs this, and what are they trying to do? Describe the situation in the shop, not the
+        solution you have in mind.
+      placeholder: |
+        A cashier closing the till at 21:00 has to reopen every invoice to find the cash payments,
+        which takes about ten minutes and is the last thing standing between them and going home.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What the system should do. Include the states that are not the happy path.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: >-
+        One checkable statement per line. These become the tests, so write them as observable
+        behaviour rather than as intentions.
+      placeholder: |
+        - [ ] A cashier can close a session and see the counted-versus-expected difference before confirming.
+        - [ ] Closing a session with a difference requires a reason, which is recorded in the audit log.
+        - [ ] A cashier cannot close another cashier's session.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modules
+    attributes:
+      label: Modules affected
+      description: Best guess is fine; the module boundaries are in the implementation plan, Section 4.2.
+      multiple: true
+      options:
+        - Identity and administration
+        - Customers and measurements
+        - Catalog and design
+        - Media
+        - Orders and workflow
+        - Custody and barcode
+        - Inventory
+        - Billing and payments
+        - Reporting
+        - Notifications and feedback
+        - Integration
+        - Platform (shared kernel)
+        - PWA client
+        - Infrastructure, CI or tooling
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: >-
+        What this issue deliberately does not cover, so that the pull request stays reviewable and
+        the follow-up work is visible.
+
+  - type: input
+    id: parent
+    attributes:
+      label: Parent issue or epic
+      description: The issue number this belongs under, if there is one.
+      placeholder: "#1"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### The Definition of Done this work inherits
+
+        Work opened here is held to the project-wide Definition of Done, not to a checklist written
+        per issue. Its nine items are authoritative in
+        [`docs/process/definition-of-done.md`](https://github.com/MK-AIFy/HyFib-Tailor360/blob/main/docs/process/definition-of-done.md); the
+        pull-request template mirrors them and `pr-policy.yml` enforces the mechanical parts.
+
+        <details>
+        <summary>The nine items</summary>
+
+        1. Scope, issue link and branch
+        2. Authorisation, validation, idempotency and audit on every state-changing endpoint
+        3. Tests
+        4. Migrations and rollback
+        5. Application programming interface contract
+        6. Secrets, personal data, telemetry and the threat model
+        7. User-interface changes
+        8. Documentation
+        9. Evidence checklist complete
+
+        </details>
+
+        Before a branch is cut, the issue must also satisfy the Definition of Ready in
+        [`docs/process/definition-of-ready.md`](https://github.com/MK-AIFy/HyFib-Tailor360/blob/main/docs/process/definition-of-ready.md) — most
+        of what it asks for (data classification, authorisation impact, test strategy, the evidence
+        list) is far cheaper to decide now than to reconstruct during review.
+
+  - type: checkboxes
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      options:
+        - label: >-
+            I understand this work is held to the project-wide Definition of Done, and that a
+            pull request that does not meet it will not be merged.
+          required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues, including the roadmap epics.
+          required: true
+        - label: This issue contains synthetic examples only — no real customer data.
+          required: true

@@ -1,0 +1,126 @@
+name: PR policy
+
+# The required status check of Section 5.1: a pull request links exactly one issue and comes from a
+# branch whose name says which issue it belongs to. Issue #22 adds the rest of the policy (the
+# mandatory evidence-checklist items once the pull request is ready for review, and the
+# `release-ready` label this check alone applies).
+#
+# `pull_request`, never `pull_request_target`. The pull-request body and branch name are attacker
+# controlled, so they are passed to the shell through the environment and never interpolated into
+# a script — an expression such as `${{ github.event.pull_request.body }}` inside `run:` would let
+# a body ending in a backtick or `$( )` execute on the runner.
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+# The checks read event payload fields that are already in the workflow context; no repository
+# content is checked out and nothing is written back.
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: Linked issue and branch name
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check the linked issue and the branch name
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+        run: |
+          # The job always runs and always reports a conclusion: a required check that is skipped
+          # rather than passed is awkward to reason about in branch protection.
+          if [ "$AUTHOR_TYPE" = "Bot" ]; then
+            echo "Pull request opened by the automation account '$AUTHOR'; the branch-name and"
+            echo "linked-issue rules describe human work and do not apply. Nothing to check."
+            echo "Policy checks skipped for the automation account \`$AUTHOR\`." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          failed=0
+
+          # --- Rule 1: exactly one linked issue -------------------------------------------------
+          # Only `Refs #NN` and `Closes #NN` count. `Refs` records a relationship; `Closes` also
+          # closes the issue on merge. Repeating the same number is accepted (a body may mention
+          # the issue twice); two different numbers are not, because a pull request that serves two
+          # issues cannot be reviewed or reverted as one unit.
+          # The pattern deliberately swallows a comma- or `and`-separated list after one keyword, so
+          # that `Refs #17, #20, #21` counts as three issues rather than one. Matching only the first
+          # number would let a pull request serving a whole wave pass a check meant to prevent exactly
+          # that, which is worse than having no check.
+          issues=$(printf '%s' "$PR_BODY" \
+            | grep -oiE '\b(refs|closes):?[[:space:]]+#[0-9]+([[:space:]]*(,|and)[[:space:]]*#[0-9]+)*' \
+            | grep -oE '[0-9]+' | sort -u || true)
+          issue_count=$(printf '%s' "$issues" | grep -c . || true)
+
+          if [ "$issue_count" -eq 1 ]; then
+            echo "Linked issue: #$issues"
+          elif [ "$issue_count" -eq 0 ]; then
+            failed=1
+            echo "::error title=No linked issue::The pull-request body must link exactly one issue with 'Refs #NN' or 'Closes #NN'."
+            echo "The body links no issue. Add a line such as 'Refs #20' (relates to the issue) or"
+            echo "'Closes #20' (closes it on merge) to the 'Linked issue' section of the template."
+            echo "Other closing keywords ('Fixes', 'Resolves') are deliberately not accepted, so"
+            echo "that the link reads the same way on every pull request."
+          else
+            failed=1
+            echo "::error title=More than one linked issue::The pull-request body links $issue_count issues; exactly one is required."
+            echo "Issues found: $(printf '%s' "$issues" | tr '\n' ' ')"
+            echo "Split the work so that one pull request serves one issue (or sub-issue)."
+          fi
+
+          # --- Rule 2: branch name --------------------------------------------------------------
+          # feat|fix|docs|chore / <issue slug> - <description>, where the issue slug is either the
+          # epic-feature identifier (e02-f01, e02-f01a) or a plain slug. `claude/…` is reserved for
+          # branches Claude Code names for its own sessions, and `dependabot/…` for branches
+          # Dependabot names for its update pull requests; neither tool lets the branch name be
+          # chosen, so both prefixes are exempt from the rule rather than exceptions to it.
+          naming_rule='^(feat|fix|docs|chore)/(e[0-9]{2}-f[0-9]{2}[a-c]?|[a-z0-9-]+)-[a-z0-9-]+$'
+          automation_rule='^(claude|dependabot)/[a-zA-Z0-9._/-]+$'
+
+          if printf '%s' "$HEAD_REF" | grep -qE "$naming_rule"; then
+            echo "Branch name: $HEAD_REF"
+          elif printf '%s' "$HEAD_REF" | grep -qE "$automation_rule"; then
+            echo "Branch name: $HEAD_REF (reserved automation prefix)"
+          else
+            failed=1
+            echo "::error title=Branch name does not match the convention::'$HEAD_REF' does not match $naming_rule"
+            echo "Rename the branch to <type>/<issue>-<slug>, all lower case, for example:"
+            echo "  feat/e02-f01-solution-scaffold   a feature for issue #20 (epic 02, feature 01)"
+            echo "  fix/e05-f03b-invoice-rounding    a fix for a sub-issue"
+            echo "  docs/adr-0007-outbox             a documentation change with a plain slug"
+            echo "Allowed types: feat, fix, docs, chore."
+          fi
+
+          # --- Summary --------------------------------------------------------------------------
+          {
+            echo "## Pull-request policy"
+            echo
+            echo "| Rule | Value | Result |"
+            echo "| --- | --- | --- |"
+            if [ "$issue_count" -eq 1 ]; then
+              echo "| Exactly one linked issue | #$issues | pass |"
+            else
+              echo "| Exactly one linked issue | $issue_count found | fail |"
+            fi
+            if printf '%s' "$HEAD_REF" | grep -qE "$naming_rule|$automation_rule"; then
+              echo "| Branch name | \`$HEAD_REF\` | pass |"
+            else
+              echo "| Branch name | \`$HEAD_REF\` | fail |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$failed"

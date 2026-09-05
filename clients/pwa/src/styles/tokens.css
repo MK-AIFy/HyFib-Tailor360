@@ -1,0 +1,97 @@
+/*
+ * Design tokens — the scaffold subset.
+ *
+ * The full design system (complete palette including the high-contrast sunlight theme, type scale,
+ * elevation, motion, density and container-query breakpoints) is issue #50. What is here is only what
+ * the shell needs, expressed as custom properties so that #50 can replace the values without touching
+ * a component.
+ *
+ * Two rules already hold and must not be relaxed later:
+ *   - an interactive target is at least 48px in both directions (shop staff work standing, one-handed,
+ *     often with a phone in a case);
+ *   - colour never carries meaning on its own; text or an icon always says the same thing.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Brand and surfaces (light) */
+  --colour-ink: #10201f;
+  --colour-ink-muted: #4a5c5b;
+  --colour-surface: #ffffff;
+  --colour-surface-sunken: #f7f5f1;
+  --colour-border: #d6d9d4;
+  --colour-brand: #0f3d3e;
+  --colour-brand-contrast: #ffffff;
+  --colour-accent: #f4c95d;
+  --colour-focus: #0b5cd5;
+
+  /* Status colours. Always paired with a word, never used alone. */
+  --colour-warning-surface: #ffd23f;
+  --colour-warning-ink: #2b2000;
+  --colour-danger: #a4262c;
+  --colour-success: #0f6b3f;
+
+  /* Spacing: a 4px base, so a phone layout can be dense without becoming cramped. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+
+  /* Typography. A system stack until the subsetted Latin + Tamil faces ship with #50/#52. */
+  --font-family-base:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Tamil', Arial, sans-serif;
+  --font-size-100: 0.875rem;
+  --font-size-200: 1rem;
+  --font-size-300: 1.125rem;
+  --font-size-400: 1.375rem;
+  --font-size-500: 1.75rem;
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+
+  /* Accessibility */
+  --touch-target-min: 48px;
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+
+  /* Motion. Every duration is read through these, so the reduced-motion block below disables all of
+     it in one place. */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --layout-max-width: 72rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --colour-ink: #eef2f1;
+    --colour-ink-muted: #a9b6b4;
+    --colour-surface: #10201f;
+    --colour-surface-sunken: #07211f;
+    --colour-border: #2c3d3c;
+    --colour-brand: #07211f;
+    --colour-brand-contrast: #eef2f1;
+    --colour-focus: #7cb2ff;
+    --colour-warning-surface: #ffd23f;
+    --colour-warning-ink: #2b2000;
+    --colour-danger: #ff9a9e;
+    --colour-success: #6fd39b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}

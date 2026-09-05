@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
+    <ProjectReference Include="..\..\src\Hosts\Tailor360.Web\Tailor360.Web.csproj" />
+  </ItemGroup>
+
+</Project>

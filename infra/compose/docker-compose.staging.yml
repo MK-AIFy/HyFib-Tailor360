@@ -1,0 +1,348 @@
+# HyFib Tailor360 — interim staging stack (issue #22, Lane C; hardened by #59).
+#
+# ACCESS IS GATED IN FRONT OF THIS STACK, NOT BY IT.
+# Reaching the proxy requires both an IP allowlist for the shop networks and either an
+# identity-aware proxy or WireGuard/Tailscale enrolment for phones and tablets; the application
+# login is the second factor, never the only one. Until issue #23 (authentication) merges there is
+# no public hostname at all: the proxy is published on the VM's loopback or WireGuard address and
+# reached through the tunnel, which is why TAILOR360_BIND_ADDRESS defaults to 127.0.0.1 and why the
+# Caddy site address is a bare port rather than a domain — TLS is terminated by the gate. When the
+# hostname decision (Section 11 item 2) is taken, the ACME DNS-01 block in infra/caddy/Caddyfile is
+# enabled and this file gains the hostname.
+#
+# The environment holds synthetic data only (`seed-synthetic`), no production secrets and no
+# provider credentials: e-mail goes to Mailpit, and payment, SMS and WhatsApp adapters stay on their
+# fakes. It is deployed by the same pull-based tailor360-deploy script production will use
+# (Section 4.7): verify the image signature, run `migrate`, then `up -d --wait --pull always`.
+#
+# Images are built once by CI and promoted by digest; nothing is built on the VM.
+#   TAILOR360_WEB_IMAGE=ghcr.io/<owner>/tailor360-web@sha256:...
+#   TAILOR360_WORKER_IMAGE=ghcr.io/<owner>/tailor360-worker@sha256:...
+#   docker compose -f infra/compose/docker-compose.staging.yml up -d --wait --pull always
+#
+# PostgreSQL, MinIO and ClamAV publish no ports at all: they are reachable only from the compose
+# network. The worker's health port is internal for the same reason. Mailpit's interface is
+# published on the gated address only, so that notification rehearsals can be inspected.
+
+name: tailor360-staging
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+x-app-hardening: &app-hardening
+  # Section 4.7: non-root (set in the image), read-only root filesystem, no privilege escalation and
+  # no capabilities. The hosts write nothing to disk: logs go to stdout and the Data Protection key
+  # ring lives in platform.data_protection_keys (#21).
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      # A bare port: the network gate in front terminates TLS. Replaced by the hostname, and the
+      # ACME DNS-01 block in the Caddyfile enabled, when #23 gives the environment a public name.
+      TAILOR360_SITE_ADDRESS: ":8080"
+      TAILOR360_UPSTREAM: "web:8080"
+      # Belt and braces against the environment ever being reachable by a crawler: staging holds
+      # synthetic data that must never appear in a search result.
+      TAILOR360_ROBOTS_TAG: "noindex, nofollow, noarchive, nosnippet"
+    ports:
+      - "${TAILOR360_BIND_ADDRESS:-127.0.0.1}:${TAILOR360_STAGING_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --output-document=/dev/null http://127.0.0.1:8080/api/version || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks: [edge]
+
+  web:
+    image: ${TAILOR360_WEB_IMAGE:?set TAILOR360_WEB_IMAGE to the promoted image digest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+      # #21 adds the one-shot `migrate` service (infra/docker/Dockerfile.cli) that web and worker
+      # wait for with `condition: service_completed_successfully`. Until then the deploy script runs
+      # the migration step itself; if it fails, the deploy job resets the environment
+      # (down -v, migrate, init-reference-data, seed-synthetic) and opens an issue.
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Secrets__Directory: /run/secrets
+      # A separate Data Protection ring: staging has its own database and its own discriminator, so
+      # a session cookie, anti-forgery token or protected payload from staging can never be
+      # decrypted by production and vice versa, even if an image or a backup is copied by mistake.
+      DataProtection__ApplicationDiscriminator: tailor360-staging
+      Observability__ServiceName: tailor360-web-staging
+      Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
+      Observability__TraceSamplingRatio: "1.0"
+      Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
+      # Caddy is the only hop in front of the host and sits on the edge bridge network.
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+      # Bound from #31 (object storage), #31/#44 (scanner, e-mail). Declared now so the deployment
+      # shape does not change when those issues land.
+      ObjectStorage__Endpoint: http://minio:9000
+      ObjectStorage__ForcePathStyle: "true"
+      MalwareScanner__Endpoint: tcp://clamav:3310
+      Email__SmtpHost: mailpit
+      Email__SmtpPort: "1025"
+    secrets:
+      - Database__ConnectionString
+      - ObjectStorage__AccessKey
+      - ObjectStorage__SecretKey
+    <<: *app-hardening
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:8080/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
+    networks: [edge, backend]
+
+  worker:
+    image: ${TAILOR360_WORKER_IMAGE:?set TAILOR360_WORKER_IMAGE to the promoted image digest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      Secrets__Directory: /run/secrets
+      DataProtection__ApplicationDiscriminator: tailor360-staging
+      Observability__ServiceName: tailor360-worker-staging
+      Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
+      Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
+      Worker__HealthPort: "8081"
+      ObjectStorage__Endpoint: http://minio:9000
+      ObjectStorage__ForcePathStyle: "true"
+      MalwareScanner__Endpoint: tcp://clamav:3310
+      Email__SmtpHost: mailpit
+      Email__SmtpPort: "1025"
+    secrets:
+      - Database__ConnectionString
+      - ObjectStorage__AccessKey
+      - ObjectStorage__SecretKey
+    <<: *app-hardening
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    healthcheck:
+      # The worker's probes answer on the backend network only; nothing publishes 8081.
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:8081/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
+    networks: [backend]
+
+  postgres:
+    image: postgres:16.13-alpine
+    restart: unless-stopped
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=${POSTGRES_MAX_CONNECTIONS:-100}"
+      - "-c"
+      - "log_min_duration_statement=500"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tailor360}
+      POSTGRES_USER: ${POSTGRES_USER:-tailor360}
+      # A password never belongs in an environment block (Section 4.4); the image reads the file.
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # No ports: the database is reachable only from the backend network. Administrative access is
+    # over the WireGuard tunnel plus `docker compose exec`, which leaves an SSH audit trail.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB} --quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+    networks: [backend]
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      # MinIO reads the _FILE variants so the root credentials stay out of the environment block.
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    volumes:
+      - minio-data:/data
+    # No ports: neither the S3 API nor the console is published.
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+    networks: [backend]
+
+  createbuckets:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set local http://minio:9000 \
+          "$$(cat /run/secrets/minio_root_user)" \
+          "$$(cat /run/secrets/minio_root_password)"
+        mc mb --ignore-existing local/tailor360-media
+        mc mb --ignore-existing local/tailor360-documents
+        mc mb --ignore-existing local/tailor360-exports
+        mc anonymous set none local/tailor360-media
+        mc anonymous set none local/tailor360-documents
+        mc anonymous set none local/tailor360-exports
+        echo "buckets ready"
+    restart: "no"
+    healthcheck:
+      disable: true
+    logging: *default-logging
+    networks: [backend]
+
+  clamav:
+    # Not behind a profile here: staging must exercise the real scanner, because that is where the
+    # media pipeline of #31 is rehearsed before it reaches a shop.
+    image: clamav/clamav:1.4.6
+    restart: unless-stopped
+    volumes:
+      - clamav-data:/var/lib/clamav
+    # No ports: clamd is reachable only from the backend network.
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 180s
+    logging: *default-logging
+    networks: [backend]
+
+  mailpit:
+    # Staging has no provider credentials, so every notification lands here and nothing can reach a
+    # real customer. The interface is published on the gated address only.
+    image: axllent/mailpit:v1.31.0
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "5000"
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "${TAILOR360_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_UI_PUBLISHED_PORT:-8025}:8025"
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    networks: [backend]
+
+  otel-collector:
+    # Optional here as well: with no OTLP endpoint configured the hosts export nothing, and the
+    # telemetry backend is decided with Section 11 item 14 (D13).
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ../observability/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    healthcheck:
+      # See docker-compose.yml: the image is built FROM scratch and holds no shell or HTTP client.
+      disable: true
+    logging: *default-logging
+    networks: [backend]
+
+networks:
+  edge:
+    name: tailor360-staging-edge
+    driver: bridge
+  backend:
+    name: tailor360-staging-backend
+    driver: bridge
+    # Not `internal: true`: freshclam refreshes the ClamAV signature database and the collector ships
+    # telemetry outward. The database and object storage are isolated by publishing no ports and by
+    # keeping the proxy off this network, so the only route in is through the web host.
+
+volumes:
+  postgres-data:
+    name: tailor360-staging-postgres-data
+  minio-data:
+    name: tailor360-staging-minio-data
+  clamav-data:
+    name: tailor360-staging-clamav-data
+  mailpit-data:
+    name: tailor360-staging-mailpit-data
+  caddy-data:
+    name: tailor360-staging-caddy-data
+  caddy-config:
+    name: tailor360-staging-caddy-config
+
+secrets:
+  # Files on the VM, root-owned and readable by the container user, placed by the deploy script from
+  # the operator's secret store — never committed, never in an environment block.
+  Database__ConnectionString:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/Database__ConnectionString
+  ObjectStorage__AccessKey:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/ObjectStorage__AccessKey
+  ObjectStorage__SecretKey:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/ObjectStorage__SecretKey
+  postgres_password:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/postgres_password
+  minio_root_user:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/minio_root_user
+  minio_root_password:
+    file: ${TAILOR360_STAGING_SECRETS_DIR:?set TAILOR360_STAGING_SECRETS_DIR}/minio_root_password

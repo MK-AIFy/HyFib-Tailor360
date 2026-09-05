@@ -1,0 +1,68 @@
+# HyFib Tailor360 — OpenTelemetry collector configuration (development and interim staging).
+#
+# The default deployment EXPORTS NOTHING off the machine. Traces, metrics and logs arrive over OTLP
+# and are written to the collector's own log by the debug exporter, which is enough to answer "did
+# the instrumentation fire and what is on the span?" while a feature is being built.
+#
+# The production exporter is chosen with the telemetry-backend decision (Section 11 item 14, D13):
+# either a hosted backend (the collector on the VM ships to Grafana Cloud or equivalent) or the
+# self-hosted stack on a separate VM. When that decision is taken, add the exporter here and append
+# it to the pipelines; nothing else in the deployment changes, because the hosts only ever speak
+# OTLP to this collector. Redaction processors and sampling rules arrive with #58.
+#
+# The hosts export only when Observability:OtlpEndpoint is set, so this collector is optional in
+# both compose stacks (profile "observability").
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        # 0.0.0.0 inside the container; the published ports are bound to 127.0.0.1 by compose.
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # memory_limiter must be the FIRST processor in every pipeline: it applies back-pressure to the
+  # receivers, and a processor placed after a batcher cannot stop the batcher from allocating.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384
+    spike_limit_mib: 96
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  # Development default: write a summary of each batch to the collector's log. `verbosity: detailed`
+  # prints every attribute, which is useful when checking redaction but very noisy.
+  debug:
+    verbosity: normal
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+extensions:
+  # The collector image is built FROM scratch and has no shell, so a container HEALTHCHECK cannot
+  # call this endpoint; it is probed from the host by `./scripts/dev status` and by monitoring.
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+  telemetry:
+    logs:
+      level: info

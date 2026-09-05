@@ -1,0 +1,84 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{cs,csx}]
+indent_size = 4
+max_line_length = 120
+
+# Namespaces, usings and modern C# style
+csharp_style_namespace_declarations = file_scoped:error
+csharp_using_directive_placement = outside_namespace:error
+dotnet_sort_system_directives_first = true
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
+csharp_prefer_braces = true:error
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:error
+dotnet_style_readonly_field = true:error
+csharp_style_prefer_readonly_struct = true:suggestion
+
+# Naming. Private instance fields are _camelCase; private static readonly fields read as constants and
+# are PascalCase, which is the convention the framework itself follows.
+dotnet_naming_rule.private_static_readonly_pascal.severity = error
+dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly_fields
+dotnet_naming_rule.private_static_readonly_pascal.style = pascal_case_style
+dotnet_naming_symbols.private_static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_readonly_fields.applicable_accessibilities = private, internal
+dotnet_naming_symbols.private_static_readonly_fields.required_modifiers = static, readonly
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+dotnet_naming_rule.private_const_pascal.severity = error
+dotnet_naming_rule.private_const_pascal.symbols = private_const_fields
+dotnet_naming_rule.private_const_pascal.style = pascal_case_style
+dotnet_naming_symbols.private_const_fields.applicable_kinds = field
+dotnet_naming_symbols.private_const_fields.applicable_accessibilities = private, internal
+dotnet_naming_symbols.private_const_fields.required_modifiers = const
+
+dotnet_naming_rule.private_fields_underscore.severity = error
+dotnet_naming_rule.private_fields_underscore.symbols = private_instance_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_prefix
+dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
+dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_prefix.required_prefix = _
+dotnet_naming_style.underscore_prefix.capitalization = camel_case
+
+# Analyzer severities that matter for this codebase
+# CA1716/CA1711 police names for cross-language consumers (VB, F#). This solution is C# only and the
+# names they object to (Result.Error, IPrintQueue, from/to parameters) are fixed by
+# docs/architecture/conventions.md, so the rules are turned off rather than waived case by case.
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1711.severity = none
+# Guard clauses are enforced by nullable reference types, not by ArgumentNullException on every parameter.
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.IDE0055.severity = warning
+
+[*.{csproj,props,targets,slnx}]
+indent_size = 2
+
+[*.{json,yml,yaml,ts,tsx,js,jsx,css,html,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.sh]
+end_of_line = lf
+
+# EF Core writes migration files; they are generated code and are not hand-edited except to add
+# explicit SQL. Holding them to the hand-written style rules would mean re-formatting every scaffold.
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.IDE0055.severity = none

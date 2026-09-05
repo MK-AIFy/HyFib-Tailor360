@@ -1,0 +1,235 @@
+# HyFib Tailor360 — development backing services (issue #20).
+#
+# The application is NOT run from this file during development. The web host and the worker are
+# started from the .NET SDK (`dotnet run`, or `./scripts/dev run`) and the progressive web
+# application from Vite (`pnpm dev`), because running from the SDK gives hot reload, a debugger and
+# readable stack traces. This file provides only the backing services those processes talk to:
+# PostgreSQL, MinIO, ClamAV, Mailpit and an OpenTelemetry collector.
+#
+# To run the built container images as well, add the overlay:
+#   docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.app.yml up -d
+#
+# Usage (from the repository root):
+#   cp infra/compose/.env.example infra/compose/.env
+#   docker compose -f infra/compose/docker-compose.yml up -d --wait
+#   docker compose -f infra/compose/docker-compose.yml --profile scanner up -d --wait
+#   docker compose -f infra/compose/docker-compose.yml --profile observability up -d --wait
+#   docker compose -f infra/compose/docker-compose.yml down            # keeps the volumes
+#   docker compose -f infra/compose/docker-compose.yml down --volumes  # discards all local data
+#
+# Every published port is bound to 127.0.0.1 on purpose: a developer laptop is regularly on an
+# untrusted shop, home or café network, and none of these services is safe to expose there.
+
+name: tailor360
+
+x-logging: &default-logging
+  # Section 4.7: every container caps its logs so that neither a laptop nor the staging VM can be
+  # filled by a log loop. 50 MB x 5 files is the repository-wide setting.
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  postgres:
+    # Pinned to a patch release rather than the 16 tag: an unnoticed minor upgrade is exactly the
+    # kind of difference that makes "works on my machine" reports impossible to reproduce.
+    image: postgres:16.13-alpine
+    container_name: tailor360-postgres
+    restart: unless-stopped
+    command:
+      - "postgres"
+      # The connection budget of Section 4.4 (web 40, worker 30, migrator 2, tooling 5, reserve 10)
+      # is validated at start-up against SHOW max_connections, so development must use the same
+      # ceiling as production or the check passes locally and fails on the server.
+      - "-c"
+      - "max_connections=${POSTGRES_MAX_CONNECTIONS:-100}"
+      # Surfaces slow statements while a feature is being written, when they are cheap to fix.
+      - "-c"
+      - "log_min_duration_statement=500"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tailor360}
+      POSTGRES_USER: ${POSTGRES_USER:-tailor360}
+      # Development-only default. Staging and production read the password from a secret file
+      # (POSTGRES_PASSWORD_FILE), never from an environment block — see docker-compose.staging.yml.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tailor360_dev_only}
+      # Data checksums make silent corruption of a developer volume visible instead of mysterious.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "127.0.0.1:${POSTGRES_PUBLISHED_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready exits non-zero until the cluster accepts connections for this database, which is
+      # the condition the migration runner and the integration tests actually need.
+      test: ["CMD-SHELL", "pg_isready --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB} --quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+    networks: [tailor360]
+
+  minio:
+    # S3-compatible object storage for the media, documents and exports prefixes (Section 4.3).
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: tailor360-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-tailor360-dev}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-tailor360-dev-not-a-secret}
+      # Without this the console redirects to the container's own hostname, which the browser on the
+      # host cannot resolve.
+      MINIO_BROWSER_REDIRECT_URL: http://127.0.0.1:${MINIO_CONSOLE_PUBLISHED_PORT:-9001}
+    ports:
+      - "127.0.0.1:${MINIO_API_PUBLISHED_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PUBLISHED_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # `mc ready local` performs the same readiness query as GET /minio/health/ready against the
+      # instance in this container. The URL is called directly by external monitors and by
+      # `./scripts/dev status`; from inside the container it cannot be, because the MinIO image
+      # ships neither curl nor wget — it does ship mc with a preconfigured `local` alias.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+    networks: [tailor360]
+
+  createbuckets:
+    # One-shot: creates the buckets the modules own and exits. Object-storage ownership is fixed in
+    # Section 4.3 — Media owns tailor360-media, Billing owns tailor360-documents (invoice, estimate,
+    # receipt and credit-note PDFs) and Reporting owns tailor360-exports. No module writes to
+    # another module's bucket. #31 adds the quarantine bucket for the upload pipeline.
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: tailor360-createbuckets
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-tailor360-dev}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-tailor360-dev-not-a-secret}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        # --ignore-existing keeps the service idempotent, so `up` can be run any number of times.
+        mc mb --ignore-existing local/tailor360-media
+        mc mb --ignore-existing local/tailor360-documents
+        mc mb --ignore-existing local/tailor360-exports
+        # Every bucket is private: media and documents are served only through the authorised
+        # streaming endpoint (D4), never by an anonymous object URL.
+        mc anonymous set none local/tailor360-media
+        mc anonymous set none local/tailor360-documents
+        mc anonymous set none local/tailor360-exports
+        echo "buckets ready"
+    restart: "no"
+    healthcheck:
+      # A one-shot service has no steady state to probe; dependants use
+      # `condition: service_completed_successfully` instead of `service_healthy`.
+      disable: true
+    logging: *default-logging
+    networks: [tailor360]
+
+  clamav:
+    # Behind a profile because clamd holds the whole signature database in memory (roughly 1.5 GB)
+    # and takes a minute or two to become ready — too heavy to run on a laptop by default. The
+    # default IMalwareScanner in development and in tests is FakeMalwareScanner (#20); this service
+    # exists for the clamd contract test and for rehearsing the media pipeline of #31.
+    #   docker compose -f infra/compose/docker-compose.yml --profile scanner up -d --wait
+    profiles: ["scanner"]
+    # The plain 1.4.6 tag bundles the signature database, so the container is usable before the
+    # first freshclam update finishes (the _base tags do not, and must download it first).
+    image: clamav/clamav:1.4.6
+    container_name: tailor360-clamav
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CLAMAV_PUBLISHED_PORT:-3310}:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      # clamdcheck.sh ships with the image and asks clamd itself whether it is answering, which is
+      # the only reliable signal: the TCP port opens well before the database is loaded.
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 180s
+    logging: *default-logging
+    networks: [tailor360]
+
+  mailpit:
+    # Development and staging mail sink. Nothing ever leaves the machine, which is what makes it
+    # safe to exercise notification flows against synthetic customer addresses.
+    image: axllent/mailpit:v1.31.0
+    container_name: tailor360-mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "5000"
+      MP_DATABASE: /data/mailpit.db
+      # The application's SMTP client is configured with a fake user and password in development;
+      # accepting any credentials keeps that path exercised without a shared secret.
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PUBLISHED_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PUBLISHED_PORT:-8025}:8025"
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    networks: [tailor360]
+
+  otel-collector:
+    # Optional: the hosts export nothing unless Observability:OtlpEndpoint is set, so a developer
+    # who does not care about traces never pays for this container.
+    #   docker compose -f infra/compose/docker-compose.yml --profile observability up -d
+    #   then run the hosts with Observability__OtlpEndpoint=http://127.0.0.1:4317
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    container_name: tailor360-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ../observability/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:${OTEL_GRPC_PUBLISHED_PORT:-4317}:4317"
+      - "127.0.0.1:${OTEL_HTTP_PUBLISHED_PORT:-4318}:4318"
+      - "127.0.0.1:${OTEL_HEALTH_PUBLISHED_PORT:-13133}:13133"
+    healthcheck:
+      # The collector image is built FROM scratch: it contains the collector binary and CA
+      # certificates and nothing else, so no in-container command can call an HTTP endpoint. The
+      # health_check extension answers on 13133 and is probed from the host by `./scripts/dev
+      # status` and by the monitoring of #58.
+      disable: true
+    logging: *default-logging
+    networks: [tailor360]
+
+networks:
+  tailor360:
+    name: tailor360-dev
+    driver: bridge
+    # Deliberately not `internal: true`: ClamAV's freshclam needs outbound access to refresh the
+    # signature database, and the collector needs it to reach an external telemetry backend.
+    # Isolation is provided by binding every published port to 127.0.0.1 instead.
+
+volumes:
+  postgres-data:
+    name: tailor360-postgres-data
+  minio-data:
+    name: tailor360-minio-data
+  clamav-data:
+    name: tailor360-clamav-data
+  mailpit-data:
+    name: tailor360-mailpit-data

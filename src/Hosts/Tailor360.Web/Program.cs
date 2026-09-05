@@ -1,0 +1,159 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Serilog;
+using Tailor360.Modules.Billing.Api;
+using Tailor360.Modules.Billing.Infrastructure;
+using Tailor360.Modules.Catalog.Api;
+using Tailor360.Modules.Catalog.Infrastructure;
+using Tailor360.Modules.Custody.Api;
+using Tailor360.Modules.Custody.Infrastructure;
+using Tailor360.Modules.Customers.Api;
+using Tailor360.Modules.Customers.Infrastructure;
+using Tailor360.Modules.Identity.Api;
+using Tailor360.Modules.Identity.Infrastructure;
+using Tailor360.Modules.Integration.Api;
+using Tailor360.Modules.Integration.Infrastructure;
+using Tailor360.Modules.Inventory.Api;
+using Tailor360.Modules.Inventory.Infrastructure;
+using Tailor360.Modules.Media.Api;
+using Tailor360.Modules.Media.Infrastructure;
+using Tailor360.Modules.Notifications.Api;
+using Tailor360.Modules.Notifications.Infrastructure;
+using Tailor360.Modules.Orders.Api;
+using Tailor360.Modules.Orders.Infrastructure;
+using Tailor360.Modules.Reporting.Api;
+using Tailor360.Modules.Reporting.Infrastructure;
+using Tailor360.Platform.Abstractions.Health;
+using Tailor360.Platform.Observability.Correlation;
+using Tailor360.Platform.Observability.Health;
+using Tailor360.Platform.Observability.Logging;
+using Tailor360.Platform.Observability.Telemetry;
+using Tailor360.Platform.Persistence;
+using Tailor360.Platform.Security;
+using Tailor360.Platform.Security.Endpoints;
+using Tailor360.Web.Configuration;
+using Tailor360.Web.Endpoints;
+using Tailor360.Web.Middleware;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Secrets are supplied as files (Docker and Kubernetes secrets) rather than environment variables, so
+// that a process listing or a crash dump of the environment block cannot disclose them.
+var secretsDirectory = builder.Configuration["Secrets:Directory"];
+if (!string.IsNullOrWhiteSpace(secretsDirectory) && Directory.Exists(secretsDirectory))
+{
+    builder.Configuration.AddKeyPerFile(secretsDirectory, optional: true, reloadOnChange: true);
+}
+
+builder.Host.UseSerilog((context, _, loggerConfiguration) =>
+    loggerConfiguration.Apply(context.Configuration, "tailor360-web"));
+
+builder.Services.ConfigureOptions<ForwardedHeadersOptionsSetup>();
+
+builder.Services.AddProblemDetails();
+builder.Services.AddOpenApi();
+builder.Services.AddRateLimiter(options => options.AddTailor360Policies());
+
+builder.Services.AddTailor360Platform();
+builder.Services.AddTailor360Security();
+builder.Services.AddTailor360Observability(builder.Configuration, BuildInformation.Version);
+
+// Readiness reports the database only. Object storage, the malware scanner and provider APIs are
+// reported as degraded rather than unhealthy, because losing them disables a feature, not the instance.
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(),
+        tags: [HealthCheckTags.Live, HealthCheckTags.Startup]);
+
+// Modules are composed only through their registration extensions (architecture rule ARCH-006).
+builder.Services
+    .AddIdentityModule(builder.Configuration)
+    .AddCustomersModule(builder.Configuration)
+    .AddCatalogModule(builder.Configuration)
+    .AddMediaModule(builder.Configuration)
+    .AddOrdersModule(builder.Configuration)
+    .AddCustodyModule(builder.Configuration)
+    .AddInventoryModule(builder.Configuration)
+    .AddBillingModule(builder.Configuration)
+    .AddReportingModule(builder.Configuration)
+    .AddNotificationsModule(builder.Configuration)
+    .AddIntegrationModule(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseForwardedHeaders(app.Services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value);
+app.UseMiddleware<CorrelationMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseSerilogRequestLogging();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.UseRouting();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapTailor360HealthEndpoints();
+app.MapVersionEndpoint(app.Environment);
+
+app.MapIdentityEndpoints()
+    .MapCustomersEndpoints()
+    .MapCatalogEndpoints()
+    .MapMediaEndpoints()
+    .MapOrdersEndpoints()
+    .MapCustodyEndpoints()
+    .MapInventoryEndpoints()
+    .MapBillingEndpoints()
+    .MapReportingEndpoints()
+    .MapNotificationsEndpoints()
+    .MapIntegrationEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi()
+        .AllowAnonymousWithJustification(
+            "The OpenAPI document describes the API surface and is mapped only in the Development " +
+            "environment, where it is served to a developer machine. It is never mapped in staging or " +
+            "production, so it discloses nothing to an unauthenticated caller of a deployed instance.",
+            "#20");
+}
+
+// An unknown path under /api or /health must be a 404, never the client shell. Once the built client
+// is present in wwwroot the shell fallback would otherwise answer a mistyped API call with HTML and a
+// 200, and the caller would fail somewhere far from the cause. These patterns are more specific than
+// the shell fallback below, so they win.
+app.MapFallback("/api/{**path}", () => Results.NotFound())
+    .AllowAnonymousWithJustification(
+        "Returns 404 for an unknown API route and nothing else. Answering here rather than falling " +
+        "through to the client shell is what keeps a mistyped API call from receiving HTML with a 200.",
+        "#20")
+    .ExcludeFromDescription();
+
+app.MapFallback("/health/{**path}", () => Results.NotFound())
+    .AllowAnonymousWithJustification(
+        "Returns 404 for an unknown health path, so a probe misconfigured to the wrong path fails " +
+        "loudly instead of receiving the client shell and reporting the instance healthy.",
+        "#20")
+    .ExcludeFromDescription();
+
+// The progressive web application is a single-page shell: any other path returns index.html so that a
+// deep link opened from a scanner or a message resolves in the client router.
+app.MapFallbackToFile("index.html")
+    .AllowAnonymousWithJustification(
+        "The application shell is a static HTML file containing no data. It must load before a session " +
+        "exists so that the sign-in screen can be shown, and so that a deep link opened from a scanner " +
+        "or a message resolves in the client router. Every datum the shell then requests is authorised.",
+        "#20");
+
+await app.RunAsync();

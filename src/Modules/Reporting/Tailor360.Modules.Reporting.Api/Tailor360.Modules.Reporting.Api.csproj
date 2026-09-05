@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tailor360.Modules.Reporting.Application\Tailor360.Modules.Reporting.Application.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
+  </ItemGroup>
+
+</Project>

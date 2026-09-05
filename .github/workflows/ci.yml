@@ -1,0 +1,391 @@
+name: CI
+
+# Continuous integration for issue #20's scaffold: build, format, test and a first security pass.
+# Issue #22 extends this same workflow with CodeQL, Trivy, SBOM upload, migration checks and the
+# per-project coverage floor.
+#
+# `pull_request` (never `pull_request_target`): `pull_request_target` runs with the base
+# repository's secrets and a write-scoped token, so checking out the pull-request head under it
+# would hand any fork write access to this repository.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+# Least privilege. The workflow token may read the repository and nothing else; no job here needs
+# more, so no job overrides this. A job that later needs to write (a comment, a release asset,
+# `id-token` for signing) raises exactly that permission in its own `permissions:` block rather
+# than here.
+permissions:
+  contents: read
+
+# One run per ref: a second push to the same branch cancels the run already in flight, which keeps
+# the pull-request pipeline inside the 15-minute budget of Section 5 and saves runner minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  # The coverage tool has its own telemetry and banner, opted out of for the same reason.
+  DOTNET_COVERAGE_TELEMETRY_OPTOUT: "1"
+  DOTNET_COVERAGE_NOLOGO: "1"
+  # Pinned so a coverage-tool release cannot change a build's result without a commit.
+  DOTNET_COVERAGE_VERSION: "18.11.0"
+
+# ACTION PINNING POLICY
+# Every third-party action is referenced by the full 40-character commit SHA of a released tag,
+# with the tag in a trailing comment. A tag is a mutable pointer: whoever can move it can run new
+# code inside this workflow with the workflow token, so the SHA is the only reference that is
+# actually immutable. Dependabot (`.github/dependabot.yml`, `github-actions` ecosystem) raises the
+# pins on a schedule and rewrites both the SHA and the comment, so pinning does not mean going
+# stale. Resolve a SHA yourself with:
+#   gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'
+# (for an annotated tag, dereference it: `gh api repos/<owner>/<repo>/git/tags/<sha> --jq '.object.sha'`).
+
+jobs:
+  build-test-dotnet:
+    name: .NET build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      # PostgreSQL 16, the version the application targets. Pinned by digest as well as tag so the
+      # database the Integration tier runs against cannot change under a rerun of an old commit.
+      postgres:
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          # `trust` keeps a password — even a throwaway one — out of the repository entirely, and
+          # matches how the development instance is configured. The container is reachable only
+          # from this job's network for the life of the job.
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: postgres
+          POSTGRES_DB: tailor360_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tailor360_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The Integration tier skips when no database is reachable, which would be a green build over
+      # unverified code. `CI=true` turns that skip into a failure (see
+      # tests/Tailor360.IntegrationTests/DatabaseAvailability.cs). GitHub sets CI=true already;
+      # it is repeated here because the guarantee is deliberate, not incidental.
+      CI: "true"
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          # global.json is the single source of truth for the SDK version (10.0.100,
+          # rollForward latestFeature), so CI and developer machines cannot drift.
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore HyFib.Tailor360.slnx
+
+      - name: Verify formatting
+        # Style is enforced from .editorconfig. `--verify-no-changes` exits non-zero instead of
+        # rewriting files, so a formatting failure is reported rather than silently fixed in CI.
+        run: dotnet format HyFib.Tailor360.slnx --verify-no-changes --no-restore --verbosity minimal
+
+      - name: Build
+        id: build
+        # Directory.Build.props already sets TreatWarningsAsErrors; -warnaserror also promotes the
+        # warnings raised outside project compilation (restore, MSBuild, source generators).
+        run: dotnet build HyFib.Tailor360.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Install the coverage collector
+        # The test projects run on Microsoft.Testing.Platform without the code-coverage extension,
+        # so coverage is collected by wrapping the run in the dotnet-coverage global tool. That
+        # keeps coverage out of the project files and works identically for every tier.
+        run: |
+          dotnet tool install --global dotnet-coverage --version "$DOTNET_COVERAGE_VERSION"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      # Test tiers are separate steps so a failure names the tier. The tier boundary is the project
+      # boundary (Unit, Architecture, Contract, Integration), which is also what the `Category`
+      # traits record. Each tier runs even when an earlier tier failed — one push should report
+      # every broken tier at once — but none runs when the build itself failed, because
+      # `--no-build` would then report a confusing missing-assembly error instead.
+      - name: Unit tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: >-
+          dotnet-coverage collect
+          --output-format cobertura
+          --output artifacts/coverage/unit.cobertura.xml
+          --
+          dotnet test --project tests/Tailor360.UnitTests
+          --configuration Release --no-build
+          --results-directory artifacts/test-results
+          --report-xunit-trx --report-xunit-trx-filename unit.trx
+
+      - name: Architecture tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: >-
+          dotnet-coverage collect
+          --output-format cobertura
+          --output artifacts/coverage/architecture.cobertura.xml
+          --
+          dotnet test --project tests/Tailor360.ArchitectureTests
+          --configuration Release --no-build
+          --results-directory artifacts/test-results
+          --report-xunit-trx --report-xunit-trx-filename architecture.trx
+
+      - name: Contract tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: >-
+          dotnet-coverage collect
+          --output-format cobertura
+          --output artifacts/coverage/contract.cobertura.xml
+          --
+          dotnet test --project tests/Tailor360.ContractTests
+          --configuration Release --no-build
+          --results-directory artifacts/test-results
+          --report-xunit-trx --report-xunit-trx-filename contract.trx
+
+      - name: Integration tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          # The service container above. Supplying this variable is what makes the tier run instead
+          # of falling back to Testcontainers; with CI=true an unreachable database fails the job.
+          # TAILOR360_TEST_S3_ENDPOINT is deliberately absent until the Media module needs MinIO.
+          TAILOR360_TEST_DATABASE_URL: "Host=localhost;Port=5432;Database=tailor360_test;Username=postgres"
+        run: >-
+          dotnet-coverage collect
+          --output-format cobertura
+          --output artifacts/coverage/integration.cobertura.xml
+          --
+          dotnet test --project tests/Tailor360.IntegrationTests
+          --configuration Release --no-build
+          --results-directory artifacts/test-results
+          --report-xunit-trx --report-xunit-trx-filename integration.trx
+
+      - name: Summarise the test tiers
+        if: ${{ !cancelled() }}
+        run: |
+          # The TRX counters are the run's own record, so the summary cannot disagree with it.
+          # `notExecuted` is how TRX records a skipped test.
+          {
+            echo "## .NET test tiers"
+            echo
+            echo "| Tier | Total | Passed | Failed | Skipped |"
+            echo "| --- | ---: | ---: | ---: | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          shopt -s nullglob
+          reports=(artifacts/test-results/*.trx)
+          if [ ${#reports[@]} -eq 0 ]; then
+            echo "| _no test report was produced_ | - | - | - | - |" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          for report in "${reports[@]}"; do
+            tier=$(basename "$report" .trx)
+            counters=$(grep -o '<Counters[^>]*>' "$report" | head -n 1 || true)
+            value() { printf '%s' "$counters" | sed -n "s/.*$1=\"\([0-9]*\)\".*/\1/p"; }
+            printf '| %s | %s | %s | %s | %s |\n' \
+              "$tier" "$(value total)" "$(value passed)" "$(value failed)" "$(value notExecuted)" \
+              >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          # Failing test names save a trip into the raw log.
+          failures=$(grep -ho 'testName="[^"]*" outcome="Failed"' "${reports[@]}" \
+            | sed 's/testName="//; s/" outcome="Failed"//' | sort -u || true)
+          if [ -n "$failures" ]; then
+            {
+              echo
+              echo "### Failed tests"
+              echo
+              printf '%s\n' "$failures" | sed 's/^/- `/; s/$/`/'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dotnet-test-results
+          path: artifacts/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dotnet-coverage
+          path: artifacts/coverage/
+          if-no-files-found: warn
+          retention-days: 14
+
+  build-test-pwa:
+    name: PWA build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: clients/pwa
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # pnpm is installed before Node so that setup-node's pnpm cache can find the store.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          # No `version:` input on purpose: clients/pwa/package.json pins pnpm through its
+          # `packageManager` field, and passing both makes this action fail with a conflict.
+          # Paths given to an action are workspace-relative; `defaults.run` applies to run steps only.
+          package_json_file: clients/pwa/package.json
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: clients/pwa/pnpm-lock.yaml
+
+      - name: Install dependencies
+        # --frozen-lockfile fails rather than updating the lockfile, so CI installs exactly what
+        # was reviewed.
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload the build output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pwa-dist
+          path: clients/pwa/dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  documentation:
+    name: Documentation links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # No token is used at all: the check reads files out of the checkout and nothing else.
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prove the link checker still detects a broken link
+        # A checker that has quietly stopped detecting is indistinguishable from a repository with
+        # no broken links: both are silent and green. The self-test runs the detector over a
+        # known-bad document and fails unless it finds exactly the two genuine breaks and ignores
+        # the external, anchor, mailto and fenced-code links it is meant to ignore.
+        run: python3 scripts/check-docs-links.py --self-test
+
+      - name: Check that relative documentation links resolve
+        # The first documentation change carried ten broken relative links through review
+        # unnoticed, two of them pointing at documents a document map declared as deliverables and
+        # that nobody had written. A reader following such a link learns nothing while the map
+        # still reads as a complete set, so the gap is invisible exactly where it matters. Only
+        # relative links are checked: an external URL is somebody else's uptime and would fail
+        # builds for reasons no commit here can fix.
+        run: python3 scripts/check-docs-links.py
+
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # gitleaks lists the commits of the pull request to decide what to scan, and the dependency
+    # review compares the base and head dependency graphs. Both need to read pull-request metadata;
+    # the workflow-level default of `contents: read` alone makes them fail with a 403 that reads
+    # like a bug in the action. Read access is the whole grant: neither writes anything.
+    permissions:
+      contents: read
+      pull-requests: read
+
+    # Issue #22 adds CodeQL (JavaScript/TypeScript and C#), Trivy over the images and the compose
+    # and IaC files, and the Syft SBOM upload, together with their SARIF uploads — which need
+    # `security-events: write`. The scaffold keeps this job to the two checks that need no further
+    # configuration, so the token stays read-only.
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # gitleaks scans history, not just the working tree, so the full history is needed.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gitleaks is free for personal repositories; an organisation-owned repository needs a
+          # (free) licence key stored as this secret, otherwise the step fails asking for it.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          # No pull-request comments: the finding belongs in the job log and the branch-protection
+          # status, and commenting would need `pull-requests: write` on every run.
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          # The action's own artifact upload uses a deprecated upload-artifact version; the job log
+          # carries the findings and #22 replaces this with a SARIF upload.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+      - name: Report that dependency review is not enabled
+        # Visible rather than silent. A skipped check that nobody can see is indistinguishable from a
+        # passing one, and this is a security gate.
+        if: ${{ github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED != 'true' }}
+        run: |
+          echo "::warning title=Dependency review not enabled::The dependency graph is not available \
+          on this repository, so new dependencies are not being checked against advisories."
+          {
+            echo "### Dependency review is not running"
+            echo
+            echo "This repository does not have the dependency graph available, which the check needs."
+            echo "On a private repository that means GitHub Advanced Security."
+            echo
+            echo "To turn the gate on:"
+            echo "1. Enable the dependency graph under Settings → Code security."
+            echo "2. Set the repository variable \`DEPENDENCY_REVIEW_ENABLED\` to \`true\`."
+            echo
+            echo "Until then a new dependency with a known high-severity advisory would not be caught"
+            echo "here. Tracked with the security exception process in \`docs/process/waivers.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Review dependency changes
+        # Compares the dependency graph of the base and head commits and fails on a vulnerable or
+        # disallowed new dependency. It is a pull-request-only check and needs the dependency graph,
+        # which on a private repository means GitHub Advanced Security. The repository variable makes
+        # it opt-in: the alternative was a step that fails on every run for a reason no code change can
+        # fix, which trains reviewers to ignore a red security job.
+        if: ${{ github.event_name == 'pull_request' && vars.DEPENDENCY_REVIEW_ENABLED == 'true' }}
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never

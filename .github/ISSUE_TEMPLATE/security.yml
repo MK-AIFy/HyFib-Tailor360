@@ -1,0 +1,160 @@
+name: Security
+description: Security hardening work, or a control that needs to exist. Not for reporting a vulnerability.
+title: "[Security]: "
+labels:
+  - security
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Stop before you describe a vulnerability here
+
+        **This issue is public. Do not write exploit details in it** — no proof-of-concept, no
+        request that triggers the flaw, no payload, no stack trace containing one, no credentials,
+        tokens or extracted data. An issue cannot be un-published: everything written here is
+        readable by anyone who can see the repository, and stays in its history and in every
+        notification e-mail even after the issue is edited or deleted.
+
+        **Report a vulnerability privately instead**, through GitHub's private vulnerability
+        reporting: the repository's **Security** tab → **Report a vulnerability**. That opens a
+        private advisory that only the maintainers can read, where the details, the affected
+        versions and a fix can be discussed safely, and it is the only channel for anything that
+        could be exploited before a fix ships.
+
+        Use **this** form only for security work that is safe to discuss in the open:
+
+        - a control the plan requires that is missing or incomplete (rate limiting, audit coverage,
+          a permission that is not enforced server-side);
+        - hardening a dependency, base image, header or configuration;
+        - a threat-model item to close, or a finding from a scan that names no exploitable detail.
+
+        If you are not sure which side of the line something falls on, treat it as a vulnerability
+        and use private reporting. Nobody will mind.
+
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: >-
+            This issue contains no exploit details, no proof-of-concept, no payload, no
+            credentials, tokens or extracted data, and no real customer data.
+          required: true
+        - label: >-
+            I understand that anything exploitable belongs in a private advisory (Security tab →
+            Report a vulnerability), not here.
+          required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of work
+      options:
+        - Missing or incomplete control
+        - Hardening (dependency, image, header, configuration)
+        - Threat-model item to close
+        - Scan finding to triage (no exploitable detail)
+        - Policy, process or documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: control
+    attributes:
+      label: The control or weakness, described without an exploit
+      description: >-
+        Name the control and where it is missing, in the language of the security documentation.
+        "Endpoint X does not record an audit event" is safe to write; the request that abuses it is
+        not.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: What it protects, and what is at stake without it
+      description: >-
+        Which data or capability the control guards, and the plausible consequence — described in
+        outcomes ("another branch's customer records become readable"), not in steps.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modules
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Identity, sessions and authentication
+        - Authorisation and permissions
+        - Customers, consent and personal data
+        - Media and uploads
+        - Billing and payments
+        - Platform (audit, outbox, configuration, secrets)
+        - PWA client
+        - Infrastructure, deployment or CI
+        - Dependencies and supply chain
+        - Documentation and process
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-control
+    attributes:
+      label: Proposed control and how it will be verified
+      description: >-
+        The change you propose, and the test or check that proves it holds afterwards — an
+        authorisation-matrix fixture, an integration test, a CI gate.
+    validations:
+      required: true
+
+  - type: input
+    id: references
+    attributes:
+      label: References
+      description: >-
+        Threat-model item, NFR, ADR or advisory identifier. Public advisory identifiers (CVE, GHSA)
+        are fine here.
+      placeholder: "docs/security/threat-model.md — TM-014"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### The Definition of Done this work inherits
+
+        Work opened here is held to the project-wide Definition of Done, not to a checklist written
+        per issue. Its nine items are authoritative in
+        [`docs/process/definition-of-done.md`](https://github.com/MK-AIFy/HyFib-Tailor360/blob/main/docs/process/definition-of-done.md); the
+        pull-request template mirrors them and `pr-policy.yml` enforces the mechanical parts.
+        Item 2 (authorisation, validation, idempotency and audit) and item 6 (secrets, personal
+        data, telemetry and the threat model) are the ones a security change is usually judged on.
+
+        <details>
+        <summary>The nine items</summary>
+
+        1. Scope, issue link and branch
+        2. Authorisation, validation, idempotency and audit on every state-changing endpoint
+        3. Tests
+        4. Migrations and rollback
+        5. Application programming interface contract
+        6. Secrets, personal data, telemetry and the threat model
+        7. User-interface changes
+        8. Documentation
+        9. Evidence checklist complete
+
+        </details>
+
+        Before a branch is cut, the issue must also satisfy the Definition of Ready in
+        [`docs/process/definition-of-ready.md`](https://github.com/MK-AIFy/HyFib-Tailor360/blob/main/docs/process/definition-of-ready.md).
+
+  - type: checkboxes
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      options:
+        - label: >-
+            I understand this work is held to the project-wide Definition of Done, and that a
+            pull request that does not meet it will not be merged.
+          required: true

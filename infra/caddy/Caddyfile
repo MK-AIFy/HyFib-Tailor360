@@ -1,0 +1,86 @@
+# HyFib Tailor360 — reverse proxy (Section 4.7).
+#
+# One Caddyfile serves both the local container overlay (docker-compose.app.yml) and the interim
+# staging VM (docker-compose.staging.yml), so that a proxy problem is found on a laptop rather than
+# on the server. Everything that differs between the two is an environment variable.
+#
+# Caddy terminates nothing but HTTP here: with the default site address (a bare port) it serves
+# plain HTTP inside the compose network, because until issue #23 merges the staging environment has
+# no public hostname and TLS is terminated by the network gate in front of it (IP allowlist plus an
+# identity-aware proxy or WireGuard/Tailscale enrolment).
+#
+# Formatted with `caddy fmt` (tabs).
+
+{
+	# No admin API: the container is immutable and reloads are performed by replacing it, so the
+	# admin endpoint would be surface without a use. This also disables `caddy reload` in-container.
+	admin off
+
+	# Used only when a site address carries a hostname and Caddy asks for a certificate.
+	email {$TAILOR360_ACME_EMAIL:ops@example.invalid}
+
+	# ACME DNS-01 (placeholder — deliberately not enabled).
+	#
+	# DNS-01 is the challenge this deployment needs, because the shop server sits behind NAT and
+	# port 80 is not reachable from the internet. Two things must land before it can be switched on:
+	#   1. the hostname and DNS provider decision (Section 11 item 2), and
+	#   2. a Caddy image built with that provider's DNS module — the official caddy image does not
+	#      contain any, so `acme_dns` would fail at start-up. Build it with the builder image:
+	#        FROM caddy:2.11.4-builder-alpine AS builder
+	#        RUN xcaddy build --with github.com/caddy-dns/<provider>
+	# The token is then mounted as a file and read with {file./run/secrets/acme_dns_token}, never
+	# baked into the image and never placed in a compose environment block.
+	#
+	# acme_dns <provider> {file./run/secrets/acme_dns_token}
+
+	servers {
+		# Client addresses are taken from X-Forwarded-For only when the immediate peer is on a
+		# private range — the compose bridge network or the gate in front. The application applies
+		# the same rule again (ForwardedHeaders:KnownNetworks) because address-partitioned rate
+		# limits and the audit trail must never trust a header a client could choose.
+		trusted_proxies static private_ranges
+	}
+}
+
+# Default ":8080" — plain HTTP on the compose network. Set TAILOR360_SITE_ADDRESS to a hostname
+# (for example https://tailor360.example.com) once there is one, and Caddy manages the certificate.
+{$TAILOR360_SITE_ADDRESS::8080} {
+	# Text compresses well and shop connections are often mobile; zstd first, gzip for older clients.
+	encode zstd gzip
+
+	# A ceiling above the media upload cap of 15 MB (Section 4.4), so an oversized upload is refused
+	# at the edge instead of being streamed into the host first. The host still enforces its own cap.
+	request_body {
+		max_size {$TAILOR360_MAX_REQUEST_BODY:20MB}
+	}
+
+	header {
+		# The application is entirely behind a login and holds customer data; there is nothing to
+		# index anywhere, and the staging environment holds synthetic data that must never appear in
+		# a search result. Overridden per environment with TAILOR360_ROBOTS_TAG.
+		X-Robots-Tag "{$TAILOR360_ROBOTS_TAG:noindex, nofollow, noarchive}"
+
+		# Do not advertise the proxy.
+		-Server
+	}
+
+	# Security headers (CSP, HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) are
+	# set by the application in SecurityHeadersMiddleware, not here: one implementation then covers
+	# every deployment, including SDK runs and integration tests, and the policy is version-
+	# controlled next to the code it protects.
+
+	# Health probes are internal. An orchestrator, the compose watchdog and `./scripts/dev status`
+	# call them on the container port; nothing outside the network has a reason to.
+	handle /health/* {
+		respond "Not found" 404
+	}
+
+	handle {
+		reverse_proxy {$TAILOR360_UPSTREAM:web:8080}
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

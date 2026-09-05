@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tailor360.Modules.Integration.Contracts\Tailor360.Modules.Integration.Contracts.csproj" />
+    <ProjectReference Include="..\Tailor360.Modules.Integration.Domain\Tailor360.Modules.Integration.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
+  </ItemGroup>
+
+</Project>
