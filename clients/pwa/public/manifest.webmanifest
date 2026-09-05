@@ -6,6 +6,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "any",
   "background_color": "#f7f5f1",
   "theme_color": "#0f3d3e",
@@ -26,10 +27,26 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/phone-job-queue.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "A tailor's job queue on a phone: bottom navigation, a scan action within thumb reach, and each job showing its number, garment, due date and status in words."
+    },
+    {
+      "src": "/screenshots/desktop-workboard.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "The tailor master's workboard on a desktop: a grouped side navigation rail, filter chips showing what is applied, and a dense table of jobs with assignee and status."
     }
   ]
 }

@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 // resolution (Vitest) mixing them gives two copies of the router context and every hook throws
 // "must be used within a data router". One entry point everywhere avoids that class of bug.
 import { RouterProvider } from 'react-router'
+import { DisplayPreferencesProvider } from './app/DisplayPreferencesProvider'
 import { router } from './app/router'
 import { AppIntlProvider } from './i18n/IntlProvider'
 // Stylesheet order is the cascade-layer order: layers.css declares the layers, tokens.css and
@@ -25,7 +26,12 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <AppIntlProvider>
-      <RouterProvider router={router} />
+      {/* Outside the router, because the theme and the text size belong to the person rather than to
+          the screen: they are applied once, to the document, and survive every navigation. The store
+          behind them is a local stub until identity.user_preferences exists (#25). */}
+      <DisplayPreferencesProvider>
+        <RouterProvider router={router} />
+      </DisplayPreferencesProvider>
     </AppIntlProvider>
   </StrictMode>,
 )

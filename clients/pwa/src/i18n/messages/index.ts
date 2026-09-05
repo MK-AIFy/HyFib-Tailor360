@@ -16,6 +16,7 @@
  */
 import { dialogsEn, dialogsTa } from './dialogs'
 import { formsEn, formsTa } from './forms'
+import { installEn, installTa } from './install'
 import { layoutEn, layoutTa } from './layout'
 import { navigationEn, navigationTa } from './navigation'
 import { primitivesEn, primitivesTa } from './primitives'
@@ -29,6 +30,7 @@ export const messagesEn = {
   ...primitivesEn,
   ...shellEn,
   ...formsEn,
+  ...installEn,
   ...statesEn,
   ...dialogsEn,
   ...unitsEn,
@@ -40,6 +42,7 @@ export const messagesTa = {
   ...primitivesTa,
   ...shellTa,
   ...formsTa,
+  ...installTa,
   ...statesTa,
   ...dialogsTa,
   ...unitsTa,

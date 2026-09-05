@@ -1,0 +1,76 @@
+/*
+ * The Install and About screens.
+ *
+ * Both are read standing up, on a phone, by somebody who was sent here — so the measure is short,
+ * the steps are numbered and the vertical rhythm is the same as every other screen's. Nothing here
+ * positions, floats or overlays: these two screens have no chrome of their own, and the shell
+ * already owns the safe areas and the bottom bar.
+ */
+@layer components {
+  .install,
+  .about {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    /* A comfortable measure for prose. Instructions read as a column, not as a banner. */
+    max-inline-size: 42rem;
+  }
+
+  .install > p,
+  .about > p {
+    margin: 0;
+  }
+
+  /*
+   * Numbered because the order matters: on iOS the Share sheet has to be open before the second
+   * step exists. The marker stays outside the text so a wrapped line aligns under the first word
+   * rather than under the number.
+   */
+  .install__steps {
+    margin: var(--space-3) 0 0;
+    padding-inline-start: var(--space-5);
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .install__benefits {
+    margin: 0;
+    padding-inline-start: var(--space-5);
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  /* The browser-menu route. Quieter than the button beside it, but never smaller than body text:
+     it is the only path for anybody whose browser did not offer the event. */
+  .install__manual {
+    margin: var(--space-3) 0 0;
+    color: var(--colour-ink-muted);
+  }
+
+  /*
+   * Label above value rather than beside it. A two-column definition list breaks badly at 320 px
+   * and at 150% text size, and the pairs here are short enough that stacking costs nothing.
+   */
+  .about__details {
+    margin: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .about__details dt {
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  .about__details dd {
+    margin: 0;
+    font-size: var(--font-size-300);
+  }
+
+  /* A build hash is dictated over a telephone, where 0 and O are the same shape in a body face. */
+  .about__value--code {
+    font-family: var(--font-family-numeric);
+    font-variant-numeric: tabular-nums slashed-zero;
+    overflow-wrap: anywhere;
+  }
+}

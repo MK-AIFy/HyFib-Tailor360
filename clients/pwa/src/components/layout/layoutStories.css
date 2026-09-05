@@ -1,0 +1,81 @@
+/*
+ * Frames for the layout stories.
+ *
+ * Stories only, and each frame exists for a reason the shell itself creates. The bottom bar and the
+ * floating action are `position: fixed`, so a story has to give them something to be fixed inside:
+ * `contain: layout` makes the frame their containing block without an inline style anywhere. The
+ * fixed widths are the ones the overflow helper and the Playwright projects of #52 run at, so a
+ * story is reviewed at the same size the automated check will assert.
+ */
+
+@layer components {
+  .layout-story {
+    position: relative;
+    contain: layout;
+    max-inline-size: 100%;
+    overflow: hidden;
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-lg);
+    background: var(--colour-surface-sunken);
+  }
+
+  .layout-story[data-width='320'] {
+    inline-size: 320px;
+    block-size: 640px;
+  }
+
+  .layout-story[data-width='360'] {
+    inline-size: 360px;
+    block-size: 720px;
+  }
+
+  .layout-story[data-width='768'] {
+    inline-size: 768px;
+    block-size: 720px;
+  }
+
+  .layout-story[data-width='1280'] {
+    inline-size: 1280px;
+    block-size: 800px;
+  }
+
+  .layout-story__scroll {
+    block-size: 100%;
+    overflow: auto;
+  }
+
+  /* Sample content for the master-detail stories. */
+  .layout-story-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .layout-story-list__button {
+    display: block;
+    inline-size: 100%;
+    min-block-size: var(--target-standard);
+    padding: var(--space-2) var(--space-3);
+    text-align: start;
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    font: inherit;
+  }
+
+  .layout-story-list__button[aria-pressed='true'] {
+    background: var(--colour-surface-selected);
+    border-color: var(--colour-border-strong);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .layout-story-card {
+    padding: var(--space-4);
+    background: var(--colour-surface);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+  }
+}

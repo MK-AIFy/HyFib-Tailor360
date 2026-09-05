@@ -1,0 +1,262 @@
+/*
+ * Dialogs, sheets, drawers, the three-tier confirmation and the undo bar.
+ *
+ * The shape of a modal is a shop-floor decision rather than a fashion. On a phone it arrives at the
+ * bottom edge, because the other hand is holding a garment and the thumb reaches the bottom third of
+ * the screen; its footer clears the system gesture bar, which the product rule in section 5 of
+ * docs/nfr/accessibility-localisation.md reserves outright (checklist item A11Y-70). On a tablet or
+ * a desktop it is centred, because the pointer is already where the eye is.
+ */
+@layer components {
+  /* Set by useDialogBehaviour while any modal is open. A class rather than a written `overflow`,
+     because a component may set a custom property and never a CSS property. */
+  .has-open-dialog {
+    overflow: hidden;
+  }
+
+  .dialog-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dialog);
+    display: flex;
+    background: var(--dialog-scrim);
+
+    /* Not a token: the scrim is the only surface in the system that is deliberately translucent,
+       and it is defined against the darkest palette step so that it dims rather than tints. */
+    --dialog-scrim: rgb(11 24 23 / 55%);
+  }
+
+  :root[data-theme='dark'] .dialog-scrim,
+  :root[data-theme='contrast'] .dialog-scrim {
+    --dialog-scrim: rgb(0 0 0 / 70%);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .dialog-scrim {
+      --dialog-scrim: rgb(0 0 0 / 70%);
+    }
+  }
+
+  .dialog-scrim[data-presentation='sheet'] {
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .dialog-scrim[data-presentation='centre'] {
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+
+  .dialog-scrim[data-presentation='drawer'] {
+    align-items: stretch;
+    justify-content: flex-end;
+  }
+
+  .dialog {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-inline-size: 0;
+    /* dvh, not vh: on a phone the browser chrome collapses as the page scrolls, and vh would leave
+       the footer under the URL bar exactly when somebody is reaching for it. */
+    max-block-size: 90dvh;
+    padding: var(--space-4);
+    background: var(--colour-surface-raised);
+    color: var(--colour-ink);
+    box-shadow: var(--elevation-3);
+  }
+
+  .dialog:focus-visible {
+    /* The surface takes focus when there is nothing focusable inside it. The ring is the one in
+       global.css; this only stops the outline being clipped by the rounded corner. */
+    outline-offset: calc(var(--focus-ring-offset) * -1);
+  }
+
+  .dialog[data-presentation='sheet'] {
+    inline-size: 100%;
+    max-inline-size: var(--container-md);
+    border-start-start-radius: var(--radius-lg);
+    border-start-end-radius: var(--radius-lg);
+    /* Clear of the notch on the sides and of the gesture bar underneath. */
+    padding-block-end: calc(
+      var(--space-4) + var(--safe-area-bottom) + var(--gesture-bar-clearance)
+    );
+    padding-inline-start: max(var(--space-4), var(--safe-area-left));
+    padding-inline-end: max(var(--space-4), var(--safe-area-right));
+  }
+
+  .dialog[data-presentation='centre'] {
+    inline-size: min(100%, var(--container-sm));
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-lg);
+  }
+
+  .dialog[data-presentation='drawer'] {
+    inline-size: min(100%, var(--container-sm));
+    max-block-size: 100dvh;
+    block-size: 100dvh;
+    border-inline-start: 1px solid var(--colour-border-subtle);
+    padding-block-start: calc(var(--space-4) + var(--safe-area-top));
+    padding-block-end: calc(var(--space-4) + var(--safe-area-bottom));
+  }
+
+  .dialog--drawer-start {
+    margin-inline-end: auto;
+  }
+
+  .dialog--drawer-end {
+    margin-inline-start: auto;
+  }
+
+  .dialog__header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .dialog__title {
+    flex: 1 1 auto;
+    margin: 0;
+    font-size: var(--font-size-400);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+  }
+
+  .dialog__close {
+    flex: 0 0 auto;
+  }
+
+  .dialog__description {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .dialog__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    /* The body scrolls, never the page behind it — 1.4.10 wants the container to scroll, and
+       overscroll containment stops a flick inside a sheet dragging the list underneath. */
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* 2.4.11: a field focused near the foot of a scrolling sheet clears the footer above it. */
+    scroll-padding-block-end: var(--space-6);
+  }
+
+  .dialog__body:empty {
+    display: none;
+  }
+
+  .dialog__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    /* 12 px, the primary-action spacing: Confirm never sits within a thumb's error of Cancel
+       (section 5 rule 2, checklist item A11Y-69). */
+    gap: var(--target-spacing-primary);
+  }
+
+  .dialog[data-presentation='sheet'] .dialog__footer > * {
+    /* On a phone both controls are full width and stacked, so the destructive one cannot be hit by
+       aiming at the other. */
+    flex: 1 1 100%;
+  }
+
+  /* The confirmation ------------------------------------------------------------------------- */
+
+  .confirm-dialog__consequence {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .confirm-dialog__irreversible {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--colour-danger-border);
+    border-inline-start: 4px solid var(--colour-danger-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-danger-surface);
+    color: var(--colour-danger-ink);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .confirm-dialog__phrase {
+    margin: 0;
+    font-size: var(--font-size-300);
+    /* The phrase has to be transcribed exactly, so it is set in the numeric face where 1 and l,
+       0 and O are told apart. */
+    font-family: var(--font-family-numeric);
+    letter-spacing: var(--letter-spacing-wide);
+  }
+
+  .confirm-dialog__prompt {
+    margin: 0;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .confirm-dialog__prompt:empty {
+    display: none;
+  }
+
+  /* The undo bar ----------------------------------------------------------------------------- */
+
+  .undo-bar {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface-raised);
+    color: var(--colour-ink);
+    box-shadow: var(--elevation-1);
+  }
+
+  .undo-bar__message {
+    flex: 1 1 12rem;
+    margin: 0;
+  }
+
+  .undo-bar__countdown {
+    flex: 0 0 auto;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * The remaining time, as a rule along the foot.
+   *
+   * --undo-remaining is written by UndoBar through the CSSOM, which is the one sanctioned way a
+   * value gets from TypeScript into a stylesheet under a nonce policy. It is scaled rather than
+   * animated: there is no transition to remove under prefers-reduced-motion, and the countdown in
+   * words beside it carries the same information, so nothing is lost with motion off.
+   */
+  .undo-bar__progress {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    block-size: 3px;
+    background: var(--colour-brand);
+    transform: scaleX(var(--undo-remaining, 1));
+    /* A physical value: transform-origin takes no logical keywords. The application is ltr, per
+       the manifest, and a right-to-left locale would be a new decision rather than an extension. */
+    transform-origin: 0 50%;
+  }
+
+  .undo-bar[data-held='true'] .undo-bar__progress {
+    background: var(--colour-ink-muted);
+  }
+}

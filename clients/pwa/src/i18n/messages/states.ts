@@ -46,8 +46,10 @@ export const statesEn = {
   /* The plain language a failure is described in. One per failure cause. --------------------- */
   'states.problem.network': 'The connection dropped before the shop system answered.',
   'states.problem.timeout': 'The shop system took too long to answer.',
-  'states.problem.rateLimited': 'Too many requests were sent at once. Wait a moment, then try again.',
-  'states.problem.server': 'The shop system could not finish this. It is not something you did wrong.',
+  'states.problem.rateLimited':
+    'Too many requests were sent at once. Wait a moment, then try again.',
+  'states.problem.server':
+    'The shop system could not finish this. It is not something you did wrong.',
   'states.problem.conflict':
     'Somebody else changed this while you were working on it. Look at it again before you try.',
   'states.problem.notFound': 'This could not be found. It may have been changed or removed.',
@@ -107,9 +109,11 @@ export const statesTa: Record<keyof typeof statesEn, string> = {
   // not translated — awaiting native-speaker review
   'states.problem.timeout': 'The shop system took too long to answer.',
   // not translated — awaiting native-speaker review
-  'states.problem.rateLimited': 'Too many requests were sent at once. Wait a moment, then try again.',
+  'states.problem.rateLimited':
+    'Too many requests were sent at once. Wait a moment, then try again.',
   // not translated — awaiting native-speaker review
-  'states.problem.server': 'The shop system could not finish this. It is not something you did wrong.',
+  'states.problem.server':
+    'The shop system could not finish this. It is not something you did wrong.',
   // not translated — awaiting native-speaker review
   'states.problem.conflict':
     'Somebody else changed this while you were working on it. Look at it again before you try.',

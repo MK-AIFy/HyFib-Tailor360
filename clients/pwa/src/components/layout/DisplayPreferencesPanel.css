@@ -1,0 +1,32 @@
+/*
+ * The display-preferences screen.
+ *
+ * Nothing here sets a width in pixels or a height at all: the whole point of the screen is that the
+ * text on it grows to 150% and it must still read, so every box is sized by its content and 1.4.12
+ * Text Spacing overrides cannot clip anything.
+ */
+
+@layer layout {
+  .display-preferences {
+    display: grid;
+    gap: var(--space-6);
+    max-width: var(--layout-reading-width);
+  }
+
+  .display-preferences__sample {
+    margin: 0;
+    padding: var(--density-padding-block) var(--density-padding-inline);
+    background: var(--colour-surface-raised);
+    color: var(--colour-ink);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .display-preferences__note {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+}

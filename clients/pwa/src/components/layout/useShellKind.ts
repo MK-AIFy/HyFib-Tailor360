@@ -15,10 +15,7 @@ import type { RefObject } from 'react'
  * is not a device check and must never become one: a desktop window dragged to 400 px gets the phone
  * shell, which is exactly what 1.4.10 Reflow asks for.
  */
-export function useShellKind(
-  ref: RefObject<HTMLElement | null>,
-  override?: ShellKind | undefined,
-): ShellKind {
+export function useShellKind(ref: RefObject<HTMLElement | null>, override?: ShellKind): ShellKind {
   const width = useElementWidth(ref)
   return override ?? shellKindForWidth(width)
 }

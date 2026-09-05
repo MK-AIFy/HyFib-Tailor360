@@ -1,6 +1,9 @@
 import { FormattedMessage } from 'react-intl'
 import { Link, createBrowserRouter, isRouteErrorResponse, useRouteError } from 'react-router'
 import { App } from '../App'
+import { DisplayPreferencesPanel } from '../components/layout/DisplayPreferencesPanel'
+import { AboutRoute } from '../routes/AboutRoute'
+import { InstallRoute } from '../routes/InstallRoute'
 
 /** Placeholder home screen. The role dashboards arrive with #50 and the feature milestones. */
 export function HomeRoute() {
@@ -12,6 +15,28 @@ export function HomeRoute() {
       <p>
         <FormattedMessage id="home.body" />
       </p>
+    </section>
+  )
+}
+
+/**
+ * The display-preferences screen: theme, text size and row density.
+ *
+ * It lives in the shell rather than behind a role's Settings destination, and the shell's utilities
+ * slot links to it from every layout. Only three of the eight journey roles have a Settings
+ * destination at all, and the person who needs 150% text or the high-contrast sunlight theme is at
+ * least as likely to be a Tailor in a workshop as an Owner at a desk.
+ */
+export function DisplaySettingsRoute() {
+  return (
+    <section className="page">
+      <h1>
+        <FormattedMessage id="layout.settings.display" />
+      </h1>
+      <p>
+        <FormattedMessage id="layout.settings.displayBody" />
+      </p>
+      <DisplayPreferencesPanel />
     </section>
   )
 }
@@ -70,7 +95,12 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <HomeRoute /> },
-      // A client-side 404: the server serves the shell for any unknown path.
+      { path: 'settings/display', element: <DisplaySettingsRoute /> },
+      // The install surface. Both are reachable without a session, because the person who needs
+      // them most is the one who cannot sign in on a device they have not installed yet.
+      { path: 'install', element: <InstallRoute /> },
+      { path: 'about', element: <AboutRoute /> },
+      // A client-side 404: the server serves the shell for any unknown path. It stays last.
       { path: '*', element: <NotFoundRoute /> },
     ],
   },
