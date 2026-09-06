@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Tailor360.Modules.Integration.Application;
-using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Modules.Integration.Infrastructure;
 
@@ -22,8 +20,6 @@ public static class IntegrationModuleServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
-
-        services.AddSingleton<IPermissionSource, IntegrationPermissions>();
 
         return services;
     }

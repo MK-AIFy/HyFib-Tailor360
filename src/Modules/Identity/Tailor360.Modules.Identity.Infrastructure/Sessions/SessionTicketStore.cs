@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Modules.Identity.Domain.Sessions;
 using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
@@ -33,19 +34,18 @@ namespace Tailor360.Modules.Identity.Infrastructure.Sessions;
 /// </para>
 /// </remarks>
 /// <param name="context">The Identity context.</param>
+/// <param name="access">The caller's effective roles, permissions and branch assignments.</param>
 /// <param name="clock">The clock.</param>
 /// <param name="options">Session lifetimes.</param>
 /// <param name="logger">Logger.</param>
 public sealed class SessionTicketStore(
     IdentityDbContext context,
+    IUserAccessQuery access,
     IClock clock,
     IOptions<SessionAuthenticationOptions> options,
     ILogger<SessionTicketStore> logger)
     : ISessionTicketStore
 {
-    private static readonly IReadOnlySet<string> NoPermissions =
-        new HashSet<string>(StringComparer.Ordinal);
-
     /// <inheritdoc />
     public async Task<SessionResolution> ResolveAsync(
         string presentedToken,
@@ -58,15 +58,17 @@ public sealed class SessionTicketStore(
 
         var digest = SessionTokenFactory.Digest(presentedToken);
 
-        // One round trip. The session and the facts about its account that the request pipeline needs
-        // come back together, because this runs before every authenticated request in the system.
+        // The session and the facts about its account that the request pipeline needs come back
+        // together, because this runs before every authenticated request in the system. The roles,
+        // permissions and branch assignments are read separately, by IUserAccessQuery — see there for
+        // why they are read rather than cached.
         var row = await context.Sessions
             .Where(session => session.TokenHash == digest)
             .Join(
                 context.Users,
                 session => session.UserId,
                 user => user.Id,
-                (session, user) => new SessionRow(session, user.DisplayName, user.Status, user.HomeBranchId))
+                (session, user) => new SessionRow(session, user.DisplayName, user.Status))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (row is null)
@@ -101,14 +103,18 @@ public sealed class SessionTicketStore(
 
         await SlideAsync(session, now, cancellationToken);
 
+        var effective = await access.ResolveAsync(session.UserId, cancellationToken);
+
         return SessionResolution.Active(new SessionTicket(
             session.Id,
             session.UserId,
             row.DisplayName,
             session.OrganisationId,
             session.ActiveBranchId,
-            AssignedBranches(row.HomeBranchId),
-            NoPermissions,
+
+            // The assignment rows alone. See SessionRow for why the home branch is not unioned in.
+            effective.BranchIds,
+            effective.Permissions,
             session.MfaSatisfied,
             session.IsSignInComplete,
             session.LastStrongAuthAt,
@@ -138,20 +144,20 @@ public sealed class SessionTicketStore(
     }
 
     /// <summary>
-    /// The branches the holder may act in. Until issue #24 introduces role and branch assignment, the
-    /// only assignment the model records is the account's home branch, so that is what the ticket
-    /// carries. The permission set stays empty until then, which means every endpoint that demands a
-    /// permission denies — the fail-closed direction, and the reason branch reach cannot over-grant in
-    /// the meantime.
+    /// The row this store reads per request.
     /// </summary>
-    private static HashSet<Guid> AssignedBranches(Guid? homeBranchId)
-        => homeBranchId is { } branchId
-            ? new HashSet<Guid> { branchId }
-            : new HashSet<Guid>();
-
+    /// <remarks>
+    /// <b>The home branch is deliberately absent.</b> An earlier form read it and unioned it into the
+    /// assigned set, on the reading that it is where a session starts. That made removing somebody from
+    /// a branch stop short of removing their reach into it — the branch-transfer case the product
+    /// describes — because assignments and <c>users.home_branch_id</c> are edited by two different
+    /// administration actions. It also gave two answers to one question: <c>IUserAccessQuery</c>, which
+    /// every background job reads, never unioned it, so the same person reached one set of branches over
+    /// HTTP and a smaller set in a worker. The home branch is what <c>SessionService</c> opens a new
+    /// session onto — a default, not a grant — and reach is the assignment rows alone.
+    /// </remarks>
     private sealed record SessionRow(
         Session Session,
         string DisplayName,
-        UserStatus Status,
-        Guid? HomeBranchId);
+        UserStatus Status);
 }

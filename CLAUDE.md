@@ -112,8 +112,12 @@ with the reason.**
 | ARCH-015 | `Guid.NewGuid()` appears nowhere in `src/` outside the identifier generator | Enforced |
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp` | Enforced |
 | ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue | Specified (#53) |
-| ARCH-018 | Every endpoint whose permission is marked `RequiresStepUp` declares `.RequireStepUp()` | Specified (#24) |
+| ARCH-018 | Every endpoint whose permission is marked `RequiresStepUp` declares `.RequireStepUp()` | Enforced |
 | ARCH-019 | No endpoint accepts more than one authentication scheme | Enforced |
+| ARCH-020 | Only the worker and the command-line hosts reference `IWorkerScopeFactory` | Enforced |
+| ARCH-021 | Every background job declares its permissions and branch scope with `[WorkerJob]` | Enforced |
+| ARCH-022 | No endpoint declares both a permission and a justified anonymous exposure | Enforced |
+| ARCH-023 | A branch-scoped permissioned endpoint with a route parameter declares a resource scope, or records why it names none | Enforced |
 
 Crossing a boundary has exactly five sanctioned mechanisms — a read contract, a versioned integration event through
 the transactional outbox, a confirmation-participant hook, composition in the web host, or a platform port. A new

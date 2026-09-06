@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Modules.Identity.Application.Sessions;
+using Tailor360.Modules.Identity.Infrastructure.Access;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Infrastructure.Sessions;
 using Tailor360.Platform.Abstractions.Identifiers;
@@ -36,7 +38,9 @@ public sealed class SessionDatabaseFixture : IAsyncLifetime
     /// <summary>Creates a fresh database with both schemas migrated into it.</summary>
     public async Task<string> CreateDatabaseAsync(string name)
     {
-        var databaseName = $"tailor360_test_sessions_{name.ToLowerInvariant()}_{_createdDatabases.Count}";
+        // Namespaced per run. See DatabaseAvailability.DatabaseNamespace.
+        var databaseName =
+            $"{DatabaseAvailability.DatabaseNamespace}_s_{name.ToLowerInvariant()}_{_createdDatabases.Count}";
 
         await ExecuteOnMaintenanceDatabaseAsync($"DROP DATABASE IF EXISTS {databaseName} WITH (FORCE)");
         await ExecuteOnMaintenanceDatabaseAsync($"CREATE DATABASE {databaseName}");
@@ -102,6 +106,7 @@ public sealed class SessionDatabaseFixture : IAsyncLifetime
         // The per-request holder the authentication handler fills, exactly as the web host registers it.
         services.AddScoped<SessionContext>();
 
+        services.AddScoped<IUserAccessQuery, UserAccessQuery>();
         services.AddScoped<ISessionTicketStore, SessionTicketStore>();
         services.AddScoped<ISessionService, SessionService>();
 

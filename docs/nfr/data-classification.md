@@ -651,7 +651,7 @@ travel through a personal device (plan D15).
 | **Sensitive read that is audited explicitly** | A measurement version or sheet, a media object, an export download, an audit-viewer query, a customer's notification history including bodies |
 | Step-up read or action | Whatever the permission catalogue flags `RequiresStepUp` (#24) — dispatch-exception approval certainly, and this document additionally requires it for an audit export and for break-glass secret access |
 | Cross-branch read | Only where a branch scenario or a pending custody transfer allows it, and the grant is narrow and time-limited |
-| Worker and command-line access | `SystemPrincipal` from a declared `[WorkerJob]` scope; command-line tools require `--operator` and `--reason` outside development |
+| Worker and command-line access | A system principal from a declared `[WorkerJob]` scope; command-line tools require `--operator` and `--reason` outside development (not yet built — carried by #25) |
 
 ---
 

@@ -247,7 +247,7 @@ scheduled reports, media processing under its bulkhead, and the backup-age monit
 | Aspect | Decision |
 | --- | --- |
 | Scheduled jobs | Acquire a row lease in `platform.job_leases` before running, so a second replica is safe |
-| Identity | Jobs run as a `SystemPrincipal` constructible only through `IWorkerScopeFactory` from a `[WorkerJob]` attribute declaring the job's permissions and branch scope; a job acting for a user runs under an impersonation principal rebuilt from that user's *current* permissions |
+| Identity | Jobs run as a system principal — `WorkerPrincipal` with no requester — constructible only through `IWorkerScopeFactory` from a `[WorkerJob]` attribute declaring the job's permissions and branch scope; a job acting for a user runs under an impersonation principal rebuilt from that user's *current* permissions |
 | Heartbeat | Per instance; the "worker down" alert fires when no instance is younger than twice the heartbeat interval |
 | Health | Its own probes: `/health/live` includes "the dispatcher loop is ticking"; `/health/startup` includes one heartbeat write; `/health/ready` is database reachability only. Outbox lag reports **Degraded** on `/health/detail`, drives an alert, and never removes a host from rotation |
 | Scale-out | `docker compose up --scale worker=2` requires no code change; leases and the claim make it safe. The connection budget must be recomputed first (plan Section 4.4) |

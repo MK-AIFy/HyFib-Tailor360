@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Tailor360.Modules.Notifications.Application;
-using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Modules.Notifications.Infrastructure;
 
@@ -22,8 +20,6 @@ public static class NotificationsModuleServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
-
-        services.AddSingleton<IPermissionSource, NotificationsPermissions>();
 
         return services;
     }

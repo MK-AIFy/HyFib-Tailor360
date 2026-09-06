@@ -38,7 +38,7 @@ transitions themselves, [`exceptions.md`](exceptions.md) for what happens when a
    statement. Where the two disagree, one of them is a defect and the pull request that fixes it changes both.
 3. **A role in a cell means the role, not a person.** A branch may staff two roles with one person; the audit
    record still names the permission that was used.
-4. **The system is not a role.** Work performed by a worker job under a `SystemPrincipal` — due-date evaluation,
+4. **The system is not a role.** Work performed by a worker job under a system principal — due-date evaluation,
    low-stock evaluation, notification sending, projections, retention, backup-age monitoring — is footnoted on the
    row it affects, never given a column, because software cannot be accountable.
 5. **Branch scope applies to every row.** Every activity is authorised on permission **plus** branch scope
@@ -56,7 +56,7 @@ The grid has eight columns because the shop floor has eight roles
 | Measurement Staff | The `measurements.capture` permission bundle. Held by Reception in the default grant, or by dedicated staff — OD-13 |
 | Auditor | Read-only. Never `R` or `A` on any row; `I` on report review and backup verification by way of the audit viewer |
 | HyFib super-user | Vendor-side; feature-flag changes only, with a mandatory reason and evaluation audit |
-| `SystemPrincipal` | The worker's own identity; see rule 4 |
+| System principal | The worker's own identity (`WorkerPrincipal` with no requester); see rule 4 |
 
 ---
 

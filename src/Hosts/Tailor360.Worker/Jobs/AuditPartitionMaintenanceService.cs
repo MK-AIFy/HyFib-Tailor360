@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Persistence.Scheduling;
+using Tailor360.Platform.Security.Background;
 
 namespace Tailor360.Worker.Jobs;
 
@@ -17,16 +18,17 @@ namespace Tailor360.Worker.Jobs;
 /// The job runs at start-up and daily thereafter, under a lease so that only one worker instance does
 /// the work when several are running.
 /// </summary>
-/// <param name="scopeFactory">Creates a scope per run.</param>
+/// <param name="scopeFactory">Opens the job's scope per run.</param>
 /// <param name="options">Worker configuration, which supplies the instance name used as the lease owner.</param>
 /// <param name="logger">Logger.</param>
+[WorkerJob(JobName, WorkerBranchScope.None)]
 public sealed class AuditPartitionMaintenanceService(
-    IServiceScopeFactory scopeFactory,
+    IWorkerScopeFactory scopeFactory,
     IOptions<WorkerOptions> options,
     ILogger<AuditPartitionMaintenanceService> logger)
     : BackgroundService
 {
-    /// <summary>The lease name this job takes.</summary>
+    /// <summary>The declared job name, which is also the lease name this job takes.</summary>
     public const string JobName = "platform.audit_partition_maintenance";
 
     /// <summary>How many months of partitions are kept ahead of the current one.</summary>
@@ -60,8 +62,8 @@ public sealed class AuditPartitionMaintenanceService(
     {
         try
         {
-            using var scope = scopeFactory.CreateScope();
-            var leases = scope.ServiceProvider.GetRequiredService<JobLeaseService>();
+            using var scope = scopeFactory.CreateSystemScope(typeof(AuditPartitionMaintenanceService));
+            var leases = scope.Services.GetRequiredService<JobLeaseService>();
             var owner = options.Value.InstanceName;
 
             if (!await leases.TryAcquireAsync(JobName, owner, LeaseDuration, cancellationToken))
@@ -71,7 +73,7 @@ public sealed class AuditPartitionMaintenanceService(
 
             try
             {
-                var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+                var context = scope.Services.GetRequiredService<PlatformDbContext>();
 
                 for (var month = 0; month <= MonthsAhead; month++)
                 {

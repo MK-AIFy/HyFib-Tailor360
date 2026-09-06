@@ -42,7 +42,7 @@ name alone (plan Section 4.4, issue #24).
 | Measurement Staff | — | The permission bundle `measurements.capture`; owns the "Measurements needed" queue. May be granted to Reception rather than held by dedicated staff — see OD-13 | Identity/Admin |
 | Auditor | — | Read-only principal for audit events, financial records and deactivated customers; never state-changing | Identity/Admin |
 | HyFib super-user | — | Vendor-side principal permitted to change feature flags with a mandatory reason and evaluation audit | Platform |
-| `SystemPrincipal` | — | The worker's own identity, constructible only through `IWorkerScopeFactory` from a declared `[WorkerJob]` scope with its permissions and branch scope | Platform |
+| System principal | — | The worker's own identity: the delivered type is `WorkerPrincipal`, and a *system* principal is one of those with no requester behind it (`IsSystem`). Constructible only through `IWorkerScopeFactory` from a declared `[WorkerJob]` scope with its permissions and branch scope — the constructor is private and the factories are internal, so the confinement is C# accessibility rather than a rule anything can waive | Platform |
 | Branch | kilai † (கிளை) | An operating location with its own code, IANA timezone, working calendar, GST registration and document sequences | Identity/Admin |
 | Organisation | — | The single legal entity that owns every branch; fixed at `organisation_id` on all operational aggregates | Identity/Admin |
 

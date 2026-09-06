@@ -5,9 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using Tailor360.Modules.Identity.Application;
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Abuse;
+using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Modules.Identity.Application.Authentication;
 using Tailor360.Modules.Identity.Application.Me;
 using Tailor360.Modules.Identity.Application.Mfa;
@@ -19,6 +19,7 @@ using Tailor360.Modules.Identity.Application.Recovery;
 using Tailor360.Modules.Identity.Application.Sessions;
 using Tailor360.Modules.Identity.Application.Timing;
 using Tailor360.Modules.Identity.Domain.Users;
+using Tailor360.Modules.Identity.Infrastructure.Access;
 using Tailor360.Modules.Identity.Infrastructure.Email;
 using Tailor360.Modules.Identity.Infrastructure.Passkeys;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
@@ -29,7 +30,7 @@ using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Security.Authentication;
-using Tailor360.Platform.Security.Permissions;
+using Tailor360.Platform.Security.Background;
 
 namespace Tailor360.Modules.Identity.Infrastructure;
 
@@ -51,10 +52,9 @@ public static class IdentityModuleServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddSingleton<IPermissionSource, IdentityPermissions>();
-
         AddOptions(services);
         AddPersistence(services);
+        AddAccessServices(services);
 
         // The timing floor is shared by the sign-in and the recovery request, both of which would
         // otherwise answer faster for an address nobody holds than for one somebody does.
@@ -177,6 +177,22 @@ public static class IdentityModuleServiceCollectionExtensions
 
         services.AddModuleContext<IdentityDbContext>(
             IdentityDbContext.SchemaName, ModuleContextRegistry.IdentityOrder);
+    }
+
+    private static void AddAccessServices(IServiceCollection services)
+    {
+        // Resolved on every authenticated request, so it is scoped to the request's context rather than
+        // cached: a role removed a minute ago has to stop working now, not at the next sign-in.
+        services.TryAddScoped<IUserAccessQuery, UserAccessQuery>();
+
+        // Used by init-reference-data. Registered here rather than in the command-line tool so that the
+        // seeding rules live with the schema they write, and so an integration test can call it.
+        services.TryAddScoped<IIdentityReferenceDataSeeder, IdentityReferenceDataSeeder>();
+
+        // Not TryAdd, for the same reason the session ticket store is not. Platform.Security registers
+        // a fail-closed authority store so that a host composed without this module refuses every job
+        // that would act for a person; this one has to be the later — and therefore winning — entry.
+        services.AddScoped<IRequesterAuthorityStore, RequesterAuthorityStore>();
     }
 
     private static void AddPasswordServices(IServiceCollection services)

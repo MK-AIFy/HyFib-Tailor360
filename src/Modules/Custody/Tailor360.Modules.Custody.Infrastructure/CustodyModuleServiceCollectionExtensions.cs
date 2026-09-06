@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Tailor360.Modules.Custody.Application;
-using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Modules.Custody.Infrastructure;
 
@@ -22,8 +20,6 @@ public static class CustodyModuleServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
-
-        services.AddSingleton<IPermissionSource, CustodyPermissions>();
 
         return services;
     }

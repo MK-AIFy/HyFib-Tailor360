@@ -130,7 +130,7 @@ itself is empty until issue #24 populates it, so the column illustrates the shap
 | Measurement Staff | Permission bundle (`measurements.capture`) | May be granted to Reception rather than held by dedicated staff — **OD-13** |
 | Auditor | Human, read-only | Audit events, financial records and deactivated customers; never state-changing |
 | HyFib super-user | Vendor-side human | Feature-flag changes only, with a mandatory reason and evaluation audit |
-| `SystemPrincipal` | Machine | The worker's own identity, constructible only through `IWorkerScopeFactory` from a declared `[WorkerJob]` scope carrying its permissions and branch scope |
+| System principal (`WorkerPrincipal`, `IsSystem`) | Machine | The worker's own identity, constructible only through `IWorkerScopeFactory` from a declared `[WorkerJob]` scope carrying its permissions and branch scope. The same type with a requester behind it is the impersonation principal |
 
 ### 3.3 The customer
 

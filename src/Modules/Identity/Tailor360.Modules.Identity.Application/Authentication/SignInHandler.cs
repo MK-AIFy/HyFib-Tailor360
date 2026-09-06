@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Abuse;
+using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Modules.Identity.Application.Mfa;
 using Tailor360.Modules.Identity.Application.Options;
 using Tailor360.Modules.Identity.Application.Sessions;
@@ -46,6 +47,7 @@ namespace Tailor360.Modules.Identity.Application.Authentication;
 /// </para>
 /// </remarks>
 /// <param name="directory">Account lookup for the sign-in path.</param>
+/// <param name="access">The account's effective roles and permissions, for the multi-factor decision.</param>
 /// <param name="hashing">Password hashing and verification.</param>
 /// <param name="sessions">Session lifecycle.</param>
 /// <param name="throttle">The per-account and per-address attempt counters.</param>
@@ -61,6 +63,7 @@ namespace Tailor360.Modules.Identity.Application.Authentication;
 /// <param name="logger">Logger. Never receives a credential.</param>
 public sealed class SignInHandler(
     ISignInDirectory directory,
+    IUserAccessQuery access,
     IPasswordHashingService hashing,
     ISessionService sessions,
     ICredentialThrottle throttle,
@@ -199,7 +202,7 @@ public sealed class SignInHandler(
         CancellationToken cancellationToken)
     {
         var remembered = FindRememberedDevice(user, command.TrustedDeviceToken, now);
-        var step = NextStep(user, remembered is not null);
+        var step = await NextStepAsync(user, remembered is not null, cancellationToken);
 
         user.RecordSuccessfulSignIn(now);
 
@@ -265,16 +268,26 @@ public sealed class SignInHandler(
     /// account's permissions would have required one: someone who has taken the trouble to enrol must
     /// not find that the challenge is skipped because their role does not demand it.
     /// </summary>
-    private SignInStep NextStep(StaffUser user, bool deviceRemembered)
+    /// <remarks>
+    /// The enrolment demand is decided from the account's <em>effective</em> permissions, not from its
+    /// role names, which is what makes a custom role safe: a shop that invents a role and grants it a
+    /// flagged permission has created an account that must enrol, and nobody had to remember to add the
+    /// new role to a configuration list for that to be true. The access read costs one query and only
+    /// on the branch where the account has no factor yet.
+    /// </remarks>
+    private async Task<SignInStep> NextStepAsync(
+        StaffUser user,
+        bool deviceRemembered,
+        CancellationToken cancellationToken)
     {
         if (user.HasConfirmedSecondFactor)
         {
             return deviceRemembered ? SignInStep.Complete : SignInStep.MultiFactorRequired;
         }
 
-        // Roles and effective permissions arrive with #24, which is what will make this decision
-        // interesting; until then the policy answers from its "required for everyone" setting alone.
-        return mfaPolicy.IsRequiredFor([], [])
+        var effective = await access.ResolveAsync(user.Id, cancellationToken);
+
+        return mfaPolicy.IsRequiredFor(effective.RoleNames, effective.Permissions)
             ? SignInStep.MultiFactorEnrolmentRequired
             : SignInStep.Complete;
     }

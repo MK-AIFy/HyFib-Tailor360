@@ -18,6 +18,7 @@ public static class DatabaseAvailability
     public const string ObjectStorageVariable = "TAILOR360_TEST_S3_ENDPOINT";
 
     private static readonly Lazy<bool> AvailableLazy = new(Probe);
+    private static readonly Lazy<string> NamespaceLazy = new(BuildNamespace);
 
     /// <summary>True when a usable PostgreSQL instance was found.</summary>
     public static bool IsAvailable => AvailableLazy.Value;
@@ -29,6 +30,27 @@ public static class DatabaseAvailability
     /// <summary>The connection string to use, or null when none is configured.</summary>
     public static string? ConnectionString =>
         Environment.GetEnvironmentVariable(ConnectionStringVariable) is { Length: > 0 } value ? value : null;
+
+    /// <summary>
+    /// The prefix every database this run creates is named under.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every fixture here creates its databases with <c>DROP DATABASE ... WITH (FORCE)</c>, which
+    /// terminates <em>another process's</em> live backends on a database of that name. With fixed names
+    /// two runs against one cluster therefore destroy each other, and the failures land inside a
+    /// collection fixture's <c>InitializeAsync</c> — a whole collection reporting red for a reason that
+    /// has nothing to do with what it tests.
+    /// </para>
+    /// <para>
+    /// The prefix is built from two things. The configured database name, so that
+    /// <c>TAILOR360_TEST_DATABASE_URL</c> — the one knob a continuous-integration job has — isolates a
+    /// run completely; and the process identifier, so that two runs sharing one connection string still
+    /// do not collide. It is kept short because PostgreSQL truncates an identifier at 63 bytes and the
+    /// per-fixture suffixes are appended to it.
+    /// </para>
+    /// </remarks>
+    public static string DatabaseNamespace => NamespaceLazy.Value;
 
     /// <summary>
     /// Why the database-backed tests are being skipped, for the runner to display. A constant because
@@ -52,6 +74,31 @@ public static class DatabaseAvailability
             throw new InvalidOperationException(
                 "Integration tests require a database when CI=true, but none was reachable. " + SkipReason);
         }
+    }
+
+    private static string BuildNamespace()
+    {
+        var configured = ConnectionString;
+        var baseName = "tailor360";
+
+        if (configured is not null)
+        {
+            try
+            {
+                var database = new NpgsqlConnectionStringBuilder(configured).Database;
+                if (!string.IsNullOrWhiteSpace(database))
+                {
+                    baseName = database;
+                }
+            }
+            catch (ArgumentException)
+            {
+                // An unparseable connection string is the Probe's problem to report, not this one's.
+            }
+        }
+
+        var trimmed = baseName.Length > 16 ? baseName[..16] : baseName;
+        return string.Create(CultureInfo.InvariantCulture, $"{trimmed}_{Environment.ProcessId}");
     }
 
     private static bool Probe()

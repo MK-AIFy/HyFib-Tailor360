@@ -70,7 +70,7 @@ say "DoD 6" and mean one thing everywhere.
 | Server-side validation exists for every input, and the error response is RFC 9457 problem details with field errors and no stack trace | Integration test; reviewer reads the validator | Machine + human |
 | Endpoints that a client may retry accept `Idempotency-Key` and behave correctly on replay, including the "same key, different body" and "duplicate while in flight" cases | Integration test | Machine |
 | Every state-changing endpoint carries the audit filter, and sensitive reads audit explicitly | Architecture test for the filter; integration test for the audit row | Machine |
-| The authorisation-matrix fixtures gained a row for every new or changed endpoint, with the role, own-branch and other-branch expectations and the field mask where one applies | The matrix test fails on any endpoint without an entry | Machine |
+| The authorisation-matrix fixtures gained a row for every new or changed endpoint, with the role, own-branch and other-branch expectations and the field mask where one applies — the endpoint block of `../security/permission-matrix.md`, and `tests/Tailor360.IntegrationTests/Authorization/matrix.yaml` where the route takes an identifier a caller could type | The matrix test fails on any endpoint without an entry, naming the route | Machine |
 | Step-up requirements are declared where the permission carries `RequiresStepUp` | Architecture test; the matrix test's fresh and stale dimension | Machine |
 
 ### DoD 3 — Tests

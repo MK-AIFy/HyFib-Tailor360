@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Tailor360.Modules.Identity.Domain.Access;
+using Tailor360.Modules.Identity.Domain.Branches;
 using Tailor360.Modules.Identity.Domain.Credentials;
 using Tailor360.Modules.Identity.Domain.Mfa;
 using Tailor360.Modules.Identity.Domain.Passkeys;
@@ -69,6 +71,21 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     /// <summary>Single-use expiring tokens for password recovery and invitations.</summary>
     public DbSet<RecoveryToken> RecoveryTokens => Set<RecoveryToken>();
 
+    /// <summary>The branch register every branch-scoped decision is measured against.</summary>
+    public DbSet<Branch> Branches => Set<Branch>();
+
+    /// <summary>Roles: the seeded system roles and any an administrator has added.</summary>
+    public DbSet<Role> Roles => Set<Role>();
+
+    /// <summary>The permissions each role grants.</summary>
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+
+    /// <summary>Which accounts hold which roles.</summary>
+    public DbSet<UserRoleAssignment> UserRoles => Set<UserRoleAssignment>();
+
+    /// <summary>Which branches each account may act in.</summary>
+    public DbSet<UserBranchAssignment> UserBranchAssignments => Set<UserBranchAssignment>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +99,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
         ConfigureSessions(modelBuilder);
         ConfigurePreferences(modelBuilder);
         ConfigureRecovery(modelBuilder);
+        ConfigureBranches(modelBuilder);
+        ConfigureAccess(modelBuilder);
     }
 
     private static void ConfigureUsers(ModelBuilder modelBuilder)
@@ -387,6 +406,115 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+    private static void ConfigureBranches(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<Branch>(entity =>
+        {
+            entity.ToTable("branches");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code).HasMaxLength(Branch.MaximumCodeLength).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(Branch.MaximumNameLength).IsRequired();
+            entity.Property(e => e.TimeZoneId).HasMaxLength(Branch.MaximumTimeZoneLength).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+
+            // The code appears in every order, estimate and invoice number, so two branches sharing one
+            // would make those numbers ambiguous for the life of the installation.
+            entity.HasIndex(e => new { e.OrganisationId, e.Code })
+                .IsUnique()
+                .HasDatabaseName("ux_branches_organisation_code");
+
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigureAccess(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("roles");
+            entity.HasKey(e => e.Id);
+            entity.Ignore(e => e.PermissionKeys);
+
+            entity.Property(e => e.Key).HasMaxLength(Role.MaximumKeyLength).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(Role.MaximumNameLength).IsRequired();
+            entity.Property(e => e.Description)
+                .HasMaxLength(Role.MaximumDescriptionLength).IsRequired();
+            entity.Property(e => e.Reach).HasConversion<string>().HasMaxLength(20).IsRequired();
+
+            // The key is what the permission matrix, the seeding command and the regression tests name
+            // a role by, so it is unique within the organisation and never reused.
+            entity.HasIndex(e => new { e.OrganisationId, e.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_roles_organisation_key");
+
+            entity.HasMany(e => e.Permissions)
+                .WithOne()
+                .HasForeignKey(p => p.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable("role_permissions");
+
+            // The pair is the key. A role either grants a permission or does not; granting it twice is
+            // not a state the store can hold, so no reconciliation has to consider it.
+            entity.HasKey(e => new { e.RoleId, e.PermissionKey });
+
+            entity.Property(e => e.PermissionKey)
+                .HasMaxLength(Role.MaximumPermissionKeyLength).IsRequired();
+
+            // Answering "who holds this permission" walks the key, which is what the administration
+            // screens and the authorisation review both ask.
+            entity.HasIndex(e => e.PermissionKey).HasDatabaseName("ix_role_permissions_permission");
+        });
+
+        modelBuilder.Entity<UserRoleAssignment>(entity =>
+        {
+            entity.ToTable("user_roles");
+            entity.HasKey(e => new { e.UserId, e.RoleId });
+
+            entity.HasOne<StaffUser>()
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // A role in use cannot be deleted out from under the accounts that hold it. Removing a role
+            // is removing its assignments first, deliberately, rather than by cascade.
+            entity.HasOne<Role>()
+                .WithMany()
+                .HasForeignKey(e => e.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.RoleId).HasDatabaseName("ix_user_roles_role");
+        });
+
+        modelBuilder.Entity<UserBranchAssignment>(entity =>
+        {
+            entity.ToTable("user_branch_assignments");
+            entity.HasKey(e => new { e.UserId, e.BranchId });
+
+            entity.HasOne<StaffUser>()
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // A branch is deactivated, never deleted, so an assignment can never point at nothing.
+            entity.HasOne<Branch>()
+                .WithMany()
+                .HasForeignKey(e => e.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.BranchId).HasDatabaseName("ix_user_branch_assignments_branch");
+
+            // One primary branch per account: it is where a session starts, and two would make the
+            // starting branch depend on row order.
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("ux_user_branch_assignments_primary")
+                .HasFilter("is_primary");
+        });
+    }
 
     /// <summary>The stored length of a hexadecimal SHA-256 digest.</summary>
     private const int HashedSecretLength = 64;

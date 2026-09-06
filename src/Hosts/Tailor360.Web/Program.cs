@@ -133,6 +133,11 @@ app.UseRateLimiter();
 // It covers sign-in, the multi-factor challenge, passkeys and recovery as well as ordinary commands.
 app.UseTailor360Antiforgery();
 
+// The resource an endpoint names is loaded here, between routing — which is what makes the route
+// values available — and authorisation, which is the only position in the pipeline where a handler can
+// decide against the row rather than against the caller's own claims.
+app.UseTailor360ResourceScope();
+
 app.UseAuthorization();
 
 app.MapTailor360HealthEndpoints();

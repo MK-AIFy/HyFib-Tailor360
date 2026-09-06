@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.Modules.Identity.Application.Abstractions;
+using Tailor360.Modules.Identity.Domain.Passkeys;
 using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
 using Tailor360.Platform.Security.Antiforgery;
@@ -349,6 +350,76 @@ public static class AuthenticationTestData
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return user;
+    }
+
+    /// <summary>
+    /// Registers a passkey against an account directly, and returns its identifier.
+    /// </summary>
+    /// <remarks>
+    /// Through the domain rather than through the WebAuthn ceremony, because the ceremony needs an
+    /// authenticator and a browser. What the tests using this need is a real row with a real identifier
+    /// belonging to a real account — so that "somebody else's passkey" is somebody else's passkey and
+    /// not an invented identifier that happens to match nothing.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="userId">The account to register it against.</param>
+    /// <param name="label">The label the holder would have given it.</param>
+    public static async Task<Guid> RegisterPasskeyAsync(
+        WebApplicationFixture fixture,
+        Guid userId,
+        string label)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<Tailor360.Platform.Abstractions.Time.IClock>();
+        var ids = scope.ServiceProvider.GetRequiredService<Tailor360.Platform.Abstractions.Identifiers.IIdGenerator>();
+
+        var user = await context.Users
+            .Include(candidate => candidate.Passkeys)
+            .SingleAsync(candidate => candidate.Id == userId, TestContext.Current.CancellationToken);
+
+        var passkeyId = ids.NewId();
+
+        // Synthetic material, and it never has to verify: nothing in these tests signs an assertion
+        // with it. The credential identifier is unique per registration so two seeded passkeys on one
+        // account do not collide.
+        var credential = PasskeyCredential.Register(
+            passkeyId,
+            userId,
+            passkeyId.ToByteArray(),
+            [1, 2, 3, 4],
+            Guid.Empty,
+            label,
+            signatureCounter: 0,
+            clock.UtcNow).Value;
+
+        user.RegisterPasskey(credential, clock.UtcNow).IsSuccess.ShouldBeTrue();
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return passkeyId;
+    }
+
+    /// <summary>True when the account still holds the passkey named.</summary>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="userId">The account.</param>
+    /// <param name="passkeyId">The passkey.</param>
+    public static async Task<bool> HoldsPasskeyAsync(
+        WebApplicationFixture fixture,
+        Guid userId,
+        Guid passkeyId)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+
+        return await context.PasskeyCredentials
+            .AsNoTracking()
+            .AnyAsync(
+                passkey => passkey.Id == passkeyId && passkey.UserId == userId,
+                TestContext.Current.CancellationToken);
     }
 
     /// <summary>Re-reads an account, so a test can assert on what a request changed.</summary>

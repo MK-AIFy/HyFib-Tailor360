@@ -1,0 +1,203 @@
+# The behavioural half of the authorisation matrix.
+#
+# docs/security/permission-matrix.md says who holds what and which routes exist. This file says what a
+# request from each of those people must actually be answered with — and it is the file every later pull
+# request extends, under item 2 of docs/process/definition-of-done.md.
+#
+# Nothing here restates a grant. Which roles hold a permission is read from the matrix document and from
+# the seeded role register; repeating it would create a third place for it to be wrong. What is here is
+# the part the document cannot express: the status code and problem-detail code each class of caller is
+# owed, the exceptions that exist today with the reason each is tolerated, and the routes whose
+# identifiers a caller could edit.
+#
+#   How to extend it when you add an endpoint
+#   -----------------------------------------
+#   1. Add the route to the endpoints block of docs/security/permission-matrix.md. Until you do,
+#      AuthorisationMatrixTests fails and names your route.
+#   2. If the route takes an identifier a caller could type instead of follow, add it under
+#      `identifier-editing` below with the answer a foreign identifier must produce.
+#   3. If it needs an outcome none of the dimensions below describes, add a dimension here with the
+#      reason, rather than asserting the outcome inline in a test where nobody reviewing the matrix
+#      will find it.
+
+version: 1
+
+# ---------------------------------------------------------------------------------------------------
+# What each answer looks like on the wire. One place, so that "refused" cannot come to mean three
+# different things in three different tests.
+# ---------------------------------------------------------------------------------------------------
+answers:
+  allowed:
+    status: 200
+    code: null
+  anonymous:
+    status: 401
+    code: security.authentication-required
+  not-permitted:
+    status: 403
+    code: security.forbidden
+  second-factor:
+    status: 403
+    code: security.second-factor-required
+  step-up:
+    status: 403
+    code: security.step-up-required
+  out-of-reach:
+    status: 404
+    code: security.resource-not-found
+
+# ---------------------------------------------------------------------------------------------------
+# The dimensions the matrix is driven across. Every permission in the catalogue is exercised against
+# every seeded role in both branches; these say what each combination must be answered with.
+# ---------------------------------------------------------------------------------------------------
+dimensions:
+
+  # A person who holds the permission, acting on something in the branch they are assigned to.
+  holder-own-branch: allowed
+
+  # The same person, naming something in a branch they are not assigned to. A branch-scoped permission
+  # does not travel: this is the answer that stops one shop's counter from reaching another's.
+  holder-other-branch: out-of-reach
+
+  # An organisation-scoped permission, held by a role whose reach is the organisation. Reading across
+  # branches is what that reach is for, so this one is allowed — and it is a reading reach only: the
+  # endpoint that writes declares current-branch and is refused all the same.
+  reach-other-branch: allowed
+
+  # A branch-scoped permission, declared organisation-wide on a read — the cross-branch search of
+  # docs/prd/workflows/branch-scenarios.md section 3.3. The answer turns on organisation reach and on
+  # nothing else: holding the permission in one branch does not make it readable in another.
+  wide-read-with-reach: allowed
+  wide-read-without-reach: out-of-reach
+
+  # A person assigned to two branches, whose session is working in the first, naming a row in the
+  # second. On an endpoint declared current-branch this is refused: "current branch" means the branch
+  # the session is working in, not any branch the holder could switch to, which is what makes the
+  # branch switcher a deliberate act rather than a label. On an endpoint declared assigned-branches it
+  # is allowed, because that is what declaring the wider reach means.
+  #
+  # These two exist because no single-branch caller can tell the difference: for everybody else the
+  # active branch and the assigned set are the same one branch, so both declarations answer alike
+  # however the handler is written — including when it ignores the declaration.
+  second-branch-not-current: out-of-reach
+  second-branch-assigned-reach: allowed
+
+  # A person whose roles do not grant the permission, in their own branch. Deny by default, stated as
+  # an outcome rather than as an absence.
+  non-holder-own-branch: not-permitted
+
+  # No session at all. 401 rather than 403, because the instruction to the client is "authenticate",
+  # not "stop".
+  no-session: anonymous
+
+  # An identifier that matches nothing. It must be answered exactly as another branch's identifier is,
+  # or editing the address bar becomes a way to find out which records exist.
+  unknown-resource: out-of-reach
+
+  # A permission flagged RequiresMfa, held by a session that has not satisfied a second factor.
+  flagged-without-second-factor: second-factor
+
+  # A permission flagged RequiresStepUp, held by a session whose last strong authentication is older
+  # than Security:StepUp:Freshness. Distinct from second-factor because the client's answer differs:
+  # this one is recoverable in place.
+  flagged-stale-step-up: step-up
+
+  # The same permission on a session that re-authenticated inside the window.
+  flagged-fresh-step-up: allowed
+
+# ---------------------------------------------------------------------------------------------------
+# Exceptions. Every entry is a place where the approved matrix and the enforced behaviour do not agree,
+# recorded with the reason and the issue that settles it. The test asserts that this list is exactly the
+# set of disagreements that exist: a new one fails, and so does one that has been fixed and not removed.
+# ---------------------------------------------------------------------------------------------------
+organisation-reach-gaps:
+
+  - role: hyfib_super_user
+    permission: admin.feature_flags
+    answer-own-branch: not-permitted
+    answer-other-branch: out-of-reach
+    because: >
+      The vendor principal is seeded holding this permission and nothing else, deliberately
+      (permission-matrix.md section 2). An endpoint about the organisation rather than about a branch
+      declares BranchScope.Organisation, which BranchScopeAuthorisationHandler satisfies only for a
+      caller holding admin.organisation.read_all_branches — so the one role approved to change a
+      feature flag cannot reach the endpoint that changes it. The approval and the enforcement disagree,
+      and this is the record of it rather than a silent pass. The two answers differ because two
+      different requirements fail: in the caller's own branch only the caller-side branch check fails,
+      which is a plain forbidden; naming another branch also fails the resource check, whose refusal is
+      the deliberately uninformative not-found. Both are refusals of the same thing.
+    settled-by: >
+      #25, which builds PUT /api/v1/admin/feature-flags/{key}. It is one of two decisions and both are
+      cheap: either the vendor role also holds organisation reach, or BranchScope gains a value meaning
+      "this action is not about a branch at all", which is what an organisation-scoped permission held
+      by a principal with no branch assignments actually needs.
+
+# ---------------------------------------------------------------------------------------------------
+# What this file does not yet describe.
+#
+# Every dimension above names a single row by its identifier. Reach for an endpoint that returns a
+# collection — a list, a search, an export — or that names its subjects in a body or a query string is
+# undefined here and unenforced in the platform: ScopedToResource resolves one identifier out of the
+# route table and nothing else, so such an endpoint reaches its handler with no branch decision taken.
+# The mechanism that decides it, and the dimensions that hold it to an answer, are owned by #32a, the
+# first issue to publish a collection endpoint. Recorded here as well as in
+# docs/security/permission-matrix.md section 7 so that nobody writes the first one believing the
+# question has been answered.
+# ---------------------------------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------------------------------
+# Routes that take an identifier a caller could type rather than follow. For each, a foreign identifier
+# and one that matches nothing must be answered identically — status, code and body.
+# ---------------------------------------------------------------------------------------------------
+identifier-editing:
+
+  - route: DELETE /api/v1/sessions/{sessionId}
+    identifier: another account's live session
+    because: >
+      The session inventory is per account. If revoking somebody else's session answered differently
+      from revoking one that does not exist, the endpoint would be a way to discover which session
+      identifiers are live on other people's accounts, one guess at a time.
+
+  - route: DELETE /api/v1/auth/passkeys/{passkeyId}
+    identifier: another account's registered passkey
+    because: >
+      The same shape, on the credential a person signs in with. A distinguishable answer would say
+      whether an account has passkeys and which, which is a map of who to attack and how.
+
+# ---------------------------------------------------------------------------------------------------
+# Which fields each role is shown. Not here, and this is the record of why.
+# ---------------------------------------------------------------------------------------------------
+field-sets:
+  declared-in: docs/security/field-visibility.md
+  enforced-by: tests/Tailor360.UnitTests/Platform/FieldVisibilityTests.cs
+  because: >
+    This matrix decides reach — which rows a caller may touch. Which columns come back with them is a
+    different question with a different source (docs/nfr/data-classification.md classifies the fields)
+    and a different mechanism (a declared response view, not an authorisation requirement). Restating
+    the field sets here would create a second place for them to be wrong, which is the exact failure
+    this whole arrangement exists to prevent. The paths above are checked to exist, so the pointer
+    cannot rot into a reference to a document somebody moved.
+
+# ---------------------------------------------------------------------------------------------------
+# Denied attempts that must reach the audit trail. The rule is in plan Section 4.4 and in
+# docs/architecture/components.md row 10.
+# ---------------------------------------------------------------------------------------------------
+denial-audit:
+  action: authz.denied
+  audited:
+    - state-changing requests, whatever the refusal
+    - requests to an endpoint that demands a fresh re-authentication
+  not-audited:
+    - reads that are not step-up, because a client asking what it may do by asking would otherwise
+      write an entry every time somebody opened a screen
+  coalescing:
+    key: actor, endpoint, minute
+    sampling: >
+      None, ever. A distinct actor, endpoint or minute is always recorded however many entries have
+      already been written; the eleventh actor refused in one minute is exactly the one an
+      investigation needs. Coalescing collapses repetitions of one event and nothing else, and running
+      out of room to remember what has been coalesced turns coalescing off rather than turning
+      recording off.
+  never-recorded:
+    - request bodies, query strings and headers
+    - route values, which are the caller's own input on a request that was refused

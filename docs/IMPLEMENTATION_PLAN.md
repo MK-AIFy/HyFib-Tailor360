@@ -292,7 +292,7 @@ credentials or bucket policies).
   `TransferScopeRequirement` grants users of the destination branch exactly the receive/reject/resolve actions on
   jobs in a pending cross-branch transfer (#37); endpoints declare `.RequirePermission("orders.confirm")`;
   deny-by-default is enforced by an architecture test; field-level minimisation policies project DTOs per role;
-  `SystemPrincipal` is constructible only through `IWorkerScopeFactory` in the worker/CLI hosts from a
+  A system principal — the delivered type is `WorkerPrincipal`, with no requester — is constructible only through `IWorkerScopeFactory` in the worker/CLI hosts from a
   `[WorkerJob]` attribute that declares the job's permissions and branch scope, jobs acting for a user run under
   an impersonation principal rebuilt from the requester's current permissions, and CLI commands require
   `--operator <user>` and `--reason` outside Development; media and download endpoints re-check authorisation on
@@ -1122,8 +1122,14 @@ acceptance criteria, which remain the contract.
   `custody.invalidate_label`, `custody.generate_identity`, `custody.approve_reconciliation`; `audit.export`;
   `reports.export` above the row threshold; `notifications.replay`, `notifications.manage_templates`;
   `integration.manage_webhooks`, `integration.replay_delivery`; `admin.outbox.replay`); roles Owner, Admin,
-  Reception, Measurement Staff, Tailor Master, Tailor, Inventory, Cashier, Delivery, Auditor with default grants
-  in seed data and an admin-editable role → permission map (custom roles allowed);
+  **Branch Manager**, Reception, Measurement Staff, Tailor Master, Tailor, Inventory Clerk, Cashier, Delivery
+  Staff, Auditor — plus the vendor-side HyFib super-user — with default grants in seed data and an admin-editable
+  role → permission map (custom roles allowed). *(Corrected on 2026-09-06 by the delivered
+  `docs/security/permission-matrix.md`, which this list is one role short of: Branch Manager is the sole named
+  actor for `orders.reschedule` in `docs/prd/state-transitions.md`, is accountable for four rows of
+  `docs/prd/raci.md`, and is the role `docs/prd/00-overview.md` defines Admin as a superset of. Section 2 of the
+  matrix records the choice as a documented default pending OD-13 and tabulates what changes if the owner decides
+  otherwise.)*;
   `docs/security/permission-matrix.md` (role × permission × branch scope × flags with rationale) reviewed and
   approved by the owner before merge; the generated matrix test reads this file so approval and enforcement
   cannot diverge.
@@ -1146,6 +1152,20 @@ acceptance criteria, which remain the contract.
   role in each; scripted in `docs/security/role-walkthrough.md`; each role exercises its permitted actions in its
   own branch and the corresponding denied actions against the other branch (including edited identifiers);
   screenshots or problem-details responses per step attached to the PR.
+- **Carried forward, and where.** Four clauses above are not delivered by #24 and are not delivered by nobody
+  either — each names the issue that takes it, so that none of them becomes an unowned sentence in a plan:
+  - *Media and download endpoints re-check authorisation on every request* — there is no media endpoint, no
+    download endpoint and no object-storage code yet. **#28/#29**, which build them, and which the rule is
+    recorded against in `docs/security/permission-matrix.md` section 7.
+  - *Field-level minimisation* — the mechanism (`IFieldVisibilityPolicy`, the three declared response views) is
+    built, registered and unit-tested, and no endpoint projects through it because no endpoint returns any of the
+    three views. **#32a/#33/#26**, the issues that publish them; `docs/security/field-visibility.md` says at the
+    top that it describes an intent until then.
+  - *Sections 4 to 6 of the two-branch walkthrough* — they need an endpoint that enforces a permission and an
+    administration surface that can create users, neither of which exists. **#25 and #32a**. Section 3, which
+    needs neither, is run and its results are recorded.
+  - *`docs/security/threat-models/authorisation.md`* — **#32a**, the first issue to publish a permissioned route,
+    so that the model is written about endpoints that exist rather than about a mechanism in the abstract.
 
 ### #25 [E03-F03] Audited administration for users, branches, permissions, flags
 
@@ -1167,6 +1187,15 @@ acceptance criteria, which remain the contract.
 - **Contract**: `Identity.Contracts.IUserDirectory` (id, display name, roles, branch assignments, tailor-skills
   attribute, locale, active flag) for #33 assignment validation, #44 report recipients and #45 workload views;
   workers query it under their declared scope.
+- **Composition, carried from #24**: `Identity.Infrastructure.Access.RequesterAuthorityStore` implements the
+  platform's `IRequesterAuthorityStore` over `IUserAccessQuery` and is registered by `AddIdentityModule`, so any
+  host that composes Identity answers "may this person still do this?" from the database. `Tailor360.Worker`
+  composes no module today and therefore still resolves the fail-closed default, which refuses every job that
+  declares `ActsForRequester`; the first such job is what makes the worker compose Identity, and that is this
+  issue's to do alongside `IUserDirectory`. Also here: the command-line tool's `--operator <user>` / `--reason`
+  outside Development, which needs `AddTailor360WorkerScopes()` in `CliHost` and a declared job identity for the
+  destructive commands — today `init-reference-data` and `seed-synthetic` write rows attributed to whatever
+  `IAuditContext` the host happens to register.
 - **Controls**: step-up (re-authenticate with MFA within 5 minutes) for role/permission/billing/security changes;
   mandatory reason; dual confirmation for Owner-level changes; no deletion of referenced identities/branches
   (deactivate); safe search/filter/pagination; export restricted to Auditor/Owner.
@@ -1373,7 +1402,7 @@ acceptance criteria, which remain the contract.
   progress list, per-image retry and cancel, and survive navigation within the draft; the intake **Confirm**
   button shows "Waiting for N photos" until uploads are ready; camera-denied and no-camera cases fall back to the
   gallery picker; caption (used as alt text); deletion request flow.
-- **Operations**: retention job under a `SystemPrincipal` with `media.retention` selecting
+- **Operations**: retention job under a system principal with `media.retention` selecting
   `retention_date < now AND status = ready AND NOT EXISTS (retention_holds)`; each deletion idempotent (status
   deleted, derivatives removed, storage delete tolerant of 404) with one audit event per media id; held records
   skipped and counted; failures retry with backoff and surface as a health signal; legal/business hold; orphan
@@ -1400,6 +1429,17 @@ acceptance criteria, which remain the contract.
   snapshot, due date, priority, lifecycle confirmed → in_production → ready → delivered → closed plus
   cancelled/on_hold, workflow definition reference), `garment_job_dependencies` (job, prerequisite job, type
   `finish_before` | `deliver_together`, reason), `garment_design_snapshots`, `order_revisions`.
+- **Branch reach for collections (from #24)**: `ScopedToResource` decides one identifier taken from the route and
+  nothing else, so a list, a search, an export, a bulk command, or an identifier carried in a body or a query
+  string reaches its handler with no branch decision taken. This issue publishes the first of those, so it builds
+  the collection half — a port that applies the caller's permitted branch set as a predicate and refuses rather
+  than returning everything when the scope cannot be satisfied, plus the inspector rule that a permissioned `GET`
+  returning a collection declares it — and adds the matrix dimensions for it. Recorded meanwhile in
+  `docs/security/permission-matrix.md` section 7 and in `tests/Tailor360.IntegrationTests/Authorization/matrix.yaml`
+  so that nobody writes the first list endpoint believing the question is already answered. Two more #24 clauses
+  land here for the same reason: sections 4 to 6 of `docs/security/role-walkthrough.md`, which need an endpoint
+  that enforces a permission, and `docs/security/threat-models/authorisation.md`, which needs endpoints to be
+  about.
 - **Identifiers**: the UUIDv7 resource id is the only identifier in API paths, deep links, printed QR/URLs and
   customer links (74 random bits, always authorised against branch scope; enumeration caught by the #24 IDOR tests
   and #53 rate limits); display numbers are human-readable references searchable only by authenticated users

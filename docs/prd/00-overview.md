@@ -62,7 +62,7 @@ These are not shop-floor roles but they appear in the permission catalogue and i
 | Measurement Staff | A permission bundle (`measurements.capture`) that may be granted to Reception or held by dedicated staff; the "Measurements needed" queue is theirs |
 | Auditor | Read-only access to audit events, financial records and deactivated customers; never a state-changing principal |
 | HyFib super-user | Vendor-side principal permitted to change feature flags (`admin.feature_flags`) with a mandatory reason and evaluation audit |
-| `SystemPrincipal` | The worker's own identity, constructible only through `IWorkerScopeFactory` from a declared `[WorkerJob]` scope; used for retention, projections and scheduled evaluation |
+| System principal | The worker's own identity (`WorkerPrincipal` with no requester), constructible only through `IWorkerScopeFactory` from a declared `[WorkerJob]` scope; used for retention, projections and scheduled evaluation |
 
 > **Open decision.** The final role list and the default role-to-permission grants are owner decisions —
 > plan Section 11 item 13, registered as OD-13 in

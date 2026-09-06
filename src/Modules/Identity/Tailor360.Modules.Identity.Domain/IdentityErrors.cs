@@ -278,6 +278,24 @@ public static class IdentityErrors
         "That language is not available in this deployment.",
         "locale");
 
+    /// <summary>A role key was not lower-case letters, digits and underscores starting with a letter.</summary>
+    public static Error RoleKeyNotWellFormed { get; } = Error.Validation(
+        "identity.role-key-not-well-formed",
+        "A role key is lower-case letters, digits and underscores, and starts with a letter.",
+        "key");
+
+    /// <summary>A branch code was not upper-case letters and digits.</summary>
+    public static Error BranchCodeNotWellFormed { get; } = Error.Validation(
+        "identity.branch-code-not-well-formed",
+        "A branch code is upper-case letters and digits.",
+        "code");
+
+    /// <summary>A role names a permission the catalogue does not declare.</summary>
+    public static Error PermissionNotInCatalogue(string permissionKey) => Error.Validation(
+        "identity.permission-not-in-catalogue",
+        $"'{permissionKey}' is not a permission this application declares.",
+        "permissionKey");
+
     /// <summary>The supplied timezone identifier is not an IANA identifier.</summary>
     public static Error TimeZoneNotRecognised { get; } = Error.Validation(
         "identity.time-zone-not-recognised",
