@@ -118,20 +118,21 @@ services:
       # ring is configured against platform.data_protection_keys; until then each container holds an
       # ephemeral ring, because the root filesystem is read-only, and a restart signs staging users
       # out. Both are recorded in docs/dev/staging.md.
-      DataProtection__ApplicationDiscriminator: tailor360-staging
+      Security__DataProtection__ApplicationName: tailor360-staging
       Observability__ServiceName: tailor360-web-staging
       Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
       Observability__TraceSamplingRatio: "1.0"
       Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
       # Caddy is the only hop in front of the host and sits on the edge bridge network.
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
-      # Bound from #31 (object storage), #31/#44 (scanner, e-mail). Declared now so the deployment
-      # shape does not change when those issues land.
+      # Object storage and the scanner are bound from #31, declared now so the deployment shape does
+      # not change when that issue lands. The e-mail keys are live: Identity binds them today, which is
+      # why they carry its section verbatim.
       ObjectStorage__Endpoint: http://minio:9000
       ObjectStorage__ForcePathStyle: "true"
       MalwareScanner__Endpoint: tcp://clamav:3310
-      Email__SmtpHost: mailpit
-      Email__SmtpPort: "1025"
+      Identity__Email__Host: mailpit
+      Identity__Email__Port: "1025"
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey
@@ -166,7 +167,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Staging
       Secrets__Directory: /run/secrets
       # The same ring as the web host, and the same caveat — see the web service above.
-      DataProtection__ApplicationDiscriminator: tailor360-staging
+      Security__DataProtection__ApplicationName: tailor360-staging
       Observability__ServiceName: tailor360-worker-staging
       Observability__OtlpEndpoint: ${TAILOR360_OTLP_ENDPOINT:-}
       Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
@@ -174,8 +175,8 @@ services:
       ObjectStorage__Endpoint: http://minio:9000
       ObjectStorage__ForcePathStyle: "true"
       MalwareScanner__Endpoint: tcp://clamav:3310
-      Email__SmtpHost: mailpit
-      Email__SmtpPort: "1025"
+      Identity__Email__Host: mailpit
+      Identity__Email__Port: "1025"
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey

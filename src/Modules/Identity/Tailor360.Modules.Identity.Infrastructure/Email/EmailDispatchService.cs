@@ -41,6 +41,15 @@ public sealed class EmailDispatchService(
                 {
                     IdentityEmailLog.Delivered(logger, tag);
                 }
+                else
+                {
+                    // A relay that answers with a refusal rather than by throwing — a bad credential, a
+                    // rejected sender, a full mailbox — reaches here as a failed Result. Without this
+                    // branch the message is taken off the queue and nothing is written anywhere, so a
+                    // misconfigured relay looks exactly like a working one and the first evidence is a
+                    // person who never received their password-reset mail.
+                    IdentityEmailLog.DeliveryRejected(logger, tag, sent.Error.Code);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

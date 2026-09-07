@@ -33,6 +33,10 @@ internal static partial class IdentityEmailLog
                   "The relay is not keeping up or is not answering.")]
     public static partial void QueueFull(ILogger logger, string tag);
 
+    [LoggerMessage(EventId = 2344, Level = LogLevel.Error,
+        Message = "A {Tag} message was refused by the configured relay ({Reason}) and has been dropped.")]
+    public static partial void DeliveryRejected(ILogger logger, string tag, string reason);
+
     [LoggerMessage(EventId = 2343, Level = LogLevel.Information,
         Message = "Outbound mail is set to collect in memory; nothing will be delivered.")]
     public static partial void CollectingOnly(ILogger logger);
