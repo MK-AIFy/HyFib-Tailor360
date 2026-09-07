@@ -217,8 +217,23 @@ last-write-wins on a timestamp and from revocation being a conditional update.
 **Publishes — integration events.** `identity.user-deactivated.v1`, `identity.branch-created.v1`,
 `identity.branch-calendar-changed.v1`.
 
-**Publishes — read contracts.** `IUserDirectory` (display names, roles, capabilities, branch scope) — the only
-sanctioned way for another module to render "who did this" or validate an assignee.
+**Publishes — read contracts.** `IUserDirectory` (identity, display name, active flag, locale, role keys, branch
+assignments and home branch) — the only sanctioned way for another module to render "who did this" or validate an
+assignee. Three reads: one member of staff, several at once, and everybody who can currently work in a branch. It is
+a directory, not a profile: no address, no telephone number, no sign-in name, no second-factor state. The display
+name is the one piece of personal data it carries, because a workload board and a report have to say something other
+than a UUID, and it is subject to the usual rule — screens and the audit trail, never a log line, a metric or a trace
+attribute. The **tailor-skills attribute** the plan lists on this contract is **deferred to #45**, the issue that
+first reads it: which skills exist, whether they are a seeded vocabulary or free text, and whether they gate an
+assignment or merely rank it are product decisions with no source, and publishing a guess in a contract that three
+modules depend on would be harder to withdraw than to add.
+
+**Composition note.** `Tailor360.Worker` does not compose Identity, so neither `IUserDirectory` nor
+`IRequesterAuthorityStore` resolves there; the platform's fail-closed default refuses every job declaring
+`ActsForRequester` and logs the reason. That is deliberate and not a gap: no job declares it today and no job reads
+the directory today, while `AddIdentityModule` brings the whole sign-in stack — passkey ceremonies, credential
+throttling, data protection, an in-process mail queue — into a host that serves no requests. The first job that
+needs either is what makes the worker compose Identity (#33, #44 or #45, whichever arrives first).
 
 **Consumes.** Platform's feature-flag contract; Platform ports (`IAuditWriter`, `IIdempotencyStore`).
 

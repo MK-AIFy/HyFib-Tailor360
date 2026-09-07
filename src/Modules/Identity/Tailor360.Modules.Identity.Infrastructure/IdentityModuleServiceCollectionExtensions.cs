@@ -19,6 +19,7 @@ using Tailor360.Modules.Identity.Application.Passwords;
 using Tailor360.Modules.Identity.Application.Recovery;
 using Tailor360.Modules.Identity.Application.Sessions;
 using Tailor360.Modules.Identity.Application.Timing;
+using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Modules.Identity.Infrastructure.Access;
 using Tailor360.Modules.Identity.Infrastructure.Email;
@@ -249,6 +250,11 @@ public static class IdentityModuleServiceCollectionExtensions
 
         services.TryAddScoped<IRoleStore, RoleStore>();
         services.TryAddScoped<RoleAdministrationHandler>();
+
+        // Identity's published read contract. Registered here, with everything else the module owns,
+        // so that any host composing Identity can answer "who is this person" — and a host that does
+        // not compose Identity gets a resolution failure at start-up rather than a wrong answer.
+        services.TryAddScoped<IUserDirectory, UserDirectory>();
         services.TryAddScoped<UserAssignmentHandler>();
     }
 
