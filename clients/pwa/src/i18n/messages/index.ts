@@ -14,6 +14,7 @@
  * Tamil composition is annotated with it, so a key present in one language and missing from the
  * other fails `pnpm typecheck`.
  */
+import { adminEn, adminTa } from './admin'
 import { authEn, authTa } from './auth'
 import { dialogsEn, dialogsTa } from './dialogs'
 import { formsEn, formsTa } from './forms'
@@ -36,6 +37,7 @@ export const messagesEn = {
   ...dialogsEn,
   ...unitsEn,
   ...authEn,
+  ...adminEn,
 } as const
 
 export const messagesTa = {
@@ -49,4 +51,5 @@ export const messagesTa = {
   ...dialogsTa,
   ...unitsTa,
   ...authTa,
+  ...adminTa,
 }

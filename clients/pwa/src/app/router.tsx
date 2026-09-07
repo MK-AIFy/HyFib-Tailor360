@@ -3,7 +3,18 @@ import { Link, createBrowserRouter, isRouteErrorResponse, useRouteError } from '
 import { App } from '../App'
 import { RequireSession } from '../auth/RequireSession'
 import { DisplayPreferencesPanel } from '../components/layout/DisplayPreferencesPanel'
+import { ADMIN_PERMISSIONS } from '../admin/adminPermissions'
+import { RequirePermission } from '../admin/RequirePermission'
 import { AboutRoute } from '../routes/AboutRoute'
+import { AdminShell } from '../routes/admin/AdminShell'
+import { AuditTrailRoute } from '../routes/admin/AuditTrailRoute'
+import { BranchListRoute } from '../routes/admin/BranchListRoute'
+import { FeatureFlagRoute } from '../routes/admin/FeatureFlagRoute'
+import { OutboxRoute } from '../routes/admin/OutboxRoute'
+import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
+import { RoleListRoute } from '../routes/admin/RoleListRoute'
+import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
+import { StaffListRoute } from '../routes/admin/StaffListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
 import { AuthShell } from '../routes/auth/AuthShell'
 import { AuthenticatorEnrolmentRoute } from '../routes/auth/AuthenticatorEnrolmentRoute'
@@ -142,6 +153,79 @@ export const router = createBrowserRouter([
           { path: 'account/security', element: <SecurityRoute /> },
           { path: 'account/security/authenticator', element: <AuthenticatorEnrolmentRoute /> },
           { path: 'account/sessions', element: <SessionsRoute /> },
+          // The administration section. Each screen guards itself as well as being filtered out of
+          // the sub-navigation, and the server guards itself again — three layers, of which only the
+          // innermost is the authorisation.
+          {
+            path: 'admin',
+            element: <AdminShell />,
+            children: [
+              {
+                path: 'users',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.users}>
+                    <StaffListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'users/:userId',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.users}>
+                    <StaffDetailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'branches',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.branches}>
+                    <BranchListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'roles',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.roles}>
+                    <RoleListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'roles/:roleId',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.roles}>
+                    <RoleDetailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'features',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.featureFlags}>
+                    <FeatureFlagRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'audit',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.auditRead}>
+                    <AuditTrailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'outbox',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.outboxReplay}>
+                    <OutboxRoute />
+                  </RequirePermission>
+                ),
+              },
+            ],
+          },
         ],
       },
       // A client-side 404: the server serves the shell for any unknown path. It stays last.
