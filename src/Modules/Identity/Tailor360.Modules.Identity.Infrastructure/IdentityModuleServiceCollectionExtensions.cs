@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Abuse;
 using Tailor360.Modules.Identity.Application.Access;
+using Tailor360.Modules.Identity.Application.Administration;
 using Tailor360.Modules.Identity.Application.Authentication;
 using Tailor360.Modules.Identity.Application.Me;
 using Tailor360.Modules.Identity.Application.Mfa;
@@ -239,6 +240,7 @@ public static class IdentityModuleServiceCollectionExtensions
         services.TryAddScoped<IIdentityStore, IdentityStore>();
         services.TryAddScoped<IMfaChallengeService, MfaChallengeService>();
         services.TryAddScoped<TotpEnrolmentHandler>();
+        services.TryAddScoped<UserAdministrationHandler>();
     }
 
     private static void AddPasskeyServices(IServiceCollection services)

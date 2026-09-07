@@ -600,6 +600,20 @@
         "title": "Problem details",
         "type": "object"
       },
+      "ReasonPayload": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "RecoveryAcceptedPayload": {
         "properties": {
           "message": {
@@ -840,6 +854,63 @@
         ],
         "type": "object"
       },
+      "StaffUserPayload": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "homeBranchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastSignInAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mfaEnrolment": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "displayName",
+          "userName",
+          "email",
+          "status",
+          "mfaEnrolment",
+          "homeBranchId",
+          "lastSignInAt",
+          "createdAt",
+          "version"
+        ],
+        "type": "object"
+      },
       "VersionResponse": {
         "properties": {
           "api": {
@@ -897,6 +968,181 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/admin/users/{userId}": {
+      "get": {
+        "operationId": "GetStaffUser",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffUserPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one staff account for administration.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-authorisation": "permission:admin.users",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/admin/users/{userId}/suspend": {
+      "post": {
+        "operationId": "SuspendStaffUser",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Left the company on 5 September; access withdrawn at the manager's request."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ReasonPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffUserPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Suspend a staff account and end its sessions.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-audit": "identity.user.suspended",
+        "x-tailor360-authorisation": "permission:admin.users",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/antiforgery": {
       "get": {
         "operationId": "GetAntiForgeryToken",
@@ -1955,6 +2201,10 @@
     }
   ],
   "tags": [
+    {
+      "description": "Administering the organisation itself: staff accounts and their standing. Every operation here demands a permission, a second factor answered recently, and a written reason, and every one of them is recorded in the audit trail with the administrator's name.",
+      "name": "Administration"
+    },
     {
       "description": "Signing in, second factors, passkeys and account recovery. These are the only operations that can be reached before a session exists, and every one of them still requires the anti-forgery token.",
       "name": "Authentication"

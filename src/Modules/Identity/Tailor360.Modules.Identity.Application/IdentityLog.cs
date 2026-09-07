@@ -65,6 +65,11 @@ internal static partial class IdentityLog
                   "ordinary — a double tap or a retry — but a run of them is worth looking at.")]
     public static partial void ChallengeAnswerSuperseded(ILogger logger, Guid userId, string factor);
 
+    [LoggerMessage(EventId = 2320, Level = LogLevel.Warning,
+        Message = "Account {UserId} was suspended by an administrator and {EndedSessions} session(s) " +
+                  "were ended.")]
+    public static partial void AccountSuspended(ILogger logger, Guid userId, int endedSessions);
+
     [LoggerMessage(EventId = 2313, Level = LogLevel.Error,
         Message = "The stored authenticator secret for account {UserId} could not be read with the current " +
                   "data-protection keys. The holder has to re-enrol; check that the key ring is persisted.")]

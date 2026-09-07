@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Tailor360.Modules.Identity.Api.Administration;
 using Tailor360.Modules.Identity.Api.Authentication;
 using Tailor360.Modules.Identity.Api.Me;
 using Tailor360.Modules.Identity.Api.Recovery;
@@ -13,7 +14,7 @@ namespace Tailor360.Modules.Identity.Api;
 /// profile and their session inventory.
 /// </summary>
 /// <remarks>
-/// Four groups are mapped from one extension method, which is what the host composes (architecture rule
+/// Five groups are mapped from one extension method, which is what the host composes (architecture rule
 /// ARCH-006). They are separate groups because they are separate resources — see
 /// <see cref="IdentityRoutes"/> for why authentication does not live under the module's own prefix —
 /// and one method because a host must not have to know how many of them there are.
@@ -26,7 +27,7 @@ namespace Tailor360.Modules.Identity.Api;
 /// </remarks>
 public static class IdentityEndpoints
 {
-    /// <summary>The route prefix for this module's administrative surface, which #25 fills in.</summary>
+    /// <summary>The route prefix reserved for resources this module owns outright.</summary>
     public const string GroupPrefix = "/api/v1/identity";
 
     /// <summary>The OpenAPI tag applied to this module's administrative operations.</summary>
@@ -52,6 +53,10 @@ public static class IdentityEndpoints
         endpoints.MapGroup(IdentityRoutes.Sessions)
             .WithTags(IdentityRoutes.SessionTag)
             .MapSessionEndpoints();
+
+        endpoints.MapGroup(IdentityRoutes.AdminUsers)
+            .WithTags(IdentityRoutes.AdminTag)
+            .MapUserAdminEndpoints();
 
         return endpoints;
     }

@@ -3,7 +3,9 @@ using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Domain;
 using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Users;
+using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Results;
+using Tailor360.Platform.Persistence.Concurrency;
 
 namespace Tailor360.Modules.Identity.Infrastructure.Persistence;
 
@@ -72,6 +74,9 @@ public sealed class IdentityStore(IdentityDbContext context) : IIdentityStore
 
         return outstanding.Count;
     }
+
+    /// <inheritdoc />
+    public EntityTag EntityTagOf(StaffUser user) => context.EntityTagOf(user);
 
     /// <inheritdoc />
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

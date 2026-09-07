@@ -27,6 +27,10 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             + "anti-forgery token.",
         ["Sessions"] =
             "The caller's own session and device inventory, and revoking a session from it.",
+        ["Administration"] =
+            "Administering the organisation itself: staff accounts and their standing. Every operation "
+            + "here demands a permission, a second factor answered recently, and a written reason, and "
+            + "every one of them is recorded in the audit trail with the administrator's name.",
         ["Platform"] =
             "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the "
             + "anti-forgery token pair and the build description the client shell reads on start-up.",

@@ -230,6 +230,15 @@ public static class IdentityErrors
         "identity.concurrent-change",
         "Someone else changed this at the same moment. Read it again and retry.");
 
+    /// <summary>
+    /// An administrator aimed an administrative action at their own account. Suspending or deactivating
+    /// yourself ends your own sessions in the same request and leaves nobody able to undo it from that
+    /// account, so the door locks from the outside only.
+    /// </summary>
+    public static Error CannotAdministerOwnAccount { get; } = Error.Conflict(
+        "identity.cannot-administer-own-account",
+        "You cannot apply this to your own account. Ask another administrator.");
+
     /// <summary>The session is revoked, idle-expired or past its absolute expiry.</summary>
     public static Error SessionNotActive { get; } = Error.Forbidden(
         "identity.session-not-active",

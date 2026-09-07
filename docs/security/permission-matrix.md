@@ -299,6 +299,8 @@ The first business endpoint fills in a row here in the same pull request that ma
 <!-- matrix:endpoints -->
 | Method | Route | Declaration | Permission | Branch scope | Resource | Audited as | What it is for |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/v1/admin/users/{userId}` | permission | `admin.users` | organisation | — | — | Reads one staff account for an administration screen, with the version an edit must be made against. Not audited: it discloses no more than the list the same administrator may already read, and auditing every read would bury the changes in the trail |
+| `POST` | `/api/v1/admin/users/{userId}/suspend` | permission | `admin.users` | organisation | — | `identity.user.suspended` | Suspends an account and ends its live sessions in the same request. Step-up, a written reason, `If-Match` against the version the administrator saw, and an `Idempotency-Key` so a retried request does not suspend twice |
 | `GET` | `/api/v1/antiforgery` | anonymous | — | — | — | — | The token pair a browser must hold before any state-changing request. Reachable without a session because a caller who has no token cannot sign in either |
 | `POST` | `/api/v1/auth/login` | anonymous | — | — | — | `identity.sign-in.succeeded` | Sign in. Anonymous by definition; the attempt is rate-limited, throttled per credential and audited whether it succeeds or fails |
 | `POST` | `/api/v1/auth/logout` | self-service:live-session | — | — | — | `identity.session.signed-out` | Ends this session. A half-signed-in session may end itself, which is the one thing besides finishing the sign-in that it may do |

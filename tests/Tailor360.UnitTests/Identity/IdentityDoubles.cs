@@ -8,6 +8,7 @@ using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Sessions;
 using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Platform.Abstractions.Auditing;
+using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Ports;
 using Tailor360.Platform.Abstractions.Results;
@@ -103,6 +104,12 @@ internal sealed class InMemoryIdentityStore : IIdentityStore
         SaveCount++;
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// A version that moves whenever this store commits, which is the only property of a real one the
+    /// unit tier can observe: two reads either side of a save must not agree.
+    /// </summary>
+    public EntityTag EntityTagOf(StaffUser user) => EntityTag.From((uint)(SaveCount + 1));
 
     public Task<Result> TrySaveChangesAsync(CancellationToken cancellationToken = default)
     {

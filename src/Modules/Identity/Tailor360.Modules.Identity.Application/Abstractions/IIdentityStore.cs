@@ -1,5 +1,6 @@
 using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Users;
+using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Identity.Application.Abstractions;
@@ -50,6 +51,18 @@ public interface IIdentityStore
         RecoveryPurpose purpose,
         DateTimeOffset now,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads the concurrency token of an account this store loaded, for the <c>ETag</c> an
+    /// administrative screen edits against.
+    /// </summary>
+    /// <remarks>
+    /// The token is a shadow property maintained by the store, so there is nothing on
+    /// <see cref="StaffUser"/> to read it from and no way for this layer to reach it directly. Asking
+    /// the store keeps the mapping's business where the mapping is.
+    /// </remarks>
+    /// <param name="user">An account returned by one of the lookups above.</param>
+    EntityTag EntityTagOf(StaffUser user);
 
     /// <summary>Commits the changes made through this store.</summary>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);

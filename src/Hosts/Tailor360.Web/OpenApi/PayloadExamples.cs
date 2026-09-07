@@ -26,6 +26,12 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["SuspendStaffUser"] = """
+            {
+              "reason": "Left the company on 5 September; access withdrawn at the manager's request."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",
