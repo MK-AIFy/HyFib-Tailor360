@@ -165,7 +165,7 @@ public sealed class CustomerTests
         customer.MakeVisibleTo(CustomersTestData.OtherBranch, CustomersTestData.Now, CustomersTestData.Actor)
             .ShouldBeFalse();
 
-        customer.VisibilityBranchIds.Count.ShouldBe(2);
+        customer.Visibility.Count.ShouldBe(2);
         customer.IsVisibleTo(CustomersTestData.OtherBranch).ShouldBeTrue();
     }
 
@@ -175,7 +175,7 @@ public sealed class CustomerTests
         var customer = CustomersTestData.Registered();
 
         customer.MakeVisibleTo(Guid.Empty, CustomersTestData.Now, CustomersTestData.Actor).ShouldBeFalse();
-        customer.VisibilityBranchIds.Count.ShouldBe(1);
+        customer.Visibility.Count.ShouldBe(1);
     }
 
     [Theory]

@@ -33,7 +33,7 @@ public sealed class Customer
     public const int MaximumCustomerNumberLength = 32;
 
     private readonly List<CustomerAlias> _aliases = [];
-    private List<Guid> _visibilityBranchIds = [];
+    private readonly List<CustomerBranchVisibility> _visibility = [];
 
     private Customer()
     {
@@ -53,7 +53,7 @@ public sealed class Customer
         OrganisationId = organisationId;
         CustomerNumber = customerNumber;
         OwningBranchId = owningBranchId;
-        _visibilityBranchIds = [owningBranchId];
+        _visibility.Add(CustomerBranchVisibility.Add(id, owningBranchId, now, by));
         Status = CustomerStatus.Active;
         CreatedAt = now;
         CreatedBy = by;
@@ -87,7 +87,10 @@ public sealed class Customer
     /// same person without opening it; opening it adds their branch here and is audited. The design
     /// and its open question are in <c>docs/prd/workflows/branch-scenarios.md</c> section 3 (BQ-01).
     /// </remarks>
-    public IReadOnlyCollection<Guid> VisibilityBranchIds => _visibilityBranchIds;
+    public IReadOnlyCollection<CustomerBranchVisibility> Visibility => _visibility;
+
+    /// <summary>The branches that see this record, as identifiers.</summary>
+    public IEnumerable<Guid> VisibilityBranchIds => _visibility.Select(entry => entry.BranchId);
 
     /// <summary>The name as the customer gave it. Displayed exactly as entered.</summary>
     public string DisplayName { get; private set; } = string.Empty;
@@ -302,12 +305,12 @@ public sealed class Customer
     /// </returns>
     public bool MakeVisibleTo(Guid branchId, DateTimeOffset now, Guid? by)
     {
-        if (branchId == Guid.Empty || _visibilityBranchIds.Contains(branchId))
+        if (branchId == Guid.Empty || IsVisibleTo(branchId))
         {
             return false;
         }
 
-        _visibilityBranchIds = [.. _visibilityBranchIds, branchId];
+        _visibility.Add(CustomerBranchVisibility.Add(Id, branchId, now, by));
         Touch(now, by);
 
         return true;
@@ -316,7 +319,8 @@ public sealed class Customer
     /// <summary>Whether a branch sees this record in ordinary search results.</summary>
     /// <param name="branchId">The branch.</param>
     /// <returns>True when it does.</returns>
-    public bool IsVisibleTo(Guid branchId) => _visibilityBranchIds.Contains(branchId);
+    public bool IsVisibleTo(Guid branchId)
+        => _visibility.Exists(entry => entry.BranchId == branchId);
 
     private void Apply(CustomerDetails details)
     {
