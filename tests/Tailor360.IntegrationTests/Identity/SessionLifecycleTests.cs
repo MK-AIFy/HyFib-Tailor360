@@ -1,7 +1,10 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Shouldly;
 using Tailor360.Modules.Identity.Application.Sessions;
+using Tailor360.Modules.Identity.Domain;
 using Tailor360.Modules.Identity.Domain.Sessions;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Infrastructure.Sessions;
@@ -202,6 +205,153 @@ public sealed class SessionLifecycleTests(SessionDatabaseFixture fixture)
         var ticket = (await ResolveAsync(services, second.Token)).Ticket.ShouldNotBeNull();
         ticket.MfaSatisfied.ShouldBeTrue();
         ticket.LastStrongAuthenticationAt.ShouldBe(clock.UtcNow);
+    }
+
+    /// <summary>
+    /// Two rotations of one session produce one successor, not two.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A person answers a multi-factor challenge and the phone re-sends it — a double tap, a retried
+    /// request, the offline queue draining. Both requests read the session as active, both build a
+    /// replacement, and if nothing arbitrates between them both save: one cookie ends with two live
+    /// successors, and "gaining assurance replaces the credential you presented" stops being true.
+    /// Two live tokens for one authentication is a credential the holder does not know exists.
+    /// </para>
+    /// <para>
+    /// Ten racers rather than two, because the interleaving is what is under test and a pair can pass
+    /// by scheduling luck. The losers must be refused rather than served a second token, and the
+    /// original must be revoked exactly once.
+    /// </para>
+    /// <para>
+    /// The interleaving is forced rather than hoped for. Left to the scheduler, the first rotation
+    /// usually commits before the others have read, every later racer is then refused by the in-memory
+    /// check on a row it read as revoked, and the test passes whether or not the database arbitrates at
+    /// all — which was measured, not assumed: with the condition on the retirement removed, the
+    /// unforced version still passed. Holding the row makes it certain. Every racer gets past its read
+    /// while the session is active and then stops at its update, and the lock is released only once all
+    /// of them are waiting there, so the one thing that can decide the winner is that condition —
+    /// removing it now yields ten successors rather than one, which is the defect this guards.
+    /// </para>
+    /// </remarks>
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(SessionLifecycleTests))]
+    public async Task ConcurrentRotationsOfOneSessionProduceExactlyOneSuccessor()
+    {
+        const int racerCount = 10;
+
+        var (services, context, clock) = await ArrangeAsync(nameof(ConcurrentRotationsOfOneSessionProduceExactlyOneSuccessor));
+        await using var _ = services;
+        await using var __ = context;
+
+        var user = await SessionTestData.CreateActiveUserAsync(context, clock.UtcNow);
+        var first = (await StartAsync(services, user.Id)).Value;
+        var connectionString = context.Database.GetConnectionString()!;
+        var token = TestContext.Current.CancellationToken;
+
+        // The gate. It writes nothing; it only holds the session row so that every racer gets past its
+        // read while the session is still active and then stops at its retirement.
+        await using var gate = new NpgsqlConnection(connectionString);
+        await gate.OpenAsync(token);
+        await using var held = await gate.BeginTransactionAsync(token);
+
+        await using (var hold = new NpgsqlCommand(
+            "SELECT id FROM identity.sessions WHERE id = @id FOR UPDATE", gate, held))
+        {
+            hold.Parameters.AddWithValue("id", first.SessionId);
+            (await hold.ExecuteScalarAsync(token)).ShouldNotBeNull("the gate must hold the session row");
+        }
+
+        // Each racer gets its own scope, because each stands in for a request.
+        var racers = Enumerable.Range(0, racerCount).Select(async _ =>
+        {
+            await using var scope = services.CreateAsyncScope();
+            var sessions = scope.ServiceProvider.GetRequiredService<ISessionService>();
+
+            return await sessions.RotateAsync(
+                first.SessionId, SessionRotationReason.MultiFactorSatisfied, token);
+        }).ToList();
+
+        await WaitUntilWaitingForTheRowAsync(connectionString, racerCount, token);
+        await held.CommitAsync(token);
+
+        var outcomes = await Task.WhenAll(racers);
+
+        var winners = outcomes.Where(outcome => outcome.IsSuccess).ToList();
+        winners.Count.ShouldBe(1, "one cookie is replaced by one credential, whatever the interleaving");
+
+        foreach (var loser in outcomes.Where(outcome => outcome.IsFailure))
+        {
+            loser.Error.ShouldBe(
+                IdentityErrors.SessionNotActive,
+                "a request that lost the race is holding a cookie that has been superseded");
+        }
+
+        // The winner's token works and the original does not, which is what rotation means.
+        (await ResolveAsync(services, first.Token)).Status.ShouldBe(SessionTicketStatus.Revoked);
+        (await ResolveAsync(services, winners[0].Value.Token)).Ticket.ShouldNotBeNull();
+
+        // And there is exactly one row descended from the original, so no loser left a session behind.
+        var successors = await context.Sessions
+            .AsNoTracking()
+            .CountAsync(session => session.Id != first.SessionId && session.UserId == user.Id, token);
+
+        successors.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Blocks until <paramref name="count"/> connections to this database are waiting on a lock.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The database is created for this test alone, so the only backends in it are the racers, the gate
+    /// and this observer, and the only lock any of them contends for is the session row the gate holds.
+    /// A racer waiting there has already read the session, which is the ordering the test needs and the
+    /// reason this waits for a count rather than for a duration.
+    /// </para>
+    /// <para>
+    /// It observes down its own connection, and outside any transaction, because PostgreSQL caches the
+    /// activity statistics per transaction: polling from inside the gate's open transaction returns the
+    /// snapshot taken at the first read, over and over, and reports every racer as absent no matter how
+    /// long it waits. That cost an afternoon, so it is written down here rather than rediscovered.
+    /// </para>
+    /// </remarks>
+    private static async Task WaitUntilWaitingForTheRowAsync(
+        string connectionString,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        await using var observer = new NpgsqlConnection(connectionString);
+        await observer.OpenAsync(cancellationToken);
+
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        var blocked = 0;
+
+        while (blocked < count)
+        {
+            await using (var waiting = new NpgsqlCommand(
+                """
+                SELECT count(*) FROM pg_stat_activity
+                 WHERE datname = current_database()
+                   AND pid <> pg_backend_pid()
+                   AND wait_event_type = 'Lock'
+                """,
+                observer))
+            {
+                blocked = Convert.ToInt32(
+                    await waiting.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+            }
+
+            if (blocked < count && DateTime.UtcNow > deadline)
+            {
+                throw new InvalidOperationException(
+                    $"Only {blocked} of {count} rotations reached the session row within thirty seconds.");
+            }
+
+            if (blocked < count)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
+            }
+        }
     }
 
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(SessionLifecycleTests))]

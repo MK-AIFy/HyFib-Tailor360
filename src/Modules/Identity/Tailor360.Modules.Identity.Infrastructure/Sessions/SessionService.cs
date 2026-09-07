@@ -124,49 +124,96 @@ public sealed class SessionService(
         SessionRotationReason reason,
         CancellationToken cancellationToken = default)
     {
-        var now = clock.UtcNow;
+        // The whole rotation is one retriable unit. The context is configured with the Npgsql retrying
+        // execution strategy, which refuses a transaction the caller opened itself: on a transient
+        // failure it would otherwise retry a statement inside a transaction it cannot re-open, so it
+        // declines rather than doing that silently.
+        var strategy = context.Database.CreateExecutionStrategy();
 
-        var current = await context.Sessions
-            .FirstOrDefaultAsync(session => session.Id == sessionId, cancellationToken);
-
-        if (current is null)
+        return await strategy.ExecuteAsync(async () =>
         {
-            return Result.Failure<IssuedSession>(IdentityErrors.SessionNotActive);
-        }
+            var now = clock.UtcNow;
 
-        var token = SessionTokenFactory.CreateToken();
+            // Read without tracking: the conditional revocation below is what retires the source row,
+            // and a tracked copy would have the change tracker emit a second, unconditional UPDATE for
+            // it — which is precisely the write that lets two rotations both succeed. Read inside the
+            // delegate, because a retry has to see the row as it is now, not as it was on the attempt
+            // that failed.
+            var current = await context.Sessions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(session => session.Id == sessionId, cancellationToken);
 
-        var rotated = current.RotateTo(
-            idGenerator.NewId(),
-            SessionTokenFactory.Digest(token),
-            now,
-            options.Value.IdleTimeout);
+            if (current is null)
+            {
+                return Result.Failure<IssuedSession>(IdentityErrors.SessionNotActive);
+            }
 
-        if (rotated.IsFailure)
-        {
-            return Result.Failure<IssuedSession>(rotated.Error);
-        }
+            var token = SessionTokenFactory.CreateToken();
 
-        var replacement = rotated.Value;
+            var rotated = current.RotateTo(
+                idGenerator.NewId(),
+                SessionTokenFactory.Digest(token),
+                now,
+                options.Value.IdleTimeout);
 
-        if (reason.ProvesStrongAuthentication())
-        {
-            replacement.RecordStrongAuthentication(now);
-        }
+            if (rotated.IsFailure)
+            {
+                return Result.Failure<IssuedSession>(rotated.Error);
+            }
 
-        context.Sessions.Add(replacement);
-        await context.SaveChangesAsync(cancellationToken);
+            var replacement = rotated.Value;
 
-        if (logger.IsEnabled(LogLevel.Information))
-        {
-            logger.LogInformation(
-                "Rotated session {SessionId} into {ReplacementSessionId} because {Reason}.",
-                current.Id,
-                replacement.Id,
-                reason);
-        }
+            if (reason.ProvesStrongAuthentication())
+            {
+                replacement.RecordStrongAuthentication(now);
+            }
 
-        return Issued(replacement, token);
+            // Rotation has exactly one winner. Two answers to the same multi-factor challenge, or a
+            // challenge answered while another rotation is in flight, can both read this session as
+            // active and both build a replacement; without a condition on the retirement both would
+            // save, and one cookie would end up with two live successors — so gaining assurance would
+            // stop meaning that exactly one credential replaced the one presented.
+            //
+            // The house pattern for this is conventions.md section 4.4: a row that may be consumed once
+            // is consumed by a conditional update, and the request whose update affected a row is the
+            // one that proceeds. Both statements share a transaction so a crash between them cannot
+            // retire a session and leave no successor, which would sign somebody out mid-task.
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            var retired = await context.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE identity.sessions
+                    SET revoked_at = {now},
+                        end_reason = {SessionEndReason.Rotated.ToString()},
+                        superseded_by_session_id = {replacement.Id}
+                  WHERE id = {sessionId}
+                    AND revoked_at IS NULL
+                 """,
+                cancellationToken);
+
+            if (retired == 0)
+            {
+                // Somebody else rotated it between the read and here. Theirs is the replacement that
+                // exists, and this caller is holding a cookie that has already been superseded.
+                await transaction.RollbackAsync(cancellationToken);
+                return Result.Failure<IssuedSession>(IdentityErrors.SessionNotActive);
+            }
+
+            context.Sessions.Add(replacement);
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "Rotated session {SessionId} into {ReplacementSessionId} because {Reason}.",
+                    current.Id,
+                    replacement.Id,
+                    reason);
+            }
+
+            return Issued(replacement, token);
+        });
     }
 
     /// <inheritdoc />
