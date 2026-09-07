@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using OtpNet;
 using Shouldly;
 using Tailor360.Modules.Identity.Domain.Access;
-using Tailor360.Modules.Identity.Domain.Branches;
 using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Sessions;
 using Tailor360.Modules.Identity.Domain.Users;
@@ -38,7 +37,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task SuspendingAnAccountEndsItsSessionsAndRecordsWhoDidItAndWhy()
     {
-        using var administrator = await AdministratorAsync("adm-suspend", "203.0.113.60");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-suspend", "203.0.113.60");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-suspend");
 
         // The subject is signed in on two devices, so "revokes active sessions" is measured against
@@ -97,7 +96,8 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     {
         // Signed in, second factor answered, freshly re-authenticated — everything but the grant. This
         // is the test that fails if the permission is ever dropped from the route.
-        using var bystander = await AdministratorAsync("adm-nogrant", "203.0.113.63", grantAdminUsers: false);
+        using var bystander = await AdministrationHarness.AdministratorAsync(
+            fixture, "adm-nogrant", "203.0.113.63", grantPermission: null);
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-nogrant");
 
         (await bystander.GetAsync(Route(subject.Id))).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -119,7 +119,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     {
         // The grant is held; only the second factor is missing. A permission flagged for step-up that
         // let a password-only session through would be a control that exists only in the catalogue.
-        var (user, _) = await AdministratorAccountAsync("adm-nomfa", grantAdminUsers: true);
+        var (user, _) = await AdministrationHarness.AccountAsync(fixture, "adm-nomfa", Permissions.Users);
         using var client = AuthenticationClient.Open(fixture, "203.0.113.64");
         (await client.PostAsync(
                 "/api/v1/auth/login", new { identifier = user.UserName, password = AuthenticationTestData.Password }))
@@ -136,7 +136,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task AChangeWithNoReasonIsRefusedAndNothingHappens()
     {
-        using var administrator = await AdministratorAsync("adm-noreason", "203.0.113.65");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-noreason", "203.0.113.65");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-noreason");
         var version = await VersionOfAsync(administrator, Route(subject.Id));
 
@@ -163,7 +163,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task AChangeWithNoPreconditionIsRefusedAndAStaleOneIsToldTheCurrentVersion()
     {
-        using var administrator = await AdministratorAsync("adm-ifmatch", "203.0.113.66");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-ifmatch", "203.0.113.66");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-ifmatch");
 
         var missing = await administrator.PostAsync(
@@ -192,7 +192,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ARetriedCommandSuspendsOnceAndReturnsTheFirstAnswer()
     {
-        using var administrator = await AdministratorAsync("adm-retry", "203.0.113.67");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-retry", "203.0.113.67");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-retry");
         var version = await VersionOfAsync(administrator, Route(subject.Id));
         var key = Guid.CreateVersion7().ToString();
@@ -225,7 +225,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task AnAdministratorCannotSuspendTheirOwnAccount()
     {
-        using var administrator = await AdministratorAsync("adm-self", "203.0.113.68");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-self", "203.0.113.68");
         var version = await VersionOfAsync(administrator, Route(administrator.UserId));
 
         var refused = await administrator.PostAsync(
@@ -246,7 +246,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ASuspensionIsLiftedAndTheAccountCanSignInAgain()
     {
-        using var administrator = await AdministratorAsync("adm-reinstate", "203.0.113.69");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-reinstate", "203.0.113.69");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-reinstate");
 
         await CommandAsync(administrator, subject.Id, "suspend");
@@ -274,7 +274,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ClosingAnAccountEndsItsSessionsAndKeepsItsHistoryResolvable()
     {
-        using var administrator = await AdministratorAsync("adm-close", "203.0.113.72");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-close", "203.0.113.72");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-close");
 
         using var device = AuthenticationClient.Open(fixture, "203.0.113.73");
@@ -301,7 +301,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ReopeningAClosedAccountLeavesItUnableToSignInUntilItIsInvitedAgain()
     {
-        using var administrator = await AdministratorAsync("adm-reopen", "203.0.113.74");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-reopen", "203.0.113.74");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-reopen");
 
         await CommandAsync(administrator, subject.Id, "deactivate");
@@ -324,7 +324,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task AnIllegalTransitionIsRefusedAndTheAccountIsUntouched()
     {
-        using var administrator = await AdministratorAsync("adm-illegal", "203.0.113.76");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-illegal", "203.0.113.76");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-illegal");
 
         // Reinstating an account that was never suspended, and reopening one that was never closed.
@@ -353,11 +353,12 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ClearingASecondFactorEndsTheSessionsItWasProtecting()
     {
-        using var administrator = await AdministratorAsync("adm-resetmfa", "203.0.113.77");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-resetmfa", "203.0.113.77");
 
         // The subject is a full administrator in their own right, because only an account that has
         // enrolled has a second factor to clear.
-        using var subject = await AdministratorAsync("sub-resetmfa", "203.0.113.78");
+        using var subject = await AdministrationHarness.AdministratorAsync(
+            fixture, "sub-resetmfa", "203.0.113.78");
         (await LiveSessionsAsync(subject.UserId)).ShouldBeGreaterThan(0);
         (await MfaStateAsync(subject.UserId)).ShouldBe(nameof(MfaEnrolmentState.Enrolled));
 
@@ -376,7 +377,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task RevokingSessionsSignsEveryDeviceOutAndLeavesTheAccountAbleToReturn()
     {
-        using var administrator = await AdministratorAsync("adm-revoke", "203.0.113.79");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-revoke", "203.0.113.79");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-revoke");
 
         using var phone = AuthenticationClient.Open(fixture, "203.0.113.80");
@@ -403,7 +404,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ReplacingRolesSetsExactlyTheRolesGivenAndRecordsTheKeysThatChanged()
     {
-        using var administrator = await AdministratorAsync("adm-roles", "203.0.113.83");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-roles", "203.0.113.83");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-roles");
         var (first, second) = await TwoAssignableRolesAsync();
 
@@ -428,7 +429,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ARoleThatDoesNotExistIsRefusedAndNothingIsReplaced()
     {
-        using var administrator = await AdministratorAsync("adm-badrole", "203.0.113.84");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-badrole", "203.0.113.84");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-badrole");
         var (first, _) = await TwoAssignableRolesAsync();
 
@@ -462,7 +463,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     {
         const int racerCount = 6;
 
-        using var administrator = await AdministratorAsync("adm-race", "203.0.113.85");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-race", "203.0.113.85");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-race");
         var (first, second) = await TwoAssignableRolesAsync();
 
@@ -508,7 +509,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task BranchAssignmentsAreRefusedWhenTheyWouldStrandTheAccount()
     {
-        using var administrator = await AdministratorAsync("adm-branches", "203.0.113.86");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-branches", "203.0.113.86");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-branches");
         var home = SessionTestData.HomeBranchId;
 
@@ -570,12 +571,12 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task PagingTheListReturnsEveryAccountOnceEvenWhileItIsChanging()
     {
-        using var administrator = await AdministratorAsync("adm-list", "203.0.113.87");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-list", "203.0.113.87");
 
         // The test database is migrated and not dropped between runs, so the list is scoped to this
         // run's accounts by a token in their names. Paging the whole organisation would walk every
         // account every previous run left behind, which is slow and says nothing extra.
-        var token = $"l{Guid.CreateVersion7():n}"[..7];
+        var token = $"l{AdministrationHarness.UniqueToken(6)}";
 
         var seeded = new List<Guid>();
         for (var index = 0; index < 5; index++)
@@ -621,16 +622,23 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task TheListFiltersByStatusAndNeverAnswersQuestionsAboutAnAddress()
     {
-        using var administrator = await AdministratorAsync("adm-filter", "203.0.113.88");
-        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-filter");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-filter", "203.0.113.88");
+
+        // Scoped to this run. The database is migrated and not dropped between runs, so a filter over
+        // the whole organisation returns the oldest hundred suspended accounts every previous run left
+        // behind — and the one this test just suspended is the newest, so it is never among them. That
+        // passes on a fresh database and fails on the second run, which is the reason the suite is run
+        // twice before review.
+        var token = $"f{AdministrationHarness.UniqueToken(6)}";
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, token);
 
         await CommandAsync(administrator, subject.Id, "suspend");
 
-        var suspended = await ListAsync(administrator, "?status=Suspended&limit=100");
+        var suspended = await ListAsync(administrator, $"?status=Suspended&q={token}&limit=100");
         suspended.Users.ShouldContain(user => user.UserId == subject.Id);
         suspended.Users.ShouldAllBe(user => user.Status == nameof(UserStatus.Suspended));
 
-        var active = await ListAsync(administrator, "?status=Active&limit=100");
+        var active = await ListAsync(administrator, $"?status=Active&q={token}&limit=100");
         active.Users.ShouldNotContain(user => user.UserId == subject.Id);
 
         // A status this system does not have is a field error, not an empty list that reads as "nobody
@@ -652,8 +660,8 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task AnInvitedAccountCannotSignInUntilItHasSetItsOwnPassword()
     {
-        using var administrator = await AdministratorAsync("adm-invite", "203.0.113.89");
-        var userName = $"inv{Guid.CreateVersion7():n}"[..16];
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-invite", "203.0.113.89");
+        var userName = $"inv{AdministrationHarness.UniqueToken(12)}";
 
         var created = await administrator.PostAsync(
             "/api/v1/admin/users/",
@@ -699,14 +707,14 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         SkipType = typeof(UserAdministrationEndpointTests))]
     public async Task ASignInNameOrAddressAlreadyInUseIsRefusedTheSameWayForBoth()
     {
-        using var administrator = await AdministratorAsync("adm-dup", "203.0.113.91");
+        using var administrator = await AdministrationHarness.AdministratorAsync(fixture, "adm-dup", "203.0.113.91");
         var existing = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-dup");
 
         var byName = await InviteAsync(
-            administrator, existing.UserName, $"other{Guid.CreateVersion7():n}"[..14] + "@synthetic.invalid");
+            administrator, existing.UserName, $"other{AdministrationHarness.UniqueToken(10)}@synthetic.invalid");
 
         var byAddress = await InviteAsync(
-            administrator, $"other{Guid.CreateVersion7():n}"[..14], existing.Email);
+            administrator, $"other{AdministrationHarness.UniqueToken(10)}", existing.Email);
 
         byName.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         byAddress.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -724,102 +732,8 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
                 "/api/v1/auth/login", new { identifier = userName, password = AuthenticationTestData.Password }))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
-    /// <summary>
-    /// An administrator signed in, enrolled, challenged and therefore freshly re-authenticated — which
-    /// is the state every one of these endpoints demands.
-    /// </summary>
-    private async Task<AdministratorClient> AdministratorAsync(
-        string prefix,
-        string clientAddress,
-        bool grantAdminUsers = true)
-    {
-        var (user, _) = await AdministratorAccountAsync(prefix, grantAdminUsers);
-        var client = AuthenticationClient.Open(fixture, clientAddress);
-
-        await SignInAsync(client, user.UserName);
-
-        // Enrolling and confirming answers a second factor, which is what rotates the session into one
-        // that has recently proved who is holding it. There is no shortcut: a session that reached
-        // step-up freshness by any other route would not be the session the endpoint sees in production.
-        var started = await client.PostAsync("/api/v1/auth/mfa/enrol");
-        started.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var enrolment = await AuthenticationClient.ReadAsync<EnrolmentBody>(started);
-        enrolment.ShouldNotBeNull();
-
-        var secret = Base32Encoding.ToBytes(
-            enrolment.ManualEntryKey.Replace(" ", string.Empty, StringComparison.Ordinal));
-        var code = new Totp(secret, enrolment.PeriodSeconds, totpSize: enrolment.Digits).ComputeTotp();
-
-        (await client.PostAsync("/api/v1/auth/mfa/enrol/confirm", new { code }))
-            .StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        return new AdministratorClient(client, user.Id);
-    }
-
-    private async Task<(StaffUser User, Guid RoleId)> AdministratorAccountAsync(
-        string prefix,
-        bool grantAdminUsers)
-    {
-        var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, prefix);
-
-        using var scope = fixture.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-        var clock = scope.ServiceProvider.GetRequiredService<Tailor360.Platform.Abstractions.Time.IClock>();
-        var ids = scope.ServiceProvider.GetRequiredService<Tailor360.Platform.Abstractions.Identifiers.IIdGenerator>();
-        var now = clock.UtcNow;
-
-        // Keys are lower-case letters, digits and underscores, so the prefix is folded rather than
-        // used as it is written in the test name.
-        var key = new string([.. prefix.Where(char.IsAsciiLetterLower)]);
-
-        var role = Role.Define(
-            ids.NewId(),
-            SessionTestData.OrganisationId,
-            $"{key}_role_{Guid.CreateVersion7():n}"[..30],
-            $"Role {prefix}",
-            "A role created for one test.",
-            RoleReach.Organisation,
-            now).Value;
-
-        // Organisation reach is two facts, not one: the role is meant to see the whole organisation,
-        // and its holder is granted the permission that makes that reach real. A test that granted only
-        // the administrative permission would be refused for a reason that has nothing to do with what
-        // it is testing.
-        role.Grant(PlatformPermissions.ReadAllBranches, now, by: null).IsSuccess.ShouldBeTrue();
-
-        if (grantAdminUsers)
-        {
-            role.Grant(IdentityPermissions.Users, now, by: null).IsSuccess.ShouldBeTrue();
-        }
-
-        // The branch assignment has a foreign key, and this fixture migrates the schema without seeding
-        // any reference data — so the branch is created once, by whichever test gets there first.
-        if (!await context.Branches.AnyAsync(
-                branch => branch.Id == SessionTestData.HomeBranchId, TestContext.Current.CancellationToken))
-        {
-            context.Branches.Add(Branch.Open(
-                SessionTestData.HomeBranchId,
-                SessionTestData.OrganisationId,
-                "ADMIN1",
-                "Administration test branch",
-                now).Value);
-
-            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-        }
-
-        context.Roles.Add(role);
-        context.UserRoles.Add(UserRoleAssignment.Create(user.Id, role.Id, now));
-        context.UserBranchAssignments.Add(
-            UserBranchAssignment.Create(user.Id, SessionTestData.HomeBranchId, now, isPrimary: true));
-
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        return (user, role.Id);
-    }
-
     private static Task<HttpResponseMessage> InviteAsync(
-        AdministratorClient administrator, string userName, string email)
+        AdministrationHarness.AdministratorClient administrator, string userName, string email)
         => administrator.PostAsync(
             "/api/v1/admin/users/",
             new { userName, email, displayName = "Duplicate Candidate", reason = Reason },
@@ -837,7 +751,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
                 TestContext.Current.CancellationToken);
     }
 
-    private static async Task<StaffPageBody> ListAsync(AdministratorClient client, string query)
+    private static async Task<StaffPageBody> ListAsync(AdministrationHarness.AdministratorClient client, string query)
     {
         var response = await client.GetAsync($"/api/v1/admin/users/{query}");
         response.StatusCode.ShouldBe(
@@ -847,7 +761,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         return (await AuthenticationClient.ReadAsync<StaffPageBody>(response)).ShouldNotBeNull();
     }
 
-    private static async Task<string> VersionOfAsync(AdministratorClient client, string path)
+    private static async Task<string> VersionOfAsync(AdministrationHarness.AdministratorClient client, string path)
     {
         var read = await client.GetAsync(path);
         read.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -855,7 +769,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     }
 
     /// <summary>Sends a replacement and insists it succeeded.</summary>
-    private static async Task PutAsync<TBody>(AdministratorClient client, string path, TBody body)
+    private static async Task PutAsync<TBody>(AdministrationHarness.AdministratorClient client, string path, TBody body)
     {
         var response = await PutRawAsync(client, path, body);
 
@@ -866,7 +780,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
 
     /// <summary>Sends a replacement against the account's current version and returns whatever came back.</summary>
     private static async Task<HttpResponseMessage> PutRawAsync<TBody>(
-        AdministratorClient client, string path, TBody body)
+        AdministrationHarness.AdministratorClient client, string path, TBody body)
     {
         var userId = path[(path.IndexOf("users/", StringComparison.Ordinal) + "users/".Length)..];
         userId = userId[..userId.IndexOf('/', StringComparison.Ordinal)];
@@ -930,7 +844,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     }
 
     /// <summary>Applies one administrative command and insists it succeeded.</summary>
-    private static async Task CommandAsync(AdministratorClient administrator, Guid userId, string segment)
+    private static async Task CommandAsync(AdministrationHarness.AdministratorClient administrator, Guid userId, string segment)
     {
         var version = await VersionOfAsync(administrator, Route(userId));
 
@@ -1024,21 +938,4 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
 
     private sealed record EnrolmentBody(string ManualEntryKey, int PeriodSeconds, int Digits);
 
-    /// <summary>An authenticated administrator, and the account they are.</summary>
-    private sealed class AdministratorClient(AuthenticationClient client, Guid userId) : IDisposable
-    {
-        public Guid UserId { get; } = userId;
-
-        public Task<HttpResponseMessage> GetAsync(string path) => client.GetAsync(path);
-
-        public Task<HttpResponseMessage> PostAsync<TBody>(
-            string path, TBody body, params (string Name, string Value)[] headers)
-            => client.PostAsync(path, body, headers);
-
-        public Task<HttpResponseMessage> PutAsync<TBody>(
-            string path, TBody body, params (string Name, string Value)[] headers)
-            => client.PutAsync(path, body, headers);
-
-        public void Dispose() => client.Dispose();
-    }
 }

@@ -427,6 +427,19 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             entity.Property(e => e.Name).HasMaxLength(Branch.MaximumNameLength).IsRequired();
             entity.Property(e => e.TimeZoneId).HasMaxLength(Branch.MaximumTimeZoneLength).IsRequired();
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.StatusReason).HasMaxLength(Branch.MaximumStatusReasonLength);
+
+            // Master data. Every column is nullable: a branch is opened before somebody has walked
+            // round it with a tape measure, and refusing to record one until its postcode is known
+            // would mean the register cannot be used on the day it is needed.
+            entity.Property(e => e.AddressLine1).HasMaxLength(Branch.MaximumAddressLineLength);
+            entity.Property(e => e.AddressLine2).HasMaxLength(Branch.MaximumAddressLineLength);
+            entity.Property(e => e.City).HasMaxLength(Branch.MaximumContactLength);
+            entity.Property(e => e.State).HasMaxLength(Branch.MaximumContactLength);
+            entity.Property(e => e.PostalCode).HasMaxLength(Branch.MaximumContactLength);
+            entity.Property(e => e.ContactPhone).HasMaxLength(Branch.MaximumContactLength);
+            entity.Property(e => e.ContactEmail).HasMaxLength(Branch.MaximumContactLength);
+            entity.Property(e => e.GstRegistrationReference).HasMaxLength(Branch.MaximumContactLength);
 
             // The code appears in every order, estimate and invoice number, so two branches sharing one
             // would make those numbers ambiguous for the life of the installation.

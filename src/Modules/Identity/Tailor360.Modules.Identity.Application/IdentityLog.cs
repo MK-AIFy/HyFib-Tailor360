@@ -71,6 +71,10 @@ internal static partial class IdentityLog
     public static partial void AccountAdministered(
         ILogger logger, Guid userId, string action, int endedSessions);
 
+    [LoggerMessage(EventId = 2321, Level = LogLevel.Information,
+        Message = "An administrator applied {Action} to branch {BranchId}.")]
+    public static partial void BranchAdministered(ILogger logger, Guid branchId, string action);
+
     [LoggerMessage(EventId = 2313, Level = LogLevel.Error,
         Message = "The stored authenticator secret for account {UserId} could not be read with the current " +
                   "data-protection keys. The holder has to re-enrol; check that the key ring is persisted.")]

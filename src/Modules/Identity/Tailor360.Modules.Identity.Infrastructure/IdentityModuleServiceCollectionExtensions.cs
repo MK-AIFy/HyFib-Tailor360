@@ -244,6 +244,8 @@ public static class IdentityModuleServiceCollectionExtensions
         services.TryAddScoped<IUserAssignmentStore, UserAssignmentStore>();
         services.TryAddScoped<IStaffDirectory, StaffDirectory>();
         services.TryAddScoped<StaffInvitationHandler>();
+        services.TryAddScoped<IBranchStore, BranchStore>();
+        services.TryAddScoped<BranchAdministrationHandler>();
         services.TryAddScoped<UserAssignmentHandler>();
     }
 

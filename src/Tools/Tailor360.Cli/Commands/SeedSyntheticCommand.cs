@@ -99,7 +99,8 @@ public static class SeedSyntheticCommand
 
         if (existing is not null)
         {
-            var reconfigured = existing.Reconfigure(name, Branch.DefaultTimeZoneId, now, by: null);
+            var reconfigured = existing.Reconfigure(
+                new BranchDetails(name, Branch.DefaultTimeZoneId), now, by: null);
             if (reconfigured.IsFailure)
             {
                 throw new InvalidOperationException(

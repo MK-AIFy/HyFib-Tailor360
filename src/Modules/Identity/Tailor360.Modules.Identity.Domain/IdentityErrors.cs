@@ -291,6 +291,29 @@ public static class IdentityErrors
         "That sign-in name or address is already in use. Check whether this person already has an "
         + "account before creating a second one.");
 
+    /// <summary>No branch matches the identifier supplied.</summary>
+    public static Error BranchNotFound { get; } = Error.NotFound(
+        "identity.branch-not-found",
+        "No branch matches that identifier.");
+
+    /// <summary>The branch code is already in use in this organisation.</summary>
+    public static Error BranchCodeAlreadyTaken { get; } = Error.Conflict(
+        "identity.branch-code-already-taken",
+        "Another branch already uses that code. Codes appear in order and invoice numbers, so two "
+        + "branches cannot share one.");
+
+    /// <summary>
+    /// The branch cannot be closed because staff are still assigned to it.
+    /// </summary>
+    /// <remarks>
+    /// A count rather than names: an administrator needs to know how many people to move, and who they
+    /// are is on the list they are about to open. Names in a refusal are names in every log and trace
+    /// that carries the response.
+    /// </remarks>
+    public static Error BranchStillInUse(int accounts) => Error.Conflict(
+        "identity.branch-still-in-use",
+        $"{accounts} account(s) still work at this branch. Move them somewhere else before closing it.");
+
     /// <summary>The session is revoked, idle-expired or past its absolute expiry.</summary>
     public static Error SessionNotActive { get; } = Error.Forbidden(
         "identity.session-not-active",

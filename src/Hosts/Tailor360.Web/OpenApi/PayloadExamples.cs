@@ -89,6 +89,49 @@ public static class PayloadExamples
             }
             """,
 
+        ["OpenBranch"] = """
+            {
+              "code": "MADURAI1",
+              "name": "Madurai Main",
+              "timeZoneId": "Asia/Kolkata",
+              "addressLine1": "12 Example Street",
+              "city": "Madurai",
+              "state": "Tamil Nadu",
+              "postalCode": "625001",
+              "contactPhone": "+91 90000 00000",
+              "contactEmail": "madurai@synthetic.invalid",
+              "gstRegistrationReference": "GSTIN-EXAMPLE-0001",
+              "reason": "Second location opening on 1 October."
+            }
+            """,
+
+        ["ReconfigureBranch"] = """
+            {
+              "name": "Madurai Main",
+              "timeZoneId": "Asia/Kolkata",
+              "addressLine1": "14 Example Street",
+              "city": "Madurai",
+              "state": "Tamil Nadu",
+              "postalCode": "625001",
+              "contactPhone": "+91 90000 00001",
+              "contactEmail": "madurai@synthetic.invalid",
+              "gstRegistrationReference": "GSTIN-EXAMPLE-0001",
+              "reason": "Moved two doors down; address and telephone updated."
+            }
+            """,
+
+        ["CloseBranch"] = """
+            {
+              "reason": "Lease ended on 30 September; the counter has moved to Madurai Main."
+            }
+            """,
+
+        ["ReopenBranch"] = """
+            {
+              "reason": "Reopening after the refit, from 1 December."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",

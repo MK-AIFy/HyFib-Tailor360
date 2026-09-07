@@ -202,8 +202,8 @@ touching `platform.feature_flags` directly.
 | `user_credentials`, `totp_enrolments`, `passkey_credentials`, `recovery_codes` | Argon2id password hashes, authenticator enrolments, WebAuthn credentials, hashed single-use recovery codes |
 | `recovery_tokens` | Digest of the single-use expiring value in a recovery or invitation link, its purpose, and when it was spent or withdrawn (#23; #25 issues the invitation purpose) |
 | `trusted_devices` | Optional revocable shared-counter device cookie, subject to **OD-12** |
-| `branches` | Branch code, name, IANA timezone (default `Asia/Kolkata`), status |
-| `branch_calendars`, `branch_calendar_days` | Working calendar and holidays used by due-date and SLA clocks |
+| `branches` | Branch code, name, IANA timezone (default `Asia/Kolkata`), status and status reason, postal address, contact telephone and address, and the GST registration *reference* the branch trades under — a string, not a key, because Billing owns the registrations and ARCH-005 forbids a key across the schema boundary (#25) |
+| `branch_calendars`, `branch_calendar_days` | Working calendar and holidays used by due-date and SLA clocks. **Deferred to #33**, the issue that first computes a promise date: nothing reads them until then, so defining them now would mean inventing their semantics — roll forward or back off a holiday, half-days, branch-specific against organisation-wide — with no consumer to source the answers from. Recorded under OD-06 |
 
 **Concurrency note.** `users` and `user_preferences` carry the `xmin` token of
 [`conventions.md`](conventions.md) section 4.1, and the root's token is what serialises a race on its children —

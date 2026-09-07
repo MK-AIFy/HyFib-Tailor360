@@ -1,5 +1,6 @@
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Administration;
+using Tailor360.Modules.Identity.Domain.Branches;
 
 namespace Tailor360.Modules.Identity.Api.Payloads;
 
@@ -218,3 +219,107 @@ public sealed record InviteStaffMemberPayload(
     string? DisplayName,
     Guid? HomeBranchId,
     string? Reason);
+
+/// <summary>One branch as an administrative screen sees it.</summary>
+/// <param name="BranchId">The branch.</param>
+/// <param name="Code">Its short code, which appears in document numbers and never changes.</param>
+/// <param name="Name">Its name.</param>
+/// <param name="TimeZoneId">The IANA timezone its due dates are computed in.</param>
+/// <param name="Status"><c>Active</c> or <c>Inactive</c>.</param>
+/// <param name="StatusReason">Why it was last opened or closed.</param>
+/// <param name="AddressLine1">First line of the street address.</param>
+/// <param name="AddressLine2">Second line of the street address.</param>
+/// <param name="City">The town or city.</param>
+/// <param name="State">The state.</param>
+/// <param name="PostalCode">The postal code.</param>
+/// <param name="ContactPhone">The number customers and couriers call.</param>
+/// <param name="ContactEmail">The address customer correspondence comes from.</param>
+/// <param name="GstRegistrationReference">Which GST registration the branch trades under.</param>
+/// <param name="Version">The version an edit must present in <c>If-Match</c>.</param>
+public sealed record BranchPayload(
+    Guid BranchId,
+    string Code,
+    string Name,
+    string TimeZoneId,
+    string Status,
+    string? StatusReason,
+    string? AddressLine1,
+    string? AddressLine2,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? ContactPhone,
+    string? ContactEmail,
+    string? GstRegistrationReference,
+    string Version)
+{
+    /// <summary>Projects a branch onto the wire.</summary>
+    /// <param name="branch">The branch.</param>
+    public static BranchPayload From(AdministeredBranch branch)
+    {
+        ArgumentNullException.ThrowIfNull(branch);
+
+        return new BranchPayload(
+            branch.BranchId,
+            branch.Code,
+            branch.Name,
+            branch.TimeZoneId,
+            branch.Status,
+            branch.StatusReason,
+            branch.Details.AddressLine1,
+            branch.Details.AddressLine2,
+            branch.Details.City,
+            branch.Details.State,
+            branch.Details.PostalCode,
+            branch.Details.ContactPhone,
+            branch.Details.ContactEmail,
+            branch.Details.GstRegistrationReference,
+            branch.Version.Version);
+    }
+}
+
+/// <summary>A branch to open, or the new description of one that exists.</summary>
+/// <remarks>
+/// <c>code</c> is read when opening and ignored when reconfiguring. It is embedded in every document
+/// number the branch has ever produced, so it cannot change — and a field that silently did nothing
+/// would be worse than one that is documented as read once.
+/// </remarks>
+/// <param name="Code">The short code, on opening only.</param>
+/// <param name="Name">The branch name.</param>
+/// <param name="TimeZoneId">The IANA timezone its due dates are computed in.</param>
+/// <param name="AddressLine1">First line of the street address.</param>
+/// <param name="AddressLine2">Second line of the street address.</param>
+/// <param name="City">The town or city.</param>
+/// <param name="State">The state.</param>
+/// <param name="PostalCode">The postal code.</param>
+/// <param name="ContactPhone">The number customers and couriers call.</param>
+/// <param name="ContactEmail">The address customer correspondence comes from.</param>
+/// <param name="GstRegistrationReference">Which GST registration the branch trades under.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record OpenBranchPayload(
+    string? Code,
+    string? Name,
+    string? TimeZoneId,
+    string? AddressLine1,
+    string? AddressLine2,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? ContactPhone,
+    string? ContactEmail,
+    string? GstRegistrationReference,
+    string? Reason)
+{
+    /// <summary>The editable description this request carries.</summary>
+    public BranchDetails Details() => new(
+        Name,
+        TimeZoneId,
+        AddressLine1,
+        AddressLine2,
+        City,
+        State,
+        PostalCode,
+        ContactPhone,
+        ContactEmail,
+        GstRegistrationReference);
+}

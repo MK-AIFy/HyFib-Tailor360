@@ -33,6 +33,9 @@ public static class IdentityRoutes
     /// <summary>Administering staff accounts.</summary>
     public const string AdminUsers = "/api/v1/admin/users";
 
+    /// <summary>Administering the branch register.</summary>
+    public const string AdminBranches = "/api/v1/admin/branches";
+
     /// <summary>The OpenAPI tag applied to the authentication surface.</summary>
     public const string AuthTag = "Authentication";
 
