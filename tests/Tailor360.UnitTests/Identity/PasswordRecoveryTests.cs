@@ -359,8 +359,9 @@ public sealed class PasswordRecoveryTests
     [Theory]
     [InlineData("https://shop.example", false, true)]
     [InlineData("https://shop.example/", false, true)]
-    [InlineData("", false, true)]
-    [InlineData("   ", false, true)]
+    [InlineData("", false, false)]
+    [InlineData("   ", false, false)]
+    [InlineData("", true, false)]
     [InlineData("http://shop.example", false, false)]
     [InlineData("http://127.0.0.1:5173", false, false)]
     [InlineData("http://127.0.0.1:5173", true, true)]
@@ -377,8 +378,13 @@ public sealed class PasswordRecoveryTests
         // copies when configuring staging is whatever development was left holding, so plain HTTP has
         // to be refused at start-up rather than accepted quietly and discovered by an interceptor.
         //
-        // An unset value passes here and is reported where it is used: a host that has nothing to do
-        // with recovery, such as the migration tool, must not be stopped by a setting it never reads.
+        // An unset value is refused too, and the insecure opt-out does not rescue it. It used to pass,
+        // so that a host with nothing to do with recovery would not be stopped by a setting it never
+        // reads — but the command-line tool builds its host without starting it, so the validation
+        // never ran there anyway, and the only host the carve-out actually reached was the web host,
+        // which is the one that sends the mail. What it bought was a deployment that started cleanly
+        // and then e-mailed "/recovery/confirm?token=…", a path with no origin, to somebody who could
+        // not get in.
         var options = new RecoveryOptions
         {
             PublicBaseUrl = publicBaseUrl,

@@ -112,7 +112,8 @@ public static class IdentityModuleServiceCollectionExtensions
                 "that widened that by mistake must fail to start rather than issue long-lived links.")
             .Validate(
                 options => options.IsPublicBaseUrlUsable,
-                "Identity:Recovery:PublicBaseUrl must be an absolute https URI. A recovery link carries "
+                "Identity:Recovery:PublicBaseUrl must be set, and must be an absolute https URI. A "
+                + "recovery link is absolute or it cannot be followed out of an e-mail, and it carries "
                 + "a token that sets a password, so it may not travel over plain HTTP; a developer's "
                 + "loopback opts out with Identity:Recovery:AllowInsecurePublicBaseUrl.")
             .ValidateOnStart();

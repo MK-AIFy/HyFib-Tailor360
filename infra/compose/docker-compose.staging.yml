@@ -133,6 +133,10 @@ services:
       MalwareScanner__Endpoint: tcp://clamav:3310
       Identity__Email__Host: mailpit
       Identity__Email__Port: "1025"
+      # Required rather than defaulted: a recovery link built from the wrong origin is worse than a
+      # stack that refuses to start, because it fails silently and only for the person locked out.
+      Identity__Recovery__PublicBaseUrl: ${TAILOR360_STAGING_PUBLIC_ORIGIN:?set TAILOR360_STAGING_PUBLIC_ORIGIN to the address a browser reaches this deployment on}
+      Identity__Recovery__AllowInsecurePublicBaseUrl: ${TAILOR360_STAGING_ALLOW_INSECURE_ORIGIN:-false}
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey
@@ -177,6 +181,10 @@ services:
       MalwareScanner__Endpoint: tcp://clamav:3310
       Identity__Email__Host: mailpit
       Identity__Email__Port: "1025"
+      # Required rather than defaulted: a recovery link built from the wrong origin is worse than a
+      # stack that refuses to start, because it fails silently and only for the person locked out.
+      Identity__Recovery__PublicBaseUrl: ${TAILOR360_STAGING_PUBLIC_ORIGIN:?set TAILOR360_STAGING_PUBLIC_ORIGIN to the address a browser reaches this deployment on}
+      Identity__Recovery__AllowInsecurePublicBaseUrl: ${TAILOR360_STAGING_ALLOW_INSECURE_ORIGIN:-false}
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey

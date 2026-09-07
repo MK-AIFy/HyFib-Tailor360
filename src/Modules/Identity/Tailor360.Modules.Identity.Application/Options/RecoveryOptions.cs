@@ -31,7 +31,8 @@ public sealed class RecoveryOptions
     /// <summary>
     /// The public origin of this deployment, for example <c>https://shop.example</c>. The recovery
     /// link is absolute, so this has to be the address a person's browser can reach — not the
-    /// container's own. Leaving it unset produces a relative link and an error naming this key.
+    /// container's own. It is required: a host that composes this module and starts does not get to
+    /// leave it unset, because the link it would then send cannot be followed.
     /// </summary>
     /// <remarks>
     /// A value that is set is validated at start-up rather than at the moment somebody needs a reset:
@@ -64,19 +65,28 @@ public sealed class RecoveryOptions
         => TokenLifetime >= RecoveryToken.MinimumLifetime && TokenLifetime <= RecoveryToken.MaximumLifetime;
 
     /// <summary>
-    /// True when the configured public origin is one a recovery link may safely travel to. An unset
-    /// value passes here and is reported where it is used: a host that has nothing to do with recovery,
-    /// such as the migration tool, must not be prevented from starting by a setting it never reads.
+    /// True when the configured public origin is one a recovery link may safely travel to.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An unset value used to pass here, on the reasoning that a host with nothing to do with recovery —
+    /// the migration tool — should not be stopped by a setting it never reads. The reasoning was sound
+    /// and the carve-out was not: the tool builds its host and never starts it, so
+    /// <c>ValidateOnStart</c> never runs there, while the one host that does start with this module
+    /// composed is the web host, which is exactly the host that sends recovery mail.
+    /// </para>
+    /// <para>
+    /// What the carve-out actually bought was a deployment that started cleanly and then put
+    /// <c>/recovery/confirm?token=…</c> — a path with no origin — into an e-mail. A relative link in an
+    /// e-mail cannot be followed, so the one message a person receives when they cannot get in was the
+    /// one message that could not help them. Failing at start-up is the whole point of validating a
+    /// setting at start-up.
+    /// </para>
+    /// </remarks>
     public bool IsPublicBaseUrlUsable
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(PublicBaseUrl))
-            {
-                return true;
-            }
-
             if (!Uri.TryCreate(PublicBaseUrl, UriKind.Absolute, out var origin))
             {
                 return false;

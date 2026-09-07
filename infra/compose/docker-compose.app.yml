@@ -76,6 +76,11 @@ services:
       ObjectStorage__ForcePathStyle: "true"
       Identity__Email__Host: mailpit
       Identity__Email__Port: "1025"
+      # A recovery link is absolute or it cannot be followed out of an e-mail, so the host that sends
+      # one has to be told the address a browser reaches it on. This stack is a developer's, published
+      # on the loopback, which is the one case allowed to be plain HTTP.
+      Identity__Recovery__PublicBaseUrl: http://localhost:${TAILOR360_HTTP_PUBLISHED_PORT:-8080}
+      Identity__Recovery__AllowInsecurePublicBaseUrl: "true"
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey
@@ -130,6 +135,11 @@ services:
       ObjectStorage__ForcePathStyle: "true"
       Identity__Email__Host: mailpit
       Identity__Email__Port: "1025"
+      # A recovery link is absolute or it cannot be followed out of an e-mail, so the host that sends
+      # one has to be told the address a browser reaches it on. This stack is a developer's, published
+      # on the loopback, which is the one case allowed to be plain HTTP.
+      Identity__Recovery__PublicBaseUrl: http://localhost:${TAILOR360_HTTP_PUBLISHED_PORT:-8080}
+      Identity__Recovery__AllowInsecurePublicBaseUrl: "true"
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey
