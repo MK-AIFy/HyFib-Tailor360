@@ -52,6 +52,14 @@ A name with no Latin letter or digit in it folds to the **empty string**, and th
 `கவிதா` in code would invent a Latin spelling nobody chose and put a guess into a search index; the native-script
 column is stored and searched directly instead.
 
+An empty key is not the end of it, and the caller is where that is handled. When a customer gives her name **only**
+in native script, `CustomerDetails.Create` stores that name in `native_name` as well as in `display_name`, so the
+record still carries a name the search and the duplicate score can compare. That is not a transliteration — it is
+the same string, in the column that is searched directly — and a name given in both scripts is untouched. Without
+it the record would have no name key at all: found by no name search, contributing no name reason to a duplicate
+score, and therefore likely to be created a second time, which is the outcome this whole document exists to
+prevent.
+
 ---
 
 ## 3. Accent folding

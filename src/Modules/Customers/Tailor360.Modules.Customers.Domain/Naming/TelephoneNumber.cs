@@ -60,7 +60,11 @@ public static class TelephoneNumbers
     /// <summary>
     /// Reads a written number, or fails when it cannot be read as something that could be dialled.
     /// </summary>
-    /// <param name="written">The number as typed. Spaces, brackets, dots and hyphens are ignored.</param>
+    /// <param name="written">
+    /// The number as typed. Whitespace, brackets, dots, slashes and dashes are ignored; any other
+    /// character is refused rather than deleted, because deleting one turns a typo into a different
+    /// number that can be dialled.
+    /// </param>
     /// <param name="field">The field name a validation failure is attached to.</param>
     /// <returns>The canonical number, or a validation failure.</returns>
     /// <remarks>
@@ -92,9 +96,8 @@ public static class TelephoneNumbers
 
         var trimmed = written.Trim();
         var international = trimmed.StartsWith('+') || trimmed.StartsWith("00", StringComparison.Ordinal);
-        var digits = KeepDigits(trimmed);
 
-        if (digits.Length == 0)
+        if (!TryReadDigits(trimmed, out var digits) || digits.Length == 0)
         {
             return Result.Failure<TelephoneNumber>(CustomersErrors.PhoneNotUnderstood(field));
         }
@@ -142,7 +145,32 @@ public static class TelephoneNumbers
         return Result.Success(new TelephoneNumber("+" + digits, tail));
     }
 
-    private static string KeepDigits(string value)
+    /// <summary>
+    /// Reads the digits out of a written number, refusing anything that is neither a digit nor one of
+    /// the separators a person writes a number with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Refusing rather than deleting is the whole point of this method.</b> Stripping every
+    /// non-digit is the obvious implementation and it is wrong: a capital O typed for a zero makes
+    /// <c>90000O21174</c> read as the ten-digit number <c>9000021174</c>, which is a different,
+    /// dialable number that a customer will then be messaged at; <c>9000021174 ext 45</c> becomes a
+    /// twelve-digit international number; and <c>call me on 9000021174</c> is accepted as a telephone
+    /// number. None of those is a number anybody typed, and each of them ends with a message sent to
+    /// somebody who is not the customer.
+    /// </para>
+    /// <para>
+    /// So the accepted set is exactly what the contract on <see cref="TryRead"/> promises: digits, a
+    /// leading plus sign, and the separators a number is written with — whitespace of any kind
+    /// (including the non-breaking space a paste brings), brackets, dots, slashes and any of the
+    /// dashes a word processor might have substituted for a hyphen. Everything else is a number that
+    /// could not be read, which is what the counter is told.
+    /// </para>
+    /// </remarks>
+    /// <param name="value">The trimmed written number.</param>
+    /// <param name="digits">The digits, in order, when every other character was a separator.</param>
+    /// <returns>False when the value held a character that is not part of a written number.</returns>
+    private static bool TryReadDigits(string value, out string digits)
     {
         var builder = new StringBuilder(value.Length);
 
@@ -151,9 +179,25 @@ public static class TelephoneNumbers
             if (char.IsAsciiDigit(character))
             {
                 builder.Append(character);
+                continue;
+            }
+
+            // The plus sign is the international marker, so it is accepted while no digit has been
+            // read — which is what makes "(+91) 90000 21174" work — and refused once one has, because
+            // a plus in the middle of a number is one somebody mistyped rather than one to canonicalise.
+            var separator = (character == '+' && builder.Length == 0)
+                || char.IsWhiteSpace(character)
+                || character is '-' or '.' or '(' or ')' or '/'
+                || character is '\u2010' or '\u2011' or '\u2012' or '\u2013' or '\u2014' or '\u2212';
+
+            if (!separator)
+            {
+                digits = string.Empty;
+                return false;
             }
         }
 
-        return builder.ToString();
+        digits = builder.ToString();
+        return true;
     }
 }

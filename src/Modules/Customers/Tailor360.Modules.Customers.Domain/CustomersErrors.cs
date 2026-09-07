@@ -44,6 +44,19 @@ public static class CustomersErrors
         + "with or without the country code.",
         field);
 
+    /// <summary>An email address could not be read as an address that could be written to.</summary>
+    /// <remarks>
+    /// Separate from <see cref="Required"/>, because the two say different things to the person at the
+    /// counter: one means the field is empty and the other means what is in it will not work. Answering
+    /// a mistyped address with "a required value was not supplied" sends somebody looking for a field
+    /// they have already filled in.
+    /// </remarks>
+    /// <param name="field">The field carrying the address.</param>
+    public static Error EmailNotUnderstood(string field) => Error.Validation(
+        "customers.email-not-understood",
+        "That email address could not be read. Check it for a stray space or a missing part.",
+        field);
+
     /// <summary>A language tag was not one the application serves.</summary>
     /// <param name="field">The field carrying the tag.</param>
     public static Error LanguageNotSupported(string field) => Error.Validation(

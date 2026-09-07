@@ -1,3 +1,4 @@
+using System.Reflection;
 using Shouldly;
 using Tailor360.Modules.Customers.Domain;
 using Tailor360.Modules.Customers.Domain.Customers;
@@ -205,5 +206,79 @@ public sealed class CustomerTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error.Target.ShouldBe("email");
+        result.Error.Code.ShouldBe("customers.email-not-understood");
+    }
+
+    /// <summary>
+    /// No character an email address may legitimately carry is whitespace or a control character, and
+    /// the pair that matters is a carriage return and a line feed: that is the shape a header
+    /// injection takes, and it passes a check that looks only for a literal space.
+    /// </summary>
+    [Theory]
+    [InlineData("kavitha@example.invalid\r\nBcc: somebody@example.invalid")]
+    [InlineData("kavitha@example.invalid\nBcc: somebody@example.invalid")]
+    [InlineData("kavitha\t@example.invalid")]
+    [InlineData("kavitha @example.invalid")]
+    [InlineData("kavitha@example\u00a0.invalid")]
+    public void AnEmailCarryingWhitespaceOrAControlCharacterIsRefused(string email)
+    {
+        var result = CustomerDetails.Create(
+            "Kavitha Raman", null, "90000 21174", null, email, null, null, null, null);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Code.ShouldBe("customers.email-not-understood");
+        result.Error.Target.ShouldBe("email");
+    }
+
+    /// <summary>
+    /// A name given only in Tamil script folds to nothing, because the normaliser refuses to
+    /// transliterate. Without the native column being filled from it the record would carry no name
+    /// key at all — found by no search, contributing no name reason to a duplicate score, and so
+    /// likely to be created a second time.
+    /// </summary>
+    [Fact]
+    public void ANameGivenOnlyInNativeScriptIsStillSearchable()
+    {
+        var written = "\u0b95\u0bb5\u0bbf\u0ba4\u0bbe";
+
+        var details = CustomerDetails.Create(
+            written, null, "90000 21174", null, null, null, null, null, null);
+
+        details.IsSuccess.ShouldBeTrue();
+        details.Value.DisplayName.ShouldBe(written);
+        details.Value.NormalisedName.ShouldBeEmpty();
+
+        // The name she gave *is* the native-script form. Nothing is transliterated and nothing invented.
+        details.Value.NativeName.ShouldBe(written);
+    }
+
+    [Fact]
+    public void ANameGivenInBothScriptsKeepsTheNativeNameItWasGiven()
+    {
+        var native = "\u0b95\u0bb5\u0bbf\u0ba4\u0bbe";
+
+        var details = CustomerDetails.Create(
+            "Kavitha Raman", native, "90000 21174", null, null, null, null, null, null);
+
+        details.IsSuccess.ShouldBeTrue();
+        details.Value.NativeName.ShouldBe(native);
+        details.Value.NormalisedName.ShouldBe("kavita raman");
+    }
+
+    /// <summary>
+    /// <see cref="CustomerDetails.Create"/> is the only way to build one.
+    /// </summary>
+    /// <remarks>
+    /// A positional record generates a public constructor, and the aggregate trusts this type and
+    /// persists its fields without revalidating — so a public constructor would be a way to store a
+    /// blank name, an unsupported language or a search key that does not match the name beside it.
+    /// This is the test that fails if somebody converts the declaration back.
+    /// </remarks>
+    [Fact]
+    public void ValidatedDetailsCannotBeConstructedAroundTheFactory()
+    {
+        typeof(CustomerDetails)
+            .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+            .ShouldBeEmpty();
     }
 }

@@ -19,31 +19,77 @@ namespace Tailor360.Modules.Customers.Domain.Customers;
 /// why the failures it produces name fields and never values.
 /// </para>
 /// </remarks>
-/// <param name="DisplayName">The name as the customer gave it, unaltered.</param>
-/// <param name="NormalisedName">The folded search key derived from the name.</param>
-/// <param name="NativeName">
-/// The optional Tamil-script form. Stored and searched directly; never transliterated, because a
-/// transliteration is a spelling nobody chose.
-/// </param>
-/// <param name="Phone">The primary telephone number.</param>
-/// <param name="AlternatePhone">A second number, where one was given.</param>
-/// <param name="Email">An email address, where one was given.</param>
-/// <param name="AddressLine">The street part of the address.</param>
-/// <param name="Locality">The area or town.</param>
-/// <param name="Postcode">The postal code.</param>
-/// <param name="Language">The language the customer is written to in.</param>
-public sealed record CustomerDetails(
-    string DisplayName,
-    string NormalisedName,
-    string? NativeName,
-    TelephoneNumber Phone,
-    TelephoneNumber? AlternatePhone,
-    string? Email,
-    string? AddressLine,
-    string? Locality,
-    string? Postcode,
-    string Language)
+public sealed record CustomerDetails
 {
+    /// <summary>
+    /// The only way to build one, and it is private so that <see cref="Create"/> is the only way in.
+    /// </summary>
+    /// <remarks>
+    /// Not a positional record, and that is the whole point of the shape. A positional record
+    /// generates a <em>public</em> constructor, so any caller could have built a
+    /// <c>CustomerDetails</c> with a blank name, an unsupported language or a search key that does
+    /// not match the name beside it — and <see cref="Customer.Register"/> and
+    /// <see cref="Customer.Correct"/> trust this type and persist its fields without revalidating.
+    /// Every property below is get-only rather than <c>init</c> for the same reason: it closes the
+    /// <c>with</c> expression, which would otherwise be a second way past the factory.
+    /// </remarks>
+    private CustomerDetails(
+        string displayName,
+        string normalisedName,
+        string? nativeName,
+        TelephoneNumber phone,
+        TelephoneNumber? alternatePhone,
+        string? email,
+        string? addressLine,
+        string? locality,
+        string? postcode,
+        string language)
+    {
+        DisplayName = displayName;
+        NormalisedName = normalisedName;
+        NativeName = nativeName;
+        Phone = phone;
+        AlternatePhone = alternatePhone;
+        Email = email;
+        AddressLine = addressLine;
+        Locality = locality;
+        Postcode = postcode;
+        Language = language;
+    }
+
+    /// <summary>The name as the customer gave it, unaltered.</summary>
+    public string DisplayName { get; }
+
+    /// <summary>The folded search key derived from the name. Empty for a name in native script only.</summary>
+    public string NormalisedName { get; }
+
+    /// <summary>
+    /// The Tamil-script form. Stored and searched directly; never transliterated, because a
+    /// transliteration is a spelling nobody chose.
+    /// </summary>
+    public string? NativeName { get; }
+
+    /// <summary>The primary telephone number.</summary>
+    public TelephoneNumber Phone { get; }
+
+    /// <summary>A second number, where one was given.</summary>
+    public TelephoneNumber? AlternatePhone { get; }
+
+    /// <summary>An email address, where one was given.</summary>
+    public string? Email { get; }
+
+    /// <summary>The street part of the address.</summary>
+    public string? AddressLine { get; }
+
+    /// <summary>The area or town.</summary>
+    public string? Locality { get; }
+
+    /// <summary>The postal code.</summary>
+    public string? Postcode { get; }
+
+    /// <summary>The language the customer is written to in.</summary>
+    public string Language { get; }
+
     /// <summary>The longest name the column holds.</summary>
     public const int MaximumDisplayNameLength = 160;
 
@@ -122,6 +168,20 @@ public sealed record CustomerDetails(
                 CustomersErrors.TooLong("nativeName", MaximumNativeNameLength));
         }
 
+        var key = CustomerNameNormaliser.Normalise(name);
+
+        // A name written only in native script folds to nothing, because the normaliser deliberately
+        // refuses to transliterate — a transliteration is a spelling nobody chose. Left there, the
+        // record would carry no name key at all: invisible to the counter search, and contributing no
+        // name reason to duplicate detection, so the customer would be findable only by telephone
+        // number and a second record for her would be the likely outcome. The name she gave *is* the
+        // native-script form, so it is stored in the column that is searched directly. Nothing is
+        // invented, and a name given in both scripts is untouched.
+        if (key.Length == 0 && native is null)
+        {
+            native = name;
+        }
+
         var primary = TelephoneNumbers.TryRead(phone, "phone");
         if (primary.IsFailure)
         {
@@ -170,14 +230,21 @@ public sealed record CustomerDetails(
                     CustomersErrors.TooLong("email", MaximumEmailLength));
             }
 
-            // Deliberately shallow. An address is checked by sending to it, not by a pattern: a
-            // stricter rule here would refuse a valid address and teach the counter to leave the field
-            // empty, which loses more than it protects.
+            // Deliberately shallow on structure. An address is checked by sending to it, not by a
+            // pattern: a stricter rule here would refuse a valid address and teach the counter to
+            // leave the field empty, which loses more than it protects.
+            //
+            // Whitespace is the exception, and it is not shallow. No character an address may
+            // legitimately contain is whitespace or a control character, so anything that is one is a
+            // mistake at best. At worst it is a carriage return and a line feed, which is the shape a
+            // header injection takes: "a@b\r\nBcc: somebody" has a non-terminal @ and no space, and
+            // would have been stored and later handed to whatever composes a message.
             var at = addressEmail.IndexOf('@', StringComparison.Ordinal);
-            if (at <= 0 || at == addressEmail.Length - 1 || addressEmail.Contains(' ', StringComparison.Ordinal))
+            if (at <= 0
+                || at == addressEmail.Length - 1
+                || addressEmail.Any(character => char.IsWhiteSpace(character) || char.IsControl(character)))
             {
-                return Result.Failure<CustomerDetails>(
-                    CustomersErrors.Required("email"));
+                return Result.Failure<CustomerDetails>(CustomersErrors.EmailNotUnderstood("email"));
             }
         }
 
@@ -189,7 +256,7 @@ public sealed record CustomerDetails(
 
         return Result.Success(new CustomerDetails(
             name,
-            CustomerNameNormaliser.Normalise(name),
+            key,
             native,
             primary.Value,
             second,

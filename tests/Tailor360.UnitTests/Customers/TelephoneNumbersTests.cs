@@ -60,6 +60,45 @@ public sealed class TelephoneNumbersTests
         read.Error.Target.ShouldBe("phone");
     }
 
+    /// <summary>
+    /// A character that is not part of a written number is refused, not deleted.
+    /// </summary>
+    /// <remarks>
+    /// Deleting it is the obvious implementation and the dangerous one: each of these would otherwise
+    /// canonicalise to a real, dialable number that nobody typed, and the customer would then be
+    /// messaged at it. The capital O is the one a counter actually types.
+    /// </remarks>
+    [Theory]
+    [InlineData("90000O21174")]
+    [InlineData("9000021174 ext 45")]
+    [InlineData("call me on 9000021174")]
+    [InlineData("9000021174x45")]
+    [InlineData("90000 21174 (mobile)")]
+    [InlineData("9000+021174")]
+    public void ACharacterThatIsNotPartOfANumberIsRefusedRatherThanDeleted(string written)
+    {
+        var read = TelephoneNumbers.TryRead(written, "phone");
+
+        read.IsFailure.ShouldBeTrue(
+            read.IsSuccess ? $"it was read as {read.Value.E164}, which nobody typed" : null);
+        read.Error.Code.ShouldBe("customers.phone-not-understood");
+    }
+
+    /// <summary>The separators a person really writes a number with are still ignored.</summary>
+    [Theory]
+    [InlineData("+91 90000 21174")]
+    [InlineData("+91-90000-21174")]
+    [InlineData("(+91) 90000/21174")]
+    // A non-breaking space and an en dash, which is what a paste out of a word processor brings.
+    [InlineData("+91\u00a090000\u201321174")]
+    public void TheSeparatorsANumberIsWrittenWithAreStillIgnored(string written)
+    {
+        var read = TelephoneNumbers.TryRead(written, "phone");
+
+        read.IsSuccess.ShouldBeTrue(read.IsFailure ? read.Error.Code : null);
+        read.Value.E164.ShouldBe("+919000021174");
+    }
+
     [Theory]
     [InlineData("90000")]
     [InlineData("12345")]
