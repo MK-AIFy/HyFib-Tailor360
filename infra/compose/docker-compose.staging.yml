@@ -384,7 +384,7 @@ services:
   clamav:
     # Not behind a profile here: staging must exercise the real scanner, because that is where the
     # media pipeline of #31 is rehearsed before it reaches a shop.
-    image: clamav/clamav:1.4.6@sha256:b25d9199257ae7ef45e0cc4c7eaa60ce7e5447796f0090d5ff311d1a30980cc3
+    image: clamav/clamav:1.5.4@sha256:1fdfd24c6f0a0fb60788481487459a6d4eda8a9b448641594e04db8410d34422
     restart: unless-stopped
     volumes:
       - clamav-data:/var/lib/clamav
@@ -401,7 +401,7 @@ services:
   mailpit:
     # Staging has no provider credentials, so every notification lands here and nothing can reach a
     # real customer. The interface is published on the gated address only.
-    image: axllent/mailpit:v1.31.0@sha256:c96991d9bef73594c246d89ca81411d4e916f03e76a7d2d72fa2ab5dd3c9ce24
+    image: axllent/mailpit:v1.31.1@sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365
     restart: unless-stopped
     environment:
       MP_MAX_MESSAGES: "5000"

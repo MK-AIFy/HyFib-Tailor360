@@ -146,7 +146,7 @@ services:
     profiles: ["scanner"]
     # The plain 1.4.6 tag bundles the signature database, so the container is usable before the
     # first freshclam update finishes (the _base tags do not, and must download it first).
-    image: clamav/clamav:1.4.6
+    image: clamav/clamav:1.5.4
     container_name: tailor360-clamav
     restart: unless-stopped
     ports:
@@ -167,7 +167,7 @@ services:
   mailpit:
     # Development and staging mail sink. Nothing ever leaves the machine, which is what makes it
     # safe to exercise notification flows against synthetic customer addresses.
-    image: axllent/mailpit:v1.31.0
+    image: axllent/mailpit:v1.31.1
     container_name: tailor360-mailpit
     restart: unless-stopped
     environment:
