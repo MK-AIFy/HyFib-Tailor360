@@ -62,6 +62,23 @@ public static class PayloadExamples
             }
             """,
 
+        ["ReplaceStaffUserRoles"] = """
+            {
+              "roleKeys": ["tailor", "tailor_master"],
+              "reason": "Promoted to master tailor; approved by the branch manager."
+            }
+            """,
+
+        ["ReplaceStaffUserBranches"] = """
+            {
+              "branches": [
+                { "branchId": "0199c000-0000-7000-8000-00000000000a", "isPrimary": true },
+                { "branchId": "0199c000-0000-7000-8000-00000000000b", "isPrimary": false }
+              ],
+              "reason": "Covering the second branch two days a week from October."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",

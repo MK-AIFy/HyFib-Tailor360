@@ -93,3 +93,46 @@ public static class AdminRequests
         "Somebody else changed this account while you had it open. Reload it, check the change is still "
         + "the one you want, and apply it again.";
 }
+
+/// <summary>What an account may do and where, for an administrative screen.</summary>
+/// <param name="RoleKeys">The roles it holds, by key.</param>
+/// <param name="Branches">The branches it works in.</param>
+/// <param name="Version">The version an edit must present in <c>If-Match</c>.</param>
+public sealed record AssignedAccessPayload(
+    IReadOnlyList<string> RoleKeys,
+    IReadOnlyList<BranchAssignmentPayload> Branches,
+    string Version)
+{
+    /// <summary>Projects an account's access onto the wire.</summary>
+    /// <param name="access">The access.</param>
+    public static AssignedAccessPayload From(AssignedAccess access)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+
+        return new AssignedAccessPayload(
+            access.RoleKeys,
+            [.. access.Branches.Select(branch => new BranchAssignmentPayload(branch.BranchId, branch.IsPrimary))],
+            access.Version.Version);
+    }
+}
+
+/// <summary>One branch an account works in.</summary>
+/// <param name="BranchId">The branch.</param>
+/// <param name="IsPrimary">Whether it is the account's usual place of work.</param>
+public sealed record BranchAssignmentPayload(Guid BranchId, bool IsPrimary);
+
+/// <summary>The roles an account should hold after the change, with the reason for making it.</summary>
+/// <remarks>
+/// The whole set, not a list of additions. It is what the screen shows the administrator, and it is
+/// what makes the audit entry a sentence rather than a difference somebody has to reconstruct.
+/// </remarks>
+/// <param name="RoleKeys">Every role the account should hold afterwards.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record ReplaceRolesPayload(IReadOnlyList<string>? RoleKeys, string? Reason);
+
+/// <summary>The branches an account should work in after the change, with the reason.</summary>
+/// <param name="Branches">Every branch the account should work in afterwards.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record ReplaceBranchesPayload(
+    IReadOnlyList<BranchAssignmentPayload>? Branches,
+    string? Reason);

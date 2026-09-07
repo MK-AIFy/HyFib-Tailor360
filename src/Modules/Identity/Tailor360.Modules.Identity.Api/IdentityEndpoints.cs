@@ -56,7 +56,8 @@ public static class IdentityEndpoints
 
         endpoints.MapGroup(IdentityRoutes.AdminUsers)
             .WithTags(IdentityRoutes.AdminTag)
-            .MapUserAdminEndpoints();
+            .MapUserAdminEndpoints()
+            .MapUserAccessEndpoints();
 
         return endpoints;
     }

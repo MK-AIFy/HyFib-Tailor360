@@ -119,6 +119,32 @@ public sealed class AuthenticationClient : IDisposable
         return await SendAsync(request);
     }
 
+    /// <summary>Sends a replacement carrying extra headers.</summary>
+    /// <param name="path">The route.</param>
+    /// <param name="body">The request body.</param>
+    /// <param name="headers">Header name and value pairs, added verbatim.</param>
+    public async Task<HttpResponseMessage> PutAsync<TBody>(
+        string path,
+        TBody body,
+        params (string Name, string Value)[] headers)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+
+        await EnsureAntiforgeryAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, path)
+        {
+            Content = JsonContent.Create(body, options: Json),
+        };
+
+        foreach (var (name, value) in headers)
+        {
+            request.Headers.TryAddWithoutValidation(name, value);
+        }
+
+        return await SendAsync(request);
+    }
+
     /// <summary>Sends a state-changing request with no body.</summary>
     public async Task<HttpResponseMessage> PostAsync(string path)
     {

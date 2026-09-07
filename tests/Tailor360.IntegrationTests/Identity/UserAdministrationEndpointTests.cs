@@ -137,7 +137,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     {
         using var administrator = await AdministratorAsync("adm-noreason", "203.0.113.65");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-noreason");
-        var version = await VersionOfAsync(administrator, subject.Id);
+        var version = await VersionOfAsync(administrator, Route(subject.Id));
 
         foreach (var body in (object[])[new { reason = (string?)null }, new { reason = "   " }])
         {
@@ -193,7 +193,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     {
         using var administrator = await AdministratorAsync("adm-retry", "203.0.113.67");
         var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-retry");
-        var version = await VersionOfAsync(administrator, subject.Id);
+        var version = await VersionOfAsync(administrator, Route(subject.Id));
         var key = Guid.CreateVersion7().ToString();
 
         var first = await administrator.PostAsync(
@@ -225,7 +225,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     public async Task AnAdministratorCannotSuspendTheirOwnAccount()
     {
         using var administrator = await AdministratorAsync("adm-self", "203.0.113.68");
-        var version = await VersionOfAsync(administrator, administrator.UserId);
+        var version = await VersionOfAsync(administrator, Route(administrator.UserId));
 
         var refused = await administrator.PostAsync(
             $"{Route(administrator.UserId)}/suspend",
@@ -331,7 +331,7 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         // as a conflict rather than as a silent success or a server error.
         foreach (var segment in (string[])["reinstate", "reactivate"])
         {
-            var version = await VersionOfAsync(administrator, subject.Id);
+            var version = await VersionOfAsync(administrator, Route(subject.Id));
 
             var refused = await administrator.PostAsync(
                 $"{Route(subject.Id)}/{segment}",
@@ -397,19 +397,171 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
             .StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ReplacingRolesSetsExactlyTheRolesGivenAndRecordsTheKeysThatChanged()
+    {
+        using var administrator = await AdministratorAsync("adm-roles", "203.0.113.83");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-roles");
+        var (first, second) = await TwoAssignableRolesAsync();
+
+        await PutAsync(administrator, $"{Route(subject.Id)}/roles", new { roleKeys = new[] { first }, reason = Reason });
+        (await RoleKeysOfAsync(subject.Id)).ShouldBe([first]);
+
+        // The whole set, not an addition: sending only the second role must leave only the second.
+        await PutAsync(administrator, $"{Route(subject.Id)}/roles", new { roleKeys = new[] { second }, reason = Reason });
+        (await RoleKeysOfAsync(subject.Id)).ShouldBe([second]);
+
+        var entry = await LastAuditEntryAsync(subject.Id);
+        entry.ShouldNotBeNull();
+        entry.Action.ShouldBe("identity.user.roles-replaced");
+
+        // Keys, not names: a renamed role must not make an old audit entry unreadable.
+        entry.Before.ShouldNotBeNull().ShouldContain(first);
+        entry.After.ShouldNotBeNull().ShouldContain(second);
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ARoleThatDoesNotExistIsRefusedAndNothingIsReplaced()
+    {
+        using var administrator = await AdministratorAsync("adm-badrole", "203.0.113.84");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-badrole");
+        var (first, _) = await TwoAssignableRolesAsync();
+
+        await PutAsync(administrator, $"{Route(subject.Id)}/roles", new { roleKeys = new[] { first }, reason = Reason });
+
+        var refused = await PutRawAsync(
+            administrator,
+            $"{Route(subject.Id)}/roles",
+            new { roleKeys = new[] { first, "no_such_role" }, reason = Reason });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        // The whole replacement is refused, not the part of it that was valid — a partial apply would
+        // leave the administrator looking at a set they did not choose.
+        (await RoleKeysOfAsync(subject.Id)).ShouldBe([first]);
+    }
+
+    /// <summary>
+    /// Two administrators editing one person's access at the same moment: one wins, one is told.
+    /// </summary>
+    /// <remarks>
+    /// The verification issue #25 names by hand. Neither assignment table carries a concurrency token,
+    /// so what makes this contend at all is that the change touches the account row — and this test is
+    /// what proves that, because with the touch removed both writers would succeed and the second would
+    /// silently discard the first.
+    /// </remarks>
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task TwoAdministratorsReplacingOneAccountsRolesAtOnceProduceOneOutcome()
+    {
+        const int racerCount = 6;
+
+        using var administrator = await AdministratorAsync("adm-race", "203.0.113.85");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-race");
+        var (first, second) = await TwoAssignableRolesAsync();
+
+        // Every racer reads the same version, as six browser tabs opened from one list would.
+        var version = await VersionOfAsync(administrator, $"{Route(subject.Id)}/access");
+
+        var gate = await RowGate.HoldAsync(
+            DatabaseAvailability.ConnectionString!, "identity.users", subject.Id, TestContext.Current.CancellationToken);
+
+        var racers = Enumerable.Range(0, racerCount).Select(async index =>
+            await administrator.PutAsync(
+                $"{Route(subject.Id)}/roles",
+                new { roleKeys = new[] { index % 2 == 0 ? first : second }, reason = Reason },
+                ("If-Match", version),
+                ("Idempotency-Key", Guid.CreateVersion7().ToString()))).ToList();
+
+        await gate.ReleaseWhenWaitingAsync(racerCount, TestContext.Current.CancellationToken);
+        await gate.DisposeAsync();
+
+        var outcomes = await Task.WhenAll(racers);
+
+        outcomes.Count(response => response.StatusCode == HttpStatusCode.OK).ShouldBe(
+            1, "one edit is applied, whatever the interleaving");
+
+        foreach (var loser in outcomes.Where(response => response.StatusCode != HttpStatusCode.OK))
+        {
+            loser.StatusCode.ShouldBe(
+                HttpStatusCode.Conflict, "a losing administrator is told, not silently overwritten");
+        }
+
+        // Exactly one role, and exactly one audit entry: the losers changed nothing and recorded nothing.
+        (await RoleKeysOfAsync(subject.Id)).Count.ShouldBe(1);
+        (await AuditEntryCountAsync(subject.Id, "identity.user.roles-replaced")).ShouldBe(1);
+
+        foreach (var response in outcomes)
+        {
+            response.Dispose();
+        }
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task BranchAssignmentsAreRefusedWhenTheyWouldStrandTheAccount()
+    {
+        using var administrator = await AdministratorAsync("adm-branches", "203.0.113.86");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-branches");
+        var home = SessionTestData.HomeBranchId;
+
+        // Two primaries, which the store's filtered unique index would refuse as a server error.
+        var twoPrimaries = await PutRawAsync(
+            administrator,
+            $"{Route(subject.Id)}/branches",
+            new
+            {
+                branches = new[]
+                {
+                    new { branchId = home, isPrimary = true },
+                    new { branchId = Guid.CreateVersion7(), isPrimary = true },
+                },
+                reason = Reason,
+            });
+
+        twoPrimaries.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        // A branch that is not open at all.
+        var unknownBranch = await PutRawAsync(
+            administrator,
+            $"{Route(subject.Id)}/branches",
+            new
+            {
+                branches = new[] { new { branchId = Guid.CreateVersion7(), isPrimary = false } },
+                reason = Reason,
+            });
+
+        unknownBranch.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        // Leaving out the account's own default branch, which would send every screen it opens to a
+        // branch it cannot act in.
+        var withoutHome = await PutRawAsync(
+            administrator,
+            $"{Route(subject.Id)}/branches",
+            new { branches = Array.Empty<object>(), reason = Reason });
+
+        withoutHome.StatusCode.ShouldBe(HttpStatusCode.OK, "an empty set removes every assignment");
+
+        var valid = await PutRawAsync(
+            administrator,
+            $"{Route(subject.Id)}/branches",
+            new { branches = new[] { new { branchId = home, isPrimary = true } }, reason = Reason });
+
+        valid.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static string Route(Guid userId) => $"/api/v1/admin/users/{userId}";
 
     private static async Task SignInAsync(AuthenticationClient client, string userName)
         => (await client.PostAsync(
                 "/api/v1/auth/login", new { identifier = userName, password = AuthenticationTestData.Password }))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
-
-    private static async Task<string> VersionOfAsync(AdministratorClient client, Guid userId)
-    {
-        var read = await client.GetAsync(Route(userId));
-        read.StatusCode.ShouldBe(HttpStatusCode.OK);
-        return read.Headers.ETag.ShouldNotBeNull().Tag;
-    }
 
     /// <summary>
     /// An administrator signed in, enrolled, challenged and therefore freshly re-authenticated — which
@@ -505,10 +657,92 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         return (user, role.Id);
     }
 
+    private static async Task<string> VersionOfAsync(AdministratorClient client, string path)
+    {
+        var read = await client.GetAsync(path);
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+        return read.Headers.ETag.ShouldNotBeNull().Tag;
+    }
+
+    /// <summary>Sends a replacement and insists it succeeded.</summary>
+    private static async Task PutAsync<TBody>(AdministratorClient client, string path, TBody body)
+    {
+        var response = await PutRawAsync(client, path, body);
+
+        response.StatusCode.ShouldBe(
+            HttpStatusCode.OK,
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>Sends a replacement against the account's current version and returns whatever came back.</summary>
+    private static async Task<HttpResponseMessage> PutRawAsync<TBody>(
+        AdministratorClient client, string path, TBody body)
+    {
+        var userId = path[(path.IndexOf("users/", StringComparison.Ordinal) + "users/".Length)..];
+        userId = userId[..userId.IndexOf('/', StringComparison.Ordinal)];
+
+        var version = await VersionOfAsync(client, $"/api/v1/admin/users/{userId}/access");
+
+        return await client.PutAsync(
+            path,
+            body,
+            ("If-Match", version),
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+    }
+
+    private async Task<IReadOnlyList<string>> RoleKeysOfAsync(Guid userId)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+
+        return await context.UserRoles
+            .AsNoTracking()
+            .Where(assignment => assignment.UserId == userId)
+            .Join(context.Roles, assignment => assignment.RoleId, role => role.Id, (_, role) => role.Key)
+            .OrderBy(key => key)
+            .ToListAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Two roles this organisation has, created if the seeder has not run here.</summary>
+    private async Task<(string First, string Second)> TwoAssignableRolesAsync()
+    {
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<Tailor360.Platform.Abstractions.Time.IClock>();
+        var ids = scope.ServiceProvider.GetRequiredService<Tailor360.Platform.Abstractions.Identifiers.IIdGenerator>();
+
+        var keys = new List<string>();
+
+        foreach (var name in (string[])["assignable_one", "assignable_two"])
+        {
+            var existing = await context.Roles.FirstOrDefaultAsync(
+                role => role.OrganisationId == SessionTestData.OrganisationId && role.Key == name,
+                TestContext.Current.CancellationToken);
+
+            if (existing is null)
+            {
+                context.Roles.Add(Role.Define(
+                    ids.NewId(),
+                    SessionTestData.OrganisationId,
+                    name,
+                    $"Assignable {name}",
+                    "A role these tests assign and unassign.",
+                    RoleReach.Branch,
+                    clock.UtcNow).Value);
+            }
+
+            keys.Add(name);
+        }
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return (keys[0], keys[1]);
+    }
+
     /// <summary>Applies one administrative command and insists it succeeded.</summary>
     private static async Task CommandAsync(AdministratorClient administrator, Guid userId, string segment)
     {
-        var version = await VersionOfAsync(administrator, userId);
+        var version = await VersionOfAsync(administrator, Route(userId));
 
         var response = await administrator.PostAsync(
             $"{Route(userId)}/{segment}",
@@ -597,6 +831,10 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         public Task<HttpResponseMessage> PostAsync<TBody>(
             string path, TBody body, params (string Name, string Value)[] headers)
             => client.PostAsync(path, body, headers);
+
+        public Task<HttpResponseMessage> PutAsync<TBody>(
+            string path, TBody body, params (string Name, string Value)[] headers)
+            => client.PutAsync(path, body, headers);
 
         public void Dispose() => client.Dispose();
     }

@@ -241,6 +241,8 @@ public static class IdentityModuleServiceCollectionExtensions
         services.TryAddScoped<IMfaChallengeService, MfaChallengeService>();
         services.TryAddScoped<TotpEnrolmentHandler>();
         services.TryAddScoped<UserAdministrationHandler>();
+        services.TryAddScoped<IUserAssignmentStore, UserAssignmentStore>();
+        services.TryAddScoped<UserAssignmentHandler>();
     }
 
     private static void AddPasskeyServices(IServiceCollection services)

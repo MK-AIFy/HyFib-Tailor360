@@ -239,6 +239,45 @@ public static class IdentityErrors
         "identity.cannot-administer-own-account",
         "You cannot apply this to your own account. Ask another administrator.");
 
+    /// <summary>A role was named that this organisation does not have.</summary>
+    public static Error RoleNotFound(string? key) => Error.Validation(
+        "identity.role-not-found",
+        $"There is no role called '{key}' in this organisation.",
+        "roleKeys");
+
+    /// <summary>A branch was named that is not open, or does not belong to this organisation.</summary>
+    public static Error BranchNotAssignable(Guid branchId) => Error.Validation(
+        "identity.branch-not-assignable",
+        $"Branch {branchId} is closed or belongs to another organisation, so nobody can be assigned to it.",
+        "branches");
+
+    /// <summary>More than one branch was marked as the account's usual place of work.</summary>
+    public static Error OnePrimaryBranchOnly { get; } = Error.Validation(
+        "identity.one-primary-branch-only",
+        "Choose exactly one branch as the usual place of work.",
+        "branches");
+
+    /// <summary>
+    /// The account's default branch was left out of its assignments, which would send every screen to
+    /// a branch its holder cannot act in.
+    /// </summary>
+    public static Error HomeBranchNotAssigned { get; } = Error.Validation(
+        "identity.home-branch-not-assigned",
+        "The account's default branch has to be one of the branches it is assigned to.",
+        "branches");
+
+    /// <summary>
+    /// The change would leave the organisation with nobody who can administer accounts.
+    /// </summary>
+    /// <remarks>
+    /// The only way back from that state is a database edit, which is exactly what this whole surface
+    /// exists to make unnecessary.
+    /// </remarks>
+    public static Error LastAdministrator { get; } = Error.Conflict(
+        "identity.last-administrator",
+        "This would leave nobody able to administer accounts. Give somebody else an administrative "
+        + "role first, then take this one away.");
+
     /// <summary>The session is revoked, idle-expired or past its absolute expiry.</summary>
     public static Error SessionNotActive { get; } = Error.Forbidden(
         "identity.session-not-active",

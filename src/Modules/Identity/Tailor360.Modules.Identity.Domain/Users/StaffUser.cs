@@ -731,6 +731,21 @@ public sealed class StaffUser
         }
     }
 
+    /// <summary>
+    /// Records that an administrator changed something about this account that is stored beside it
+    /// rather than on it.
+    /// </summary>
+    /// <remarks>
+    /// Role and branch assignments are rows of their own, and neither carries a concurrency token — so
+    /// two administrators editing the same person's access at the same moment would both succeed and
+    /// the second would silently discard the first. Touching the account makes the two edits contend
+    /// for the one row that does carry a token, which is what turns "last writer wins" into a refusal
+    /// the loser can see and act on.
+    /// </remarks>
+    /// <param name="now">The current instant, from <c>IClock</c>.</param>
+    /// <param name="by">The administrator making the change.</param>
+    public void RecordAdministrativeChange(DateTimeOffset now, Guid by) => Touch(now, by);
+
     private void Touch(DateTimeOffset now, Guid? by)
     {
         UpdatedAt = now;
