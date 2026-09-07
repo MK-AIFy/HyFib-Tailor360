@@ -134,15 +134,41 @@ export function resolveStockScan(payload: string): StockScanResolution {
   return item === undefined ? { outcome: 'unknown' } : { outcome: 'accepted', item }
 }
 
-/** How much of the base unit one purchase unit holds, for the conversion step 1 asks to hear. */
-export const PURCHASE_UNITS = [
-  { value: 'm', label: 'Metres', baseUnitsEach: 1 },
-  { value: 'roll', label: 'Rolls of 25 m', baseUnitsEach: 25 },
-  { value: 'card', label: 'Cards', baseUnitsEach: 1 },
-  { value: 'box', label: 'Boxes of 24 cards', baseUnitsEach: 24 },
-] as const
+/**
+ * The units a purchase can arrive in, and how much of the stocked unit each one holds.
+ *
+ * `baseUnitSymbol` is what ties a purchase unit to an item, and it is not decoration. Without it
+ * every unit is offered for every item, and choosing hook cards while rolls of lining is still
+ * selected produces "2 x Rolls of 25 m is 50 card" — a sentence that is wrong in exactly the way
+ * step 1 of `A11Y-RJ-05` exists to catch, and one a clerk would post to the ledger without blinking.
+ * `purchaseUnitsFor` is what a screen offers; nothing offers this whole list.
+ */
+export interface PurchaseUnit {
+  readonly value: string
+  readonly label: string
+  /** The stocked unit this purchase unit converts into. */
+  readonly baseUnitSymbol: string
+  /** How many of the stocked unit one of these holds. */
+  readonly baseUnitsEach: number
+}
 
-export type PurchaseUnitValue = (typeof PURCHASE_UNITS)[number]['value']
+export const PURCHASE_UNITS: readonly PurchaseUnit[] = [
+  { value: 'm', label: 'Metres', baseUnitSymbol: 'm', baseUnitsEach: 1 },
+  { value: 'roll', label: 'Rolls of 25 m', baseUnitSymbol: 'm', baseUnitsEach: 25 },
+  { value: 'card', label: 'Cards', baseUnitSymbol: 'card', baseUnitsEach: 1 },
+  { value: 'box', label: 'Boxes of 24 cards', baseUnitSymbol: 'card', baseUnitsEach: 24 },
+  { value: 'kit', label: 'Kits', baseUnitSymbol: 'kit', baseUnitsEach: 1 },
+  { value: 'reel', label: 'Reels', baseUnitSymbol: 'reel', baseUnitsEach: 1 },
+  { value: 'reel-box', label: 'Boxes of 12 reels', baseUnitSymbol: 'reel', baseUnitsEach: 12 },
+]
+
+/** The purchase units that convert into this item's stocked unit. Never empty for a stocked item. */
+export function purchaseUnitsFor(item: StockItem | undefined): readonly PurchaseUnit[] {
+  if (item === undefined) {
+    return []
+  }
+  return PURCHASE_UNITS.filter((unit) => unit.baseUnitSymbol === item.unitSymbol)
+}
 
 /**
  * One movement on the stock ledger, newest first.

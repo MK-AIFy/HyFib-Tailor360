@@ -76,6 +76,22 @@ export function CashierPaymentScreen() {
   const balance = INVOICE.balance
   const overpaid = !advance && amount > balance
 
+  /*
+   * Opening a payment clears the last one.
+   *
+   * The receipt is the evidence that a payment was recorded; leaving it on the screen while the
+   * source, the amount and the mode all changed underneath it says the *new* payment has been taken
+   * when nothing has. Everything specific to one attempt is cleared together, in one place, so the
+   * next thing added to this screen cannot be forgotten here.
+   */
+  function openPayment(next: 'invoice' | 'order') {
+    setSource(next)
+    setAdvance(next === 'order')
+    setAmount(next === 'order' ? 500 : balance)
+    setReceipt(null)
+    setSessionExpired(false)
+  }
+
   const amountError = overpaid
     ? t(
         `That is more than the balance. The balance on ${INVOICE.number} is ${formatters.formatMoney(balance)} — enter ${formatters.formatMoney(balance)}, or record the difference as an advance against the customer instead.`,
@@ -94,9 +110,7 @@ export function CashierPaymentScreen() {
         <ButtonGroup>
           <Button
             onClick={() => {
-              setSource('invoice')
-              setAdvance(false)
-              setAmount(balance)
+              openPayment('invoice')
             }}
             variant={source === 'invoice' ? 'primary' : 'secondary'}
           >
@@ -104,9 +118,7 @@ export function CashierPaymentScreen() {
           </Button>
           <Button
             onClick={() => {
-              setSource('order')
-              setAdvance(true)
-              setAmount(500)
+              openPayment('order')
             }}
             variant={source === 'order' ? 'primary' : 'secondary'}
           >

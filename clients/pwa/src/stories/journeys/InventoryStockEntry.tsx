@@ -16,10 +16,10 @@ import { getFormatters } from '../../i18n/formatters'
 import { NOW, PHASES, STAFF } from '../fixtures/branch'
 import {
   LEDGER,
-  PURCHASE_UNITS,
   STOCKTAKE,
   STOCK_ITEMS,
   SUPPLIERS,
+  purchaseUnitsFor,
   resolveStockScan,
   variance,
 } from '../fixtures/inventory'
@@ -65,7 +65,7 @@ export function InventoryStockEntryScreen() {
 
   const [supplierId, setSupplierId] = useState<string>(SUPPLIERS[0]?.id ?? '')
   const [receiveItemId, setReceiveItemId] = useState<string>(STOCK_ITEMS[0]?.id ?? '')
-  const [purchaseUnit, setPurchaseUnit] = useState<string>(PURCHASE_UNITS[1]?.value ?? 'm')
+  const [purchaseUnit, setPurchaseUnit] = useState<string>('roll')
   const [purchaseQuantity, setPurchaseQuantity] = useState(2)
 
   const [payload, setPayload] = useState('')
@@ -84,7 +84,16 @@ export function InventoryStockEntryScreen() {
   const [online, setOnline] = useState(true)
 
   const receiveItem = STOCK_ITEMS.find((item) => item.id === receiveItemId)
-  const unit = PURCHASE_UNITS.find((candidate) => candidate.value === purchaseUnit)
+
+  /*
+   * The units offered are the ones that convert into *this* item's stocked unit, and the selected
+   * one falls back to the first of them whenever the item changes underneath it. Derived rather than
+   * corrected in an effect: an effect that re-set the selection would render one frame of "2 rolls
+   * of 25 m is 50 card" before fixing itself, and that frame is the whole defect.
+   */
+  const availableUnits = purchaseUnitsFor(receiveItem)
+  const unit =
+    availableUnits.find((candidate) => candidate.value === purchaseUnit) ?? availableUnits[0]
   const baseQuantity = purchaseQuantity * (unit?.baseUnitsEach ?? 1)
   const scannedItem = STOCK_ITEMS.find((item) => item.id === scannedItemId)
   const issueItem = scannedItem ?? receiveItem
@@ -168,16 +177,18 @@ export function InventoryStockEntryScreen() {
             value={purchaseQuantity}
           />
           <Select
-            description={t('The unit on the supplier’s note, which need not be the stocked unit.')}
+            description={t(
+              'The unit on the supplier’s note, which need not be the stocked unit. Only the units that convert into this item are offered.',
+            )}
             emptyLabel={null}
             label={t('Received in')}
             name="purchaseUnit"
             onValueChange={setPurchaseUnit}
-            options={PURCHASE_UNITS.map((candidate) => ({
+            options={availableUnits.map((candidate) => ({
               value: candidate.value,
               label: t(candidate.label),
             }))}
-            value={purchaseUnit}
+            value={unit?.value ?? ''}
           />
         </div>
 

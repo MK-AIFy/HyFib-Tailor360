@@ -359,6 +359,106 @@ describe('A11Y-RJ-08 — Owner: dashboard, alerts and reports', () => {
   })
 })
 
+/*
+ * The four defects the review of this change found, each pinned so it cannot come back.
+ *
+ * All four are the same shape: state left over from the last thing the person did, presented as
+ * though it belonged to the next one. That is the failure mode of a screen held in `useState`, and
+ * it is worth a test each because every one of them would put a wrong sentence in front of a
+ * reviewer walking the record — which is the one thing this evidence must not do.
+ */
+describe('state does not leak from one attempt to the next', () => {
+  it('offers only the purchase units that convert into the selected item', async () => {
+    const user = userEvent.setup()
+    renderJourney('inventory', 'tablet', <InventoryStockEntryScreen />)
+
+    // Cotton lining is stocked in metres, so rolls of 25 m are on offer.
+    expect(screen.getByRole('option', { name: 'Rolls of 25 m' })).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText(/^Item/), 'ST-0107')
+
+    // Hook cards are stocked in cards. "2 rolls of 25 m is 50 card" is the sentence this prevents.
+    expect(screen.queryByRole('option', { name: 'Rolls of 25 m' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Boxes of 24 cards' })).toBeInTheDocument()
+
+    // The selection falls back to the first unit this item does convert into, and the sentence
+    // follows it rather than keeping the stale one.
+    expect(screen.getByText(/× Cards/)).toHaveTextContent('Hook card — 12 pairs')
+
+    await user.selectOptions(screen.getByLabelText(/Received in/), 'box')
+
+    const conversion = screen.getByText(/× Boxes of 24 cards/)
+    expect(conversion).toHaveTextContent('48')
+    expect(conversion).toHaveTextContent('Drawer B1')
+  })
+
+  it('refuses to complete a phase while the job is on hold, and says so', async () => {
+    const user = userEvent.setup()
+    renderJourney('tailor', 'phone', <TailorQueueScreen />)
+
+    await user.click(screen.getByRole('button', { name: 'Open J-CBE01-2627-000512-01' }))
+    await user.click(screen.getByRole('button', { name: 'Start Stitching' }))
+    await user.click(screen.getByRole('button', { name: 'Put the job on hold' }))
+
+    const complete = screen.getByRole('button', { name: 'Complete Stitching' })
+    // aria-disabled rather than disabled: it keeps its place in the tab order and announces itself.
+    expect(complete).toHaveAttribute('aria-disabled', 'true')
+    await user.click(complete)
+    expect(screen.queryByText(/Phase complete/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Clear the hold' }))
+
+    expect(screen.getByRole('button', { name: 'Complete Stitching' })).not.toHaveAttribute(
+      'aria-disabled',
+    )
+  })
+
+  it('clears the last receipt when another payment is opened', async () => {
+    const user = userEvent.setup()
+    renderJourney('cashier', 'tablet', <CashierPaymentScreen />)
+
+    await user.click(screen.getByRole('button', { name: /From invoice INV-CBE01-2627-000731/ }))
+    await user.click(screen.getByRole('radio', { name: 'Cash' }))
+    await user.click(screen.getByRole('button', { name: 'Take the payment' }))
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Record the payment' }),
+    )
+
+    expect(screen.getByText(/Receipt RCPT-CBE01-2627-001366/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /From order O-CBE01-2627-000512/ }))
+
+    // The advance has not been taken yet. A receipt still on the screen would say it had.
+    expect(screen.queryByText(/Receipt RCPT-CBE01-2627-001366/)).not.toBeInTheDocument()
+  })
+
+  it('clears the doorstep name and password when another job is scanned', async () => {
+    const user = userEvent.setup()
+    renderJourney('delivery', 'phone', <DeliveryDispatchScreen />)
+
+    await user.click(screen.getByRole('button', { name: 'Receive scan on J-CBE01-2627-000512-01' }))
+    await user.click(screen.getByRole('button', { name: 'Dispatch scan' }))
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Dispatch it' }),
+    )
+    await user.type(screen.getByLabelText(/Name of the person receiving it/), 'Meena (neighbour)')
+    await user.type(screen.getByLabelText(/One-time password/), '204815')
+    await user.click(screen.getByRole('button', { name: 'Confirm the handover' }))
+
+    expect(screen.getByText(/was received by Meena \(neighbour\)/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Receive scan on J-CBE01-2627-001007-01' }))
+    await user.click(screen.getByRole('button', { name: 'Dispatch scan' }))
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Dispatch it' }),
+    )
+
+    // One press on a pre-filled form would sign the previous recipient for this garment.
+    expect(screen.getByLabelText(/Name of the person receiving it/)).toHaveValue('')
+    expect(screen.getByLabelText(/One-time password/)).toHaveValue('')
+  })
+})
+
 describe('every reference journey, as axe sees it', () => {
   /*
    * The automated half of the accessibility evidence Definition of Done item 7 asks for. axe in

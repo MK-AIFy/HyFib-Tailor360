@@ -77,6 +77,20 @@ export function DeliveryDispatchScreen() {
     setDispatched(false)
     setOutcome(null)
 
+    /*
+     * Everything the last doorstep left behind goes with it.
+     *
+     * Hiding the form is not clearing it: a second job scanned after the first was delivered would
+     * reopen a filled-in, enabled confirmation carrying the previous recipient's name and their
+     * one-time password, and one press would sign that person for somebody else's garment. The
+     * custody record is the whole point of this screen, so the state that makes it is reset at the
+     * scan rather than at the render.
+     */
+    setRecipient('')
+    setPassword('')
+    setPasswordError(undefined)
+    setExceptionRequested(false)
+
     if (entry.eligibility === 'paid') {
       setRefused(null)
       setAuthorised(entry.job)

@@ -222,8 +222,31 @@ export function TailorQueueScreen() {
             </Card>
 
             {held === null ? null : (
-              <Alert live="polite" title={t('This job is on hold')} tone="warning">
-                {t(held)}
+              <Alert
+                actions={
+                  <Button
+                    iconName="play"
+                    onClick={() => {
+                      setHeld(null)
+                      status.announceSync({
+                        tone: 'success',
+                        message: t(
+                          `Hold cleared on ${openJob.id}. The phase can be completed now.`,
+                        ),
+                      })
+                    }}
+                  >
+                    {t('Clear the hold')}
+                  </Button>
+                }
+                live="polite"
+                title={t('This job is on hold')}
+                tone="warning"
+              >
+                {t(held)}{' '}
+                {t(
+                  'The phase cannot be completed while the hold stands — a garment nobody has the material for is not finished.',
+                )}
               </Alert>
             )}
 
@@ -378,6 +401,13 @@ export function TailorQueueScreen() {
                       })
                     }}
                     size="primary"
+                    /*
+                     * `unavailable`, not `disabled`: the control keeps its place in the tab order and
+                     * announces that it cannot be used, and the alert above says why. A phase
+                     * completed over a live material hold would report a garment finished that
+                     * nobody has the stones for.
+                     */
+                    unavailable={held !== null}
                     variant="primary"
                   >
                     {t(`Complete ${openJob.phase}`)}
