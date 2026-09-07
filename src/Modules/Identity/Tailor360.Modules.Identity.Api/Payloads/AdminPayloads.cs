@@ -279,13 +279,13 @@ public sealed record BranchPayload(
     }
 }
 
-/// <summary>A branch to open, or the new description of one that exists.</summary>
+/// <summary>A branch to open.</summary>
 /// <remarks>
-/// <c>code</c> is read when opening and ignored when reconfiguring. It is embedded in every document
-/// number the branch has ever produced, so it cannot change — and a field that silently did nothing
-/// would be worse than one that is documented as read once.
+/// The code is here and nowhere else. It is embedded in every order, estimate and invoice number the
+/// branch will ever produce, so it is chosen once and never again — which is why reconfiguring takes a
+/// different shape rather than this one with a field that silently does nothing.
 /// </remarks>
-/// <param name="Code">The short code, on opening only.</param>
+/// <param name="Code">The short code that will appear in the branch's document numbers.</param>
 /// <param name="Name">The branch name.</param>
 /// <param name="TimeZoneId">The IANA timezone its due dates are computed in.</param>
 /// <param name="AddressLine1">First line of the street address.</param>
@@ -369,3 +369,46 @@ public sealed record FeatureFlagPayload(
 /// <param name="Enabled">Whether the flag should be on.</param>
 /// <param name="Reason">Why the change is being made.</param>
 public sealed record SetFeatureFlagPayload(bool Enabled, string? Reason);
+
+/// <summary>The new description of a branch that already exists.</summary>
+/// <remarks>
+/// No code. It cannot change, and publishing a field that is accepted and ignored would invite a
+/// client to send one and believe it took effect.
+/// </remarks>
+/// <param name="Name">The branch name.</param>
+/// <param name="TimeZoneId">The IANA timezone its due dates are computed in.</param>
+/// <param name="AddressLine1">First line of the street address.</param>
+/// <param name="AddressLine2">Second line of the street address.</param>
+/// <param name="City">The town or city.</param>
+/// <param name="State">The state.</param>
+/// <param name="PostalCode">The postal code.</param>
+/// <param name="ContactPhone">The number customers and couriers call.</param>
+/// <param name="ContactEmail">The address customer correspondence comes from.</param>
+/// <param name="GstRegistrationReference">Which GST registration the branch trades under.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record ReconfigureBranchPayload(
+    string? Name,
+    string? TimeZoneId,
+    string? AddressLine1,
+    string? AddressLine2,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? ContactPhone,
+    string? ContactEmail,
+    string? GstRegistrationReference,
+    string? Reason)
+{
+    /// <summary>The editable description this request carries.</summary>
+    public BranchDetails Details() => new(
+        Name,
+        TimeZoneId,
+        AddressLine1,
+        AddressLine2,
+        City,
+        State,
+        PostalCode,
+        ContactPhone,
+        ContactEmail,
+        GstRegistrationReference);
+}

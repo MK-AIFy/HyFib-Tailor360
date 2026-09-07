@@ -123,7 +123,7 @@ public static class BranchAdminEndpoints
 
         branches.MapPut("/{branchId:guid}", async Task<IResult> (
                 Guid branchId,
-                OpenBranchPayload request,
+                ReconfigureBranchPayload request,
                 HttpContext context,
                 BranchAdministrationHandler handler,
                 ICurrentUser caller,

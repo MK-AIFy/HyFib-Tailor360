@@ -856,6 +856,19 @@ export interface components {
         ReasonPayload: {
             reason: null | string;
         };
+        ReconfigureBranchPayload: {
+            addressLine1: null | string;
+            addressLine2: null | string;
+            city: null | string;
+            contactEmail: null | string;
+            contactPhone: null | string;
+            gstRegistrationReference: null | string;
+            name: null | string;
+            postalCode: null | string;
+            reason: null | string;
+            state: null | string;
+            timeZoneId: null | string;
+        };
         RecoveryAcceptedPayload: {
             message: string;
         };
@@ -1107,6 +1120,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "addressLine1": "12 Example Street",
+                 *       "addressLine2": "Near the bus stand",
                  *       "city": "Madurai",
                  *       "code": "MADURAI1",
                  *       "contactEmail": "madurai@synthetic.invalid",
@@ -1210,6 +1224,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "addressLine1": "14 Example Street",
+                 *       "addressLine2": "Near the bus stand",
                  *       "city": "Madurai",
                  *       "contactEmail": "madurai@synthetic.invalid",
                  *       "contactPhone": "+91 90000 00001",
@@ -1221,7 +1236,7 @@ export interface operations {
                  *       "timeZoneId": "Asia/Kolkata"
                  *     }
                  */
-                "application/json": components["schemas"]["OpenBranchPayload"];
+                "application/json": components["schemas"]["ReconfigureBranchPayload"];
             };
         };
         responses: {

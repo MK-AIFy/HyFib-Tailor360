@@ -941,6 +941,90 @@
         ],
         "type": "object"
       },
+      "ReconfigureBranchPayload": {
+        "properties": {
+          "addressLine1": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "addressLine2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "city": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gstRegistrationReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "state": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeZoneId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "timeZoneId",
+          "addressLine1",
+          "addressLine2",
+          "city",
+          "state",
+          "postalCode",
+          "contactPhone",
+          "contactEmail",
+          "gstRegistrationReference",
+          "reason"
+        ],
+        "type": "object"
+      },
       "RecoveryAcceptedPayload": {
         "properties": {
           "message": {
@@ -1493,6 +1577,7 @@
             "application/json": {
               "example": {
                 "addressLine1": "12 Example Street",
+                "addressLine2": "Near the bus stand",
                 "city": "Madurai",
                 "code": "MADURAI1",
                 "contactEmail": "madurai@synthetic.invalid",
@@ -1663,6 +1748,7 @@
             "application/json": {
               "example": {
                 "addressLine1": "14 Example Street",
+                "addressLine2": "Near the bus stand",
                 "city": "Madurai",
                 "contactEmail": "madurai@synthetic.invalid",
                 "contactPhone": "+91 90000 00001",
@@ -1674,7 +1760,7 @@
                 "timeZoneId": "Asia/Kolkata"
               },
               "schema": {
-                "$ref": "#/components/schemas/OpenBranchPayload"
+                "$ref": "#/components/schemas/ReconfigureBranchPayload"
               }
             }
           },
