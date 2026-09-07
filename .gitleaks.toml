@@ -1,0 +1,63 @@
+# What the secret scan is allowed to ignore, and why.
+#
+# The scan runs on every pull request (`.github/workflows/ci.yml`, the "Security checks" job) over the
+# full history, not the working tree, so a value committed once and deleted later is still found. That
+# is the point: a leaked credential is leaked from the moment it is pushed.
+#
+# The default rule set is kept whole — `useDefault = true` — and nothing below turns a rule off. What
+# is listed is a small set of **exact literal values** that are documentation and fixtures, allowlisted
+# one value at a time rather than by file or by rule. That distinction is the whole design:
+#
+#   * A path allowlist would say "never look in this file again", and the next real credential added to
+#     it would pass silently. Every file named below is one this repository writes examples into, so a
+#     path allowlist is exactly the wrong shape for it.
+#   * A value allowlist says "this specific string is known and is not a credential". A different
+#     high-entropy string in the same file, on the same line, still fails the build.
+#
+# The consequence is deliberate: changing one of these fixtures makes the scan fail until somebody
+# updates this file. That is a review moment, not an inconvenience — it is the moment at which
+# "somebody changed an example" and "somebody pasted a real token into an example" look identical to
+# everything except a person reading the diff.
+#
+# Adding an entry: paste the exact literal, say what it is and why it cannot authenticate anything, and
+# name the file it lives in. If you cannot write that sentence honestly, the value does not belong in
+# the repository at all — see docs/nfr/data-classification.md and CLAUDE.md section 4 rule 10.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented example payloads and test fixtures. Each is an exact literal, never a path."
+
+# `regexTarget = "secret"` matches the value the rule extracted rather than the whole line, so an entry
+# here cannot accidentally allow a neighbouring value on the same line.
+regexTarget = "secret"
+
+regexes = [
+  # --- WebAuthn example payloads -----------------------------------------------------------------
+  # Base64url of the ASCII text "example-authenticator-data". It appears in the passkey assertion
+  # example in src/Hosts/Tailor360.Web/OpenApi/PayloadExamples.cs, and therefore in the two artefacts
+  # generated from it: docs/api/openapi.v1.json and clients/pwa/src/api/schema.d.ts. A WebAuthn
+  # assertion is signed over a challenge the server issued seconds earlier, so even a genuine capture
+  # authenticates nothing; this one decodes to a sentence.
+  '''^ZXhhbXBsZS1hdXRoZW50aWNhdG9yLWRhdGE$''',
+
+  # --- Recovery-link example ---------------------------------------------------------------------
+  # Base64url of "not-a-real-recovery-token", in the password-recovery example and its two generated
+  # copies. A recovery token is single-use, short-lived and hashed at rest; this string was never
+  # issued by anything.
+  '''^bm90LWEtcmVhbC1yZWNvdmVyeS10b2tlbg$''',
+
+  # --- Authenticator enrolment story -------------------------------------------------------------
+  # The Base32 seed in the `otpauth://` URI rendered by the Storybook story for the enrolment screen
+  # (clients/pwa/src/auth/auth.stories.tsx). A story needs a scannable QR code to show what the screen
+  # looks like; the seed is invented and belongs to no account in any environment.
+  '''^MFZWIZTBONSGC3THMFZWIZTB$''',
+
+  # --- Integration-test account password ---------------------------------------------------------
+  # The password every account seeded by tests/Tailor360.IntegrationTests/Identity/AuthenticationClient.cs
+  # uses. The accounts it authenticates exist only inside a test database that is created and dropped
+  # by the run, and the password policy is what dictates its length. It is the xkcd passphrase, chosen
+  # so that a reader recognises it as an example on sight.
+  '''^correct-horse-battery-staple-77$''',
+]

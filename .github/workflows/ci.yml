@@ -499,6 +499,10 @@ jobs:
           persist-credentials: false
 
       - name: Scan for secrets (gitleaks)
+        # The rule set is the default one, extended by `.gitleaks.toml` at the repository root, which
+        # gitleaks picks up on its own. That file allowlists exact literal values — the documented
+        # example payloads and the integration-test account password — and never a file or a rule, so a
+        # real credential added beside one of them still fails this job.
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
