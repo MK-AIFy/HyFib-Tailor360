@@ -1,6 +1,9 @@
 using System.CommandLine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Tailor360.Modules.Identity.Application.Access;
+using Tailor360.Modules.Identity.Domain.Branches;
+using Tailor360.Modules.Identity.Infrastructure.Persistence;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Persistence.Entities;
@@ -38,9 +41,21 @@ public static class SeedSyntheticCommand
             using var host = CliHost.Build();
             using var scope = host.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
             var clock = scope.ServiceProvider.GetRequiredService<IClock>();
 
             Console.WriteLine($"Environment: {EnvironmentGuard.CurrentEnvironment}");
+
+            // The two branches come first: a branch assignment has to point at a branch, and the whole
+            // point of seeding two is that branch scope can be exercised against a branch the actor is
+            // not assigned to. The identifiers are fixed so that fixtures and the role walkthrough can
+            // name them.
+            await UpsertBranchAsync(
+                identity, clock, MainBranchId, "MAIN", "Main Branch", cancellationToken);
+            await UpsertBranchAsync(
+                identity, clock, SecondBranchId, "SECOND", "Second Branch", cancellationToken);
+
+            await identity.SaveChangesAsync(cancellationToken);
 
             // Upserting rather than inserting keeps the command repeatable, which is what makes it
             // usable as a test fixture as well as a development convenience.
@@ -54,6 +69,9 @@ public static class SeedSyntheticCommand
             Console.WriteLine("Synthetic feature flags seeded for the organisation and the second branch.");
             Console.WriteLine($"Branch identifiers: main {MainBranchId}, second {SecondBranchId}.");
             Console.WriteLine(
+                "One representative user per role in each branch is created by the administration " +
+                "screens of issue #25; docs/security/role-walkthrough.md scripts what to do with them.");
+            Console.WriteLine(
                 "Customers, catalogue, orders and billing fixtures are added by their own issues and " +
                 "consolidated into the shared fixture library by issue #61a.");
 
@@ -61,6 +79,47 @@ public static class SeedSyntheticCommand
         });
 
         return command;
+    }
+
+    /// <summary>
+    /// Creates a synthetic branch, or corrects its name if it drifted. Repeatable, like everything else
+    /// in this command, so it doubles as a test fixture.
+    /// </summary>
+    private static async Task UpsertBranchAsync(
+        IdentityDbContext context,
+        IClock clock,
+        Guid branchId,
+        string code,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var now = clock.UtcNow;
+        var existing = await context.Branches
+            .SingleOrDefaultAsync(branch => branch.Id == branchId, cancellationToken);
+
+        if (existing is not null)
+        {
+            var reconfigured = existing.Reconfigure(
+                new BranchDetails(name, Branch.DefaultTimeZoneId), now, by: null);
+            if (reconfigured.IsFailure)
+            {
+                throw new InvalidOperationException(
+                    $"The synthetic branch {code} could not be refreshed: {reconfigured.Error.Message}");
+            }
+
+            return;
+        }
+
+        var opened = Branch.Open(
+            branchId, OrganisationDefaults.OrganisationId, code, name, now, Branch.DefaultTimeZoneId);
+
+        if (opened.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"The synthetic branch {code} could not be created: {opened.Error.Message}");
+        }
+
+        context.Branches.Add(opened.Value);
     }
 
     private static async Task UpsertFlagAsync(

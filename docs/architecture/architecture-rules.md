@@ -29,9 +29,11 @@ than on the day someone first exercises it.
 | Detector | Reads | Used by | Why this and not something else |
 | --- | --- | --- | --- |
 | Project graph | Every `*.csproj` on disk, through `RepositoryLayout` | ARCH-001 … ARCH-004, ARCH-006, ARCH-009 … ARCH-012 | Compiled metadata omits a reference nobody has called yet; the project file does not |
-| Source scan | The `.cs` text of every non-test project under `src/`, through `SourceScanner` | ARCH-005, ARCH-014 … ARCH-016 | Catches constructs the compiler is perfectly happy with; comments are skipped so a rule quoted in a doc comment is not reported as a breach of itself |
-| Endpoint inventory | The live route table built by `WebApplicationFactory` | ARCH-007, ARCH-008, ARCH-013, ARCH-017 … ARCH-019 | An endpoint's policy, audit and rate-limit metadata exist only once the application is composed |
-| Negative control | A synthetic snippet fed to the same detector | Every source-scan rule | Proves the detector still catches a violation, so a broken regular expression cannot make a rule silently pass |
+| Source scan | The `.cs` text of every non-test project under `src/`, through `SourceScanner` | ARCH-005, ARCH-014 … ARCH-016, ARCH-020 | Catches constructs the compiler is perfectly happy with; comments are skipped so a rule quoted in a doc comment is not reported as a breach of itself |
+| Endpoint inventory | The live route table built by `WebApplicationFactory` | ARCH-007, ARCH-008, ARCH-013, ARCH-017 … ARCH-019, ARCH-022, ARCH-023 | An endpoint's policy, audit and rate-limit metadata exist only once the application is composed |
+| Authorisation matrix | The same route table, reconciled with the endpoint block of `docs/security/permission-matrix.md` and with the permission catalogue, through `AuthorisationMatrix` | ARCH-018 | The rule compares one endpoint against two other artefacts, and a route with no approved row has to fail loudly rather than be absent from both sides |
+| Job declarations | Every hosted service in the composed `Tailor360.Worker` assembly, by reflection | ARCH-021 | A job's declared permissions and branch scope live on the type itself, and a job that carries none compiles perfectly well |
+| Negative control | A synthetic snippet, type or route fed to the same detector | Every source-scan rule, and every rule whose detector is a function of its own — ARCH-013, ARCH-018, ARCH-019, ARCH-022, ARCH-023 | Proves the detector still catches a violation, so a broken regular expression, an unreached branch of a type walk or a misread piece of metadata cannot make a rule silently pass |
 
 ---
 
@@ -51,13 +53,17 @@ than on the day someone first exercises it.
 | ARCH-010 | No Billing project references any Orders project. | `ModuleBoundaryTests` |
 | ARCH-011 | Reporting references only the `Contracts` projects of other modules. | `ModuleBoundaryTests` |
 | ARCH-012 | No project except a test project references `Tailor360.Web` or `Tailor360.Worker`. | `ModuleBoundaryTests` |
-| ARCH-013 | Every request and response payload type on the public API is declared in an `Api` project; no `Domain` type is ever returned from an endpoint. | `EndpointPolicyTests` |
+| ARCH-013 | Every request and response payload type on the public API is declared in an `Api` project; no `Domain` type is ever returned from an endpoint. | `EndpointPayloadTests` |
 | ARCH-014 | `DateTime.Now`, `DateTimeOffset.Now`, `DateTime.UtcNow`, `DateTimeOffset.UtcNow` and `DateTime.Today` appear nowhere in `src/` outside the clock abstraction. | `SourceConventionTests` |
 | ARCH-015 | `Guid.NewGuid()` appears nowhere in `src/` outside the identifier generator. | `SourceConventionTests` |
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp`. | `SourceConventionTests` |
-| ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue. | `EndpointPolicyTests` |
-| ARCH-018 | Every endpoint whose required permission is marked `RequiresStepUp` declares `.RequireStepUp()`. | `EndpointPolicyTests` |
-| ARCH-019 | No endpoint accepts more than one authentication scheme. | `EndpointPolicyTests` |
+| ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue. | `EndpointRateLimitTests` |
+| ARCH-018 | Every endpoint whose required permission is marked `RequiresStepUp` declares `.RequireStepUp()`. | `AuthorisationMatrixTests` |
+| ARCH-019 | No endpoint accepts more than one authentication scheme. | `AuthenticationSchemeTests` |
+| ARCH-020 | Only the worker and the command-line hosts reference `IWorkerScopeFactory`. | `BackgroundContextTests` |
+| ARCH-021 | Every background job declares its permissions and branch scope with `[WorkerJob]`. | `BackgroundContextTests` |
+| ARCH-022 | No endpoint declares both a permission and a justified anonymous exposure. | `EndpointResourceScopeTests` |
+| ARCH-023 | A branch-scoped permissioned endpoint with a route parameter declares a resource scope, or records why it names no branch-owned row. | `EndpointResourceScopeTests` |
 
 ### 2.1 Implementation status
 
@@ -66,11 +72,13 @@ than on the day someone first exercises it.
 | ARCH-001 … ARCH-006 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
 | ARCH-007, ARCH-008 | Enforced | `tests/Tailor360.ContractTests` — see **ROD-01** in Section 6 | #20 |
 | ARCH-009 … ARCH-012 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
-| ARCH-013 | Specified | — | #25, backstopped by the OpenAPI gate in #53 |
+| ARCH-013 | Enforced | `tests/Tailor360.ContractTests` — see **ROD-01** in Section 6 | #53 |
 | ARCH-014 … ARCH-016 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
-| ARCH-017 | Specified | — | #53 |
-| ARCH-018 | Specified | — | #24 |
-| ARCH-019 | Specified | — | #23 |
+| ARCH-017 | Enforced | `tests/Tailor360.ContractTests` — see **ROD-01** in Section 6 | #53 |
+| ARCH-018 | Enforced | `tests/Tailor360.IntegrationTests` | #24 |
+| ARCH-019 | Enforced | `tests/Tailor360.ContractTests` | #23; the per-endpoint assertion #53 |
+| ARCH-020, ARCH-021 | Enforced | `tests/Tailor360.ArchitectureTests` | #24 |
+| ARCH-022, ARCH-023 | Enforced | `tests/Tailor360.ContractTests` | #24 |
 
 ### 2.2 The dependency shape the rules defend
 
@@ -175,7 +183,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Deny by default is the only safe default for a system holding customer contact details, measurements, garment images and financial documents. The failure this rule prevents is silent: a new endpoint that simply omits `.RequirePermission(…)` is reachable by anyone who can reach the host, and no reviewer reliably notices an absence. Requiring an explicit, written justification turns every anonymous route into a deliberate, reviewable decision. |
 | **Allowed exceptions** | The health probes `/health/live`, `/health/startup`, `/health/ready` and `/health/detail`; and any endpoint declared with `AllowAnonymousWithJustification`. The anonymous set sanctioned by plan Section 4.4 is: customer link pages under `/c/{purpose}/{token}`, payment provider callbacks, telemetry ingest, the version endpoint, the PWA shell fallback, the OpenAPI document in Development only, and the sign-in, MFA-challenge, passkey and recovery endpoints, which are anonymous by nature and are protected instead by anti-forgery, the `auth-anon` and `mfa-challenge` rate-limit policies and the `Sec-Fetch-Site`/`Origin` check. |
 | **How an exception is registered** | In code, by calling `.AllowAnonymousWithJustification(justification, reviewedIn)` from `Tailor360.Platform.Security.Endpoints`. The justification must be longer than 20 characters and `reviewedIn` must name the issue, ADR or threat model where the exposure was reviewed; `EndpointPolicyTests.EveryAnonymousExposureRecordsItsReview` fails otherwise. From #56a onward the referenced threat model must also list the endpoint. |
-| **Test** | `EndpointPolicyTests.Arch007_EveryEndpointDeclaresAPolicyOrAJustifiedAnonymousExposure`, currently in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` because it needs a composed application to read the route table — see **ROD-01**. |
+| **Test** | `EndpointPolicyTests.Arch007_EveryEndpointDeclaresAPolicyOrAJustifiedAnonymousExposure`, currently in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` because it needs a composed application to read the route table — see **ROD-01**. The citation each exemption carries is checked separately by `EndpointReviewCitationTests.EveryReviewCitationNamesADocumentThatExists`: a `reviewedIn` naming a document that is not in the repository makes the register circular, and because the citation lives in a C# string literal the markdown link checker cannot see it. |
 
 ### ARCH-008 — Every state-changing endpoint carries the audit filter
 
@@ -183,6 +191,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | --- | --- |
 | **Assertion** | Every endpoint whose HTTP methods include `POST`, `PUT`, `PATCH` or `DELETE` carries `AuditedEndpointMetadata`. |
 | **Rationale** | Complete auditability is a product outcome, not a nicety: the business needs to know which Cashier posted an invoice, which Tailor Master reassigned a garment job, which Delivery Staff recorded a dispatch and which Branch Manager approved a variance. The audit event is written in the same transaction as the mutation and hash-chained, so a command endpoint without the filter leaves a permanent hole in a chain that is otherwise verifiable — and the hole is only discovered when someone asks who did something. |
+| **What this rule does and does not assert** | It asserts the **declaration**, not the effect. `.Audited("module.action")` attaches metadata and writes nothing; the row is written by the handler through `IAuditWriter`. That split is deliberate — the entry belongs in the same unit of work as the change it describes, which only the handler holds — but it means the rule can be green over a handler that records nothing, and #23 shipped five such endpoints before the gap was found. Until a generic filter exists (deferred: it would have to skip every handler that already self-audits, or double-write the sign-in and passkey actions), the effect is asserted per flow, by tests named in that flow's threat model — for authentication, CTL-37 to CTL-39 of [`../security/threat-models/authentication.md`](../security/threat-models/authentication.md). **A pull request adding an `.Audited(…)` endpoint owes an integration test that the row appears.** |
 | **Allowed exceptions** | None for state-changing endpoints. Read endpoints carry the filter only where the read is itself sensitive — a measurement sheet, a media stream, a governed export — and those are added by explicit `.Audited(…)` calls rather than by this rule. |
 | **How an exception is registered** | It is not. `.Audited("module.action")` is one line; a command that genuinely must not be audited requires an ADR in [`../adr/`](../adr/) and an amendment to this rule. Note that audit coverage and idempotency are separate obligations: see plan Section 5.1 item 2. |
 | **Test** | `EndpointPolicyTests.Arch008_EveryStateChangingEndpointIsAudited`, currently in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` — see **ROD-01**. |
@@ -235,7 +244,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Returning an aggregate publishes the domain model as an API: a renamed field becomes a breaking change for the PWA, an added property silently leaks data the caller is not entitled to — a customer's contact details, a measurement value, an internal cost — and the field-level minimisation policies that project DTOs per role have nothing to attach to. A DTO in the `Api` project is also the only place where a versioned, documented, `oasdiff`-checked shape can live. |
 | **Allowed exceptions** | Value objects declared in `Tailor360.Platform.Abstractions` that exist precisely to be serialised — `Money`, problem-details payloads, cursor tokens and the shared error contract — plus primitive and framework types. A module's `Contracts` types are for module-to-module use and are **not** an allowed HTTP payload unless the same shape is re-declared in the `Api` project. |
 | **How an exception is registered** | By adding a type to the named allowlist of serialisable platform types in the test, in a pull request that says why the type is safe to publish. |
-| **Test** | `EndpointPolicyTests.Arch013_EndpointPayloadTypesAreDeclaredInApiProjects`, to live in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` alongside ARCH-007 and ARCH-008 because it too reads the composed route table — see **ROD-01**. **Specified, not yet implemented**: the #20 scaffold publishes no data-returning endpoint. Due with the first such endpoint (#25), and no later than the OpenAPI lint and diff gate (#53). |
+| **Test** | `EndpointPayloadTests.Arch013_EndpointPayloadTypesAreDeclaredInApiProjects` in `tests/Tailor360.ContractTests/EndpointPayloadTests.cs`, with `Arch013_EverySchemaInTheDocumentIsADeclaredPayload` reading the same rule from the other end: the first walks the types the route table declares, the second checks that every schema component in the generated document is one of them. It sits in its own file rather than in `EndpointPolicyTests.cs` — which **ROD-01** proposed — for the reason ARCH-022 and ARCH-023 sit in `EndpointResourceScopeTests.cs`: the rule needs two detectors of its own (`PayloadTypeInspector.Classify` and `.Walk`) and a set of negative controls for each, and neither the file nor the review comment reads better for having ARCH-007 in the same class. The controls are `TheClassifierPlacesEachKindOfAssembly`, `TheClassifierAllowsTheNamedSerialisablePlatformTypes`, the four `TheWalkerReaches…` cases and `TheRuleWouldFailOnADomainTypeNestedTwoLevelsDown`, which composes the two over a payload built to break the rule three levels down. |
 
 ### ARCH-014 — The ambient clock is never read outside the clock abstraction
 
@@ -271,11 +280,11 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 
 | | |
 | --- | --- |
-| **Assertion** | Every endpoint in the live route table carries rate-limit metadata naming exactly one policy from the catalogue `auth-anon`, `mfa-challenge`, `link-anon`, `callback`, `telemetry-ingest`, `scan-burst`, `export-heavy`, `default-user`, `default-ip`. |
+| **Assertion** | Every endpoint in the live route table carries rate-limit metadata naming exactly one policy from the catalogue `auth-anon`, `mfa-challenge`, `recovery-anon`, `write`, `scan-burst`, `export-heavy`, `default-user`, `default-ip`, and none declares `DisableRateLimiting`. |
 | **Rationale** | An unlimited endpoint is a denial-of-service and credential-stuffing surface, and the policies differ by an order of magnitude: a scanning burst from Delivery Staff replaying a queued round of scans must not be throttled like a sign-in attempt, and a heavy export must not compete with the counter. Requiring a declaration per endpoint means the choice is made by the author, once, and is visible in review. |
-| **Allowed exceptions** | The health probes, which the reverse proxy and the external uptime check must reach at a fixed cadence. |
+| **Allowed exceptions** | The health probes, which the reverse proxy and the external uptime check must reach at a fixed cadence, and which the inspector recognises by their `HealthProbeMetadata` rather than by path. |
 | **How an exception is registered** | By adding the endpoint to the exempt set in the test with the policy decision recorded in the pull request; adding a new policy to the catalogue requires updating [`components.md`](components.md) Section 5 and this rule together. |
-| **Test** | `EndpointPolicyTests.Arch017_EveryEndpointDeclaresARateLimitPolicy`. **Specified, not yet implemented**: due with #53. The policy names are fixed; their numeric limits are **proposed, to be confirmed** by #19 and are not part of this rule. |
+| **Test** | `EndpointRateLimitTests.Arch017_EveryEndpointDeclaresExactlyOneRateLimitPolicy`, over the composed route table through `RateLimitPolicyInspector`. Its negative controls are `Arch017DetectorCatchesAnEndpointWithNoPolicy`, `…WithTwoPolicies`, `…CatchesAPolicyThatIsNotInTheCatalogue` and `…CatchesAnEndpointThatDisablesRateLimiting`, with `Arch017DetectorAcceptsOnePolicyAndExemptsAHealthProbe` as the positive control. `ThePublishedNamesAndTheRegisteredPoliciesAreTheSameSet` closes the gap the rule itself cannot see: a name published in `RateLimitPolicyNames` that the host registers no limiter for compiles, reviews as correct, and throws on the first request to reach the endpoint that declared it. The policy names are fixed; their numeric limits are **proposed, to be confirmed** by #19 and are not part of this rule. |
 
 ### ARCH-018 — Step-up permissions are declared on the endpoint
 
@@ -285,7 +294,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Step-up re-authentication is what protects the small set of actions that can move money or erase evidence — approving a dispatch exception, reversing a payment, resetting another user's MFA, exporting personal data. The permission catalogue is the single place where that sensitivity is declared; without this rule the flag is documentation, and an endpoint can require the permission while silently accepting a session that has not re-authenticated within the five-minute window. |
 | **Allowed exceptions** | None. An action that should not need step-up has its permission's flag changed in the catalogue, which is an owner-visible change to the permission matrix `docs/security/permission-matrix.md`, delivered by #24. |
 | **How an exception is registered** | It is not. The register is the permission catalogue itself. |
-| **Test** | `EndpointPolicyTests.Arch018_StepUpPermissionsRequireStepUpOnTheEndpoint`. **Specified, not yet implemented**: due with #24, alongside the authorisation matrix fixtures that exercise the fresh and stale dimensions. |
+| **Test** | `AuthorisationMatrixTests.TheApprovedMatrixAndThePublishedRoutesAgree`, through `AuthorisationMatrix.Reconcile`, which reports it as an `ARCH-018` complaint; `DetectsAStepUpPermissionOnAnEndpointThatDoesNotDeclareStepUp` is its negative control, and `DetectsStepUpDeclaredForAPermissionThatIsNotFlaggedForIt` closes the converse. It lives with the authorisation matrix rather than in `EndpointPolicyTests` because the rule compares an endpoint against the permission catalogue, and the matrix test is the one place that already holds the route table, the catalogue and the owner-approved document together. `RoleMatrixTests.AStepUpPermissionSeparatesAFreshSessionFromAStaleOne` exercises the fresh and stale dimensions the rule exists to protect. |
 
 ### ARCH-019 — No endpoint accepts more than one authentication scheme
 
@@ -295,7 +304,48 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Version 1 registers exactly two authentication paths — the cookie scheme behind the BFF, and justified anonymous endpoints. An endpoint that accepted both a cookie and a future API key would be reachable by a client that carries neither anti-forgery protection nor the browser guarantees the cookie scheme depends on, and confused-deputy bugs of that shape are hard to see in review. Third-party and trusted clients get their own surface at `/api/ext/v1/**` in a later issue. |
 | **Allowed exceptions** | None inside `/api/v1/**`. When `/api/ext/v1/**` arrives, its endpoints accept exactly one scheme too, and the rule gains a per-prefix expectation rather than an exemption. |
 | **How an exception is registered** | It is not; a second scheme on one route requires an ADR in [`../adr/`](../adr/) amending ADR-0006. |
-| **Test** | `EndpointPolicyTests.Arch019_NoEndpointAcceptsMoreThanOneAuthenticationScheme`. **Specified, not yet implemented**: due with #23. |
+| **Test** | `AuthenticationSchemeTests.Arch019_TheApplicationRegistersExactlyOneAuthenticationScheme`, over the composed host's `IAuthenticationSchemeProvider`, and `AuthenticationSchemeTests.Arch019_NoEndpointNamesMoreThanOneAuthenticationScheme`, over what each route's `IAuthorizeData` names, through `AuthenticationSchemeInspector`. The set assertion is the stronger of the two while one scheme exists: no endpoint can name a second scheme that is not registered, so the rule holds by construction. The per-endpoint assertion is what keeps it true the day a second scheme *is* registered for `/api/ext/v1/**`, because from that day the set assertion has to relax and this is all that is left; it also carries the rule's second clause, that a route under `/api/v1/` names the session scheme and nothing else. Its negative controls are `Arch019DetectorCatchesAnEndpointAcceptingTwoSchemes`, `Arch019DetectorCatchesAForeignSchemeOnTheBrowserSurface` and, so that the detector is not simply refusing everything, `Arch019DetectorAcceptsOneSchemeOnItsOwnSurface`. |
+
+### ARCH-020 — Only the background hosts build a background principal
+
+| | |
+| --- | --- |
+| **Assertion** | `IWorkerScopeFactory` is named only by files under `src/Hosts/Tailor360.Worker/`, `src/Tools/Tailor360.Cli/` and the `Background` folder of `Tailor360.Platform.Security` that declares it. |
+| **Rationale** | A background job is the one place in the system where a principal is *chosen* rather than presented, because there is no request to present one. Confining that choice to the two hosts that genuinely have no request keeps it reviewable: a service anywhere else that could open a system scope could give itself any permission the catalogue contains, and every authorisation check above it would still pass. Module code takes `ICurrentUser` and is given a caller. |
+| **Allowed exceptions** | None. A module that needs work done under a different principal publishes an outbox message; the worker picks it up under its own declaration. |
+| **How an exception is registered** | It is not. A new host that legitimately runs jobs is added to the allowed list in the test, in the pull request that adds the host, with the reason in the commit body. |
+| **Test** | `BackgroundContextTests.Arch020_OnlyTheBackgroundHostsChooseAPrincipal`, with `Arch020DetectorCatchesAModuleBuildingItsOwnPrincipal` as its negative control. |
+| **What it does not assert** | How the principal is *constructed*. `WorkerPrincipal` has a private constructor and internal factory methods, so only `WorkerScopeFactory` can build one; that confinement is C# accessibility, not this rule. The rule is about who may reference the factory, which is the part accessibility cannot express. |
+
+### ARCH-021 — Every background job declares its permissions and branch scope
+
+| | |
+| --- | --- |
+| **Assertion** | Every hosted service in `Tailor360.Worker` carries `[WorkerJob(name, branchScope, permissions)]`; every permission it names exists in the catalogue; a job that runs as the system does not declare a requester's branch scope; and a job that acts for a requester declares no `RequiresStepUp` permission. |
+| **Rationale** | A job runs with no ambient user, so what it may do is either written down or invented at composition time. Written down, it can be reviewed against the permission matrix the owner approved and recorded as the actor on everything the job writes. Invented, a scheduled task quietly becomes the widest principal in the system — the classic path by which a nightly report ends up able to read every branch. The step-up clause is the same argument from the other end: step-up means re-authenticated within five minutes, a queued job never is, so a declaration that asks for one is a design mistake rather than a runtime failure. |
+| **Allowed exceptions** | None. A job that needs no permission declares none and receives a principal that holds nothing, which is the honest form of "this job needs no authority". |
+| **How an exception is registered** | It is not. Changing what a job may do is changing its declaration, which is visible in review. |
+| **Test** | `BackgroundContextTests.Arch021_EveryWorkerJobDeclaresItsScope` and `Arch021_EveryDeclarationIsOneTheCatalogueCanHonour`, with `Arch021DetectorCatchesAJobThatDeclaresNothing` and `Arch021DetectorCatchesADeclarationNamingAnUnknownPermission` as their negative controls. The same two checks run again at run time inside `WorkerJobDescriptor`, so a job that slips past the reflection scan still cannot open a scope. |
+
+### ARCH-022 — An endpoint is permissioned or anonymous, never both
+
+| | |
+| --- | --- |
+| **Assertion** | No endpoint carries both `RequiredPermissionMetadata` and `AnonymousJustificationMetadata`. |
+| **Rationale** | `AllowAnonymous` wins at run time: the authorisation middleware short-circuits on the metadata and never evaluates the policy, so the permission, the branch scope and any resource requirement are all skipped. The route is open to anybody with the address while its source reads as permission-gated — and, because the endpoint inventory classified permission-first, the owner-approved matrix row read `permission` too. It is one line away from happening for real: a group carrying `RequirePermission` with one child endpoint opting out of authentication produces exactly this. The inventory now classifies anonymous-first, so even an exempted route would tell the truth in the matrix; the rule is what stops the combination existing. |
+| **Allowed exceptions** | None. An endpoint that is genuinely open declares only `AllowAnonymousWithJustification`; one that is not deletes it. |
+| **How an exception is registered** | It is not. |
+| **Test** | `EndpointResourceScopeTests.EveryPublishedEndpointDeclaresItsAuthorisationConsistently`, through `EndpointAuthorisationInspector.Inspect`, with `TheInspectorCatchesAnEndpointThatIsBothPermissionedAndAnonymous` as its negative control. |
+
+### ARCH-023 — A permissioned route that names a row declares which row
+
+| | |
+| --- | --- |
+| **Assertion** | Every endpoint that declares a permission with `BranchScope.CurrentBranch` or `BranchScope.AssignedBranches` and carries at least one route parameter also declares `.ScopedToResource(...)`, or declares `.TouchesNoBranchOwnedResource(justification, reviewedIn)`. |
+| **Rationale** | Omitting `ScopedToResource` does not fail — it silently removes the branch check. `ResourceScopeResolutionMiddleware` treats "no declaration" as "nothing to load", and the caller-side `BranchScopeRequirement` then asks only whether the caller's own active branch is one of the caller's own assignments, which every signed-in person passes. The row's branch is never read, so `GET /api/v1/orders/{orderId}` declaring only a permission is reachable for every order in the organisation by editing the identifier. Every other gate is satisfied while that is true: ARCH-007 sees a policy, ARCH-008 sees the audit filter, and the matrix reconciles because a blank `Resource` cell agrees with an endpoint that declares none. A mechanism that is optional is a mechanism that is absent for whoever forgets. |
+| **Allowed exceptions** | An organisation-scoped route, whose reach is decided by a permission rather than by the row's branch; a route with no parameter in its template; and a route whose parameter names something that belongs to no branch — a feature-flag key, a reference-data code — which says so with `TouchesNoBranchOwnedResource`. |
+| **How an exception is registered** | By the `TouchesNoBranchOwnedResource(justification, reviewedIn)` call on the endpoint, which is deliberately verbose so that the exemption is read in review rather than inferred from an absence. |
+| **Test** | `EndpointResourceScopeTests.EveryPublishedEndpointDeclaresItsAuthorisationConsistently`, with `TheInspectorCatchesAPermissionedRouteWithAnIdentifierAndNoResourceScope` and `TheInspectorCatchesAnAssignedBranchesRouteWithAnIdentifierAndNoResourceScope` as its negative controls and `TheInspectorAcceptsTheThreeWaysARouteNeedsNoResourceScope` as the converse. The rule governs no published route today — no module has one — so the controls are the whole of its evidence until #32a. |
 
 ---
 
@@ -315,9 +365,11 @@ without reading the tests. An exception that is not in this table does not exist
 | ARCH-014 | `SystemClock.cs` | `sanctioned` array in the test method | #20 |
 | ARCH-015 | `UuidV7IdGenerator.cs` | `sanctioned` array in the test method | #20 |
 | ARCH-016 | `OutboundHttpClient.cs` | `sanctioned` array in the test method | #20 |
+| ARCH-020 | The `Background` folder of `Tailor360.Platform.Security`, which declares the factory it cannot avoid naming | Allowed-path list in the test method | #24 |
+| ARCH-023 | A route whose parameter names nothing branch-owned | `TouchesNoBranchOwnedResource` on the endpoint | #24 — none in force today |
 
-Rules ARCH-001 … ARCH-006, ARCH-008, ARCH-010, ARCH-011, ARCH-018 and ARCH-019 have no exceptions in force and, per
-their subsections above, admit none without an architecture decision record.
+Rules ARCH-001 … ARCH-006, ARCH-008, ARCH-010, ARCH-011, ARCH-018, ARCH-019, ARCH-021 and ARCH-022 have no
+exceptions in force and, per their subsections above, admit none without an architecture decision record.
 
 ---
 
@@ -332,7 +384,6 @@ a rule today.
 | Every append-only table has a trigger rejecting `UPDATE` and `DELETE` from the application role | This is a database fact, not a project or source fact; it belongs to a migration-inspection integration test | #21 |
 | Every integration event class has a JSON Schema and an example under `docs/integration/events/` | No integration event exists yet | #21, extended by #54 |
 | Every module writes only to its own object-storage prefix | Enforced by per-module storage credentials or a bucket policy and asserted by an integration test against MinIO, not by a static rule | #31 |
-| `SystemPrincipal` is constructed only through `IWorkerScopeFactory` from a `[WorkerJob]`-attributed job | The worker job surface does not exist yet; the assertion is easy once it does | #24 |
 
 ---
 
@@ -346,7 +397,7 @@ position, so no rule above is left undefined while it is open.
 | --- | --- | --- | --- | --- |
 | **ROD-01** | ARCH-007 and ARCH-008 need a composed application to read the route table, which ARCH-012 permits only from a test project and which the contract suite already builds. Should they live in `tests/Tailor360.ArchitectureTests` with their own `WebApplicationFactory`, or stay in `tests/Tailor360.ContractTests`? | They stay in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` and are listed here as `ARCH-…` rules. Both suites are required checks on every pull request (plan Section 5.3), so the gate is identical either way; only the file location is at issue. Whichever is chosen, the class name `EndpointPolicyTests` and the method names above do not change. | Technical reviewer | 2026-09-04 |
 | **ROD-02** | Does ARCH-004 hold for the customer-timeline composition, where the web host merges `ITimelineSource` entries from five modules? | It holds unchanged: the port is declared in `Tailor360.Platform.Abstractions`, each module implements it in its own `Infrastructure`, and the host composes them — no module references another. If a future requirement needs cross-module joining rather than merging, it needs an ADR before it needs a rule change. | Backend lead | 2026-09-04 |
-| **ROD-03** | ARCH-013's allowlist of serialisable platform types cannot be finalised before the first data-returning endpoints exist. | The allowlist starts empty apart from `Money` and the shared problem-details and pagination contracts, and grows only by named entry with a reason. | Backend lead, with the technical reviewer | 2026-09-04 |
+| **ROD-03** | ARCH-013's allowlist of serialisable platform types cannot be finalised before the first data-returning endpoints exist. | Settled as proposed and now implemented (#53): the allowlist is `PayloadTypeInspector.SerialisablePlatformTypes`, holding `Money` and `BranchScope`, and the shared problem-details shape, which is a schema in the document rather than a CLR type. It is keyed by full type name, not by assembly, so admitting one value object does not admit the library it lives in, and it grows only by named entry in a pull request that says why publishing that shape is safe. | Backend lead, with the technical reviewer | 2026-09-04 |
 
 ---
 
@@ -405,6 +456,7 @@ corresponding list in Section 4 is updated with it.
 | [`invariants.md`](invariants.md) | The aggregate invariants the domain layers protected by ARCH-001 and ARCH-002 enforce |
 | [`conventions.md`](conventions.md) | Money, time, identifiers, concurrency, API versioning and migration compatibility — the conventions behind ARCH-013 … ARCH-016 |
 | [`components.md`](components.md) | The request pipeline whose stages ARCH-006 … ARCH-008 and ARCH-017 … ARCH-019 govern |
+| [`../api/conventions.md`](../api/conventions.md) | How an endpoint governed by ARCH-007, ARCH-008, ARCH-013, ARCH-017, ARCH-019 and ARCH-022 is designed, and [`../api/internal-endpoints.md`](../api/internal-endpoints.md) for the routes that publish no contract |
 | [`container.md`](container.md) and [`deployment.md`](deployment.md) | The containers and networks these rules assume, including the health probes exempted by ARCH-007 |
 | [`context.md`](context.md) | The trust boundary and what is allowed to cross it |
 | [`../adr/`](../adr/) | ADR-0001 modular monolith, ADR-0004 schema per module, ADR-0006 BFF cookie session, ADR-0012 integration adapters and ports — the decisions these rules implement |

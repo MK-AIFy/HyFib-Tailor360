@@ -1,0 +1,34 @@
+/*
+ * Layout helpers for the states stories, and for nothing that ships.
+ *
+ * They exist because a story still may not use an inline style: the house rule is that a `style`
+ * attribute in JSX is an inline style and there are none anywhere, and a rule with an exception for
+ * Storybook is a rule that leaks into the application the first time somebody copies a story into a
+ * screen.
+ */
+@layer components {
+  .states-story-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    inline-size: 100%;
+  }
+
+  /* A pane the width of a phone at the reflow floor of 1.4.10, for the 40% growth stories. */
+  .states-story-phone {
+    inline-size: 320px;
+    max-inline-size: 100%;
+    border: 1px dashed var(--colour-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  /* Something under the banner, so the sticky behaviour and the reading order are visible. */
+  .states-story-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--colour-surface-sunken);
+  }
+}

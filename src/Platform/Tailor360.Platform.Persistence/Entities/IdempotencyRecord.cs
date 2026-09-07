@@ -38,6 +38,19 @@ public sealed class IdempotencyRecord
     public DateTimeOffset? CompletedAt { get; set; }
 
     /// <summary>
+    /// How long the running execution's claim is good for, and null once it has completed.
+    /// </summary>
+    /// <remarks>
+    /// Without it a process that dies between claiming a key and finishing the command leaves the key
+    /// held for the whole retention window: the customer is standing at the counter, the payment did not
+    /// happen, and every retry is answered "that is already in progress" for seven days. The lease bounds
+    /// that to one interval, after which the next request takes the claim over and runs. It is set longer
+    /// than the request timeout, so the process that owns a claim is never overtaken while it is still
+    /// working.
+    /// </remarks>
+    public DateTimeOffset? InFlightUntil { get; set; }
+
+    /// <summary>
     /// When the record may be deleted. Retention is at least twice the maximum age of a queued offline
     /// request, so a scan captured on a device that stayed offline over a weekend still de-duplicates
     /// when it finally arrives.

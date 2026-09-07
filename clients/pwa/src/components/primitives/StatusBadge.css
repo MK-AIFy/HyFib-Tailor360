@@ -1,0 +1,82 @@
+/*
+ * Status badges.
+ *
+ * Every tone below sets three things — a surface, an ink and a border — and the border is not
+ * decoration. In the high-contrast sunlight theme the surfaces collapse towards white, so the border
+ * is what keeps the badge a distinct object; and 1.4.11 asks for 3:1 on a boundary that carries
+ * meaning, which the *-border tokens are asserted at by tokenContrast.test.ts.
+ *
+ * There is no colour-only tone. A badge always renders its glyph and its word, so these rules are
+ * emphasis for somebody who already knows the screen, never the information itself.
+ */
+@layer components {
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-3);
+    border: 1px solid var(--status-border);
+    border-radius: var(--radius-pill);
+    background: var(--status-surface);
+    color: var(--status-ink);
+    font-size: var(--font-size-100);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-tight);
+    /* The word and its qualifier stay on one line together; the badge wraps as a whole instead of
+       breaking "On hold" across two lines in the pseudo-locale. */
+    white-space: nowrap;
+
+    --status-surface: var(--colour-surface-sunken);
+    --status-ink: var(--colour-ink);
+    --status-border: var(--colour-border);
+  }
+
+  .status-badge[data-prominent='true'] {
+    padding-block: var(--space-2);
+    padding-inline: var(--space-4);
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .status-badge[data-tone='info'] {
+    --status-surface: var(--colour-info-surface);
+    --status-ink: var(--colour-info-ink);
+    --status-border: var(--colour-info-border);
+  }
+
+  .status-badge[data-tone='success'] {
+    --status-surface: var(--colour-success-surface);
+    --status-ink: var(--colour-success-ink);
+    --status-border: var(--colour-success-border);
+  }
+
+  .status-badge[data-tone='warning'] {
+    --status-surface: var(--colour-warning-surface);
+    --status-ink: var(--colour-warning-ink);
+    --status-border: var(--colour-warning-border);
+  }
+
+  .status-badge[data-tone='danger'] {
+    --status-surface: var(--colour-danger-surface);
+    --status-ink: var(--colour-danger-ink);
+    --status-border: var(--colour-danger-border);
+  }
+
+  .status-badge__detail {
+    font-weight: var(--font-weight-regular);
+  }
+
+  /* The qualifier is separated by a rule rather than by a bullet character, which a screen reader
+     would either read aloud or silently swallow depending on the verbosity setting. */
+  .status-badge__detail::before {
+    content: '';
+    display: inline-block;
+    inline-size: 1px;
+    block-size: 0.9em;
+    margin-inline-end: var(--space-2);
+    background: currentcolor;
+    opacity: 0.5;
+    vertical-align: -0.1em;
+  }
+}

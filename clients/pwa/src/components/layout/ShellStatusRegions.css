@@ -1,0 +1,18 @@
+/*
+ * The shell's live regions.
+ *
+ * The one rule that matters here: an empty region must occupy no space and must still be in the
+ * accessibility tree. `display: none` would satisfy the first and break the second, and a region
+ * that is not in the tree when a message arrives announces nothing. So the container has no gap of
+ * its own, and the spacing is applied to a region only while it has content.
+ */
+
+@layer layout {
+  .shell-status {
+    display: block;
+  }
+
+  .shell-status__region:not(:empty) {
+    margin-block-end: var(--space-3);
+  }
+}

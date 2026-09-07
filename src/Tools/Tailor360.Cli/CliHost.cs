@@ -2,7 +2,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tailor360.Modules.Identity.Infrastructure;
 using Tailor360.Platform.Persistence;
+using Tailor360.Platform.Security;
 
 namespace Tailor360.Cli;
 
@@ -49,6 +51,18 @@ public static class CliHost
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
 
         builder.Services.AddTailor360Platform();
+
+        // The catalogue and nothing else of the security stack: the tool seeds the roles that grant
+        // permissions and validates every grant against it, and it has no request pipeline to
+        // authenticate or authorise. Registering the whole of AddTailor360Security here would add a
+        // cookie scheme and an anti-forgery service to a process that never serves a request.
+        builder.Services.AddTailor360PermissionCatalogue();
+
+        // The command line applies every module's migrations, so each module that owns a schema is
+        // registered here as well as in the web host. A module missing from this list would have a
+        // schema `migrate` never creates, and the omission would only surface when the application
+        // refused to serve.
+        builder.Services.AddIdentityModule(builder.Configuration);
 
         return builder.Build();
     }

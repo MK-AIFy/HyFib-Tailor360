@@ -13,13 +13,18 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0f3d3e" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#07211f" media="(prefers-color-scheme: dark)" />
-    <!-- iOS ignores the web manifest, so installed mode needs these two tags as well (plan #50). -->
+    <!-- iOS ignores most of the web manifest, so installed mode needs these tags as well (plan #50).
+         mobile-web-app-capable is the standard spelling every other engine reads; the apple-prefixed
+         one stays because Safari still reads only that. -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Tailor360" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <!-- Its own artwork: iOS masks the icon itself and discards the alpha channel, so a rounded,
+         transparent-cornered PNG lands on the home screen sitting in a black square. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />
     <title>HyFib Tailor360</title>
   </head>
   <body>

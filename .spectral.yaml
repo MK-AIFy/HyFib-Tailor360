@@ -1,0 +1,146 @@
+# Spectral ruleset for the published API document, docs/api/openapi.v1.json.
+#
+# This is the declarative statement of the rules the contract tier enforces in process
+# (tests/Tailor360.ContractTests/OpenApiLint.cs). Both exist on purpose and the duplication is the
+# point rather than an oversight:
+#
+#   - the tests run on every developer machine and in the .NET job with no network and no toolchain
+#     beyond the SDK, so the gate cannot be skipped for want of a package registry;
+#   - this file is the format every OpenAPI tool, editor plug-in and reviewer already reads, so the
+#     rules are legible to somebody who never opens the test project.
+#
+# They are kept in step by docs/api/openapi-gates.md, which lists the rules side by side. A rule added
+# to one and not the other is a defect in the gate.
+extends: [[spectral:oas, recommended]]
+
+documentationUrl: https://github.com/hyfib/HyFib-Tailor360/blob/main/docs/api/openapi-gates.md
+
+rules:
+  # The generated document deliberately omits operation descriptions: the summary carries the
+  # sentence, and a description repeating it is noise in a diff nobody reads.
+  operation-description: off
+  info-contact: off
+  oas3-unused-component: off
+
+  operation-security-declared:
+    description: >-
+      Every operation says which credentials it needs. An operation that needs none says so with an
+      empty list; omitting the member means the document does not know, which is how an endpoint
+      becomes public by accident.
+    message: "{{path}} declares no security requirement"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete]
+    then:
+      field: security
+      function: defined
+
+  operation-summary-present:
+    description: Every operation carries a summary, which is what a reader and a generated client see.
+    message: "{{path}} has no summary"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete]
+    then:
+      field: summary
+      function: truthy
+
+  operation-tagged:
+    description: Every operation belongs to a group, so the published document has a shape.
+    message: "{{path}} names no tag"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete]
+    then:
+      # `schema` rather than `length`, because a length check on a field that is not there does not
+      # run at all — and "no tags" is exactly the case the rule exists for.
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [tags]
+          properties:
+            tags:
+              type: array
+              minItems: 1
+
+  operation-authorisation-annotated:
+    description: >-
+      Every operation records how it is authorised, so that the document doubles as the endpoint
+      inventory the authorisation matrix is reconciled against.
+    message: "{{path}} does not say how it is authorised"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete]
+    then:
+      field: x-tailor360-authorisation
+      function: truthy
+
+  problem-response-coverage:
+    description: >-
+      Every operation documents the three failures any request can meet — a malformed request, a
+      throttled one, and an unexpected failure.
+    message: "{{path}} does not document 400, 429 and 500"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete]
+    then:
+      field: responses
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: ["400", "429", "500"]
+
+  problem-details-media-type:
+    description: >-
+      Errors are RFC 9457 problem details everywhere, so that a client can write one handler for all
+      of them.
+    message: "{{path}} is not returned as application/problem+json"
+    severity: error
+    given: $.paths[*][*].responses[?(@property.match(/^[45]/))].content
+    then:
+      field: application/problem+json
+      function: defined
+
+  problem-details-shared-schema:
+    description: >-
+      Every error references the one shared error schema. Described twice, two errors start to differ.
+    message: "{{path}} does not reference the shared ProblemDetails schema"
+    severity: error
+    given: $.paths[*][*].responses[?(@property.match(/^[45]/))].content[application/problem+json]
+    then:
+      field: schema
+      function: defined
+
+  success-response-schema:
+    description: >-
+      A success that returns a body says what shape the body has. Without it a generated client has
+      request types and no response types, and every call site casts. Declare the payload on the
+      endpoint with .Produces<T>(...); a handler whose branches return IResult publishes nothing on
+      its own. 204 and 304 are excluded, being defined to carry no body.
+    message: "{{path}} documents a success with no JSON schema"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete].responses[?(@property.match(/^2/) && @property !== '204')]
+    then:
+      field: content.application/json.schema
+      function: defined
+
+  request-body-example:
+    description: >-
+      A schema tells a reader the shape; an example tells them the request. Register one in
+      PayloadExamples under the operation identifier.
+    message: "{{path}} carries no request example"
+    severity: error
+    given: $.paths[*][*].requestBody.content[*]
+    then:
+      field: example
+      function: defined
+
+  versioned-path:
+    description: >-
+      The major version lives in the URL and nothing else negotiates it. The one exception is
+      /api/version, the handshake that says which versions this server speaks.
+    message: "{{property}} is not under /api/v1/"
+    severity: error
+    given: $.paths
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^(/api/v1/|/api/version$)"

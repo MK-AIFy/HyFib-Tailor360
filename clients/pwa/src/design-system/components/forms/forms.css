@@ -1,0 +1,568 @@
+/*
+ * The forms family.
+ *
+ * Everything is a token. No colour, size, radius or duration is written as a literal, which is what
+ * lets the high-contrast sunlight theme and the 150% text-size preference change every field in the
+ * product without a component being touched.
+ *
+ * The rules this stylesheet is holding, each from docs/nfr/accessibility-localisation.md:
+ *
+ *   section 5   Targets are 44 px standard and 56 px primary, and the target is the hit area, not
+ *               the ink: a 20 px checkbox inside a 44 px label row is compliant, a bare 44 px glyph
+ *               beside another one is not. Every control below therefore sets min-block-size on the
+ *               thing a finger lands on, never on the glyph.
+ *   section 4.2 No fixed heights on anything holding text. A user stylesheet raising line height to
+ *               1.5, paragraph spacing to 2x and word spacing to 0.16em (1.4.12) must not clip or
+ *               overlap, and the Tamil catalogue grows the same text by up to 40%. Every box here
+ *               grows with its content.
+ *   section 4.1 Colour is never the only signal. The invalid state carries a glyph, the word
+ *               "Error:" for a screen reader and a thicker border as well as a colour.
+ *   1.4.10      No horizontal scrolling at 320 CSS px. The fraction strip wraps rather than
+ *               scrolling, and the control rows wrap before they overflow.
+ */
+
+@layer components {
+  /* -----------------------------------------------------------------------------------------
+   * The field shell
+   * --------------------------------------------------------------------------------------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    /* A fieldset carries a browser default border, padding and margin; a field is a layout box. */
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .field__label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .field__label,
+  .field__legend {
+    display: inline-block;
+    padding: 0;
+    color: var(--colour-ink);
+    font-size: var(--font-size-200);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-base);
+  }
+
+  /* A legend is not a flex item of its fieldset, so the required marker rides inside it. */
+  .field__legend {
+    margin-block-end: var(--space-1);
+  }
+
+  .field__legend .field__required {
+    margin-inline-start: var(--space-2);
+  }
+
+  /*
+   * "Required" as a word, not an asterisk and not a colour (checklist item A11Y-33). It is
+   * aria-hidden: the control's aria-required already carries the fact, and hearing it twice is the
+   * chatter A11Y-43 asks about.
+   */
+  .field__required {
+    display: inline-block;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-sm);
+    background: var(--colour-surface-sunken);
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-050);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+  }
+
+  .field__control-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    min-inline-size: 0;
+  }
+
+  /*
+   * The unit symbol. Beside the control and never over it: an adornment positioned inside the box
+   * has to reserve padding for a width that changes with the text-size preference, and at 150% it
+   * ends up sitting on top of the value.
+   */
+  .field__unit {
+    flex: 0 0 auto;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-200);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .field__unit[data-position='leading'] {
+    order: -1;
+  }
+
+  .field__description {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    line-height: var(--line-height-base);
+  }
+
+  .field__message {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: 0;
+    font-size: var(--font-size-100);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-base);
+  }
+
+  /*
+   * The glyph. A text character rather than an icon font or an image, so it inherits the text size
+   * preference, survives a font failure and needs no alternative text of its own — it is
+   * aria-hidden, and the message beside it says the same thing in words.
+   */
+  .field__message-glyph {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    inline-size: 1.25em;
+    min-inline-size: 1.25em;
+    border-radius: var(--radius-pill);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .field__message--error {
+    color: var(--colour-danger-ink);
+  }
+
+  .field__message--error .field__message-glyph {
+    background: var(--colour-danger-ink);
+    color: var(--colour-surface);
+  }
+
+  .field__message--warning {
+    color: var(--colour-warning-ink);
+  }
+
+  .field__message--warning .field__message-glyph {
+    background: var(--colour-warning-surface);
+    color: var(--colour-warning-ink);
+    border: 1px solid var(--colour-warning-border);
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * The control itself
+   * --------------------------------------------------------------------------------------- */
+  .field__control {
+    flex: 1 1 12ch;
+    min-inline-size: 0;
+    /* min-block-size, never block-size: the box grows with the text, it does not clip it. */
+    min-block-size: var(--target-standard);
+    padding: var(--space-2) var(--space-3);
+    border: 2px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    font: inherit;
+    font-size: var(--font-size-200);
+  }
+
+  .field[data-size='primary'] .field__control {
+    min-block-size: var(--target-primary);
+    font-size: var(--font-size-300);
+  }
+
+  .field[data-size='dense'] .field__control {
+    min-block-size: var(--target-dense);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .field__control:hover:not(:disabled) {
+    border-color: var(--colour-border-strong);
+  }
+
+  /*
+   * The invalid border is thicker as well as red, because a border that only changes colour is a
+   * border that conveys its meaning by colour alone.
+   */
+  .field[data-invalid='true'] .field__control {
+    border-color: var(--colour-danger-border);
+    border-width: 3px;
+  }
+
+  .field__control:disabled {
+    border-color: var(--colour-border-subtle);
+    background: var(--colour-surface-disabled);
+    color: var(--colour-ink-disabled);
+    /* not-allowed reads as "broken" to a person who does not know the convention. */
+    cursor: default;
+  }
+
+  .field__control[readonly] {
+    background: var(--colour-surface-sunken);
+  }
+
+  /* A textarea is the one control that may be taller, and the user may make it taller still. */
+  .field__control--multiline {
+    min-block-size: calc(var(--target-standard) * 2);
+    resize: vertical;
+  }
+
+  .field__control--select {
+    /* A native select brings its own arrow; keep the room for it at every text size. */
+    padding-inline-end: var(--space-5);
+  }
+
+  .field__control--numeric {
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .field__control--whole {
+    flex: 0 1 7ch;
+    text-align: end;
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * Choice controls — checkbox, radio, switch
+   *
+   * The hit area is the whole row, which is what makes a 20 px box a 44 px target. Nothing here
+   * hides the native input: a visually-hidden input keeps its keyboard behaviour and its role but
+   * loses the browser's own high-contrast rendering, so the box is drawn by the browser and the
+   * row around it is drawn here.
+   * --------------------------------------------------------------------------------------- */
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-block-size: var(--target-standard);
+    padding: var(--space-2) var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+
+  .field[data-size='primary'] .choice {
+    min-block-size: var(--target-primary);
+  }
+
+  .choice:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  .choice__input {
+    flex: 0 0 auto;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    margin: 0;
+    accent-color: var(--colour-brand);
+  }
+
+  .choice__label {
+    flex: 1 1 auto;
+    font-size: var(--font-size-200);
+    line-height: var(--line-height-base);
+  }
+
+  .choice__description {
+    display: block;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  /*
+   * The switch. A native checkbox with role="switch": the role is what a screen reader announces,
+   * and the native input is what makes space and the arrow keys work without a line of JavaScript.
+   */
+  .choice__input[role='switch'] {
+    inline-size: 3rem;
+    block-size: 1.75rem;
+  }
+
+  .choice-list {
+    display: flex;
+    flex-direction: column;
+    /* 8 px between standard controls — section 5. */
+    gap: var(--target-spacing-standard);
+    inline-size: 100%;
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * Numeric stepper
+   * --------------------------------------------------------------------------------------- */
+  .stepper {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--target-spacing-standard);
+    min-inline-size: 0;
+  }
+
+  .stepper__button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: var(--target-standard);
+    min-block-size: var(--target-standard);
+    padding: 0;
+    border: 2px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    font-size: var(--font-size-400);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .field[data-size='primary'] .stepper__button {
+    min-inline-size: var(--target-primary);
+    min-block-size: var(--target-primary);
+  }
+
+  .stepper__button:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  .stepper__button:active {
+    background: var(--colour-surface-pressed);
+  }
+
+  /*
+   * aria-disabled rather than disabled at a bound: the button stays focusable and keeps its name,
+   * so a keyboard user tabbing the row is told the control exists and why it does nothing, rather
+   * than finding a gap (the complaint checklist item A11Y-89 makes about dimmed controls).
+   */
+  .stepper__button[aria-disabled='true'] {
+    border-color: var(--colour-border-subtle);
+    color: var(--colour-ink-disabled);
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * Inch fraction strip
+   *
+   * A wrapping grid rather than a scrolling row: at 320 CSS px a sixteenths strip is sixteen 44 px
+   * targets, which is four rows, and four rows a person can see beats one row they have to scroll
+   * (1.4.10).
+   * --------------------------------------------------------------------------------------- */
+  .fraction {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    inline-size: 100%;
+    min-inline-size: 0;
+  }
+
+  .fraction__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .fraction__strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--target-standard), 1fr));
+    gap: var(--target-spacing-standard);
+    inline-size: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .fraction__option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: var(--target-standard);
+    min-block-size: var(--target-standard);
+    padding: var(--space-1);
+    border: 2px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    font-size: var(--font-size-200);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+
+  .field[data-size='primary'] .fraction__option {
+    min-inline-size: var(--target-primary);
+    min-block-size: var(--target-primary);
+  }
+
+  /*
+   * The radio itself is placed over the segment and made transparent rather than removed: it keeps
+   * its native role, its arrow-key group behaviour and its focus ring, and the ring lands on the
+   * segment because the input covers exactly the segment.
+   */
+  .fraction__input {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .fraction__option:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  /*
+   * The chosen segment is marked three times over: a filled surface, a heavier border and bold
+   * weight. Selection by colour alone would fail 1.4.1 and would disappear in the high-contrast
+   * theme, where the fill and the surface can be the same.
+   */
+  .fraction__option:has(.fraction__input:checked) {
+    border-color: var(--colour-brand);
+    border-width: 3px;
+    background: var(--colour-surface-selected);
+    font-weight: var(--font-weight-bold);
+  }
+
+  /*
+   * The weight cue again, without `:has()`. Every browser in
+   * docs/nfr/support-matrix.md section 4 supports `:has()`, so this is belt and braces rather than a
+   * fallback — but it is also what survives a forced-colours mode that discards the fill above, and
+   * the selected segment must never be marked by colour alone (1.4.1).
+   */
+  .fraction__input:checked + span {
+    font-weight: var(--font-weight-bold);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .fraction__option:has(.fraction__input:focus-visible) {
+    outline: var(--focus-ring-width) solid var(--colour-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* The assembled value: `15 3/8 in`, shown as well as announced. */
+  .fraction__assembled {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface-sunken);
+    color: var(--colour-ink);
+    font-size: var(--font-size-300);
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--font-weight-bold);
+    white-space: nowrap;
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * Measurement field
+   * --------------------------------------------------------------------------------------- */
+  .measurement {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-inline-size: 0;
+  }
+
+  .measurement__acknowledge {
+    margin-block-start: var(--space-1);
+    padding: var(--space-2);
+    border: 2px solid var(--colour-warning-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-warning-surface);
+    color: var(--colour-warning-ink);
+  }
+
+  .measurement__acknowledge .choice__label {
+    color: var(--colour-warning-ink);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .measurement__acknowledge .choice:hover {
+    /* The banded background already carries the state; a hover tint on it only muddies it. */
+    background: transparent;
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * The step-aware error summary
+   * --------------------------------------------------------------------------------------- */
+  .form-error-summary {
+    margin-block-end: var(--space-5);
+    padding: var(--space-4);
+    border: 3px solid var(--colour-danger-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+  }
+
+  .form-error-summary__title {
+    margin: 0 0 var(--space-2);
+    color: var(--colour-danger-ink);
+    font-size: var(--font-size-400);
+    line-height: var(--line-height-tight);
+  }
+
+  .form-error-summary__instruction {
+    margin: 0 0 var(--space-3);
+  }
+
+  .form-error-summary__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--target-spacing-standard);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /*
+   * A button, not a link: on a wizard the entry changes the step before it moves focus, which is a
+   * state change in this application and not a navigation. Styled as a link because that is what a
+   * person expects to click, with the underline carrying the affordance rather than the colour.
+   */
+  .form-error-summary__link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--target-standard);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--colour-danger-ink);
+    font: inherit;
+    font-weight: var(--font-weight-medium);
+    text-align: start;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+
+  .form-error-summary__reference {
+    margin: var(--space-3) 0 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  /* The summary takes focus on a failed submit and must show that it has it. */
+  .form-error-summary:focus-visible {
+    outline: var(--focus-ring-width) solid var(--colour-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* -----------------------------------------------------------------------------------------
+   * Layout helper for a form of fields
+   * --------------------------------------------------------------------------------------- */
+  .field-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    inline-size: 100%;
+    max-inline-size: var(--layout-reading-width);
+  }
+}

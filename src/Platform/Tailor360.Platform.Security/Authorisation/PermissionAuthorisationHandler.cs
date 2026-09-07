@@ -33,25 +33,39 @@ public sealed class PermissionAuthorisationHandler(
         {
             // An endpoint referring to a permission that no module declares is a defect, not a
             // permitted request. Failing closed keeps a typo from opening an endpoint to everyone.
-            context.Fail(new AuthorizationFailureReason(this, "Unknown permission."));
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.PermissionNotHeld, "Unknown permission."));
             return Task.CompletedTask;
         }
 
         if (!currentUser.IsAuthenticated || !currentUser.HasPermission(permission.Key))
         {
-            context.Fail(new AuthorizationFailureReason(this, "Permission not held."));
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.PermissionNotHeld, "Permission not held."));
+            return Task.CompletedTask;
+        }
+
+        // A session that has answered only the first factor holds no permission, whatever its roles
+        // grant. It exists to finish the sign-in and to end itself, and this is the second place that
+        // says so — the first being the assurance requirement on the self-service endpoints.
+        if (!currentUser.IsSignInComplete)
+        {
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.SignInIncomplete, "The sign-in has not been completed."));
             return Task.CompletedTask;
         }
 
         if (permission.RequiresMfa && !currentUser.MfaSatisfied)
         {
-            context.Fail(new AuthorizationFailureReason(this, "Multi-factor authentication required."));
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.SecondFactorRequired, "Multi-factor authentication required."));
             return Task.CompletedTask;
         }
 
         if (permission.RequiresStepUp && !IsStepUpFresh())
         {
-            context.Fail(new AuthorizationFailureReason(this, "Recent re-authentication required."));
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.StepUpRequired, "Recent re-authentication required."));
             return Task.CompletedTask;
         }
 

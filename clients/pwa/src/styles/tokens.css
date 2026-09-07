@@ -1,97 +1,318 @@
 /*
- * Design tokens — the scaffold subset.
+ * Design tokens.
  *
- * The full design system (complete palette including the high-contrast sunlight theme, type scale,
- * elevation, motion, density and container-query breakpoints) is issue #50. What is here is only what
- * the shell needs, expressed as custom properties so that #50 can replace the values without touching
- * a component.
+ * Two levels, and the distinction is load-bearing:
  *
- * Two rules already hold and must not be relaxed later:
- *   - an interactive target is at least 48px in both directions (shop staff work standing, one-handed,
- *     often with a phone in a case);
- *   - colour never carries meaning on its own; text or an icon always says the same thing.
+ *   --palette-*   PRIMITIVES. Raw values with no meaning attached. Never referenced by a component.
+ *                 Defined once, on :root, in every theme — a theme switches which primitive a
+ *                 semantic token points at; it never redefines a primitive.
+ *   everything    SEMANTIC tokens. What a component is allowed to use. Named for the job
+ *   else          (--colour-ink-muted, --target-primary), never for the value (--grey-400).
+ *
+ * Theming follows the rule in docs/nfr/accessibility-localisation.md: the complete light palette is
+ * defined here on bare :root, and themes.css redefines only what changes — under a dark media query
+ * guarded so that an explicit light choice still wins, and again under an explicit [data-theme]
+ * attribute so that the preference stored server-side in identity.user_preferences overrides the
+ * operating system.
+ *
+ * Every colour pair a component may put together is asserted at 4.5:1 (text), 3:1 (non-text) or 7:1
+ * (primary shop-floor text, AL-02) by src/design-system/testing/tokenContrast.test.ts, which reads
+ * this file. Changing a value here without running that test is how a shop floor loses its screens
+ * in the afternoon sun.
+ *
+ * Sizes come from docs/nfr/accessibility-localisation.md section 5 (AL-03): 56 px primary,
+ * 44 px standard, 32 px dense-desktop-only, 24 px absolute floor.
  */
 
-:root {
-  color-scheme: light dark;
-
-  /* Brand and surfaces (light) */
-  --colour-ink: #10201f;
-  --colour-ink-muted: #4a5c5b;
-  --colour-surface: #ffffff;
-  --colour-surface-sunken: #f7f5f1;
-  --colour-border: #d6d9d4;
-  --colour-brand: #0f3d3e;
-  --colour-brand-contrast: #ffffff;
-  --colour-accent: #f4c95d;
-  --colour-focus: #0b5cd5;
-
-  /* Status colours. Always paired with a word, never used alone. */
-  --colour-warning-surface: #ffd23f;
-  --colour-warning-ink: #2b2000;
-  --colour-danger: #a4262c;
-  --colour-success: #0f6b3f;
-
-  /* Spacing: a 4px base, so a phone layout can be dense without becoming cramped. */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-
-  /* Radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 1rem;
-
-  /* Typography. A system stack until the subsetted Latin + Tamil faces ship with #50/#52. */
-  --font-family-base:
-    system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Tamil', Arial, sans-serif;
-  --font-size-100: 0.875rem;
-  --font-size-200: 1rem;
-  --font-size-300: 1.125rem;
-  --font-size-400: 1.375rem;
-  --font-size-500: 1.75rem;
-  --line-height-tight: 1.25;
-  --line-height-base: 1.5;
-  --font-weight-regular: 400;
-  --font-weight-bold: 700;
-
-  /* Accessibility */
-  --touch-target-min: 48px;
-  --focus-ring-width: 3px;
-  --focus-ring-offset: 2px;
-
-  /* Motion. Every duration is read through these, so the reduced-motion block below disables all of
-     it in one place. */
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
-
-  --layout-max-width: 72rem;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer tokens {
   :root {
-    --colour-ink: #eef2f1;
-    --colour-ink-muted: #a9b6b4;
-    --colour-surface: #10201f;
-    --colour-surface-sunken: #07211f;
-    --colour-border: #2c3d3c;
-    --colour-brand: #07211f;
-    --colour-brand-contrast: #eef2f1;
-    --colour-focus: #7cb2ff;
-    --colour-warning-surface: #ffd23f;
-    --colour-warning-ink: #2b2000;
-    --colour-danger: #ff9a9e;
-    --colour-success: #6fd39b;
-  }
-}
+    color-scheme: light dark;
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --duration-fast: 0ms;
-    --duration-base: 0ms;
+    /* ---------------------------------------------------------------------------------------
+     * Primitives. Neutral and brand ramps for the light themes.
+     * ------------------------------------------------------------------------------------- */
+    --palette-white: #ffffff;
+    --palette-black: #000000;
+
+    --palette-sand-050: #f5f3ef;
+    --palette-sand-100: #eceae5;
+    --palette-sand-200: #dcdfda;
+
+    --palette-slate-300: #b4bdbb;
+    --palette-slate-400: #737f7d;
+    --palette-slate-500: #5b6867;
+    --palette-slate-600: #4a5c5b;
+    --palette-slate-700: #33403f;
+    --palette-slate-800: #10201f;
+    --palette-slate-900: #0b1817;
+
+    --palette-teal-050: #eef4f3;
+    --palette-teal-100: #d9e6e4;
+    --palette-teal-700: #14504f;
+    --palette-teal-800: #0f3d3e;
+    --palette-teal-900: #07211f;
+
+    --palette-gold-100: #fff3cc;
+    --palette-gold-500: #f4c95d;
+    --palette-gold-900: #2b2000;
+
+    --palette-red-100: #fbe6e7;
+    --palette-red-300: #ff9fa4;
+    --palette-red-700: #a4262c;
+    --palette-red-800: #8a1f24;
+
+    --palette-green-100: #dff0e6;
+    --palette-green-300: #79dba6;
+    --palette-green-700: #0f6b3f;
+    --palette-green-800: #0b5230;
+
+    --palette-blue-100: #e2ecfb;
+    --palette-blue-300: #8fc0ff;
+    --palette-blue-700: #0b5cd5;
+    --palette-blue-800: #0a4aa8;
+
+    /* Primitives for the dark theme. Defined here so a theme block is a list of aliases and a
+       value never has to be written twice. */
+    --palette-night-900: #080f0f;
+    --palette-night-800: #0e1a19;
+    --palette-night-700: #162423;
+    --palette-night-600: #202e2d;
+    --palette-night-400: #647775;
+    --palette-night-200: #adbab8;
+    --palette-night-050: #eef2f1;
+
+    /* Primitives for the high-contrast sunlight theme. A light ground on purpose: at four in the
+       afternoon by the window, maximum luminance beats a dark screen. */
+    --palette-contrast-ink: #000000;
+    --palette-contrast-surface: #ffffff;
+    --palette-contrast-sunken: #f2f0ec;
+    --palette-contrast-border: #3a4443;
+    --palette-contrast-brand: #00201f;
+    --palette-contrast-link: #003ea8;
+    --palette-contrast-danger: #8a0009;
+    --palette-contrast-success: #00421f;
+
+    /* ---------------------------------------------------------------------------------------
+     * Semantic colour — surfaces and text (light theme).
+     * ------------------------------------------------------------------------------------- */
+    --colour-surface: var(--palette-white);
+    --colour-surface-sunken: var(--palette-sand-050);
+    --colour-surface-raised: var(--palette-white);
+    --colour-surface-selected: var(--palette-teal-100);
+    --colour-surface-hover: var(--palette-sand-100);
+    --colour-surface-pressed: var(--palette-sand-200);
+    --colour-surface-disabled: var(--palette-sand-100);
+
+    --colour-ink: var(--palette-slate-800);
+    --colour-ink-muted: var(--palette-slate-600);
+    --colour-ink-disabled: var(--palette-slate-500);
+    --colour-ink-on-brand: var(--palette-white);
+
+    /* Two different jobs, two different tokens: a divider is decoration and is exempt from 1.4.11,
+       a control border carries meaning and is not. */
+    --colour-border-subtle: var(--palette-sand-200);
+    --colour-border: var(--palette-slate-400);
+    --colour-border-strong: var(--palette-slate-600);
+
+    --colour-brand: var(--palette-teal-800);
+    --colour-brand-strong: var(--palette-teal-900);
+    --colour-brand-contrast: var(--palette-white);
+    --colour-accent: var(--palette-gold-500);
+    --colour-accent-ink: var(--palette-gold-900);
+
+    /* A link is not a focus ring. They were one token in the scaffold; they are two now, because
+       changing the focus colour must not restyle every link on the screen. */
+    --colour-link: var(--palette-blue-800);
+    --colour-link-visited: var(--palette-blue-800);
+
+    /* ---------------------------------------------------------------------------------------
+     * Semantic colour — status. Every one of these is paired with a word and an icon in the
+     * component that uses it; none of them ever carries the meaning alone (1.4.1).
+     * ------------------------------------------------------------------------------------- */
+    --colour-danger-ink: var(--palette-red-800);
+    --colour-danger-surface: var(--palette-red-100);
+    --colour-danger-border: var(--palette-red-700);
+
+    --colour-success-ink: var(--palette-green-800);
+    --colour-success-surface: var(--palette-green-100);
+    --colour-success-border: var(--palette-green-700);
+
+    --colour-warning-ink: var(--palette-gold-900);
+    --colour-warning-surface: var(--palette-gold-500);
+    --colour-warning-border: var(--palette-gold-900);
+
+    /* ---------------------------------------------------------------------------------------
+     * Machine-readable surfaces: a QR code today, a barcode and a printed label later.
+     *
+     * These are the only tokens in this file that no theme overrides, and that is the point. A
+     * camera decoding a QR code needs dark modules on a light ground: inverting them for the dark
+     * theme produces a code many scanners — and most authenticator apps — will not read at all, and
+     * tinting them for the sunlight theme costs the contrast the decode depends on. So a scannable
+     * surface is white with black ink in every theme, and the component draws on it rather than on
+     * the page.
+     * ------------------------------------------------------------------------------------- */
+    --colour-code-surface: var(--palette-white);
+    --colour-code-ink: var(--palette-black);
+
+    --colour-info-ink: var(--palette-blue-800);
+    --colour-info-surface: var(--palette-blue-100);
+    --colour-info-border: var(--palette-blue-700);
+
+    /* ---------------------------------------------------------------------------------------
+     * Focus. WCAG 2.4.13 (adopted, AAA) wants an indicator at least 2 px thick contrasting 3:1
+     * with BOTH the focused component and its background. One colour cannot do that on a white
+     * form field and on the dark brand header at the same time, so the ring is two rings: a
+     * coloured inner outline and a contrasting outer halo.
+     * ------------------------------------------------------------------------------------- */
+    --colour-focus-ring: var(--palette-blue-800);
+    --colour-focus-ring-contrast: var(--palette-white);
+    --focus-ring-width: 3px;
+    --focus-ring-offset: 2px;
+    --focus-ring-contrast-width: 2px;
+
+    /* ---------------------------------------------------------------------------------------
+     * Target sizes — docs/nfr/accessibility-localisation.md section 5, checklist item A11Y-68.
+     * The target is the hit area, not the ink.
+     * ------------------------------------------------------------------------------------- */
+    --target-primary: 56px;
+    --target-standard: 44px;
+    --target-dense: 32px;
+    --target-floor: 24px;
+    --target-spacing-primary: 12px;
+    --target-spacing-standard: 8px;
+    /* The shell's comfortable default, unchanged from the scaffold so nothing shrinks. */
+    --touch-target-min: 48px;
+    /* A11Y-70: nothing may sit in the bottom 8 px of a phone viewport, where the system gesture
+       bar takes the touch. Bars add this to their safe-area inset. */
+    --gesture-bar-clearance: 8px;
+
+    /* ---------------------------------------------------------------------------------------
+     * Spacing — a 4 px base.
+     * ------------------------------------------------------------------------------------- */
+    --space-0: 0;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+    --space-8: 4rem;
+
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 1rem;
+    --radius-pill: 999px;
+
+    /* ---------------------------------------------------------------------------------------
+     * Typography. --text-size-scale is the product's own 100 / 125 / 150% preference, set by the
+     * shell from identity.user_preferences; it multiplies every step, so a Tailor who needs
+     * larger text gets it without the browser zoom that also enlarges the chrome.
+     * ------------------------------------------------------------------------------------- */
+    --font-family-base:
+      system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Tamil', Arial,
+      sans-serif;
+    --font-family-numeric:
+      ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', 'Noto Sans Mono', monospace;
+
+    --text-size-scale: 1;
+    --font-size-050: calc(0.75rem * var(--text-size-scale));
+    --font-size-100: calc(0.875rem * var(--text-size-scale));
+    --font-size-200: calc(1rem * var(--text-size-scale));
+    --font-size-300: calc(1.125rem * var(--text-size-scale));
+    --font-size-400: calc(1.375rem * var(--text-size-scale));
+    --font-size-500: calc(1.75rem * var(--text-size-scale));
+    --font-size-600: calc(2.25rem * var(--text-size-scale));
+
+    --line-height-tight: 1.25;
+    --line-height-base: 1.5;
+    --line-height-loose: 1.7;
+    --font-weight-regular: 400;
+    --font-weight-medium: 600;
+    --font-weight-bold: 700;
+    /* 1.4.12 Text Spacing: these are the floors a user stylesheet may raise, never a ceiling. */
+    --letter-spacing-base: normal;
+    --letter-spacing-wide: 0.02em;
+
+    /* ---------------------------------------------------------------------------------------
+     * Elevation. Shadow is never the only signal that something is raised: every raised surface
+     * also carries a border, because a shadow disappears in the high-contrast theme.
+     * ------------------------------------------------------------------------------------- */
+    --elevation-0: none;
+    --elevation-1: 0 1px 2px rgb(11 24 23 / 0.12), 0 1px 1px rgb(11 24 23 / 0.06);
+    --elevation-2: 0 4px 10px rgb(11 24 23 / 0.14), 0 1px 3px rgb(11 24 23 / 0.08);
+    --elevation-3: 0 14px 30px rgb(11 24 23 / 0.2), 0 3px 8px rgb(11 24 23 / 0.1);
+
+    /* ---------------------------------------------------------------------------------------
+     * Motion. Every duration in the product is read through one of these, so the reduced-motion
+     * block in themes.css disables all of it in one place (2.3.3, adopted AAA).
+     * ------------------------------------------------------------------------------------- */
+    --duration-instant: 0ms;
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --duration-slow: 320ms;
+    --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+    --easing-decelerate: cubic-bezier(0, 0, 0, 1);
+    --easing-accelerate: cubic-bezier(0.3, 0, 1, 1);
+
+    /* ---------------------------------------------------------------------------------------
+     * Density. Comfortable is the default everywhere. Compact is a desktop affordance and is
+     * neutralised on a coarse pointer further down, so a 32 px control can never reach a phone.
+     * ------------------------------------------------------------------------------------- */
+    --density-scale: 1;
+    --control-height: var(--target-standard);
+    --control-height-primary: var(--target-primary);
+    --row-height: calc(var(--target-primary) * var(--density-scale));
+    --density-gap: calc(var(--space-3) * var(--density-scale));
+    --density-padding-block: calc(var(--space-3) * var(--density-scale));
+    --density-padding-inline: calc(var(--space-4) * var(--density-scale));
+
+    /* ---------------------------------------------------------------------------------------
+     * Breakpoints and container sizes. A media query cannot read a custom property, so these are
+     * documentation and a value the shell can read back through getComputedStyle; the single
+     * source of truth for both CSS and TypeScript is
+     * src/design-system/foundations/breakpoints.ts, which carries the same numbers.
+     * ------------------------------------------------------------------------------------- */
+    --breakpoint-xs: 320px;
+    --breakpoint-sm: 360px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 1024px;
+    --breakpoint-xl: 1280px;
+
+    --container-sm: 30rem;
+    --container-md: 48rem;
+    --container-lg: 64rem;
+
+    /* ---------------------------------------------------------------------------------------
+     * Stacking. A component never invents a z-index.
+     * ------------------------------------------------------------------------------------- */
+    --z-base: 0;
+    --z-raised: 10;
+    --z-sticky: 100;
+    --z-bottom-bar: 200;
+    --z-banner: 300;
+    --z-overlay: 400;
+    --z-dialog: 500;
+    --z-toast: 600;
+
+    /* ---------------------------------------------------------------------------------------
+     * Layout and safe areas. env() resolves to 0px off a notched device, so these are safe to
+     * use unconditionally. The shell no longer pads itself: each bar pads its own edge, which is
+     * what lets a bottom navigation reach the edge of the glass without losing its targets.
+     * ------------------------------------------------------------------------------------- */
+    --layout-max-width: 72rem;
+    --layout-reading-width: 40rem;
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+
+    --app-bar-height: calc(var(--target-standard) + var(--space-4));
+    --bottom-bar-height: calc(var(--target-primary) + var(--space-4));
+    /* 2.4.11 Focus Not Obscured: the scroll container keeps this much clear below a focused
+       control, so the bottom bar never covers the field a person is typing in. */
+    --scroll-padding-bottom: calc(
+      var(--bottom-bar-height) + var(--safe-area-bottom) + var(--gesture-bar-clearance)
+    );
   }
 }

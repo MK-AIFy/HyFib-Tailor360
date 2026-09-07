@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Contexts;
+using Tailor360.Platform.Security.Background;
 
 namespace Tailor360.Worker.Jobs;
 
@@ -14,17 +15,22 @@ namespace Tailor360.Worker.Jobs;
 /// The row is per instance rather than global, because a single shared row would be kept fresh by
 /// whichever instance still worked and would hide the one that had stopped.
 /// </summary>
-/// <param name="scopeFactory">Creates a scope per beat, so a failed write cannot poison a long-lived context.</param>
+/// <param name="scopeFactory">Opens the job's scope per beat, so a failed write cannot poison a
+/// long-lived context.</param>
 /// <param name="clock">The clock.</param>
 /// <param name="options">Worker options.</param>
 /// <param name="logger">Logger.</param>
+[WorkerJob(JobName, WorkerBranchScope.None)]
 public sealed class HeartbeatService(
-    IServiceScopeFactory scopeFactory,
+    IWorkerScopeFactory scopeFactory,
     IClock clock,
     IOptions<WorkerOptions> options,
     ILogger<HeartbeatService> logger)
     : BackgroundService, IHeartbeatMonitor
 {
+    /// <summary>The declared job name, recorded as the actor on anything this job writes.</summary>
+    public const string JobName = "platform.worker_heartbeat";
+
     private long _lastBeatTicks;
 
     /// <inheritdoc />
@@ -69,8 +75,8 @@ public sealed class HeartbeatService(
 
         try
         {
-            using var scope = scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            using var scope = scopeFactory.CreateSystemScope(typeof(HeartbeatService));
+            var context = scope.Services.GetRequiredService<PlatformDbContext>();
 
             await context.Database.ExecuteSqlInterpolatedAsync(
                 $"""

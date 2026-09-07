@@ -1,0 +1,48 @@
+/*
+ * Layout helpers for stories only.
+ *
+ * They exist because a story still may not use an inline style: the house rule is that a `style`
+ * attribute in JSX is an inline style and there are none anywhere, and a rule with an exception for
+ * Storybook is a rule that leaks into the application the first time somebody copies a story into a
+ * screen. These classes are imported by story files and by nothing that ships.
+ */
+@layer components {
+  .storybook-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .storybook-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    inline-size: 100%;
+  }
+
+  /* A pane the width of a phone, for a story that has to be seen at the reflow floor. */
+  .storybook-phone {
+    inline-size: 320px;
+    max-inline-size: 100%;
+    border: 1px dashed var(--colour-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  /* A narrow container, to show a container query switching a table into cards. */
+  .storybook-narrow {
+    inline-size: 24rem;
+    max-inline-size: 100%;
+  }
+
+  .storybook-wide {
+    inline-size: 60rem;
+    max-inline-size: 100%;
+  }
+
+  .storybook-rail {
+    block-size: 32rem;
+    display: flex;
+  }
+}

@@ -1,0 +1,193 @@
+/*
+ * The eight reference journeys.
+ *
+ * Stories only. Nothing here ships in a screen: the journeys are evidence, and a journey that
+ * invented its own visual language would be evidence of the wrong thing. Every rule below is either
+ * a frame (which the shell needs because its bottom bar is `position: fixed`) or a plain stack of
+ * the design system's own spacing tokens.
+ *
+ * The one thing worth reading carefully is `.journey-row__actions`. Each queue row carries its own
+ * named controls — Assign, Move phase, Move up — because 2.5.7 Dragging Movements requires a button
+ * alternative to every drag and the #50 blueprint makes that alternative the primary implementation.
+ * The buttons are not a fallback tucked behind a menu: they are the row's controls, and there is no
+ * drag handle anywhere in this directory to fall back from.
+ */
+@layer components {
+  .journey {
+    position: relative;
+    contain: layout;
+    max-inline-size: 100%;
+    overflow: hidden;
+    border: 1px solid var(--colour-border);
+    border-radius: var(--radius-lg);
+    background: var(--colour-surface-sunken);
+  }
+
+  .journey[data-width='320'] {
+    inline-size: 320px;
+    block-size: 680px;
+  }
+
+  .journey[data-width='360'] {
+    inline-size: 360px;
+    block-size: 760px;
+  }
+
+  .journey[data-width='768'] {
+    inline-size: 768px;
+    block-size: 900px;
+  }
+
+  .journey[data-width='1024'] {
+    inline-size: 1024px;
+    block-size: 800px;
+  }
+
+  .journey[data-width='1280'] {
+    inline-size: 1280px;
+    block-size: 860px;
+  }
+
+  .journey__scroll {
+    block-size: 100%;
+    overflow: auto;
+  }
+
+  /* ----------------------------------------------------------------- screen scaffolding */
+
+  .journey-screen {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .journey-screen > p {
+    margin: 0;
+  }
+
+  .journey-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .journey-section > h2,
+  .journey-section > h3 {
+    margin: 0;
+    font-size: var(--font-size-300);
+  }
+
+  .journey-fields {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  /* Two columns only where there is genuinely room; one everywhere else, including at 150% text. */
+  @container (inline-size > 40rem) {
+    .journey-fields[data-columns='2'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .journey-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  /* ----------------------------------------------------------------- rows and their controls */
+
+  .journey-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .journey-row__meta {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  /* Wraps rather than scrolls: at 320 px and at 150% text the controls stack, and every one of
+     them keeps its 44 px target and its 8 px of spacing (AL-03, checklist item A11Y-68). */
+  .journey-row__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* ----------------------------------------------------------------- summaries and money */
+
+  .journey-summary {
+    margin: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .journey-summary dt {
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  .journey-summary dd {
+    margin: 0;
+  }
+
+  /* An amount is read digit by digit at a counter, so it never wraps and never uses a body face
+     where 1 and l are the same shape. */
+  .journey-amount {
+    font-family: var(--font-family-numeric);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .journey-total {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-300);
+  }
+
+  /* ----------------------------------------------------------------- dashboard tiles */
+
+  .journey-tiles {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  }
+
+  .journey-tile__value {
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-family-numeric);
+    font-size: var(--font-size-500);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .journey-tile__period {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  /* ----------------------------------------------------------------- wizard progress */
+
+  .journey-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    font-size: var(--font-size-100);
+  }
+
+  /* Marked by weight and a rule, never by colour alone (1.4.1). */
+  .journey-steps li[aria-current='step'] {
+    font-weight: var(--font-weight-bold);
+    border-block-end: 3px solid var(--colour-accent);
+  }
+}

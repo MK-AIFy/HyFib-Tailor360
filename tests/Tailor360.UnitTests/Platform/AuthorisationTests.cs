@@ -231,6 +231,94 @@ public sealed class AuthorisationTests
         return context;
     }
 
+    /* Session assurance --------------------------------------------------------------------- */
+
+    [Theory]
+    [InlineData(SessionAssurance.LiveSession, true)]
+    [InlineData(SessionAssurance.SignInComplete, false)]
+    [InlineData(SessionAssurance.SecondFactorSatisfied, false)]
+    public async Task AHalfSignedInSessionSatisfiesOnlyTheWeakestLevel(
+        SessionAssurance level,
+        bool expected)
+    {
+        // The session an attacker holding a stolen password has: authenticated in the framework's
+        // sense, and owing the second-factor challenge. It may finish signing in and end itself, and
+        // that is the whole of what "authenticated" buys it.
+        var context = await EvaluateAssuranceAsync(
+            new TestUser { IsAuthenticated = true, IsSignInComplete = false, MfaSatisfied = false },
+            level);
+
+        context.HasSucceeded.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(SessionAssurance.LiveSession, true)]
+    [InlineData(SessionAssurance.SignInComplete, true)]
+    [InlineData(SessionAssurance.SecondFactorSatisfied, false)]
+    public async Task AFinishedSignInWithoutASatisfiedFactorStopsShortOfCredentialChanges(
+        SessionAssurance level,
+        bool expected)
+    {
+        // An account with no second factor at all, or one signed in from a remembered device: the
+        // sign-in is genuinely finished, and no factor has been proved on this session.
+        var context = await EvaluateAssuranceAsync(
+            new TestUser { IsAuthenticated = true, IsSignInComplete = true, MfaSatisfied = false },
+            level);
+
+        context.HasSucceeded.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(SessionAssurance.LiveSession)]
+    [InlineData(SessionAssurance.SignInComplete)]
+    [InlineData(SessionAssurance.SecondFactorSatisfied)]
+    public async Task ASessionThatAnsweredItsChallengeSatisfiesEveryLevel(SessionAssurance level)
+    {
+        var context = await EvaluateAssuranceAsync(
+            new TestUser { IsAuthenticated = true, IsSignInComplete = true, MfaSatisfied = true },
+            level);
+
+        context.HasSucceeded.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task NoLevelIsSatisfiedWithoutASession()
+    {
+        foreach (var level in Enum.GetValues<SessionAssurance>())
+        {
+            var context = await EvaluateAssuranceAsync(new TestUser { IsAuthenticated = false }, level);
+            context.HasSucceeded.ShouldBeFalse($"{level} must not be satisfied by nobody.");
+        }
+    }
+
+    [Fact]
+    public async Task APermissionIsNotHeldByASessionThatHasNotFinishedSigningIn()
+    {
+        // Belt and braces for #24: even a caller whose ticket carries the permission is refused while
+        // the sign-in is outstanding, so a half session cannot reach a permissioned endpoint either.
+        var context = await EvaluatePermissionAsync(
+            new TestUser
+            {
+                IsAuthenticated = true,
+                IsSignInComplete = false,
+                Permissions = { "fake.read" },
+            },
+            new Permission("fake.read", "Read.", "Fake"));
+
+        context.HasFailed.ShouldBeTrue();
+    }
+
+    private static async Task<AuthorizationHandlerContext> EvaluateAssuranceAsync(
+        TestUser user,
+        SessionAssurance level)
+    {
+        var requirement = new SessionAssuranceRequirement(level);
+        var context = new AuthorizationHandlerContext([requirement], new System.Security.Claims.ClaimsPrincipal(), null);
+
+        await new SessionAssuranceAuthorisationHandler(user).HandleAsync(context);
+        return context;
+    }
+
     private sealed class SingleSource(Permission permission) : IPermissionSource
     {
         public IReadOnlyCollection<Permission> Permissions { get; } = [permission];
@@ -267,6 +355,8 @@ public sealed class AuthorisationTests
             => Permissions;
 
         public bool MfaSatisfied { get; init; }
+
+        public bool IsSignInComplete { get; init; } = true;
 
         public DateTimeOffset? LastReauthenticatedAt { get; init; }
 

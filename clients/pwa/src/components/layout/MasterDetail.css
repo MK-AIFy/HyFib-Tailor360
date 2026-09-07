@@ -1,0 +1,68 @@
+/*
+ * The master-detail panes.
+ *
+ * Two columns when there is room, one when there is not. The split is driven by a container query as
+ * well as by the measured arrangement attribute: the attribute decides which panes are in the DOM —
+ * a decision CSS cannot make, because rendering both and hiding one would put two named regions in
+ * the accessibility tree — and the query does the arranging.
+ *
+ * The list column is fixed at a readable width and the detail takes the rest, rather than an even
+ * split: a list of job numbers needs about 22em and a job card needs everything else.
+ */
+
+@layer layout {
+  .master-detail {
+    container-type: inline-size;
+    container-name: master-detail;
+    display: grid;
+    gap: var(--space-4);
+    align-items: start;
+    min-width: 0;
+  }
+
+  .master-detail[data-arrangement='split'] {
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  }
+
+  /*
+   * The panes must be able to shrink. Without min-width 0 a grid item's automatic minimum size is
+   * its content, so one wide table pushes the whole page sideways — the 1.4.10 Reflow failure the
+   * overflow helper exists to catch.
+   */
+  .master-detail__list,
+  .master-detail__detail {
+    min-width: 0;
+  }
+
+  /* Both panes take focus programmatically when stacked; neither should draw a ring for a click. */
+  .master-detail__list:focus:not(:focus-visible),
+  .master-detail__detail:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  .master-detail__back {
+    margin: 0 0 var(--space-3);
+  }
+
+  .master-detail__empty {
+    margin: 0;
+    padding: var(--space-5) var(--space-4);
+    color: var(--colour-ink-muted);
+    background: var(--colour-surface);
+    border: 1px dashed var(--colour-border);
+    border-radius: var(--radius-md);
+    text-align: center;
+  }
+
+  /*
+   * A second, independent guard. If the container is narrower than two usable panes — a desktop
+   * window dragged in, a 200% zoom that halves the CSS width — the split collapses to one column
+   * even though the measured arrangement has not caught up yet. Nothing is lost: both panes stay in
+   * the DOM and simply stack.
+   */
+  @container master-detail (max-width: 48rem) {
+    .master-detail[data-arrangement='split'] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

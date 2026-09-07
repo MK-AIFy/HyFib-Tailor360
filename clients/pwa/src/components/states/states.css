@@ -1,0 +1,163 @@
+/*
+ * The screen states: empty, loading, error, forbidden, and the two network states.
+ *
+ * Nothing here floats, overlays or animates its way onto the screen. Every state in this family is
+ * part of the document, in the place it describes, and stays until the thing it describes changes —
+ * which is what docs/nfr/accessibility-localisation.md section 6 means by forbidding a toast for a
+ * scan result, for sync state and for any actionable error.
+ */
+@layer components {
+  .state-region {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-5) var(--space-4);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    text-align: center;
+
+    --state-accent: var(--colour-ink-muted);
+    --icon-size: 2rem;
+  }
+
+  /* The tone colours the glyph only. The heading and the sentence stay at full text contrast,
+     because a state read in sunlight is read by its words. */
+  .state-region[data-tone='info'] {
+    --state-accent: var(--colour-info-border);
+  }
+
+  .state-region[data-tone='warning'] {
+    --state-accent: var(--colour-warning-border);
+  }
+
+  .state-region[data-tone='danger'] {
+    --state-accent: var(--colour-danger-border);
+  }
+
+  .state-region[data-full='true'] {
+    min-block-size: 16rem;
+    justify-content: center;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .state-region__icon {
+    color: var(--state-accent);
+  }
+
+  .state-region__title {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+  }
+
+  .state-region__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    /* A measure rather than the full width: a sentence that runs the width of a desktop table is a
+       sentence nobody reads, and 1.4.8's 80-character guidance is the reason the token exists. */
+    max-inline-size: var(--layout-reading-width);
+    color: var(--colour-ink);
+  }
+
+  .state-region__line {
+    margin: 0;
+  }
+
+  .state-region__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    /* 12 px, the primary-action spacing of docs/nfr/accessibility-localisation.md section 5: the
+       way back out of a forbidden state sits beside nothing it can be mistaken for. */
+    gap: var(--target-spacing-primary);
+    margin-block-start: var(--space-2);
+  }
+
+  /*
+   * The loading glyph turns. It is decoration and nothing else: the region carries aria-busy and
+   * the heading says what is loading, so under prefers-reduced-motion — where global.css flattens
+   * every animation — nothing is lost, which is what checklist item A11Y-73 asks.
+   */
+  .state-region--loading .state-region__icon {
+    animation: state-region-spin var(--duration-slow) linear infinite;
+  }
+
+  @keyframes state-region-spin {
+    from {
+      rotate: 0deg;
+    }
+
+    to {
+      rotate: 360deg;
+    }
+  }
+
+  /* A paragraph inside an Alert — the blocked action and the retryable error both stack a few. */
+  .state-line {
+    margin: 0;
+  }
+
+  .state-line--reference {
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    /* The correlation identifier is quoted down a telephone. Tabular digits stop 1 and l, 0 and O
+       being the thing that makes a support call take ten minutes. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * The network banner.
+   *
+   * The region is present on every screen whether or not it has anything to say, because a live
+   * region has to exist before its content changes for the change to be announced reliably. With
+   * nothing to say it holds no content and therefore takes no space: all the padding is on the
+   * inner element.
+   */
+  .network-status-banner {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--z-banner);
+  }
+
+  .network-status-banner__body {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    padding-inline-start: max(var(--space-4), var(--safe-area-left));
+    padding-inline-end: max(var(--space-4), var(--safe-area-right));
+    border-block-end: 2px solid var(--network-banner-border);
+    background: var(--network-banner-surface);
+    color: var(--network-banner-ink);
+
+    --network-banner-surface: var(--colour-warning-surface);
+    --network-banner-ink: var(--colour-warning-ink);
+    --network-banner-border: var(--colour-warning-border);
+    --icon-size: 1.5rem;
+  }
+
+  .network-status-banner[data-status='restored'] .network-status-banner__body {
+    --network-banner-surface: var(--colour-success-surface);
+    --network-banner-ink: var(--colour-success-ink);
+    --network-banner-border: var(--colour-success-border);
+  }
+
+  .network-status-banner__text {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+
+  .network-status-banner__title {
+    font-weight: var(--font-weight-bold);
+  }
+
+  .network-status-banner__dismiss {
+    flex: 0 0 auto;
+  }
+}

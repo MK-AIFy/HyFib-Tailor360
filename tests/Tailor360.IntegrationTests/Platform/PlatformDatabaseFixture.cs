@@ -12,7 +12,9 @@ namespace Tailor360.IntegrationTests.Platform;
 /// </summary>
 public sealed class PlatformDatabaseFixture : IAsyncLifetime
 {
-    private const string TemplateDatabase = "tailor360_test_template";
+    // Namespaced per run. See DatabaseAvailability.DatabaseNamespace: a fixed name means two runs
+    // against one cluster drop each other's template mid-migration.
+    private static readonly string TemplateDatabase = $"{DatabaseAvailability.DatabaseNamespace}_template";
 
     private static readonly SemaphoreSlim TemplateGate = new(1, 1);
     private static bool _templateReady;
@@ -63,7 +65,7 @@ public sealed class PlatformDatabaseFixture : IAsyncLifetime
     /// <summary>Creates a fresh database cloned from the migrated template and returns a context for it.</summary>
     public async Task<PlatformDbContext> CreateDatabaseAsync(string name)
     {
-        var databaseName = $"tailor360_test_{name.ToLowerInvariant()}_{_createdDatabases.Count}";
+        var databaseName = $"{DatabaseAvailability.DatabaseNamespace}_{name.ToLowerInvariant()}_{_createdDatabases.Count}";
 
         await ExecuteOnMaintenanceDatabaseAsync($"DROP DATABASE IF EXISTS {databaseName} WITH (FORCE)");
         await ExecuteOnMaintenanceDatabaseAsync($"CREATE DATABASE {databaseName} TEMPLATE {TemplateDatabase}");

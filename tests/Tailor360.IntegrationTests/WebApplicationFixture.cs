@@ -1,8 +1,13 @@
+using System.Net;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Tailor360.Modules.Identity.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Web;
@@ -37,19 +42,75 @@ public sealed class WebApplicationFixture : WebApplicationFactory<WebEntryPoint>
                 new Dictionary<string, string?> { ["Database:ConnectionString"] = connectionString }));
         }
 
+        // Every rate-limit policy and every abuse throttle partitions on the client address, and the
+        // test server leaves it unset — so without this, one shared partition would count every test in
+        // the assembly together and the tenth sign-in anywhere would start answering 429. The filter
+        // runs ahead of the application's own pipeline and sets the address from a header only tests
+        // send; the forwarded-headers middleware that follows does not touch it, because no
+        // X-Forwarded-For accompanies it.
+        builder.ConfigureServices(services =>
+            services.AddSingleton<IStartupFilter, TestClientAddressStartupFilter>());
+
         return base.CreateHost(builder);
     }
 
+    // Every module that owns a schema is migrated here, in the order the migration runner uses. A
+    // module missing from this list would leave the startup probe reporting pending migrations, so the
+    // hosted application would refuse to serve and every test in the collection would fail on a
+    // health check rather than on what it was testing.
     private static async Task MigrateAsync(string connectionString)
     {
-        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+        var platformOptions = new DbContextOptionsBuilder<PlatformDbContext>()
             .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
                 ModuleDbContext.MigrationsHistoryTable, PlatformDbContext.SchemaName))
             .UseSnakeCaseNamingConvention()
             .Options;
 
-        await using var context = new PlatformDbContext(options);
-        await context.Database.MigrateAsync();
+        await using (var context = new PlatformDbContext(platformOptions))
+        {
+            await context.Database.MigrateAsync();
+        }
+
+        var identityOptions = new DbContextOptionsBuilder<IdentityDbContext>()
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
+                ModuleDbContext.MigrationsHistoryTable, IdentityDbContext.SchemaName))
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        await using var identity = new IdentityDbContext(identityOptions);
+        await identity.Database.MigrateAsync();
+    }
+}
+
+/// <summary>
+/// Lets a test choose the client address its requests appear to come from, so that one test's attempts
+/// cannot exhaust another's rate-limit or throttle budget.
+/// </summary>
+internal sealed class TestClientAddressStartupFilter : IStartupFilter
+{
+    /// <summary>The header a test sets to choose its own client address.</summary>
+    public const string HeaderName = "X-Test-Client-Address";
+
+    /// <inheritdoc />
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+
+        return app =>
+        {
+            app.Use(async (context, continuation) =>
+            {
+                if (context.Request.Headers.TryGetValue(HeaderName, out var address)
+                    && IPAddress.TryParse(address.ToString(), out var parsed))
+                {
+                    context.Connection.RemoteIpAddress = parsed;
+                }
+
+                await continuation();
+            });
+
+            next(app);
+        };
     }
 }
 

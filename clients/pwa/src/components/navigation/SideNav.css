@@ -1,0 +1,90 @@
+/*
+ * The desktop navigation rail.
+ *
+ * It scrolls its own list and pins its footer, so the help entry stays in the same place on a screen
+ * with six groups and on a screen with two — which is what makes 3.2.6 Consistent Help true in
+ * practice rather than only in the markup.
+ */
+@layer components {
+  .side-nav {
+    display: flex;
+    flex-direction: column;
+    inline-size: var(--side-nav-width, 16rem);
+    /* An em-based width would grow with the text-size preference and squeeze the content pane; a
+       rem-based one grows only with the browser's own font size, which is what should move it. */
+    max-inline-size: 100%;
+    block-size: 100%;
+    background: var(--colour-surface);
+    border-inline-end: 1px solid var(--colour-border-subtle);
+    padding-block-start: var(--safe-area-top);
+    padding-inline-start: var(--safe-area-left);
+  }
+
+  .side-nav__scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .side-nav__section + .side-nav__section {
+    margin-block-start: var(--space-4);
+  }
+
+  .side-nav__section-title {
+    margin: 0 0 var(--space-1);
+    padding-inline: var(--space-3);
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-050);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-wide);
+    text-transform: uppercase;
+  }
+
+  .side-nav__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--target-spacing-standard);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .side-nav__link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-block-size: var(--target-standard);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    /* Reserved at rest so nothing shifts sideways when a destination becomes current. */
+    border-inline-start: 4px solid transparent;
+    color: var(--colour-ink);
+    text-decoration: none;
+
+    --icon-size: 1.25rem;
+  }
+
+  .side-nav__label {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .side-nav__link:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  /* Current: weight, a rule and a fill. Never colour alone (1.4.1). */
+  .side-nav__link[aria-current='page'] {
+    background: var(--colour-surface-selected);
+    border-inline-start-color: var(--colour-brand);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .side-nav__footer {
+    border-block-start: 1px solid var(--colour-border-subtle);
+    padding: var(--space-3) var(--space-2);
+    padding-block-end: calc(var(--space-3) + var(--safe-area-bottom));
+  }
+}

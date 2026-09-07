@@ -8,6 +8,7 @@ using Tailor360.Platform.Abstractions.FeatureFlags;
 using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Idempotency;
 using Tailor360.Platform.Abstractions.Identifiers;
+using Tailor360.Platform.Abstractions.Outbox;
 using Tailor360.Platform.Abstractions.Sequencing;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Auditing;
@@ -33,6 +34,38 @@ public static class PlatformServiceCollectionExtensions
 
         services.TryAddSingleton<IClock, SystemClock>();
         services.TryAddSingleton<IIdGenerator, UuidV7IdGenerator>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Declares that a module context takes part in migrations, and where in the order it belongs.
+    /// </summary>
+    /// <remarks>
+    /// Each module contributes its own context here, and the registry is composed from what the
+    /// container holds. A module that adds a context and forgets this call has a schema no migration run
+    /// will ever create, which the startup migration check turns into a refusal to serve rather than
+    /// into a runtime error on the first query.
+    /// </remarks>
+    /// <typeparam name="TContext">The module's context.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="schema">The schema the module owns.</param>
+    /// <param name="order">
+    /// Migration order. Platform is 0 and Identity is 100; every other module leaves the default so
+    /// that they are applied alphabetically among themselves.
+    /// </param>
+    public static IServiceCollection AddModuleContext<TContext>(
+        this IServiceCollection services,
+        string schema,
+        int order = ModuleContextRegistry.DefaultModuleOrder)
+        where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(schema);
+
+        services.AddSingleton(new ModuleContextRegistration(typeof(TContext), schema, order));
+        services.TryAddSingleton(provider =>
+            new ModuleContextRegistry(provider.GetServices<ModuleContextRegistration>()));
 
         return services;
     }
@@ -76,7 +109,7 @@ public static class PlatformServiceCollectionExtensions
         {
             var options = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
-            builder.UseNpgsql(BuildConnectionString(options), npgsql =>
+            builder.UseNpgsql(options.BuildPooledConnectionString(), npgsql =>
             {
                 npgsql.MigrationsHistoryTable(
                     ModuleDbContext.MigrationsHistoryTable, PlatformDbContext.SchemaName);
@@ -90,8 +123,8 @@ public static class PlatformServiceCollectionExtensions
             .UseSnakeCaseNamingConvention();
         });
 
-        services.TryAddSingleton(_ => new ModuleContextRegistry()
-            .Add<PlatformDbContext>(PlatformDbContext.SchemaName, ModuleContextRegistry.PlatformOrder));
+        services.AddModuleContext<PlatformDbContext>(
+            PlatformDbContext.SchemaName, ModuleContextRegistry.PlatformOrder);
 
         services.TryAddScoped<MigrationRunner>();
         services.TryAddScoped<JobLeaseService>();
@@ -104,6 +137,12 @@ public static class PlatformServiceCollectionExtensions
 
         services.TryAddSingleton<FeatureFlagStore>();
         services.TryAddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<FeatureFlagStore>());
+
+        // Scoped, not singleton: administration reads and writes through the request's own context,
+        // whereas evaluation answers from a snapshot the singleton holds.
+        services.TryAddScoped<IFeatureFlagAdministration, FeatureFlagAdministration>();
+        services.TryAddScoped<IAuditReader, AuditReader>();
+        services.TryAddScoped<IOutboxAdministration, OutboxAdministration>();
 
         services.TryAddScoped<IOutboxCorrelation, NullOutboxCorrelation>();
         services.TryAddScoped<IEventPublisher, OutboxWriter>();
@@ -118,18 +157,4 @@ public static class PlatformServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>
-    /// Builds the connection string with the pool size the budget check validated, so the value that was
-    /// checked is the value that is used.
-    /// </summary>
-    private static string BuildConnectionString(DatabaseOptions options)
-    {
-        var builder = new Npgsql.NpgsqlConnectionStringBuilder(options.ConnectionString)
-        {
-            MaxPoolSize = options.MaxPoolSize,
-            Pooling = true,
-        };
-
-        return builder.ConnectionString;
-    }
 }

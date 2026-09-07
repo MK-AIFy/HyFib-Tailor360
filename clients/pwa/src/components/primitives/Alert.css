@@ -1,0 +1,87 @@
+/*
+ * Inline alerts.
+ *
+ * A left border rather than a tinted background alone: the tint is the first thing to go in the
+ * high-contrast theme and the last thing to be visible in sunlight, while a 4 px rule survives both
+ * and gives the block an edge a person can find while scrolling one-handed.
+ */
+@layer components {
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--alert-border);
+    border-inline-start: 4px solid var(--alert-border);
+    border-radius: var(--radius-md);
+    background: var(--alert-surface);
+    color: var(--alert-ink);
+
+    --alert-surface: var(--colour-surface-sunken);
+    --alert-ink: var(--colour-ink);
+    --alert-border: var(--colour-border);
+  }
+
+  .alert[data-tone='info'] {
+    --alert-surface: var(--colour-info-surface);
+    --alert-ink: var(--colour-info-ink);
+    --alert-border: var(--colour-info-border);
+  }
+
+  .alert[data-tone='success'] {
+    --alert-surface: var(--colour-success-surface);
+    --alert-ink: var(--colour-success-ink);
+    --alert-border: var(--colour-success-border);
+  }
+
+  .alert[data-tone='warning'] {
+    --alert-surface: var(--colour-warning-surface);
+    --alert-ink: var(--colour-warning-ink);
+    --alert-border: var(--colour-warning-border);
+  }
+
+  .alert[data-tone='danger'] {
+    --alert-surface: var(--colour-danger-surface);
+    --alert-ink: var(--colour-danger-ink);
+    --alert-border: var(--colour-danger-border);
+  }
+
+  .alert__icon {
+    --icon-size: 1.5rem;
+
+    margin-block-start: 0.1em;
+  }
+
+  .alert__body {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+
+  .alert__title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-200);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+  }
+
+  .alert__content > :first-child {
+    margin-block-start: 0;
+  }
+
+  .alert__content > :last-child {
+    margin-block-end: 0;
+  }
+
+  .alert__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-standard);
+    margin-block-start: var(--space-3);
+  }
+
+  /* The dismiss control keeps its own 44 px target and does not shrink when the message is long. */
+  .alert__dismiss {
+    flex: 0 0 auto;
+    color: inherit;
+  }
+}

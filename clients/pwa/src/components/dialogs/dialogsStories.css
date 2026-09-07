@@ -1,0 +1,36 @@
+/*
+ * Layout helpers for the dialog stories, and for nothing that ships.
+ *
+ * A story still may not use an inline style: the house rule is that a `style` attribute in JSX is an
+ * inline style and there are none anywhere, and a rule with an exception for Storybook is a rule
+ * that leaks into the application the first time somebody copies a story into a screen.
+ */
+@layer components {
+  /* A page for a dialog to open over, so the scrim, the inert background and the returned focus are
+     all visible in the story rather than only in the test. */
+  .dialogs-story-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-block-size: 24rem;
+    padding: var(--space-5);
+    background: var(--colour-surface-sunken);
+    color: var(--colour-ink);
+  }
+
+  .dialogs-story-page p {
+    max-inline-size: var(--layout-reading-width);
+  }
+
+  .dialogs-story-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    inline-size: 100%;
+  }
+
+  .dialogs-story-phone {
+    inline-size: 320px;
+    max-inline-size: 100%;
+  }
+}

@@ -23,6 +23,32 @@ namespace Tailor360.Platform.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .IsUnicode(true)
+                        .HasColumnType("text")
+                        .HasColumnName("friendly_name");
+
+                    b.Property<string>("Xml")
+                        .IsRequired()
+                        .IsUnicode(true)
+                        .HasColumnType("text")
+                        .HasColumnName("xml");
+
+                    b.HasKey("Id")
+                        .HasName("pk_data_protection_keys");
+
+                    b.ToTable("data_protection_keys", "platform");
+                });
+
             modelBuilder.Entity("Tailor360.Platform.Persistence.Entities.AuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -222,6 +248,10 @@ namespace Tailor360.Platform.Persistence.Migrations
                         .HasColumnType("timestamptz")
                         .HasColumnName("expires_at");
 
+                    b.Property<DateTimeOffset?>("InFlightUntil")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("in_flight_until");
+
                     b.Property<string>("RequestFingerprint")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -250,6 +280,10 @@ namespace Tailor360.Platform.Persistence.Migrations
 
                     b.HasIndex("ExpiresAt")
                         .HasDatabaseName("ix_idempotency_keys_expires_at");
+
+                    b.HasIndex("InFlightUntil")
+                        .HasDatabaseName("ix_idempotency_keys_in_flight")
+                        .HasFilter("status = 'in_progress'");
 
                     b.ToTable("idempotency_keys", "platform");
                 });
@@ -308,7 +342,6 @@ namespace Tailor360.Platform.Persistence.Migrations
             modelBuilder.Entity("Tailor360.Platform.Persistence.Entities.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

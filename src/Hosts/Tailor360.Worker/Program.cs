@@ -5,11 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Observability.Health;
 using Tailor360.Platform.Observability.Logging;
 using Tailor360.Platform.Observability.Telemetry;
 using Tailor360.Platform.Persistence;
+using Tailor360.Platform.Security.Background;
 using Tailor360.Worker;
 using Tailor360.Worker.Jobs;
 
@@ -31,6 +33,16 @@ builder.Services.AddOptions<WorkerOptions>()
 
 builder.Services.AddTailor360Platform();
 builder.Services.AddTailor360Observability(builder.Configuration, typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0");
+
+// A job has no request and therefore no ambient user, so the principal it runs as is chosen from its
+// [WorkerJob] declaration rather than presented. This registers that choice, and nothing else of the
+// security stack: the worker serves no request to authenticate.
+builder.Services.AddTailor360WorkerScopes();
+
+// Deliberately not TryAdd. The platform registers the system audit context by default, which would
+// attribute every row a job writes to "system" with no correlation; this one names the job, or the
+// person the job is acting for, and must therefore be the later — and winning — registration.
+builder.Services.AddScoped<IAuditContext, WorkerAuditContext>();
 
 builder.Services.AddSingleton<HeartbeatService>();
 builder.Services.AddHostedService<OutboxDispatcherService>();

@@ -102,19 +102,24 @@ identity-aware proxy or WireGuard/Tailscale enrolment for phones and tablets. Th
 is the second factor, never the only one, and until issue #23 merges there is no public hostname at
 all — which is why `TAILOR360_BIND_ADDRESS` defaults to `127.0.0.1` and the proxy is reached through
 the tunnel. The environment holds synthetic data only, has no provider credentials (mail goes to
-Mailpit) and uses its own Data Protection ring, so a token minted there can never be decrypted by
-production.
+Mailpit) and carries its own Data Protection discriminator and its own database, so a token minted
+there is not decryptable by production once the persisted key ring exists — see
+[`../docs/dev/staging.md`](../docs/dev/staging.md), which is the operating manual for the
+environment and records what is still owed.
 
-`TAILOR360_WEB_IMAGE`, `TAILOR360_WORKER_IMAGE` and `TAILOR360_STAGING_SECRETS_DIR` are required:
-the stack refuses to start rather than silently falling back to a local default.
+`TAILOR360_WEB_IMAGE`, `TAILOR360_WORKER_IMAGE`, `TAILOR360_CLI_IMAGE` and
+`TAILOR360_STAGING_SECRETS_DIR` are required: the stack refuses to start rather than silently
+falling back to a local default. `up` runs the one-shot `migrate` service before web and worker may
+serve; `init-reference-data` and `seed-synthetic` sit behind the `seed` profile and are run when the
+environment is provisioned or reset.
 
 ## Published ports, and why the data services stay on the loopback
 
 A development laptop is regularly on a shop, home or café network. Everything in the development
 stack is therefore published to `127.0.0.1` only — never `0.0.0.0` — so an unauthenticated database
 or object store is unreachable from that network even when the machine is. The same rule applies on
-the staging VM: the data services publish nothing at all, and only the proxy is bound, to the gated
-address.
+the staging VM: the data services publish nothing at all, and exactly two ports are bound to the
+gated address — the proxy and the Mailpit interface. Those two are the whole external surface.
 
 | Host address | Service | Stack | Why it is published |
 | --- | --- | --- | --- |
@@ -149,16 +154,18 @@ Every long-running service has one, and dependants wait on it:
 - **web / worker** — `GET /health/ready` on 8080 and 8081. Readiness rather than liveness, because
   `depends_on: service_healthy` and `up --wait` must mean "can serve requests".
 - **Caddy** — fetches `/api/version` through itself, so the check covers proxy, routing and host.
-- **createbuckets** has none (a one-shot has no steady state; dependants use
-  `service_completed_successfully`), and **otel-collector** has none because its image is built
-  `FROM scratch` and contains no shell or HTTP client — its `health_check` extension on 13133 is
-  probed from the host instead.
+- **createbuckets**, **migrate** and the two `seed`-profile services have none (a one-shot has no
+  steady state; dependants use `service_completed_successfully`), and **otel-collector** has none
+  because its image is built `FROM scratch` and contains no shell or HTTP client — its
+  `health_check` extension on 13133 is probed from the host instead.
 
 ## Conventions and constraints
 
-- **Images are pinned by tag**, never `latest`, so an unnoticed upgrade cannot change a local
-  reproduction. The release pipeline (#22) records the resolved digests, and production promotes
-  digests rather than tags (Section 4.7).
+- **Images are pinned**, never `latest`, so an unnoticed upgrade cannot change a local
+  reproduction. The staging file pins by digest as well as tag (`name:tag@sha256:…`) because a tag
+  is a mutable pointer and staging is what a release is rehearsed in; the development files pin by
+  tag. Dependabot's `docker` and `docker-compose` ecosystems raise both weekly. Production promotes
+  digests, never tags (Section 4.7).
 - **Logs are capped** on every container (`json-file`, 50 MB × 5), so neither a laptop nor the VM
   can be filled by a log loop.
 - **Application containers are hardened**: non-root (`app`, UID 1654), read-only root filesystem,
@@ -171,10 +178,13 @@ Every long-running service has one, and dependants wait on it:
 
 ## Arriving later
 
-- **#21** adds the one-shot `migrate` service and `docker/Dockerfile.cli`; `web` and `worker` then
-  depend on it with `condition: service_completed_successfully`, and the per-role grants of
-  Section 4.4 (`t360_migrator`, `t360_app`, `t360_reporting`, `t360_retention`, `t360_backup`)
-  replace the bootstrap owner the development stack connects as today.
+- **`docker/Dockerfile.cli` and the job that builds, signs and promotes the `tailor360-cli` image.**
+  The staging stack already wires the one-shot `migrate` service and the `seed` profile against
+  `TAILOR360_CLI_IMAGE`; nothing yet produces that image. The development overlay
+  (`docker-compose.app.yml`) still runs the migration step by hand.
+- **The per-role grants of Section 4.4** (`t360_migrator`, `t360_app`, `t360_reporting`,
+  `t360_retention`, `t360_backup`), which replace the single bootstrap owner every process connects
+  as today.
 - **#31** adds the quarantine bucket to `createbuckets` and binds the `ObjectStorage__*` settings
   that the compose files already declare.
 - **#59** replaces this with IaC-managed staging and production, adds pgBackRest and signature and
@@ -193,5 +203,5 @@ docker build -f infra/docker/Dockerfile.worker -t tailor360-worker:check .
 caddy validate --config infra/caddy/Caddyfile --adapter caddyfile
 ```
 
-A Claude Code session without a Docker daemon cannot run these; say so in the pull request and let
-CI (#22) provide the evidence.
+An environment without a Docker daemon cannot run these; say so in the pull request and let the
+continuous integration run provide the evidence — do not claim a check you did not perform.

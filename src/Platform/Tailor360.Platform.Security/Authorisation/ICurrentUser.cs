@@ -33,6 +33,13 @@ public interface ICurrentUser
     /// <summary>True when the current session completed a multi-factor challenge.</summary>
     bool MfaSatisfied { get; }
 
+    /// <summary>
+    /// True when the caller has finished signing in. A session that answered only the first factor is
+    /// authenticated and not complete, and every endpoint but the ones that finish or end the sign-in
+    /// must refuse it.
+    /// </summary>
+    bool IsSignInComplete { get; }
+
     /// <summary>When the caller last re-authenticated, used to evaluate step-up freshness.</summary>
     DateTimeOffset? LastReauthenticatedAt { get; }
 

@@ -1,0 +1,314 @@
+/*
+ * Themes and display preferences.
+ *
+ * tokens.css defines the complete light palette on bare :root. This file redefines only what
+ * changes, in the order docs/nfr/accessibility-localisation.md requires:
+ *
+ *   1. dark under a media query, guarded so that an explicit light or contrast choice still wins;
+ *   2. dark again under [data-theme='dark'], so a stored preference overrides the operating system;
+ *   3. high contrast under prefers-contrast, guarded the same way;
+ *   4. high contrast again under [data-theme='contrast'].
+ *
+ * The attribute blocks come last and carry the same specificity as the guarded media blocks, so
+ * source order decides and the explicit choice always wins. Nothing in this file introduces a new
+ * value: every declaration points a semantic token at a primitive that tokens.css already defined,
+ * which is why a theme can be reviewed by reading one column.
+ *
+ * The shell writes data-theme, data-text-size and data-density onto <html> from the preference
+ * stored in identity.user_preferences, so a shared counter device shows the person at the counter
+ * their own settings and forgets them at sign-out.
+ */
+
+@layer tokens {
+  /* ===========================================================================================
+   * Dark
+   * ========================================================================================= */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']):not([data-theme='contrast']) {
+      color-scheme: dark;
+
+      --colour-surface: var(--palette-night-800);
+      --colour-surface-sunken: var(--palette-night-900);
+      --colour-surface-raised: var(--palette-night-700);
+      --colour-surface-selected: var(--palette-night-600);
+      --colour-surface-hover: var(--palette-night-700);
+      --colour-surface-pressed: var(--palette-night-600);
+      --colour-surface-disabled: var(--palette-night-700);
+
+      --colour-ink: var(--palette-night-050);
+      --colour-ink-muted: var(--palette-night-200);
+      --colour-ink-disabled: var(--palette-night-400);
+      --colour-ink-on-brand: var(--palette-night-050);
+
+      --colour-border-subtle: var(--palette-night-600);
+      --colour-border: var(--palette-night-400);
+      --colour-border-strong: var(--palette-night-200);
+
+      --colour-brand: var(--palette-night-700);
+      --colour-brand-strong: var(--palette-teal-900);
+      --colour-brand-contrast: var(--palette-night-050);
+      --colour-accent: var(--palette-gold-500);
+      --colour-accent-ink: var(--palette-gold-900);
+
+      --colour-link: var(--palette-blue-300);
+      --colour-link-visited: var(--palette-blue-300);
+
+      --colour-danger-ink: var(--palette-red-300);
+      --colour-danger-surface: var(--palette-night-700);
+      --colour-danger-border: var(--palette-red-300);
+
+      --colour-success-ink: var(--palette-green-300);
+      --colour-success-surface: var(--palette-night-700);
+      --colour-success-border: var(--palette-green-300);
+
+      --colour-warning-ink: var(--palette-gold-900);
+      --colour-warning-surface: var(--palette-gold-500);
+      --colour-warning-border: var(--palette-gold-500);
+
+      --colour-info-ink: var(--palette-blue-300);
+      --colour-info-surface: var(--palette-night-700);
+      --colour-info-border: var(--palette-blue-300);
+
+      --colour-focus-ring: var(--palette-blue-300);
+      --colour-focus-ring-contrast: var(--palette-night-900);
+
+      /* A shadow is nearly invisible on a dark ground, so it is deeper and the raised surface
+         also lightens. Neither is the only signal: raised surfaces carry a border too. */
+      --elevation-1: 0 1px 2px rgb(0 0 0 / 0.6);
+      --elevation-2: 0 4px 10px rgb(0 0 0 / 0.65);
+      --elevation-3: 0 14px 30px rgb(0 0 0 / 0.7);
+    }
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    --colour-surface: var(--palette-night-800);
+    --colour-surface-sunken: var(--palette-night-900);
+    --colour-surface-raised: var(--palette-night-700);
+    --colour-surface-selected: var(--palette-night-600);
+    --colour-surface-hover: var(--palette-night-700);
+    --colour-surface-pressed: var(--palette-night-600);
+    --colour-surface-disabled: var(--palette-night-700);
+
+    --colour-ink: var(--palette-night-050);
+    --colour-ink-muted: var(--palette-night-200);
+    --colour-ink-disabled: var(--palette-night-400);
+    --colour-ink-on-brand: var(--palette-night-050);
+
+    --colour-border-subtle: var(--palette-night-600);
+    --colour-border: var(--palette-night-400);
+    --colour-border-strong: var(--palette-night-200);
+
+    --colour-brand: var(--palette-night-700);
+    --colour-brand-strong: var(--palette-teal-900);
+    --colour-brand-contrast: var(--palette-night-050);
+    --colour-accent: var(--palette-gold-500);
+    --colour-accent-ink: var(--palette-gold-900);
+
+    --colour-link: var(--palette-blue-300);
+    --colour-link-visited: var(--palette-blue-300);
+
+    --colour-danger-ink: var(--palette-red-300);
+    --colour-danger-surface: var(--palette-night-700);
+    --colour-danger-border: var(--palette-red-300);
+
+    --colour-success-ink: var(--palette-green-300);
+    --colour-success-surface: var(--palette-night-700);
+    --colour-success-border: var(--palette-green-300);
+
+    --colour-warning-ink: var(--palette-gold-900);
+    --colour-warning-surface: var(--palette-gold-500);
+    --colour-warning-border: var(--palette-gold-500);
+
+    --colour-info-ink: var(--palette-blue-300);
+    --colour-info-surface: var(--palette-night-700);
+    --colour-info-border: var(--palette-blue-300);
+
+    --colour-focus-ring: var(--palette-blue-300);
+    --colour-focus-ring-contrast: var(--palette-night-900);
+
+    --elevation-1: 0 1px 2px rgb(0 0 0 / 0.6);
+    --elevation-2: 0 4px 10px rgb(0 0 0 / 0.65);
+    --elevation-3: 0 14px 30px rgb(0 0 0 / 0.7);
+  }
+
+  /* ===========================================================================================
+   * High contrast — the sunlight theme.
+   *
+   * A light ground on purpose. At four in the afternoon by the window it is luminance that wins,
+   * not a dark screen; the theme therefore drives every pair to 7:1 or better, replaces shadow
+   * with a visible border, and removes the muted ink step entirely, because "quieter" text is the
+   * first thing sunlight erases.
+   * ========================================================================================= */
+  @media (prefers-contrast: more) {
+    :root:not([data-theme='light']):not([data-theme='dark']) {
+      color-scheme: light;
+
+      --colour-surface: var(--palette-contrast-surface);
+      --colour-surface-sunken: var(--palette-contrast-sunken);
+      --colour-surface-raised: var(--palette-contrast-surface);
+      --colour-surface-selected: var(--palette-gold-100);
+      --colour-surface-hover: var(--palette-contrast-sunken);
+      --colour-surface-pressed: var(--palette-sand-200);
+      --colour-surface-disabled: var(--palette-contrast-sunken);
+
+      --colour-ink: var(--palette-contrast-ink);
+      --colour-ink-muted: var(--palette-contrast-ink);
+      --colour-ink-disabled: var(--palette-slate-700);
+      --colour-ink-on-brand: var(--palette-white);
+
+      --colour-border-subtle: var(--palette-contrast-border);
+      --colour-border: var(--palette-contrast-ink);
+      --colour-border-strong: var(--palette-contrast-ink);
+
+      --colour-brand: var(--palette-contrast-brand);
+      --colour-brand-strong: var(--palette-contrast-ink);
+      --colour-brand-contrast: var(--palette-white);
+      --colour-accent: var(--palette-gold-500);
+      --colour-accent-ink: var(--palette-contrast-ink);
+
+      --colour-link: var(--palette-contrast-link);
+      --colour-link-visited: var(--palette-contrast-link);
+
+      --colour-danger-ink: var(--palette-contrast-danger);
+      --colour-danger-surface: var(--palette-contrast-surface);
+      --colour-danger-border: var(--palette-contrast-danger);
+
+      --colour-success-ink: var(--palette-contrast-success);
+      --colour-success-surface: var(--palette-contrast-surface);
+      --colour-success-border: var(--palette-contrast-success);
+
+      --colour-warning-ink: var(--palette-contrast-ink);
+      --colour-warning-surface: var(--palette-gold-500);
+      --colour-warning-border: var(--palette-contrast-ink);
+
+      --colour-info-ink: var(--palette-contrast-link);
+      --colour-info-surface: var(--palette-contrast-surface);
+      --colour-info-border: var(--palette-contrast-link);
+
+      --colour-focus-ring: var(--palette-contrast-ink);
+      --colour-focus-ring-contrast: var(--palette-gold-500);
+      --focus-ring-width: 4px;
+
+      --elevation-1: none;
+      --elevation-2: none;
+      --elevation-3: none;
+    }
+  }
+
+  :root[data-theme='contrast'] {
+    color-scheme: light;
+
+    --colour-surface: var(--palette-contrast-surface);
+    --colour-surface-sunken: var(--palette-contrast-sunken);
+    --colour-surface-raised: var(--palette-contrast-surface);
+    --colour-surface-selected: var(--palette-gold-100);
+    --colour-surface-hover: var(--palette-contrast-sunken);
+    --colour-surface-pressed: var(--palette-sand-200);
+    --colour-surface-disabled: var(--palette-contrast-sunken);
+
+    --colour-ink: var(--palette-contrast-ink);
+    --colour-ink-muted: var(--palette-contrast-ink);
+    --colour-ink-disabled: var(--palette-slate-700);
+    --colour-ink-on-brand: var(--palette-white);
+
+    --colour-border-subtle: var(--palette-contrast-border);
+    --colour-border: var(--palette-contrast-ink);
+    --colour-border-strong: var(--palette-contrast-ink);
+
+    --colour-brand: var(--palette-contrast-brand);
+    --colour-brand-strong: var(--palette-contrast-ink);
+    --colour-brand-contrast: var(--palette-white);
+    --colour-accent: var(--palette-gold-500);
+    --colour-accent-ink: var(--palette-contrast-ink);
+
+    --colour-link: var(--palette-contrast-link);
+    --colour-link-visited: var(--palette-contrast-link);
+
+    --colour-danger-ink: var(--palette-contrast-danger);
+    --colour-danger-surface: var(--palette-contrast-surface);
+    --colour-danger-border: var(--palette-contrast-danger);
+
+    --colour-success-ink: var(--palette-contrast-success);
+    --colour-success-surface: var(--palette-contrast-surface);
+    --colour-success-border: var(--palette-contrast-success);
+
+    --colour-warning-ink: var(--palette-contrast-ink);
+    --colour-warning-surface: var(--palette-gold-500);
+    --colour-warning-border: var(--palette-contrast-ink);
+
+    --colour-info-ink: var(--palette-contrast-link);
+    --colour-info-surface: var(--palette-contrast-surface);
+    --colour-info-border: var(--palette-contrast-link);
+
+    --colour-focus-ring: var(--palette-contrast-ink);
+    --colour-focus-ring-contrast: var(--palette-gold-500);
+    --focus-ring-width: 4px;
+
+    --elevation-1: none;
+    --elevation-2: none;
+    --elevation-3: none;
+  }
+
+  /* An explicit light choice restores the operating-system-independent default. tokens.css already
+     holds every light value, so this block only has to say which colour scheme the browser should
+     render its own widgets in. */
+  :root[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  /* ===========================================================================================
+   * Text size — the product's own 100 / 125 / 150% preference (A11Y-72). Separate from browser
+   * zoom on purpose: zoom enlarges the browser chrome and the scanner overlay too, and a person
+   * with presbyopia wants larger labels, not a smaller viewport.
+   * ========================================================================================= */
+  :root[data-text-size='100'] {
+    --text-size-scale: 1;
+  }
+
+  :root[data-text-size='125'] {
+    --text-size-scale: 1.25;
+  }
+
+  :root[data-text-size='150'] {
+    --text-size-scale: 1.5;
+  }
+
+  /* ===========================================================================================
+   * Density.
+   * ========================================================================================= */
+  :root[data-density='comfortable'] {
+    --density-scale: 1;
+    --control-height: var(--target-standard);
+  }
+
+  :root[data-density='compact'] {
+    --density-scale: 0.875;
+    --control-height: var(--target-dense);
+  }
+
+  /* AL-03 allows the 32 px control on desktop only, "where a mouse is used and no garment is being
+     held". This is that rule, enforced rather than documented: on a coarse pointer the compact
+     density collapses back to the standard 44 px target, so a compact preference carried onto a
+     tablet cannot shrink a single control. */
+  @media (pointer: coarse) {
+    :root[data-density='compact'] {
+      --density-scale: 1;
+      --control-height: var(--target-standard);
+    }
+  }
+
+  /* ===========================================================================================
+   * Reduced motion. Every duration in the product is read through these two tokens, so this block
+   * is what stops the scanner sweep, the sheet transition and the undo bar (2.3.3, adopted AAA).
+   * Nothing is lost: no state change in this product is signalled by motion alone.
+   * ========================================================================================= */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --duration-fast: 0ms;
+      --duration-base: 0ms;
+      --duration-slow: 0ms;
+    }
+  }
+}

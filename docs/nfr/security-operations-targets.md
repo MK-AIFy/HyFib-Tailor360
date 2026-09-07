@@ -89,11 +89,31 @@ for critical and high findings and by the technical reviewer below that.
 | --- | --- | --- |
 | Application dependencies (NuGet, npm) | Dependency review with a licence allowlist; advisory feeds | Every pull request, plus a nightly re-scan of `main` |
 | Source code | CodeQL | Every pull request and weekly on `main` |
-| Secrets in the repository | gitleaks | Every pull request |
+| Secrets in the repository | gitleaks over the whole history, configured by [`../../.gitleaks.toml`](../../.gitleaks.toml) | Every pull request |
 | Container images, including third-party ones | Trivy | At build, plus a **weekly re-scan of the digests actually deployed** — a scan at build time says nothing about a vulnerability published afterwards |
 | Infrastructure as code | Trivy | Every pull request that touches `infra/` |
 | Host operating system | Provider or distribution advisories, unattended security updates | Weekly patch window |
 | The running system | Independent penetration test | Before production, and after any material change to authentication, payments or uploads (#56b) |
+
+**A finding that is wrong, and a finding that is right but carried, are different things.** CodeQL's
+findings gate the build at high severity and above. One that is a false positive is read, and recorded in
+[`../../.github/sarif-accepted.json`](../../.github/sarif-accepted.json) with the sentence that says why
+it is not a defect — matched on the rule, the file and a fragment of the message, never on a line number
+and never on the file alone, so a different finding of the same rule in the same file still fails. An
+accepted finding is still printed in the job summary with its reason beside it: the register removes the
+build failure, not the visibility. An entry that matches nothing also fails the build, because a register
+that has quietly stopped matching is one that is accepting something nobody read — and each entry names
+the scan it belongs to, so that rule stays usable across the CodeQL matrix rather than failing whichever
+language the entry does not describe. A finding that is
+genuinely right and is being shipped anyway is not this; that is a waiver, with an owner and an expiry,
+in [`../process/waivers.md`](../process/waivers.md).
+
+The secret scan's configuration allowlists **exact literal values**, never files and never rules: the
+documented example payloads and the integration-test account password, each with the sentence that says
+why it authenticates nothing. A path allowlist would say "never look in this file again", and every file
+concerned is one this repository writes examples into. The consequence is deliberate — changing one of
+those fixtures fails the scan until somebody updates the configuration, which is the moment at which
+"somebody changed an example" and "somebody pasted a real token into an example" stop looking identical.
 
 ---
 

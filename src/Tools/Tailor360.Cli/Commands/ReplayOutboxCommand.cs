@@ -1,17 +1,18 @@
 using System.CommandLine;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Tailor360.Platform.Abstractions.Auditing;
-using Tailor360.Platform.Persistence.Contexts;
+using Tailor360.Platform.Abstractions.Outbox;
 
 namespace Tailor360.Cli.Commands;
 
 /// <summary>
 /// Returns dead-lettered outbox messages to the queue. This is an operator action with a real effect on
-/// consumers, so it demands a reason and writes an audit entry. Issue #25 exposes the same operation
-/// over HTTP behind step-up authorisation; until then it is deliberately console-only, because the
-/// permission model that would guard an endpoint does not exist yet.
+/// consumers, so it demands a reason and writes an audit entry.
 /// </summary>
+/// <remarks>
+/// The work itself lives in <c>IOutboxAdministration</c>, which the administration endpoint calls as
+/// well, so a console replay and an endpoint replay do the same thing to the same rows and write the
+/// same entry. This command is the argument parsing and nothing else.
+/// </remarks>
 public static class ReplayOutboxCommand
 {
     /// <summary>Builds the command.</summary>
@@ -52,47 +53,34 @@ public static class ReplayOutboxCommand
                 return ExitCodes.Failure;
             }
 
+            if (id is not null && replayAll)
+            {
+                Console.Error.WriteLine("Supply --id <guid> or --dead-letter, not both.");
+                return ExitCodes.Failure;
+            }
+
             using var host = CliHost.Build();
             using var scope = host.Services.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var audit = scope.ServiceProvider.GetRequiredService<IAuditWriter>();
+            var outbox = scope.ServiceProvider.GetRequiredService<IOutboxAdministration>();
 
-            // The update and its audit entry commit together. Without the transaction the raw update
-            // would commit on its own and a failure writing the audit entry would leave messages back
-            // in the queue with no record of who did it, which is precisely what the audit trail is for.
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            if (id is null)
+            {
+                var drained = await outbox.ReplayAllAsync(why, cancellationToken: cancellationToken);
+                Console.WriteLine($"Replayed {drained} message(s).");
+                return ExitCodes.Success;
+            }
 
-            var replayed = id is null
-                ? await context.Database.ExecuteSqlAsync(
-                    $"""
-                     UPDATE platform.outbox_messages
-                        SET dead_lettered_at = NULL, attempt_count = 0, available_at = now(),
-                            lease_owner = NULL, lease_expires_at = NULL
-                      WHERE dead_lettered_at IS NOT NULL
-                     """,
-                    cancellationToken)
-                : await context.Database.ExecuteSqlAsync(
-                    $"""
-                     UPDATE platform.outbox_messages
-                        SET dead_lettered_at = NULL, attempt_count = 0, available_at = now(),
-                            lease_owner = NULL, lease_expires_at = NULL
-                      WHERE id = {id.Value} AND dead_lettered_at IS NOT NULL
-                     """,
-                    cancellationToken);
+            var result = await outbox.ReplayAsync(id.Value, why, cancellationToken: cancellationToken);
 
-            await audit.WriteAsync(
-                new AuditEntry(
-                    "platform.outbox.replayed",
-                    "OutboxMessage",
-                    id ?? Guid.Empty,
-                    $"Replayed {replayed} dead-lettered outbox message(s).",
-                    why),
-                cancellationToken);
+            if (result.IsFailure)
+            {
+                Console.Error.WriteLine(result.Error.Message);
+                return ExitCodes.Failure;
+            }
 
-            await context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            Console.WriteLine($"Replayed {replayed} message(s).");
+            Console.WriteLine(
+                $"Replayed {result.Value.EventType} message {result.Value.Id} " +
+                $"after {result.Value.AttemptCount} failed attempt(s).");
             return ExitCodes.Success;
         });
 

@@ -1,0 +1,190 @@
+/*
+ * The three role-optimised layouts.
+ *
+ * global.css owns the shell's base classes — `.app-shell`, `.app-header`, `.app-main`,
+ * `.app-footer`, `.skip-link`. This file owns what differs between the phone, the tablet and the
+ * desktop, and it does it by attribute rather than by media query: `data-shell` is written from the
+ * measured container width, so a desktop window dragged to 400 px really does become the phone
+ * layout (1.4.10 Reflow) and nothing anywhere asks what the device is.
+ */
+
+@layer layout {
+  /* =============================================================================================
+   * Focus Not Obscured (2.4.11), the part that lives on the document
+   *
+   * `scroll-padding-bottom` is a property of the scrolling element, so its value has to be
+   * resolvable on `html`. tokens.css defines it as the bottom bar's height plus the safe-area inset
+   * plus the 8 px gesture-bar clearance. These two rules are what make the first term honest: there
+   * is no bottom bar on a tablet or a desktop, and there is none on a phone while the keyboard is
+   * up, and in both cases reserving 72 px of scroll padding would push every focused field a bar's
+   * height further up the screen than it needs to be.
+   * =========================================================================================== */
+  html[data-shell='tablet'],
+  html[data-shell='desktop'],
+  html[data-keyboard='open'] {
+    --bottom-bar-height: 0px;
+  }
+
+  /* =============================================================================================
+   * The body: navigation beside the work, or above it
+   * =========================================================================================== */
+  .app-shell__body {
+    display: flex;
+    flex: 1 1 auto;
+    /* Without this a wide table inside main sets the flex item's automatic minimum size to its
+       content width, and the whole page scrolls sideways — the Reflow failure the overflow helper
+       exists to catch. */
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    max-width: var(--layout-max-width);
+    margin: 0 auto;
+  }
+
+  [data-shell='phone'] .app-shell__body {
+    display: block;
+  }
+
+  .app-shell__rail {
+    flex: 0 0 auto;
+  }
+
+  /* The rail publishes its own width as a custom property, so a shell asks for a width rather than
+     overriding one. A counter tablet needs the working area more than it needs long destination
+     names, and the destination labels are short. */
+  [data-shell='tablet'] .app-shell__rail {
+    --side-nav-width: 12rem;
+  }
+
+  [data-shell='desktop'] .app-shell__rail {
+    --side-nav-width: 15rem;
+  }
+
+  .app-shell__body > .app-main {
+    min-width: 0;
+  }
+
+  /* =============================================================================================
+   * The phone: room for the bottom bar, the gesture strip and the keyboard
+   * =========================================================================================== */
+  /*
+   * The bottom bar is `position: fixed`, so it overlays the end of the page rather than taking a
+   * place in it. The clearance therefore belongs to the whole shell — the last thing in the flow is
+   * the footer, not the main landmark — and it is the sum of four terms:
+   *
+   *   the bar's own height, which the two rules at the top of this file zero when there is no bar;
+   *   the device safe-area inset;
+   *   the 8 px of gesture bar that checklist item A11Y-70 forbids putting any control in;
+   *   the measured keyboard height, for iOS Safari, which resizes neither the layout viewport nor
+   *     anything else when the keyboard opens.
+   *
+   * Every term is zero when it does not apply, so this is one rule rather than four.
+   */
+  .app-shell[data-shell='phone'] {
+    padding-bottom: calc(
+      var(--bottom-bar-height) + var(--safe-area-bottom) + var(--gesture-bar-clearance) +
+        var(--virtual-keyboard-height, 0px)
+    );
+  }
+
+  [data-shell='phone'] .app-main {
+    /* The shell reserves the bar's height for the page; main only needs its own breathing room. */
+    padding-bottom: var(--space-5);
+  }
+
+  [data-shell='phone'] .app-footer {
+    /* The footer scrolls with the content on a phone; the bar below it already pads the edge. */
+    padding-bottom: var(--space-3);
+  }
+
+  /* =============================================================================================
+   * Header utilities: help, support and display settings
+   * =========================================================================================== */
+  .app-header {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .app-header__utilities {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .shell-utilities {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .shell-utilities[data-placement='side'] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .shell-utilities__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    /* The standard control class of accessibility-localisation.md section 5. */
+    min-height: var(--target-standard);
+    min-width: var(--target-standard);
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    color: inherit;
+    text-decoration: none;
+    --icon-size: 1.25rem;
+  }
+
+  .shell-utilities[data-placement='side'] .shell-utilities__link {
+    color: var(--colour-ink);
+  }
+
+  .shell-utilities__link:hover {
+    text-decoration: underline;
+  }
+
+  .shell-utilities__link[aria-current='page'] {
+    font-weight: var(--font-weight-bold);
+  }
+
+  /*
+   * At the reflow floor the header would wrap into three lines with the words in. The glyphs stay,
+   * the names stay in the DOM and in the accessible name, and only the visible text is folded away —
+   * so 2.5.3 Label in Name and voice control are unaffected.
+   *
+   * A viewport query rather than a container query, and deliberately. `container-type: inline-size`
+   * establishes containment, and containment makes the element a containing block for every
+   * `position: fixed` descendant — which would pin the bottom navigation to the bottom of the shell
+   * instead of the bottom of the screen, and on a long page that is somewhere below the fold. The
+   * header spans the viewport in every shell this application ships, so the two queries agree
+   * everywhere except inside a Storybook frame, where the frame supplies its own width instead.
+   */
+  @media (max-width: 359px) {
+    .app-header__utilities .shell-utilities__label,
+    .app-header__utilities .help-entry__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+  }
+
+  /* =============================================================================================
+   * The route announcer's focus target
+   *
+   * The heading takes focus on every navigation so the screen announces itself and the next Tab
+   * starts at the work. A pointer-driven navigation must not leave a ring behind on it; a keyboard
+   * one must, and :focus-visible is what tells them apart. This is the same device global.css uses
+   * for the main landmark and the skip link.
+   * =========================================================================================== */
+  .app-main :where(h1, [data-page-heading])[tabindex]:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+}

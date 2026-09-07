@@ -1,0 +1,37 @@
+/*
+ * Text links.
+ *
+ * The underline is the point. 1.4.1 Use of Colour forbids colour as the only distinguishing signal,
+ * and inside a paragraph colour is all a link has unless it is underlined — which is why the
+ * underline is present at rest and thickens rather than disappears on hover.
+ */
+@layer components {
+  .text-link {
+    color: var(--colour-link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    border-radius: var(--radius-sm);
+  }
+
+  .text-link:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .text-link[data-quiet='true'] {
+    color: inherit;
+    text-decoration-color: var(--colour-border-strong);
+  }
+
+  .text-link[data-quiet='true']:hover {
+    color: var(--colour-link);
+    text-decoration-color: currentcolor;
+  }
+
+  /* The external glyph rides with the last word so it never wraps onto a line of its own. */
+  .text-link__icon {
+    --icon-size: 0.9em;
+
+    margin-inline-start: 0.25em;
+  }
+}

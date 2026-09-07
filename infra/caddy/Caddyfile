@@ -22,14 +22,22 @@
 	# ACME DNS-01 (placeholder — deliberately not enabled).
 	#
 	# DNS-01 is the challenge this deployment needs, because the shop server sits behind NAT and
-	# port 80 is not reachable from the internet. Two things must land before it can be switched on:
-	#   1. the hostname and DNS provider decision (Section 11 item 2), and
-	#   2. a Caddy image built with that provider's DNS module — the official caddy image does not
-	#      contain any, so `acme_dns` would fail at start-up. Build it with the builder image:
+	# port 80 is not reachable from the internet. Three things must land before it can be switched
+	# on, and the order matters:
+	#   1. the hostname and DNS-provider decision (owner decision OD-02, Section 11 item 2), which
+	#      also replaces the bare port in TAILOR360_SITE_ADDRESS with a name;
+	#   2. a Caddy image built with that provider's DNS module — the official caddy image contains
+	#      none, so `acme_dns` would fail at start-up. Build it with the builder image:
 	#        FROM caddy:2.11.4-builder-alpine AS builder
 	#        RUN xcaddy build --with github.com/caddy-dns/<provider>
-	# The token is then mounted as a file and read with {file./run/secrets/acme_dns_token}, never
-	# baked into the image and never placed in a compose environment block.
+	#      and promote that build by digest through TAILOR360_CADDY_IMAGE, which the staging compose
+	#      file already reads, rather than editing a file on the VM;
+	#   3. the provider's API token, mounted as a file and read with
+	#      {file./run/secrets/acme_dns_token}, never baked into the image and never placed in a
+	#      compose environment block.
+	#
+	# The sequence, and why it stays off until the environment has a public name at all, is recorded
+	# in docs/dev/staging.md.
 	#
 	# acme_dns <provider> {file./run/secrets/acme_dns_token}
 
@@ -70,8 +78,11 @@
 	# controlled next to the code it protects.
 
 	# Health probes are internal. An orchestrator, the compose watchdog and `./scripts/dev status`
-	# call them on the container port; nothing outside the network has a reason to.
-	handle /health/* {
+	# call them on the container port; nothing outside the network has a reason to. The matcher
+	# names the bare path too: `/health/*` alone lets `/health` through to the application's shell
+	# fallback, which would answer a probe aimed at the wrong path with 200 and an HTML body.
+	@health path /health /health/*
+	handle @health {
 		respond "Not found" 404
 	}
 

@@ -90,3 +90,52 @@ updates:
         update-types:
           - minor
           - patch
+
+  # Container images in the compose stacks and the Dockerfiles. Only the staging stack pins by
+  # digest today (infra/CLAUDE.md rule 3), and a digest that nothing raises goes stale silently —
+  # this is what raises it. Dependabot rewrites the digest and the tag together, so the file stays
+  # readable.
+  - package-ecosystem: docker-compose
+    directories:
+      - /infra/compose
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - infra
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      compose-images:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # The base images the application images are built from.
+  - package-ecosystem: docker
+    directories:
+      - /infra/docker
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - infra
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      base-images:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch

@@ -1,0 +1,35 @@
+/*
+ * Icon geometry and stroke.
+ *
+ * The stroke lives here rather than on the element so that a theme can thicken it: the high-contrast
+ * sunlight theme raises --icon-stroke-width, because a 1.5 px hairline is the first thing to
+ * disappear at four in the afternoon by the window. 1.4.11 asks for 3:1 on a glyph that carries
+ * meaning; currentColor is what delivers that, since the icon then contrasts exactly as well as the
+ * word beside it, in every theme, with nothing to keep in step by hand.
+ */
+@layer components {
+  .icon {
+    /* em, not px: the glyph grows with the text-size preference and with 200% zoom. */
+    inline-size: var(--icon-size, 1.25em);
+    block-size: var(--icon-size, 1.25em);
+    flex: 0 0 auto;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: var(--icon-stroke-width, 1.75);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* The glyph sits on the text baseline rather than on the line box, so an icon beside a word
+       does not push the row taller when the text size changes. */
+    vertical-align: -0.125em;
+  }
+
+  :root[data-theme='contrast'] .icon {
+    --icon-stroke-width: 2.25;
+  }
+
+  @media (prefers-contrast: more) {
+    :root:not([data-theme='light']):not([data-theme='dark']) .icon {
+      --icon-stroke-width: 2.25;
+    }
+  }
+}

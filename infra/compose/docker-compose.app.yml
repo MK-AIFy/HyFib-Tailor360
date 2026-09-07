@@ -67,12 +67,20 @@ services:
       Serilog__MinimumLevel__Default: ${TAILOR360_LOG_LEVEL:-Information}
       # The proxy is the only hop in front of the host, and it is on this bridge network.
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
-      # Bound from #31 (object storage) and #44 (e-mail). The hosts ignore them until then; they are
-      # declared now so that the deployment shape does not change when those issues land.
+      # Object storage is bound from #31; the hosts ignore it until then, and it is declared now so
+      # that the deployment shape does not change when that issue lands. The e-mail keys below are not
+      # in that category any more: Identity binds them today (EmailDeliveryOptions, section
+      # Identity:Email), which is why they carry that section verbatim. A key whose prefix matches no
+      # options section is caught by ComposeConfigurationTests.
       ObjectStorage__Endpoint: http://minio:9000
       ObjectStorage__ForcePathStyle: "true"
-      Email__SmtpHost: mailpit
-      Email__SmtpPort: "1025"
+      Identity__Email__Host: mailpit
+      Identity__Email__Port: "1025"
+      # A recovery link is absolute or it cannot be followed out of an e-mail, so the host that sends
+      # one has to be told the address a browser reaches it on. This stack is a developer's, published
+      # on the loopback, which is the one case allowed to be plain HTTP.
+      Identity__Recovery__PublicBaseUrl: http://localhost:${TAILOR360_HTTP_PUBLISHED_PORT:-8080}
+      Identity__Recovery__AllowInsecurePublicBaseUrl: "true"
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey
@@ -125,8 +133,13 @@ services:
       Worker__HealthPort: "8081"
       ObjectStorage__Endpoint: http://minio:9000
       ObjectStorage__ForcePathStyle: "true"
-      Email__SmtpHost: mailpit
-      Email__SmtpPort: "1025"
+      Identity__Email__Host: mailpit
+      Identity__Email__Port: "1025"
+      # A recovery link is absolute or it cannot be followed out of an e-mail, so the host that sends
+      # one has to be told the address a browser reaches it on. This stack is a developer's, published
+      # on the loopback, which is the one case allowed to be plain HTTP.
+      Identity__Recovery__PublicBaseUrl: http://localhost:${TAILOR360_HTTP_PUBLISHED_PORT:-8080}
+      Identity__Recovery__AllowInsecurePublicBaseUrl: "true"
     secrets:
       - Database__ConnectionString
       - ObjectStorage__AccessKey

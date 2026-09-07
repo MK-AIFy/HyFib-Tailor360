@@ -3,11 +3,35 @@ import { useEffect, useState } from 'react'
 /** The anonymous endpoint the shell reads on start-up (src/Hosts/Tailor360.Web VersionEndpoints). */
 export const VERSION_ENDPOINT = '/api/version'
 
-/** The build and environment description returned by GET /api/version. */
+/**
+ * The build, schema and compatibility description returned by GET /api/version.
+ *
+ * It is the one endpoint that describes the server rather than answering a question about the caller,
+ * and the shell reads it before a session exists: the training banner, the "an update is ready" prompt
+ * of #51 and the refusal to run against an API major this build was not written for all come from here.
+ */
 export interface VersionInfo {
-  readonly version: string
-  readonly buildHash: string
+  /** The major API surface the server serves, for example `v1`. */
+  readonly api: string
+  /**
+   * The oldest client build the server answers, or empty when it answers every build.
+   *
+   * A build below it is refused with 426, so a client at or below it prompts for an update rather than
+   * waiting to be refused mid-task.
+   */
+  readonly minimumClient: string
+  /** The build the server is serving. A different value here means a newer client is available. */
+  readonly current: string
+  /** The environment name, lower case. Anything but `production` shows the training banner. */
   readonly environment: string
+  /**
+   * The newest migration timestamp the server's build carries. It changes only when the database shape
+   * changes, which is how a client with cached payloads tells a routine deployment from one that may
+   * have changed what those payloads mean.
+   */
+  readonly schemaVersion: string
+  /** The short source revision. Present in development only, so every consumer treats it as optional. */
+  readonly commit?: string
 }
 
 export type VersionState =
@@ -21,9 +45,13 @@ function isVersionInfo(payload: unknown): payload is VersionInfo {
   }
   const candidate = payload as Record<string, unknown>
   return (
-    typeof candidate['version'] === 'string' &&
-    typeof candidate['buildHash'] === 'string' &&
-    typeof candidate['environment'] === 'string'
+    typeof candidate['api'] === 'string' &&
+    typeof candidate['minimumClient'] === 'string' &&
+    typeof candidate['current'] === 'string' &&
+    typeof candidate['environment'] === 'string' &&
+    typeof candidate['schemaVersion'] === 'string' &&
+    // Absent outside development, and never anything but a string when it is there.
+    (candidate['commit'] === undefined || typeof candidate['commit'] === 'string')
   )
 }
 
@@ -48,9 +76,12 @@ export async function fetchVersion(signal?: AbortSignal): Promise<VersionInfo> {
   }
 
   return {
-    version: payload.version,
-    buildHash: payload.buildHash,
+    api: payload.api,
+    minimumClient: payload.minimumClient,
+    current: payload.current,
     environment: payload.environment,
+    schemaVersion: payload.schemaVersion,
+    ...(payload.commit === undefined ? {} : { commit: payload.commit }),
   }
 }
 

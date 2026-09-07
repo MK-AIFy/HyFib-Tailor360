@@ -28,7 +28,21 @@ REFERENCE = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*<?([^\s>]+)>?", re.MULTILINE)
 
 SKIPPED_SCHEMES = ("http://", "https://", "mailto:", "tel:", "ftp://", "data:")
 SEARCH_ROOTS = ("docs", ".github")
-EXTRA_FILES = ("README.md", "CONTRIBUTING.md", "SECURITY.md")
+EXTRA_FILES = ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CLAUDE.md")
+
+# Guides and operating manuals that live beside the code they describe rather than under docs/.
+# They are hub documents — almost every line points somewhere else — so leaving them outside the
+# gate would leave the largest concentration of relative links in the repository ungated. Listed
+# one by one rather than by walking src/, clients/ and infra/, so that a stray markdown file in a
+# build output directory cannot fail the check.
+EXTRA_FILES += (
+    os.path.join("src", "Modules", "CLAUDE.md"),
+    os.path.join("clients", "pwa", "CLAUDE.md"),
+    os.path.join("clients", "pwa", "README.md"),
+    os.path.join("infra", "CLAUDE.md"),
+    os.path.join("infra", "README.md"),
+    os.path.join("infra", "dev-environment", "README.md"),
+)
 
 # A fenced code block may contain an illustrative link that is not meant to resolve, and so may
 # an inline code span: `![x](diagram.png)` inside backticks renders as literal text, not a link.

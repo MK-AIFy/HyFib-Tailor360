@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TrainingBanner } from './TrainingBanner'
 import { useVersion } from '../app/version'
 import { AppIntlProvider } from '../i18n/IntlProvider'
+import { versionPayload } from '../app/testing/versionFixture'
 
 /**
  * Renders the environment the shell has loaded. Asserting on it first makes the "no banner" test
@@ -21,7 +22,7 @@ function VersionProbe() {
 function stubVersionEndpoint(environment: string) {
   const fetchMock = vi.fn(() =>
     Promise.resolve(
-      new Response(JSON.stringify({ version: '0.1.0-alpha', buildHash: '0abcdef', environment }), {
+      new Response(JSON.stringify(versionPayload({ environment })), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),

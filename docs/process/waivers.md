@@ -89,6 +89,16 @@ has been prepared to ship without.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | _(none)_ | | | | | | | | | | | |
 
+**Known gaps that will need a row here at the first release.** A waiver is granted against a release, and no
+release has been made, so these are not waivers yet — they are accepted residual risks recorded where the argument
+about them lives, listed here so that whoever prepares the first release candidate does not have to rediscover
+them. Each names the document that carries the acceptance, the owner and the corrective issue.
+
+| Gap | Recorded as | Owner | Corrective issue | Gate it would be waived against |
+| --- | --- | --- | --- | --- |
+| The ASP.NET Core Data Protection key ring is persisted to `platform.data_protection_keys` unencrypted — nothing calls `ProtectKeysWith…`, because no key-encryption certificate is provisioned. The ring wraps every stored TOTP shared secret | **RR-04** in [`../security/threat-models/authentication.md`](../security/threat-models/authentication.md) | Technical reviewer, accepted 2026-09-05 | #59 (environments, secrets and certificate provisioning) | RG-10 (secrets and key management) at the first release that has one |
+| No endpoint demands a *recent* second factor, so somebody at an unattended signed-in screen can mint a credential. The freshness machinery exists; the re-authentication endpoint that would make the demand satisfiable does not | **RR-07** in [`../security/threat-models/authentication.md`](../security/threat-models/authentication.md) | Technical reviewer, accepted 2026-09-05 | #24 (step-up re-authentication and `RequiresStepUp`) | None — it is a design gap closed inside W1, not a gate failure |
+
 ### 4.3 Worked example — illustrative only
 
 The row below is an **illustration of the format**. It is not a granted waiver, it does not apply to any release,

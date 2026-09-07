@@ -1,0 +1,33 @@
+/* The icon gallery story. Stories only; nothing that ships imports this. */
+@layer components {
+  .icon-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .icon-gallery__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+  }
+
+  .icon-gallery__glyph {
+    --icon-size: 2rem;
+  }
+
+  .icon-gallery__name {
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-050);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+}

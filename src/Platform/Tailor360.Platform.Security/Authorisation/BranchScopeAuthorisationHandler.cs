@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Tailor360.Platform.Abstractions.Multitenancy;
+using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Platform.Security.Authorisation;
 
@@ -12,8 +13,11 @@ namespace Tailor360.Platform.Security.Authorisation;
 public sealed class BranchScopeAuthorisationHandler(ICurrentUser currentUser)
     : AuthorizationHandler<BranchScopeRequirement>
 {
-    /// <summary>The permission that grants reach across every branch.</summary>
-    public const string OrganisationWidePermission = "admin.organisation.read_all_branches";
+    /// <summary>
+    /// The permission that grants reach across every branch. It is the catalogue's own key rather than
+    /// a copy of the string, so a rename cannot leave this handler asking for a permission nobody has.
+    /// </summary>
+    public const string OrganisationWidePermission = PlatformPermissions.ReadAllBranches;
 
     /// <inheritdoc />
     protected override Task HandleRequirementAsync(
@@ -25,7 +29,9 @@ public sealed class BranchScopeAuthorisationHandler(ICurrentUser currentUser)
 
         if (!currentUser.IsAuthenticated)
         {
-            context.Fail(new AuthorizationFailureReason(this, "Not authenticated."));
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.NotAuthenticated, "Not authenticated."));
+
             return Task.CompletedTask;
         }
 
@@ -35,6 +41,12 @@ public sealed class BranchScopeAuthorisationHandler(ICurrentUser currentUser)
                 currentUser.Context.BranchId is { } branchId && currentUser.CanActInBranch(branchId),
             BranchScope.AssignedBranches => currentUser.AssignedBranches.Count > 0,
             BranchScope.Organisation => currentUser.HasPermission(OrganisationWidePermission),
+
+            // Nothing to compare against. The permission requirement has already decided whether this
+            // caller may perform the action; there is no branch-owned row for a reach check to be
+            // about, so demanding reach here would only exclude principals who hold the permission and
+            // are assigned to no branch.
+            BranchScope.NotBranchOwned => true,
             _ => false,
         };
 
@@ -44,7 +56,11 @@ public sealed class BranchScopeAuthorisationHandler(ICurrentUser currentUser)
         }
         else
         {
-            context.Fail(new AuthorizationFailureReason(this, "Outside the caller's branch scope."));
+            // Typed, not a bare message. The denial trail classifies a refusal by reading these, and a
+            // branch-scope refusal recorded as "permission not held" would mislabel the one pattern the
+            // trail exists to make visible: somebody with the permission reaching outside their branch.
+            context.Fail(new RefusalReason(
+                this, AuthorisationRefusal.OutsideBranchScope, "Outside the caller's branch scope."));
         }
 
         return Task.CompletedTask;

@@ -20,7 +20,7 @@ registered in section 10 below and mirrored into
 | Column | Meaning |
 | --- | --- |
 | **From** | The state the aggregate is in before the command. `—` means the aggregate does not yet exist |
-| **Event / transition** | The named command or system event that causes the move. Commands are authorised HTTP requests; system events are raised by the worker under a `SystemPrincipal` from a declared `[WorkerJob]` scope |
+| **Event / transition** | The named command or system event that causes the move. Commands are authorised HTTP requests; system events are raised by the worker under a system principal from a declared `[WorkerJob]` scope |
 | **To** | The state after the command. `(unchanged)` means the aggregate's own status does not move, but the transition is still recorded |
 | **Actor (role)** | The role that normally performs it. Authorisation is always evaluated on the permission plus branch scope, never on the role name (plan Section 4.4, issue #24) |
 | **Preconditions** | What the server validates before the change. A failed precondition is an RFC 9457 problem-details response, never a silent no-op |

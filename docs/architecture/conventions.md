@@ -285,6 +285,13 @@ Authentication and authorisation always run **before** the idempotency lookup, s
 unauthorised principal is refused rather than served from the store. Idempotency records are retained for seven days,
 which must exceed the offline queue's maximum age plus the worker retry horizon.
 
+### 4.6 Where this is implemented
+
+The mechanism behind sections 4.1 to 4.5 — the record store and its lease, the `RequireIdempotency()` and
+`RequireIfMatch()` endpoint declarations, the problem envelope they answer with, and the request-timeout catalogue —
+is described for an operator in [`../platform/idempotency-and-concurrency.md`](../platform/idempotency-and-concurrency.md),
+which also records what the mechanism does **not** close and which guard each module owes on top of it.
+
 ---
 
 ## 5. API versioning
@@ -442,7 +449,18 @@ position, so no convention above is undefined while the decision is open.
 | **COD-02** | How long must a deprecated endpoint, field or event major version keep working? | At least two minor releases and at least 90 days — **proposed, to be confirmed** | Issue #19 with issue #53 | Technical reviewer | 2026-09-04 |
 | **COD-03** | The invoice number series format, the financial-year token, and whether the series must be strictly gapless for GST purposes | `INV-<branch>-<FY>-000001` with `FY` as the two-digit start and end year, gapless within a branch and financial year | Plan Section 11 item 5 (**OD-05**) with issue #42, co-signed by the accountant | Business owner | 2026-09-04 |
 | **COD-04** | The stored precision of stock quantities | `numeric(18,4)` — **proposed, to be confirmed** | Issue #38 | Backend lead | 2026-09-04 |
-| **COD-05** | Whether a missing `If-Match` on an endpoint that requires it returns `428 Precondition Required` or `400` | `428 Precondition Required`, so the client can distinguish "you forgot the precondition" from "your payload is wrong" | Issue #53 | Backend lead | 2026-09-04 |
+| **COD-05** | ~~Whether a missing `If-Match` on an endpoint that requires it returns `428 Precondition Required` or `400`~~ **Settled by #53**: `428 Precondition Required`, so the client can distinguish "you forgot the precondition" from "your payload is wrong". Implemented in `ConcurrencyResults.PreconditionMissing` and asserted by `ConcurrencyContractTests` | — | Issue #53 | Backend lead | 2026-09-04 |
+
+---
+
+## 8a. Where the HTTP surface is designed
+
+This document owns money, time, identifiers, concurrency, versioning and migration compatibility. How an
+individual endpoint is *shaped* — resource against command, the collection envelope, filtering, sorting, sparse
+fields, the request limits, the headers every request carries — is [`../api/conventions.md`](../api/conventions.md),
+which defers to this document wherever the two touch. The published contract those conventions produce is
+[`../api/openapi.v1.json`](../api/openapi.v1.json), and the gates around it are
+[`../api/openapi-gates.md`](../api/openapi-gates.md).
 
 ---
 

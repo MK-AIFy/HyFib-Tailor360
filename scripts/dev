@@ -123,6 +123,7 @@ Verbs:
   status             Print the state of the five components and exit non-zero when an essential
                      one is down. This output is the evidence for issue #20.
   doctor             Report the toolchain and which test tiers can run in this environment.
+  migrate [--dry-run] Apply outstanding database migrations. Safe to re-run; --dry-run only reports.
   docs               Check that every relative link in the documentation resolves.
 
 Common options:
@@ -840,6 +841,19 @@ cmd_doctor() {
 }
 
 # ---------------------------------------------------------------------------------------------
+# migrate
+# ---------------------------------------------------------------------------------------------
+
+# docs/dev/migrations.md documents this verb, and it did not exist: a developer following the
+# document met "unknown verb" instead of a migration. It is a thin wrapper over the operator
+# command line, which holds one advisory lock for the whole run, so two of these racing is safe.
+cmd_migrate() {
+  require_tool dotnet
+  heading "Migrate"
+  step dotnet run --project "$CLI_PROJECT" --configuration "$DOTNET_CONFIGURATION" -- migrate "$@"
+}
+
+# ---------------------------------------------------------------------------------------------
 # docs
 # ---------------------------------------------------------------------------------------------
 
@@ -867,6 +881,7 @@ main() {
     reset) cmd_reset "$@" ;;
     status) cmd_status "$@" ;;
     doctor) cmd_doctor "$@" ;;
+    migrate) cmd_migrate "$@" ;;
     docs) cmd_docs "$@" ;;
     help|-h|--help) usage ;;
     *)

@@ -31,7 +31,7 @@ settled is registered in section 6 against plan [Section 11](../IMPLEMENTATION_P
 ## 2. The catalogue
 
 Detecting role names follow [`glossary.md`](glossary.md). "System" means a worker job running under a
-`SystemPrincipal` from a declared `[WorkerJob]` scope.
+a system principal from a declared `[WorkerJob]` scope.
 
 | ID | Exception | Trigger | Detecting role | Immediate action | System support | Compensating record | Customer communication | Issue |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

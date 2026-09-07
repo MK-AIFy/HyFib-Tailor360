@@ -1,167 +1,255 @@
 /*
- * Base layer for the application shell. Component styles arrive with the design system (#50); this
- * file only makes the skeleton legible, operable by keyboard and safe on a notched phone.
+ * Base and layout layers.
+ *
+ * The base layer sets element defaults and the one focus indicator every control shares. The layout
+ * layer holds the application shell — header, navigation, main, footer — that App.tsx renders; the
+ * role-optimised shells (bottom bar on a phone, master-detail on a tablet, side navigation on a
+ * desktop) build on these classes rather than replacing them.
+ *
+ * Nothing here paints a colour that is not a semantic token, and nothing here sets a size that is
+ * not a token: that is what makes a theme switch and a text-size change a one-attribute operation.
  */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  /* Never disable zoom; text size is a stated accessibility requirement. */
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--colour-surface-sunken);
-  color: var(--colour-ink);
-  font-family: var(--font-family-base);
-  font-size: var(--font-size-200);
-  line-height: var(--line-height-base);
-}
-
-:where(a) {
-  color: var(--colour-focus);
-}
-
-/* One visible focus style for everything. It must never be removed. */
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: var(--focus-ring-width) solid var(--colour-focus);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
-
-/* The main landmark receives focus from the skip link; it must not draw a ring when clicked. */
-.app-main:focus:not(:focus-visible) {
-  outline: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
+@layer base {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    box-sizing: border-box;
+  }
+
+  html {
+    /* Never disable zoom; text size is a stated accessibility requirement. */
+    -webkit-text-size-adjust: 100%;
+
+    /*
+     * 2.4.11 Focus Not Obscured. When focus moves to a control that the browser has to scroll into
+     * view, it stops this far short of the bottom edge, so the focused field is never left behind
+     * the bottom navigation, a sticky action bar or the home indicator. The top inset does the same
+     * for the sticky header. This is the single most common phone-form failure the standard names,
+     * and it is fixed here once for every screen rather than per form.
+     */
+    scroll-padding-bottom: var(--scroll-padding-bottom);
+    scroll-padding-top: calc(var(--app-bar-height) + var(--safe-area-top));
+  }
+
+  body {
+    margin: 0;
+    background: var(--colour-surface-sunken);
+    color: var(--colour-ink);
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-200);
+    line-height: var(--line-height-base);
+    /* 1.4.12 Text Spacing: a user stylesheet must be able to raise these without clipping, so no
+       fixed heights are set on text containers anywhere in the system. */
+    letter-spacing: var(--letter-spacing-base);
+  }
+
+  :where(h1, h2, h3, h4, h5, h6) {
+    line-height: var(--line-height-tight);
+    text-wrap: balance;
+  }
+
+  :where(a) {
+    color: var(--colour-link);
+    text-underline-offset: 0.2em;
+  }
+
+  :where(a:visited) {
+    color: var(--colour-link-visited);
+  }
+
+  /*
+   * One visible focus style for everything, and it must never be removed.
+   *
+   * Two rings, not one (2.4.13, adopted AAA): a coloured inner outline and a contrasting outer
+   * halo. One colour cannot contrast 3:1 with both a white form field and the dark brand header;
+   * two always can, whichever surface the control happens to sit on.
+   */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--focus-ring-width) solid var(--colour-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+    box-shadow: 0 0 0
+      calc(var(--focus-ring-offset) + var(--focus-ring-width) + var(--focus-ring-contrast-width))
+      var(--colour-focus-ring-contrast);
+    border-radius: var(--radius-sm);
+  }
+
+  /* The main landmark receives focus from the skip link; it must not draw a ring when clicked. */
+  .app-main:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /*
+   * A blanket stop, in addition to the duration tokens themselves being zeroed in themes.css. The
+   * tokens catch everything the design system animates; this catches a third-party stylesheet and
+   * any animation somebody forgets to route through a token.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  /* Respect the notch and the home indicator on installed iOS and Android devices. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+@layer layout {
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    /*
+     * Only the side insets belong to the shell. The top inset belongs to whichever bar is at the
+     * top and the bottom inset to whichever bar is at the bottom: a bottom navigation has to reach
+     * the edge of the glass, and it cannot do that if an ancestor has already padded the edge away.
+     */
+    padding-right: var(--safe-area-right);
+    padding-left: var(--safe-area-left);
+  }
+
+  /* Visible only when focused, and then pinned above everything else. */
+  .skip-link {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .skip-link:focus {
+    position: static;
+    z-index: var(--z-banner);
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    height: auto;
+    min-height: var(--target-primary);
+    padding: var(--space-3) var(--space-4);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .training-banner {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-banner);
+    padding: var(--space-2) var(--space-4);
+    /* Fixed high-contrast pair, not theme tokens: this warning must stay legible in dark mode, in
+       sunlight and on a poorly calibrated shop tablet. */
+    background: var(--colour-warning-surface);
+    color: var(--colour-warning-ink);
+    font-weight: var(--font-weight-bold);
+    text-align: center;
+    border-bottom: 2px solid var(--colour-warning-border);
+  }
+
+  .training-banner__detail {
+    font-weight: var(--font-weight-regular);
+  }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--app-bar-height);
+    padding: var(--space-3) var(--space-4);
+    padding-top: calc(var(--space-3) + var(--safe-area-top));
+    background: var(--colour-brand);
+    color: var(--colour-brand-contrast);
+  }
+
+  .app-header__shop {
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+  }
+
+  .app-nav {
+    background: var(--colour-surface);
+    border-bottom: 1px solid var(--colour-border-subtle);
+  }
+
+  .app-nav__list {
+    display: flex;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0 var(--space-2);
+    list-style: none;
+  }
+
+  .app-nav__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    padding: 0 var(--space-3);
+    color: var(--colour-ink);
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+  }
+
+  /* The active route is marked by weight and a rule, not by colour alone. */
+  .app-nav__link[aria-current='page'] {
+    font-weight: var(--font-weight-bold);
+    border-bottom-color: var(--colour-accent);
+  }
+
+  .app-main {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: var(--layout-max-width);
+    margin: 0 auto;
+    padding: var(--space-5) var(--space-4);
+    /* Reserve the bottom bar's height even before a bottom bar exists, so a phone layout never
+       ends with its last control under one. */
+    padding-bottom: calc(var(--space-5) + var(--safe-area-bottom));
+  }
+
+  .page > h1 {
+    margin-top: 0;
+    font-size: var(--font-size-500);
+  }
+
+  .app-footer {
+    padding: var(--space-3) var(--space-4);
+    padding-bottom: calc(var(--space-3) + var(--safe-area-bottom) + var(--gesture-bar-clearance));
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    text-align: center;
+  }
 }
 
-/* Visible only when focused, and then pinned above everything else. */
-.skip-link {
-  position: absolute;
-  left: -10000px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
+@layer utilities {
+  /*
+   * Text for a screen reader that is not shown on screen. Not display:none and not
+   * visibility:hidden, either of which would remove it from the accessibility tree as well; and not
+   * a negative text-indent, which breaks in right-to-left contexts.
+   */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 
-.skip-link:focus {
-  position: static;
-  display: inline-block;
-  width: auto;
-  height: auto;
-  min-height: var(--touch-target-min);
-  padding: var(--space-3) var(--space-4);
-  background: var(--colour-surface);
-  color: var(--colour-ink);
-  font-weight: var(--font-weight-bold);
-}
-
-.training-banner {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: var(--space-2) var(--space-4);
-  /* Fixed high-contrast pair, not theme tokens: this warning must stay legible in dark mode, in
-     sunlight and on a poorly calibrated shop tablet. */
-  background: var(--colour-warning-surface);
-  color: var(--colour-warning-ink);
-  font-weight: var(--font-weight-bold);
-  text-align: center;
-  border-bottom: 2px solid var(--colour-warning-ink);
-}
-
-.training-banner__detail {
-  font-weight: var(--font-weight-regular);
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--touch-target-min);
-  padding: var(--space-3) var(--space-4);
-  background: var(--colour-brand);
-  color: var(--colour-brand-contrast);
-}
-
-.app-header__shop {
-  font-size: var(--font-size-300);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-tight);
-}
-
-.app-nav {
-  background: var(--colour-surface);
-  border-bottom: 1px solid var(--colour-border);
-}
-
-.app-nav__list {
-  display: flex;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0 var(--space-2);
-  list-style: none;
-}
-
-.app-nav__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target-min);
-  min-width: var(--touch-target-min);
-  padding: 0 var(--space-3);
-  color: var(--colour-ink);
-  text-decoration: none;
-  border-bottom: 3px solid transparent;
-}
-
-/* The active route is marked by weight and a rule, not by colour alone. */
-.app-nav__link[aria-current='page'] {
-  font-weight: var(--font-weight-bold);
-  border-bottom-color: var(--colour-accent);
-}
-
-.app-main {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: var(--layout-max-width);
-  margin: 0 auto;
-  padding: var(--space-5) var(--space-4);
-}
-
-.page > h1 {
-  margin-top: 0;
-  font-size: var(--font-size-500);
-  line-height: var(--line-height-tight);
-}
-
-.app-footer {
-  padding: var(--space-3) var(--space-4);
-  color: var(--colour-ink-muted);
-  font-size: var(--font-size-100);
-  text-align: center;
+  /* A skip link and anything else that must appear when it takes focus. */
+  .visually-hidden:where(:focus, :focus-within, :active) {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
 }

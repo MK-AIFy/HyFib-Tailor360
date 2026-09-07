@@ -1,0 +1,113 @@
+/*
+ * The history rail.
+ *
+ * The vertical line is a pseudo-element on the list item, which keeps it out of the accessibility
+ * tree entirely — a decorative element that a screen reader has to walk past on every entry of an
+ * eleven-step custody chain is eleven wasted stops.
+ *
+ * The marker is toned, but the tone is never the information: the glyph shape differs per status and
+ * the entry's title says what happened in words.
+ */
+@layer components {
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .timeline__entry {
+    position: relative;
+    display: flex;
+    gap: var(--space-3);
+    padding-block-end: var(--space-4);
+
+    /* Declared on the entry rather than on the marker, because the connecting rule below is drawn
+       from the entry and has to know how far down the marker ends. */
+    --timeline-marker-size: 2rem;
+    --timeline-tone: var(--colour-border-strong);
+  }
+
+  .timeline__entry[data-tone='info'] {
+    --timeline-tone: var(--colour-info-border);
+  }
+
+  .timeline__entry[data-tone='success'] {
+    --timeline-tone: var(--colour-success-border);
+  }
+
+  .timeline__entry[data-tone='warning'] {
+    --timeline-tone: var(--colour-warning-border);
+  }
+
+  .timeline__entry[data-tone='danger'] {
+    --timeline-tone: var(--colour-danger-border);
+  }
+
+  /* The connecting line, drawn from the marker of this entry to the marker of the next one. */
+  .timeline__entry::before {
+    content: '';
+    position: absolute;
+    inset-block: calc(var(--timeline-marker-size) + var(--space-1)) 0;
+    inset-inline-start: calc(var(--timeline-marker-size) / 2 - 1px);
+    inline-size: 2px;
+    background: var(--colour-border-subtle);
+  }
+
+  .timeline__entry:last-child::before {
+    display: none;
+  }
+
+  .timeline__marker {
+    --icon-size: 1.125rem;
+
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--timeline-marker-size);
+    block-size: var(--timeline-marker-size);
+    border: 2px solid var(--timeline-tone);
+    border-radius: var(--radius-pill);
+    background: var(--colour-surface);
+    color: var(--timeline-tone);
+  }
+
+  .timeline__content {
+    min-inline-size: 0;
+    padding-block-start: var(--space-1);
+  }
+
+  .timeline__title {
+    margin: 0;
+    font-weight: var(--font-weight-medium);
+    overflow-wrap: anywhere;
+  }
+
+  .timeline__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    margin: var(--space-1) 0 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  .timeline__time {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .timeline__detail {
+    margin-block-start: var(--space-2);
+  }
+
+  .timeline__detail > :first-child {
+    margin-block-start: 0;
+  }
+
+  .timeline__detail > :last-child {
+    margin-block-end: 0;
+  }
+}

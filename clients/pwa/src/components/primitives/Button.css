@@ -1,0 +1,200 @@
+/*
+ * Buttons, icon buttons and button groups.
+ *
+ * One stylesheet for the three of them because they are one control with three shapes, and because
+ * the sizing rule they share is the one docs/nfr/accessibility-localisation.md section 5 fixes:
+ *
+ *   primary   56 x 56 CSS px with 12 px spacing — scan, capture, confirm, take payment, dispatch
+ *   standard  44 x 44 CSS px with  8 px spacing — everything else
+ *   dense     32 x 32 CSS px with  8 px spacing — desktop toolbars only; the coarse-pointer rule in
+ *             themes.css restores 44 px, so this size cannot reach a phone or a tablet
+ *
+ * The minimum is set on both axes. A hit area is a box, not a height: a 44 px tall button 20 px wide
+ * fails A11Y-68 as surely as one 20 px tall.
+ */
+@layer components {
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-block-size: var(--button-size);
+    min-inline-size: var(--button-size);
+    padding-block: var(--space-2);
+    padding-inline: var(--button-padding-inline);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: var(--button-font-size);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-tight);
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    /* Read through the duration token, so the reduced-motion block in themes.css stops it and
+       nothing is lost: every state here is also a colour and a border change. */
+    transition:
+      background-color var(--duration-fast) var(--easing-standard),
+      border-color var(--duration-fast) var(--easing-standard);
+
+    /* Defaults, overridden by the size attribute below. */
+    --button-size: var(--target-standard);
+    --button-padding-inline: var(--space-4);
+    --button-font-size: var(--font-size-200);
+  }
+
+  .button[data-size='primary'] {
+    --button-size: var(--target-primary);
+    --button-padding-inline: var(--space-5);
+    --button-font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .button[data-size='standard'] {
+    --button-size: var(--target-standard);
+  }
+
+  .button[data-size='dense'] {
+    /* --control-height is the density token: comfortable resolves it to 44 px and compact to 32 px,
+       and the coarse-pointer guard in themes.css puts it back to 44 px on a touch screen. A dense
+       button therefore cannot be smaller than the standard target on any device a Tailor holds. */
+    --button-size: var(--control-height);
+    --button-padding-inline: var(--space-3);
+    --button-font-size: var(--font-size-100);
+  }
+
+  .button[data-full-width='true'] {
+    display: flex;
+    inline-size: 100%;
+  }
+
+  /* The label wraps rather than truncating: at 150% text size and in the pseudo-locale a clipped
+     label is a lost action, and a taller button costs nothing on a phone. */
+  .button__label {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* --- Emphasis ------------------------------------------------------------------------- */
+  .button[data-variant='primary'] {
+    background: var(--colour-brand);
+    color: var(--colour-brand-contrast);
+    border-color: var(--colour-brand);
+  }
+
+  .button[data-variant='primary']:hover {
+    background: var(--colour-brand-strong);
+    border-color: var(--colour-brand-strong);
+  }
+
+  .button[data-variant='secondary'] {
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    border-color: var(--colour-border);
+  }
+
+  .button[data-variant='secondary']:hover {
+    background: var(--colour-surface-hover);
+    border-color: var(--colour-border-strong);
+  }
+
+  .button[data-variant='subtle'] {
+    background: transparent;
+    color: var(--colour-ink);
+  }
+
+  .button[data-variant='subtle']:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  /*
+   * Destructive. Different in weight and colour from its neighbours, which is half of what section 5
+   * rule 2 asks for; the other half is the 24 px separation, which ButtonGroup supplies.
+   */
+  .button[data-variant='danger'] {
+    background: var(--colour-surface);
+    color: var(--colour-danger-ink);
+    border-color: var(--colour-danger-border);
+    border-width: 2px;
+    font-weight: var(--font-weight-bold);
+  }
+
+  .button[data-variant='danger']:hover {
+    background: var(--colour-danger-surface);
+  }
+
+  .button:active {
+    background: var(--colour-surface-pressed);
+  }
+
+  .button[data-variant='primary']:active {
+    background: var(--colour-brand-strong);
+  }
+
+  /*
+   * Unavailable and busy. aria-disabled, not the disabled attribute, so the control keeps its place
+   * in the tab order; the cursor and the muted pair say the same thing to somebody using a mouse.
+   */
+  .button[aria-disabled='true'] {
+    background: var(--colour-surface-disabled);
+    color: var(--colour-ink-disabled);
+    border-color: var(--colour-border-subtle);
+    cursor: not-allowed;
+  }
+
+  .button[data-busy='true'] {
+    /* Busy is announced in words inside the button; the dotted underline is the visual echo, and it
+       survives the high-contrast theme where a background tint would not. */
+    text-decoration: underline dotted;
+    text-underline-offset: 0.3em;
+  }
+
+  /* --- Icon button ------------------------------------------------------------------------ */
+  .icon-button {
+    padding-inline: var(--space-2);
+    gap: 0;
+  }
+
+  .icon-button[data-size='primary'] {
+    --icon-size: 1.75rem;
+  }
+
+  .icon-button[data-size='standard'] {
+    --icon-size: 1.5rem;
+  }
+
+  .icon-button[data-size='dense'] {
+    --icon-size: 1.25rem;
+  }
+
+  /* --- Button group ----------------------------------------------------------------------- */
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--target-spacing-standard);
+  }
+
+  .button-group[data-size='primary'] {
+    gap: var(--target-spacing-primary);
+  }
+
+  .button-group[data-orientation='vertical'] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /*
+   * A11Y-69 and section 5 rule 2: a destructive action is separated from the frequent action beside
+   * it by at least 24 px. The separator is a margin rather than a spacer element, so the gap is real
+   * to a pointer and invisible to a screen reader.
+   */
+  .button-group__separated {
+    margin-inline-start: var(--space-6);
+  }
+
+  .button-group[data-orientation='vertical'] .button-group__separated {
+    margin-inline-start: 0;
+    margin-block-start: var(--space-6);
+  }
+}

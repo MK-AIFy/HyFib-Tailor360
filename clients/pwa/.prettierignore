@@ -1,6 +1,11 @@
 dist
 dev-dist
+storybook-static
 coverage
 node_modules
 pnpm-lock.yaml
 public/icons
+
+# Generated from docs/api/openapi.v1.json by `pnpm generate:api`. Its formatting is the
+# generator's, and reformatting it would make `pnpm generate:api:check` fail on a clean tree.
+src/api/schema.d.ts

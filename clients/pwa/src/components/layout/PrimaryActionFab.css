@@ -1,0 +1,93 @@
+/*
+ * The phone floating action.
+ *
+ * Every offset below is a token, and the bottom offset is a sum of three of them rather than a
+ * round number: the bottom bar's own height, the device safe-area inset, and the 8 px gesture-bar
+ * clearance that checklist item A11Y-70 measures. When the shell hides the bottom bar — desktop,
+ * tablet, or a phone with the keyboard open — `--bottom-bar-height` becomes 0 and this drops down
+ * with it, without a second rule.
+ */
+
+@layer layout {
+  .primary-action-fab {
+    position: fixed;
+    inset-inline-end: calc(var(--space-4) + var(--safe-area-right));
+    bottom: calc(
+      var(--bottom-bar-height) + var(--safe-area-bottom) + var(--gesture-bar-clearance) +
+        var(--space-3)
+    );
+    z-index: var(--z-bottom-bar);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    /* The primary shop-floor class of accessibility-localisation.md section 5: 56 x 56 CSS px. */
+    min-height: var(--target-primary);
+    min-width: var(--target-primary);
+    padding: 0 var(--space-4);
+
+    background: var(--colour-brand);
+    color: var(--colour-brand-contrast);
+    border: 2px solid var(--colour-brand-strong);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--elevation-3);
+
+    font-size: var(--font-size-200);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    text-decoration: none;
+
+    --icon-size: 1.5rem;
+  }
+
+  /*
+   * The author-level rule the `hidden` attribute needs. The user-agent `[hidden] { display: none }`
+   * loses to any author `display`, and this element has one — so without this the floating action
+   * would stay on the screen over the open keyboard, which is exactly the 2.4.11 failure the
+   * attribute was set to prevent. `BottomNav.css` carries the same rule for the same reason, and a
+   * jsdom test cannot catch its absence because no stylesheet is applied there.
+   */
+  .primary-action-fab[hidden] {
+    display: none;
+  }
+
+  .primary-action-fab:hover {
+    background: var(--colour-brand-strong);
+  }
+
+  /* Already on the screen this goes to. Marked by weight and a rule, never by colour alone. */
+  .primary-action-fab[aria-current='page'] {
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    border-color: var(--colour-border-strong);
+  }
+
+  .primary-action-fab__label {
+    white-space: nowrap;
+  }
+
+  /*
+   * At the 320 px reflow floor a label plus a glyph plus the bottom bar's own labels is more than
+   * the width has room for, so the label wraps out and the control becomes a circle. The accessible
+   * name is unchanged: the text is still in the DOM, still translated, still what voice control
+   * matches on (2.5.3), and still what a screen reader announces.
+   */
+  @media (max-width: 359px) {
+    .primary-action-fab {
+      padding: 0;
+      justify-content: center;
+    }
+
+    .primary-action-fab__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+  }
+}

@@ -11,6 +11,19 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit.v3" />
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The permission matrix parser is shared source, linked rather than copied. Two copies of a parser
+      that reads one owner-approved document is exactly the divergence this issue exists to prevent: the
+      unit tier holds the document equal to the catalogue and the seed, this tier holds it equal to the
+      route table, and both have to be reading the same file the same way. It keeps its own namespace so
+      that a reader following the type back reaches the one file rather than a copy of it.
+    -->
+    <Compile Include="..\Tailor360.UnitTests\Security\PermissionMatrixDocument.cs"
+             Link="Authorization\PermissionMatrixDocument.cs" />
   </ItemGroup>
 
   <ItemGroup>
