@@ -49,7 +49,13 @@ public sealed class IdempotencyStore(
         ArgumentException.ThrowIfNullOrWhiteSpace(clientKey);
 
         var now = clock.UtcNow;
-        var leaseUntil = now + options.Value.InFlightLease;
+
+        // Truncated to microseconds, which is all `timestamptz` stores. The lease is read back and
+        // compared for equality when the holder completes, so a value carrying .NET's 100-nanosecond
+        // ticks would never match what PostgreSQL wrote — and every completion would silently match no
+        // row, which turns every command into one that can be executed twice. That is worse than the
+        // race this fencing exists to close, so it is truncated at the one place the value is made.
+        var leaseUntil = Truncate(now + options.Value.InFlightLease);
 
         var claimed = await context.Database.ExecuteSqlInterpolatedAsync(
             $"""
@@ -68,6 +74,7 @@ public sealed class IdempotencyStore(
                     response_body       = NULL,
                     completed_at        = NULL
               WHERE idempotency_keys.status = {IdempotencyStatuses.InProgress}
+                AND idempotency_keys.request_fingerprint = EXCLUDED.request_fingerprint
                 AND idempotency_keys.in_flight_until IS NOT NULL
                 AND idempotency_keys.in_flight_until < {now}
              """,
@@ -75,7 +82,7 @@ public sealed class IdempotencyStore(
 
         if (claimed == 1)
         {
-            return IdempotencyClaim.Proceed;
+            return IdempotencyClaim.ProceedWith(leaseUntil);
         }
 
         var existing = await context.IdempotencyRecords
@@ -115,8 +122,16 @@ public sealed class IdempotencyStore(
         string clientKey,
         int statusCode,
         string? responseBody,
+        DateTimeOffset? leaseUntil,
         CancellationToken cancellationToken = default)
     {
+        if (leaseUntil is null)
+        {
+            // The claim held no row to complete. Writing one now would record an outcome against a key
+            // whose record retention has already removed.
+            return;
+        }
+
         await context.Database.ExecuteSqlInterpolatedAsync(
             $"""
              UPDATE platform.idempotency_keys
@@ -128,6 +143,8 @@ public sealed class IdempotencyStore(
               WHERE principal_id = {principalId}
                 AND route = {route}
                 AND client_key = {clientKey}
+                AND status = {IdempotencyStatuses.InProgress}
+                AND in_flight_until = {leaseUntil}
              """,
             cancellationToken);
     }
@@ -137,10 +154,18 @@ public sealed class IdempotencyStore(
         string principalId,
         string route,
         string clientKey,
+        DateTimeOffset? leaseUntil,
         CancellationToken cancellationToken = default)
     {
-        // Only an unfinished claim is given up. A completed record is the recorded answer to that key and
-        // deleting it would let the same command run a second time.
+        if (leaseUntil is null)
+        {
+            return;
+        }
+
+        // Only an unfinished claim is given up, and only the one this caller was granted. A completed
+        // record is the recorded answer to that key and deleting it would let the same command run a
+        // second time; a claim another request has since taken over is that request's to finish, and
+        // deleting it here would free a key somebody else is executing under.
         await context.Database.ExecuteSqlInterpolatedAsync(
             $"""
              DELETE FROM platform.idempotency_keys
@@ -148,9 +173,17 @@ public sealed class IdempotencyStore(
                 AND route = {route}
                 AND client_key = {clientKey}
                 AND status = {IdempotencyStatuses.InProgress}
+                AND in_flight_until = {leaseUntil}
              """,
             cancellationToken);
     }
+
+    /// <summary>
+    /// The instant as PostgreSQL will store it. <c>timestamptz</c> keeps microseconds; a
+    /// <see cref="DateTimeOffset"/> keeps 100-nanosecond ticks.
+    /// </summary>
+    private static DateTimeOffset Truncate(DateTimeOffset instant)
+        => instant.AddTicks(-(instant.Ticks % (TimeSpan.TicksPerMillisecond / 1000)));
 
     /// <summary>
     /// A stable fingerprint of a request body, used to detect a client reusing one key for two different

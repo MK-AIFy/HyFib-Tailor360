@@ -152,7 +152,8 @@ public sealed class IdempotencyEndpointFilter(
                     claim.RetryAfter ?? TimeSpan.FromSeconds(1));
 
             default:
-                return await ExecuteAndRecordAsync(context, next, principalId, route, clientKey);
+                return await ExecuteAndRecordAsync(
+                    context, next, principalId, route, clientKey, claim.LeaseUntil);
         }
     }
 
@@ -200,12 +201,18 @@ public sealed class IdempotencyEndpointFilter(
     /// Runs the command, renders its response into a buffer, records the outcome, and only then writes
     /// the bytes to the connection.
     /// </summary>
+    /// <param name="leaseUntil">
+    /// The lease this request's claim was granted under. It is presented back to the store so that a
+    /// request whose lease ran out — and whose claim another request has since taken over — cannot
+    /// overwrite the successor's record with its own stale outcome, nor delete the successor's claim.
+    /// </param>
     private async Task<object?> ExecuteAndRecordAsync(
         EndpointFilterInvocationContext context,
         EndpointFilterDelegate next,
         string principalId,
         string route,
-        string clientKey)
+        string clientKey,
+        DateTimeOffset? leaseUntil)
     {
         var http = context.HttpContext;
         var response = http.Response;
@@ -233,11 +240,12 @@ public sealed class IdempotencyEndpointFilter(
         // next attempt to run the command a second time.
         if (status is >= StatusCodes.Status200OK and < StatusCodes.Status400BadRequest)
         {
-            await store.CompleteAsync(principalId, route, clientKey, status, body, CancellationToken.None);
+            await store.CompleteAsync(
+                principalId, route, clientKey, status, body, leaseUntil, CancellationToken.None);
         }
         else if (status < StatusCodes.Status500InternalServerError)
         {
-            await store.ReleaseAsync(principalId, route, clientKey, CancellationToken.None);
+            await store.ReleaseAsync(principalId, route, clientKey, leaseUntil, CancellationToken.None);
         }
 
         buffer.Position = 0;

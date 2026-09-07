@@ -44,12 +44,19 @@ public interface IIdempotencyStore
     /// command committed must find the outcome waiting for it, and a record written after the write to
     /// the socket would be missing in exactly the case it exists for.
     /// </remarks>
+    /// <param name="leaseUntil">
+    /// The lease the claim was granted under, from <see cref="IdempotencyClaim.LeaseUntil"/>. It fences
+    /// the write: a holder whose lease ran out, and whose claim another request has since taken over,
+    /// no longer matches and writes nothing. Null when the claim held no row, in which case there is
+    /// nothing to complete.
+    /// </param>
     Task CompleteAsync(
         string principalId,
         string route,
         string clientKey,
         int statusCode,
         string? responseBody,
+        DateTimeOffset? leaseUntil,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -59,12 +66,18 @@ public interface IIdempotencyStore
     /// This is for a request that is known to have changed nothing — a refusal the caller can correct
     /// and resend under the same key, which is what the design system's conflict and re-authentication
     /// flows do. It never removes a completed record: an outcome that has been reported is the answer to
-    /// that key for as long as the record is retained.
+    /// that key for as long as the record is retained. It never removes somebody else's claim either:
+    /// a holder whose lease expired and was taken over releases nothing, because the row it would have
+    /// deleted now belongs to the request that took the claim on.
     /// </remarks>
+    /// <param name="leaseUntil">
+    /// The lease the claim was granted under, from <see cref="IdempotencyClaim.LeaseUntil"/>.
+    /// </param>
     Task ReleaseAsync(
         string principalId,
         string route,
         string clientKey,
+        DateTimeOffset? leaseUntil,
         CancellationToken cancellationToken = default);
 }
 
@@ -73,14 +86,32 @@ public interface IIdempotencyStore
 /// <param name="StatusCode">The stored status code when replaying.</param>
 /// <param name="ResponseBody">The stored response body when replaying.</param>
 /// <param name="RetryAfter">How long the first attempt's lease still has to run, when one is in flight.</param>
+/// <param name="LeaseUntil">
+/// The lease this claim was granted under, which the holder presents back when it completes or releases
+/// so that a claim taken over by somebody else is never overwritten by its previous holder. Null when
+/// the claim holds no row to fence.
+/// </param>
 public sealed record IdempotencyClaim(
     IdempotencyOutcome Outcome,
     int? StatusCode = null,
     string? ResponseBody = null,
-    TimeSpan? RetryAfter = null)
+    TimeSpan? RetryAfter = null,
+    DateTimeOffset? LeaseUntil = null)
 {
-    /// <summary>The caller holds the claim and must execute the command.</summary>
+    /// <summary>
+    /// The caller holds the claim and must execute the command, but holds no row to fence against.
+    /// </summary>
+    /// <remarks>
+    /// The one case that reaches this is a record retention removed between a failed insert and the
+    /// read that follows it. There is no row to complete or release, so an unfenced claim is honest:
+    /// the completion below will match nothing, which is what it already did.
+    /// </remarks>
     public static IdempotencyClaim Proceed { get; } = new(IdempotencyOutcome.Proceed);
+
+    /// <summary>The caller holds the claim under a lease, and presents it back to finish.</summary>
+    /// <param name="leaseUntil">The lease written onto the row by the claim.</param>
+    public static IdempotencyClaim ProceedWith(DateTimeOffset leaseUntil)
+        => new(IdempotencyOutcome.Proceed, LeaseUntil: leaseUntil);
 }
 
 /// <summary>What the caller should do with an idempotency claim.</summary>
