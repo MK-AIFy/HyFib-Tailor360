@@ -202,4 +202,56 @@ describe('the page-side probes', () => {
     expect(measureHorizontalOverflow().offenders).toEqual([])
     expect(measureObscuredFocus().obscured).toEqual([])
   })
+
+  /*
+   * jsdom has no layout engine, so a rectangle has to be supplied. That is enough for these two
+   * cases, which are about which rectangles count rather than about what the rectangles are.
+   */
+  function withRect(element: Element, rect: { left: number; right: number }) {
+    element.getBoundingClientRect = () => ({
+      x: rect.left,
+      y: 0,
+      left: rect.left,
+      right: rect.right,
+      top: 0,
+      bottom: 20,
+      width: rect.right - rect.left,
+      height: 20,
+      toJSON: () => ({}),
+    })
+  }
+
+  function setClientWidth(width: number) {
+    Object.defineProperty(document.documentElement, 'clientWidth', {
+      configurable: true,
+      value: width,
+    })
+  }
+
+  it('does not report an element parked entirely off the left edge', () => {
+    document.body.innerHTML = '<a class="skip-link" href="#main">Skip to main content</a>'
+    setClientWidth(360)
+    const skipLink = document.querySelector('.skip-link')
+    if (skipLink === null) {
+      throw new Error('The fixture did not render.')
+    }
+    // The off-screen technique the shell's own skip link uses. Every screen has one, so treating it
+    // as an offender would fail every screen in the application on the first run of this helper.
+    withRect(skipLink, { left: -10000, right: -9643 })
+
+    expect(measureHorizontalOverflow().offenders).toEqual([])
+  })
+
+  it('still reports an element that straddles the left edge', () => {
+    document.body.innerHTML = '<div class="drawer">Filters</div>'
+    setClientWidth(360)
+    const drawer = document.querySelector('.drawer')
+    if (drawer === null) {
+      throw new Error('The fixture did not render.')
+    }
+    // Half on the screen and cut off, which is a person losing the start of every line.
+    withRect(drawer, { left: -120, right: 200 })
+
+    expect(measureHorizontalOverflow().offenders).toHaveLength(1)
+  })
 })
