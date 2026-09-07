@@ -52,6 +52,12 @@ internal sealed class InMemoryIdentityStore : IIdentityStore
 
     public IReadOnlyList<RecoveryToken> Tokens => _tokens;
 
+    /// <summary>
+    /// Makes the next commit report a lost race, which is what the concurrency token does when a
+    /// second request has already spent the credential this one just accepted.
+    /// </summary>
+    public bool LoseTheNextRace { get; set; }
+
     public InMemoryIdentityStore With(StaffUser user)
     {
         _users.Add(user);
@@ -96,6 +102,18 @@ internal sealed class InMemoryIdentityStore : IIdentityStore
     {
         SaveCount++;
         return Task.CompletedTask;
+    }
+
+    public Task<Result> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        if (LoseTheNextRace)
+        {
+            LoseTheNextRace = false;
+            return Task.FromResult(Result.Failure(IdentityErrors.ConcurrentChange));
+        }
+
+        SaveCount++;
+        return Task.FromResult(Result.Success());
     }
 }
 

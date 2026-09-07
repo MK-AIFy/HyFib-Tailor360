@@ -59,6 +59,12 @@ internal static partial class IdentityLog
                   "sheet no longer works.")]
     public static partial void RecoveryCodesReissued(ILogger logger, Guid userId, int codeCount);
 
+    [LoggerMessage(EventId = 2315, Level = LogLevel.Warning,
+        Message = "An answer to account {UserId}'s {Factor} challenge was refused because another " +
+                  "request had already spent the same credential. Two answers arriving together is " +
+                  "ordinary — a double tap or a retry — but a run of them is worth looking at.")]
+    public static partial void ChallengeAnswerSuperseded(ILogger logger, Guid userId, string factor);
+
     [LoggerMessage(EventId = 2313, Level = LogLevel.Error,
         Message = "The stored authenticator secret for account {UserId} could not be read with the current " +
                   "data-protection keys. The holder has to re-enrol; check that the key ring is persisted.")]

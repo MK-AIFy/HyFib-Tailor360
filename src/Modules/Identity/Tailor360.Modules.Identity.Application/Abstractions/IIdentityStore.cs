@@ -1,5 +1,6 @@
 using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Users;
+using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Identity.Application.Abstractions;
 
@@ -52,4 +53,17 @@ public interface IIdentityStore
 
     /// <summary>Commits the changes made through this store.</summary>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Commits the changes made through this store, reporting a lost race rather than throwing.
+    /// </summary>
+    /// <remarks>
+    /// Accepting an answer to a challenge is a read-modify-write: the row is read, the domain decides
+    /// whether the answer may be accepted, and the decision is written back. Two requests carrying the
+    /// same answer both read a row that still permits it, so it is the database that settles which of
+    /// them wrote — and the caller has to be told, because to the loser nothing looks wrong. Every
+    /// other write through this store is an unconditional one where losing that race is not possible,
+    /// which is why this is a second method rather than the shape of the first.
+    /// </remarks>
+    Task<Result> TrySaveChangesAsync(CancellationToken cancellationToken = default);
 }

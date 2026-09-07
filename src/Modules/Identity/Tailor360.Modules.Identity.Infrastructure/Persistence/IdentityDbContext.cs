@@ -184,6 +184,12 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
                 .WithOne(user => user.Totp)
                 .HasForeignKey<TotpEnrolment>(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Accepting a code is a read-modify-write on this row: the step is read, the enrolment
+            // refuses one it has already seen, and the new step is written back. Two requests carrying
+            // the same code both read a step that permits it, so without a token both would write and
+            // a one-time password would have been used twice. The token makes the database settle it.
+            UseRowVersion(entity);
         });
 
         modelBuilder.Entity<RecoveryCode>(entity =>
@@ -214,6 +220,10 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
                 .WithMany(user => user.RecoveryCodes)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Redemption is the same read-modify-write as an authenticator code, and a recovery code
+            // spent twice is worth more to an attacker than a step replayed: it is a whole factor.
+            UseRowVersion(entity);
         });
 
         modelBuilder.Entity<StaffUser>()

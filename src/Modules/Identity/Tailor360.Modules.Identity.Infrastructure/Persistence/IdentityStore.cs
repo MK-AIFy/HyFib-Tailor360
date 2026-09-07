@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Modules.Identity.Application.Abstractions;
+using Tailor360.Modules.Identity.Domain;
 using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Users;
+using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Identity.Infrastructure.Persistence;
 
@@ -74,6 +76,23 @@ public sealed class IdentityStore(IdentityDbContext context) : IIdentityStore
     /// <inheritdoc />
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => context.SaveChangesAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<Result> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The row moved under us. Every entity this store writes carries the xmin token, so the
+            // update matched nothing and nothing was written — there is no partial state to undo, and
+            // the caller's decision was made against a row that no longer says what it read.
+            return Result.Failure(IdentityErrors.ConcurrentChange);
+        }
+    }
 
     private IQueryable<StaffUser> WholeAggregate() => IdentityAggregate.WholeAggregate(context);
 }

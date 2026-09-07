@@ -221,6 +221,15 @@ public static class IdentityErrors
         "A session or device token is stored only as its hash.",
         field);
 
+    /// <summary>
+    /// Another request changed the same row between this one reading it and writing it back. The
+    /// caller decides what that means: for an answered challenge it is a second answer arriving with
+    /// the first, and the loser is refused exactly as a wrong answer would be.
+    /// </summary>
+    public static Error ConcurrentChange { get; } = Error.Conflict(
+        "identity.concurrent-change",
+        "Someone else changed this at the same moment. Read it again and retry.");
+
     /// <summary>The session is revoked, idle-expired or past its absolute expiry.</summary>
     public static Error SessionNotActive { get; } = Error.Forbidden(
         "identity.session-not-active",

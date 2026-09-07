@@ -62,7 +62,16 @@ public sealed class MfaChallengeService(
             return Result.Failure<MfaChallengeOutcome>(accepted.Error);
         }
 
-        await store.SaveChangesAsync(cancellationToken);
+        // The answer was accepted against the row as it was read. Another request carrying the same
+        // answer may have written first, in which case this one accepted a code that has already been
+        // spent — so it is refused here, with the same error a wrong code gets, rather than at the
+        // point where it would have become a second use of a one-time credential.
+        var written = await store.TrySaveChangesAsync(cancellationToken);
+        if (written.IsFailure)
+        {
+            IdentityLog.ChallengeAnswerSuperseded(logger, user.Id, factor.ToString());
+            return Result.Failure<MfaChallengeOutcome>(IdentityErrors.MfaCodeInvalid);
+        }
 
         var remaining = user.UnusedRecoveryCodeCount;
         var reissue = user.HasConfirmedSecondFactor && remaining <= _options.RecoveryCodeReissueThreshold;

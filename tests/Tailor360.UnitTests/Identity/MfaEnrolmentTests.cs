@@ -133,6 +133,61 @@ public sealed class MfaEnrolmentTests
             .ShouldBe(IdentityErrors.RecoveryCodeInvalid);
     }
 
+    /// <summary>
+    /// An answer that loses the race to write is refused exactly as a wrong one is.
+    /// </summary>
+    /// <remarks>
+    /// The database settles which of two requests carrying the same code actually spent it — the
+    /// enrolment and the recovery code both carry a concurrency token for that reason. What is asserted
+    /// here is the half of the fix above the store: the loser is told the code is not valid, in the
+    /// same words a wrong code gets, rather than being handed a server error or, worse, a success.
+    /// </remarks>
+    [Fact]
+    public async Task AnAnswerThatLosesTheRaceToWriteIsRefusedLikeAWrongOne()
+    {
+        var user = IdentityTestData.Active();
+        _store.With(user);
+        var handler = Handler();
+        var started = (await handler.BeginAsync(Enrolling(user), Token)).Value;
+        var codes = (await handler.ConfirmAsync(Enrolling(user), CodeFor(started), Token)).Value.RecoveryCodes;
+
+        var challenge = Challenge();
+
+        _store.LoseTheNextRace = true;
+        (await challenge.VerifyAsync(user.Id, MfaFactor.RecoveryCode, codes[0], Token)).Error
+            .ShouldBe(IdentityErrors.MfaCodeInvalid);
+
+        _clock.Advance(TimeSpan.FromSeconds(_options.PeriodSeconds));
+
+        _store.LoseTheNextRace = true;
+        (await challenge.VerifyAsync(user.Id, MfaFactor.Totp, CodeFor(started), Token)).Error
+            .ShouldBe(IdentityErrors.MfaCodeInvalid);
+    }
+
+    /// <summary>
+    /// A confirmation that loses the race to write is refused rather than reported as confirmed.
+    /// </summary>
+    /// <remarks>
+    /// Confirmation spends the code that proved the authenticator and issues the recovery sheet in one
+    /// write, so a second confirmation arriving with the first would otherwise print a second sheet and
+    /// leave the holder unable to tell which one works. Which of the two actually wrote is settled by
+    /// the concurrency token in the database; what is asserted here is that the loser is told so, in
+    /// the same words a wrong code gets, instead of being handed a sheet that was never stored.
+    /// </remarks>
+    [Fact]
+    public async Task ConfirmingAnEnrolmentThatLostTheRaceIsRefusedRatherThanConfirmed()
+    {
+        var user = IdentityTestData.Active();
+        _store.With(user);
+        var handler = Handler();
+        var started = (await handler.BeginAsync(Enrolling(user), Token)).Value;
+
+        _store.LoseTheNextRace = true;
+        var confirmed = await handler.ConfirmAsync(Enrolling(user), CodeFor(started), Token);
+
+        confirmed.Error.ShouldBe(IdentityErrors.MfaCodeInvalid);
+    }
+
     [Fact]
     public async Task RunningLowOnRecoveryCodesIsReportedBeforeTheyRunOut()
     {

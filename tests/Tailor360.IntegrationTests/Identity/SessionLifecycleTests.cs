@@ -224,14 +224,9 @@ public sealed class SessionLifecycleTests(SessionDatabaseFixture fixture)
     /// original must be revoked exactly once.
     /// </para>
     /// <para>
-    /// The interleaving is forced rather than hoped for. Left to the scheduler, the first rotation
-    /// usually commits before the others have read, every later racer is then refused by the in-memory
-    /// check on a row it read as revoked, and the test passes whether or not the database arbitrates at
-    /// all — which was measured, not assumed: with the condition on the retirement removed, the
-    /// unforced version still passed. Holding the row makes it certain. Every racer gets past its read
-    /// while the session is active and then stops at its update, and the lock is released only once all
-    /// of them are waiting there, so the one thing that can decide the winner is that condition —
-    /// removing it now yields ten successors rather than one, which is the defect this guards.
+    /// The interleaving is forced by <see cref="RowGate"/> rather than hoped for, and that is what
+    /// gives the test its value: unforced, it passed with the condition on the retirement removed;
+    /// gated, removing it yields ten successors rather than one.
     /// </para>
     /// </remarks>
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(SessionLifecycleTests))]
@@ -248,18 +243,8 @@ public sealed class SessionLifecycleTests(SessionDatabaseFixture fixture)
         var connectionString = context.Database.GetConnectionString()!;
         var token = TestContext.Current.CancellationToken;
 
-        // The gate. It writes nothing; it only holds the session row so that every racer gets past its
-        // read while the session is still active and then stops at its retirement.
-        await using var gate = new NpgsqlConnection(connectionString);
-        await gate.OpenAsync(token);
-        await using var held = await gate.BeginTransactionAsync(token);
-
-        await using (var hold = new NpgsqlCommand(
-            "SELECT id FROM identity.sessions WHERE id = @id FOR UPDATE", gate, held))
-        {
-            hold.Parameters.AddWithValue("id", first.SessionId);
-            (await hold.ExecuteScalarAsync(token)).ShouldNotBeNull("the gate must hold the session row");
-        }
+        await using var gate = await RowGate.HoldAsync(
+            connectionString, "identity.sessions", first.SessionId, token);
 
         // Each racer gets its own scope, because each stands in for a request.
         var racers = Enumerable.Range(0, racerCount).Select(async _ =>
@@ -271,8 +256,7 @@ public sealed class SessionLifecycleTests(SessionDatabaseFixture fixture)
                 first.SessionId, SessionRotationReason.MultiFactorSatisfied, token);
         }).ToList();
 
-        await WaitUntilWaitingForTheRowAsync(connectionString, racerCount, token);
-        await held.CommitAsync(token);
+        await gate.ReleaseWhenWaitingAsync(racerCount, token);
 
         var outcomes = await Task.WhenAll(racers);
 
@@ -296,62 +280,6 @@ public sealed class SessionLifecycleTests(SessionDatabaseFixture fixture)
             .CountAsync(session => session.Id != first.SessionId && session.UserId == user.Id, token);
 
         successors.ShouldBe(1);
-    }
-
-    /// <summary>
-    /// Blocks until <paramref name="count"/> connections to this database are waiting on a lock.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The database is created for this test alone, so the only backends in it are the racers, the gate
-    /// and this observer, and the only lock any of them contends for is the session row the gate holds.
-    /// A racer waiting there has already read the session, which is the ordering the test needs and the
-    /// reason this waits for a count rather than for a duration.
-    /// </para>
-    /// <para>
-    /// It observes down its own connection, and outside any transaction, because PostgreSQL caches the
-    /// activity statistics per transaction: polling from inside the gate's open transaction returns the
-    /// snapshot taken at the first read, over and over, and reports every racer as absent no matter how
-    /// long it waits. That cost an afternoon, so it is written down here rather than rediscovered.
-    /// </para>
-    /// </remarks>
-    private static async Task WaitUntilWaitingForTheRowAsync(
-        string connectionString,
-        int count,
-        CancellationToken cancellationToken)
-    {
-        await using var observer = new NpgsqlConnection(connectionString);
-        await observer.OpenAsync(cancellationToken);
-
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        var blocked = 0;
-
-        while (blocked < count)
-        {
-            await using (var waiting = new NpgsqlCommand(
-                """
-                SELECT count(*) FROM pg_stat_activity
-                 WHERE datname = current_database()
-                   AND pid <> pg_backend_pid()
-                   AND wait_event_type = 'Lock'
-                """,
-                observer))
-            {
-                blocked = Convert.ToInt32(
-                    await waiting.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
-            }
-
-            if (blocked < count && DateTime.UtcNow > deadline)
-            {
-                throw new InvalidOperationException(
-                    $"Only {blocked} of {count} rotations reached the session row within thirty seconds.");
-            }
-
-            if (blocked < count)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
-            }
-        }
     }
 
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(SessionLifecycleTests))]

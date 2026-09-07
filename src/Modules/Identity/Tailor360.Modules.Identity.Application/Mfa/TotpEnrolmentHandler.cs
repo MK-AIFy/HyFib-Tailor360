@@ -119,7 +119,16 @@ public sealed class TotpEnrolmentHandler(
             return Result.Failure<TotpEnrolmentStarted>(begun.Error);
         }
 
-        await store.SaveChangesAsync(cancellationToken);
+        // Replacing an enrolment retires the previous row, and that row now carries a concurrency
+        // token, so a second request starting an enrolment at the same moment loses rather than
+        // quietly overwriting. Nothing was written; the caller may start again and will find the
+        // enrolment the winner created.
+        var written = await store.TrySaveChangesAsync(cancellationToken);
+        if (written.IsFailure)
+        {
+            return Result.Failure<TotpEnrolmentStarted>(written.Error);
+        }
+
         IdentityLog.TotpEnrolmentStarted(logger, user.Id);
 
         await RecordAsync(
@@ -207,7 +216,16 @@ public sealed class TotpEnrolmentHandler(
             return Result.Failure<TotpEnrolmentConfirmed>(issued.Error);
         }
 
-        await store.SaveChangesAsync(cancellationToken);
+        // Confirmation spends the code that proved the authenticator, so two requests carrying the
+        // same code race exactly as two answers to a challenge do — and the loser is refused the same
+        // way, rather than confirming twice and printing a second sheet of recovery codes.
+        var confirmedWrite = await store.TrySaveChangesAsync(cancellationToken);
+        if (confirmedWrite.IsFailure)
+        {
+            IdentityLog.ChallengeAnswerSuperseded(logger, user.Id, nameof(MfaFactor.Totp));
+            return Result.Failure<TotpEnrolmentConfirmed>(IdentityErrors.MfaCodeInvalid);
+        }
+
         IdentityLog.TotpEnrolmentConfirmed(logger, user.Id, issued.Value.RecoveryCodes.Count);
 
         var rotated = await RotateForSatisfiedFactorAsync(caller, cancellationToken);
@@ -257,7 +275,15 @@ public sealed class TotpEnrolmentHandler(
             return Result.Failure<TotpEnrolmentConfirmed>(issued.Error);
         }
 
-        await store.SaveChangesAsync(cancellationToken);
+        // Printing a sheet destroys the previous one. Two requests printing at once would otherwise
+        // leave the holder with two sheets and no way to tell which one works, so the loser is told
+        // that nothing was printed and can ask again.
+        var printed = await store.TrySaveChangesAsync(cancellationToken);
+        if (printed.IsFailure)
+        {
+            return Result.Failure<TotpEnrolmentConfirmed>(printed.Error);
+        }
+
         IdentityLog.RecoveryCodesReissued(logger, user.Id, issued.Value.RecoveryCodes.Count);
 
         await RecordAsync(

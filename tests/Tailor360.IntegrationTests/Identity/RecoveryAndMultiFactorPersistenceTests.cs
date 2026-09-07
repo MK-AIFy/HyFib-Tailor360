@@ -12,6 +12,7 @@ using Tailor360.Modules.Identity.Application.Recovery;
 using Tailor360.Modules.Identity.Application.Sessions;
 using Tailor360.Modules.Identity.Application.Timing;
 using Tailor360.Modules.Identity.Domain;
+using Tailor360.Modules.Identity.Domain.Mfa;
 using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Sessions;
 using Tailor360.Modules.Identity.Domain.Users;
@@ -186,6 +187,126 @@ public sealed class RecoveryAndMultiFactorPersistenceTests(SessionDatabaseFixtur
         harness.Queued.ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// Two requests answering one challenge with the same authenticator code spend it once.
+    /// </summary>
+    /// <remarks>
+    /// A time-based code is valid for a whole step, so a code seen over someone's shoulder or captured
+    /// in front of the sign-in page can be replayed inside that window. The enrolment refuses a step it
+    /// has already accepted — but that decision is made against the row as it was read, so two requests
+    /// arriving together both read a step that permits the code, both accept it, and without a
+    /// concurrency token both write. The one-time password would then have been used twice, which is
+    /// the whole of what the second factor is for.
+    /// </remarks>
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(RecoveryAndMultiFactorPersistenceTests))]
+    public async Task TwoRequestsAnsweringWithTheSameAuthenticatorCodeSpendItOnce()
+    {
+        var harness = await ArrangeAsync(nameof(TwoRequestsAnsweringWithTheSameAuthenticatorCodeSpendItOnce));
+        await using var _ = harness;
+        var (user, _, secret) = await harness.EnrolAsync();
+
+        // A code from the next step, because confirming the enrolment spent the current one.
+        harness.Clock.Advance(TimeSpan.FromSeconds(TotpEnrolment.DefaultPeriodSeconds));
+        var code = new Totp(Base32Encoding.ToBytes(secret)).ComputeTotp(harness.Clock.UtcNow.UtcDateTime);
+
+        Guid enrolmentId;
+        await using (var reader = SessionDatabaseFixture.CreateContext(harness.ConnectionString))
+        {
+            enrolmentId = (await reader.TotpEnrolments.SingleAsync(e => e.UserId == user.Id, Token)).Id;
+        }
+
+        var outcomes = await AnswerConcurrentlyAsync(harness, user.Id, MfaFactor.Totp, code,
+            "identity.totp_enrolments", enrolmentId);
+
+        outcomes.Count(outcome => outcome.IsSuccess)
+            .ShouldBe(1, "a one-time password is used once however the requests interleave");
+        outcomes.Where(outcome => outcome.IsFailure)
+            .ShouldAllBe(outcome => outcome.Error == IdentityErrors.MfaCodeInvalid);
+
+        // The row records one acceptance, and the code is refused from here on.
+        await using var after = SessionDatabaseFixture.CreateContext(harness.ConnectionString);
+        var enrolment = await after.TotpEnrolments.SingleAsync(e => e.UserId == user.Id, Token);
+        enrolment.LastAcceptedStep.ShouldNotBeNull();
+        enrolment.LastUsedAt.ShouldBe(harness.Clock.UtcNow);
+
+        (await harness.Challenge.VerifyAsync(user.Id, MfaFactor.Totp, code, Token))
+            .Error.ShouldBe(IdentityErrors.MfaCodeInvalid);
+    }
+
+    /// <summary>
+    /// Two requests redeeming the same recovery code spend it once.
+    /// </summary>
+    /// <remarks>
+    /// The same read-modify-write as an authenticator code, and worth more to an attacker: a recovery
+    /// code redeemed twice is a whole second factor satisfied twice from one printed line.
+    /// </remarks>
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(RecoveryAndMultiFactorPersistenceTests))]
+    public async Task TwoRequestsRedeemingTheSameRecoveryCodeSpendItOnce()
+    {
+        var harness = await ArrangeAsync(nameof(TwoRequestsRedeemingTheSameRecoveryCodeSpendItOnce));
+        await using var _ = harness;
+        var (user, codes, _) = await harness.EnrolAsync();
+
+        var digest = new RecoveryCodeService().DigestOf(codes[0]);
+
+        Guid codeId;
+        await using (var reader = SessionDatabaseFixture.CreateContext(harness.ConnectionString))
+        {
+            codeId = (await reader.RecoveryCodes
+                .SingleAsync(code => code.UserId == user.Id && code.CodeHash == digest, Token)).Id;
+        }
+
+        var outcomes = await AnswerConcurrentlyAsync(harness, user.Id, MfaFactor.RecoveryCode, codes[0],
+            "identity.recovery_codes", codeId);
+
+        outcomes.Count(outcome => outcome.IsSuccess)
+            .ShouldBe(1, "one printed line satisfies the second factor once");
+        outcomes.Where(outcome => outcome.IsFailure)
+            .ShouldAllBe(outcome => outcome.Error == IdentityErrors.MfaCodeInvalid);
+
+        // Exactly one code off the sheet is spent — not none, and not two.
+        await using var after = SessionDatabaseFixture.CreateContext(harness.ConnectionString);
+        var stored = await after.RecoveryCodes.Where(code => code.UserId == user.Id).ToListAsync(Token);
+        stored.Count(code => code.ConsumedAt is not null).ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Answers one challenge from two independent requests at once, with the contested row held until
+    /// both of them have read it and reached their write.
+    /// </summary>
+    private static async Task<IReadOnlyList<Result<MfaChallengeOutcome>>> AnswerConcurrentlyAsync(
+        Harness harness,
+        Guid userId,
+        MfaFactor factor,
+        string answer,
+        string qualifiedTable,
+        Guid rowId)
+    {
+        // Two contexts, because two requests are two units of work. Sharing the harness's context would
+        // share a change tracker, and the second request would see the first one's decision without
+        // either of them having written anything.
+        await using var firstContext = SessionDatabaseFixture.CreateContext(harness.ConnectionString);
+        await using var secondContext = SessionDatabaseFixture.CreateContext(harness.ConnectionString);
+
+        // The row is held before either request starts, or the first could finish before the gate is
+        // taken and there would be no race left to observe.
+        await using var gate = await RowGate.HoldAsync(
+            harness.ConnectionString, qualifiedTable, rowId, Token);
+
+        var requests = new[] { firstContext, secondContext }
+            .Select(harness.ChallengeOver)
+            .Select(challenge => challenge.VerifyAsync(userId, factor, answer, Token))
+            .ToList();
+
+        await gate.ReleaseWhenWaitingAsync(requests.Count, Token);
+
+        return await Task.WhenAll(requests);
+    }
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static string SecretOf(TotpEnrolmentStarted started)
@@ -252,6 +373,20 @@ public sealed class RecoveryAndMultiFactorPersistenceTests(SessionDatabaseFixtur
         }
 
         public string ConnectionString { get; }
+
+        /// <summary>
+        /// Builds a second challenge service over its own context, so that two answers to one challenge
+        /// are two units of work rather than two calls sharing a change tracker.
+        /// </summary>
+        /// <param name="context">The context the new service reads and writes through.</param>
+        public MfaChallengeService ChallengeOver(IdentityDbContext context) => new(
+            new IdentityStore(context),
+            new TotpService(),
+            new RecoveryCodeService(),
+            Protector,
+            Clock,
+            Options.Create(new MfaOptions()),
+            NullLogger<MfaChallengeService>.Instance);
 
         public TestClock Clock { get; }
 
