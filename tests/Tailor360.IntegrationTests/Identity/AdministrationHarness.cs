@@ -183,4 +183,7 @@ internal static class Permissions
 
     /// <summary>Exporting the audit trail.</summary>
     public const string AuditExport = PlatformPermissions.AuditExport;
+
+    /// <summary>Replaying a dead-lettered outbox message.</summary>
+    public const string OutboxReplay = PlatformPermissions.OutboxReplay;
 }

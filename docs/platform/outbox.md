@@ -72,8 +72,13 @@ dotnet run --project src/Tools/Tailor360.Cli -- replay-outbox --dead-letter --re
 dotnet run --project src/Tools/Tailor360.Cli -- replay-outbox --id <guid> --reason "Fixed the malformed address"
 ```
 
-A replay demands a reason and writes an audit entry. Issue #25 exposes the same operation over HTTP
-behind step-up authorisation.
+A replay demands a reason and writes an audit entry. The same operation is exposed over HTTP behind
+step-up authorisation — `GET /api/v1/admin/outbox/dead-letters` lists the queue and
+`POST /api/v1/admin/outbox/{messageId}/replay` puts one message back — and both paths call
+`IOutboxAdministration`, so a console replay and an endpoint replay do the same thing to the same rows
+and write the same entry. Draining the whole dead letter stays console-only: it is a decision made with
+the logs open after an outage has been diagnosed, and one operator's "everything" is another's
+duplicate-delivery storm.
 
 ## Duplicate delivery
 

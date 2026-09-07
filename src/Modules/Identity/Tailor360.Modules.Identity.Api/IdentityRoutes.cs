@@ -39,6 +39,9 @@ public static class IdentityRoutes
     /// <summary>Administering feature flags and module toggles.</summary>
     public const string AdminFeatureFlags = "/api/v1/admin/feature-flags";
 
+    /// <summary>Reading the outbox dead letter and replaying from it.</summary>
+    public const string AdminOutbox = "/api/v1/admin/outbox";
+
     /// <summary>Reading and exporting the audit trail.</summary>
     public const string AdminAudit = "/api/v1/admin/audit";
 

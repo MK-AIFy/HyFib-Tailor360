@@ -217,6 +217,12 @@ public static class PayloadExamples
             }
             """,
 
+        ["ReplayOutboxMessage"] = """
+            {
+              "reason": "The notification provider outage was resolved at 09:40; the customer was never told their order was ready."
+            }
+            """,
+
         ["RequestPasswordRecovery"] = """
             {
               "email": "counter.demo@example.invalid"

@@ -132,8 +132,9 @@ stream; an expired lease is redelivered, which is exactly why every handler is i
 a row lease before running, so a second worker instance is a configuration change rather than a code change.
 
 **Recovery.** Restart the worker and the dispatcher drains in order. Messages that exhausted their retries sit in the
-dead letter with their reason and are replayed by an operator — through the command-line tool at first, and from issue
-#25 through an authenticated endpoint under `admin.outbox.replay` with a mandatory reason and step-up authentication.
+dead letter with their reason and are replayed by an operator — through the command-line tool, or through the
+authenticated endpoint under `admin.outbox.replay` with a mandatory reason and step-up authentication. Both go through
+the same port, so the two cannot drift.
 A stale ready-state custody predicate is safe by construction: the dispatch gate is re-evaluated synchronously at the
 dispatch attempt, so lag can delay a dispatch but can never release a garment that should not go.
 

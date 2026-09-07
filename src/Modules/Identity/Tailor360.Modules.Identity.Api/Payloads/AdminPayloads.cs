@@ -3,6 +3,7 @@ using Tailor360.Modules.Identity.Application.Administration;
 using Tailor360.Modules.Identity.Domain.Branches;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.FeatureFlags;
+using Tailor360.Platform.Abstractions.Outbox;
 
 namespace Tailor360.Modules.Identity.Api.Payloads;
 
@@ -503,3 +504,49 @@ public sealed record ExportAuditPayload(
     string? Cursor,
     int? Limit,
     string? Reason);
+
+/// <summary>One outbox message sitting in the dead letter.</summary>
+/// <remarks>
+/// The payload the replay returns describes the message <em>as it stood before</em> the replay, which is
+/// why <c>deadLetteredAt</c> and <c>attemptCount</c> are still filled in on that response. An operator
+/// asking "what did I just put back" wants the failure they acted on, not a row that now says nothing
+/// went wrong.
+/// </remarks>
+/// <param name="Id">Identity of the message, and of the event it carries.</param>
+/// <param name="AggregateId">The aggregate the event belongs to.</param>
+/// <param name="EventType">The stable wire name, for example <c>orders.order_confirmed</c>.</param>
+/// <param name="SchemaVersion">The payload schema version.</param>
+/// <param name="OccurredAt">When the event occurred.</param>
+/// <param name="DeadLetteredAt">When it exhausted its delivery attempts.</param>
+/// <param name="AttemptCount">How many attempts were made before it was given up on.</param>
+/// <param name="LastError">The failure it was given up on. The dispatcher never puts a payload value here.</param>
+/// <param name="CorrelationId">The correlation identifier of the request that produced the event.</param>
+public sealed record DeadLetteredMessagePayload(
+    Guid Id,
+    Guid AggregateId,
+    string EventType,
+    int SchemaVersion,
+    DateTimeOffset OccurredAt,
+    DateTimeOffset? DeadLetteredAt,
+    int AttemptCount,
+    string? LastError,
+    string? CorrelationId)
+{
+    /// <summary>Projects a dead-lettered message onto the wire.</summary>
+    /// <param name="message">The message.</param>
+    public static DeadLetteredMessagePayload From(DeadLetteredMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        return new DeadLetteredMessagePayload(
+            message.Id,
+            message.AggregateId,
+            message.EventType,
+            message.SchemaVersion,
+            message.OccurredAt,
+            message.DeadLetteredAt,
+            message.AttemptCount,
+            message.LastError,
+            message.CorrelationId);
+    }
+}

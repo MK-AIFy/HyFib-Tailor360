@@ -8,6 +8,7 @@ using Tailor360.Platform.Abstractions.FeatureFlags;
 using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Idempotency;
 using Tailor360.Platform.Abstractions.Identifiers;
+using Tailor360.Platform.Abstractions.Outbox;
 using Tailor360.Platform.Abstractions.Sequencing;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Auditing;
@@ -141,6 +142,7 @@ public static class PlatformServiceCollectionExtensions
         // whereas evaluation answers from a snapshot the singleton holds.
         services.TryAddScoped<IFeatureFlagAdministration, FeatureFlagAdministration>();
         services.TryAddScoped<IAuditReader, AuditReader>();
+        services.TryAddScoped<IOutboxAdministration, OutboxAdministration>();
 
         services.TryAddScoped<IOutboxCorrelation, NullOutboxCorrelation>();
         services.TryAddScoped<IEventPublisher, OutboxWriter>();
