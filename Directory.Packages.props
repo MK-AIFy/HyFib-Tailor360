@@ -76,7 +76,7 @@
       what it is; a format with no comments would have driven the reasons out of the file that needs them.
       Test projects only — nothing that ships parses YAML.
     -->
-    <PackageVersion Include="YamlDotNet" Version="17.0.0" />
+    <PackageVersion Include="YamlDotNet" Version="17.1.0" />
   </ItemGroup>
 
 </Project>
