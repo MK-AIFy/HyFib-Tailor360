@@ -117,6 +117,118 @@ export const adminEn = {
   'admin.command.revoke-sessions.reason': 'Why are you ending these sessions?',
   'admin.command.done': '{name} — done.',
 
+  /* Branches. --------------------------------------------------------------------------------- */
+  'admin.branches.title': 'Branches',
+  'admin.branches.caption': 'The branches this business trades from',
+  'admin.branches.loading': 'branches',
+  'admin.branches.empty': 'No branch has been opened yet.',
+  'admin.branches.column.code': 'Code',
+  'admin.branches.column.name': 'Name',
+  'admin.branches.column.timeZone': 'Timezone',
+  'admin.branches.column.status': 'Status',
+  'admin.branches.open': 'Open a branch',
+  'admin.branches.codeHint':
+    'Set once and never again: this code is printed in every order, estimate and invoice number the branch produces.',
+  'admin.branches.code': 'Branch code',
+  'admin.branches.name': 'Branch name',
+  'admin.branches.timeZone': 'Timezone',
+  'admin.branches.timeZoneHint':
+    'Every due date, SLA clock and report cut-off for this branch is worked out in this timezone.',
+  'admin.branches.reason.open': 'Why are you opening this branch?',
+  'admin.branches.status.open': 'Trading',
+  'admin.branches.status.closed': 'Closed',
+  'admin.branches.close': 'Close branch',
+  'admin.branches.closeTitle': 'Close this branch?',
+  'admin.branches.closeBody':
+    'The branch stops trading. Nothing is deleted — every order, estimate and invoice it produced keeps its number, and the number keeps its code. Closing is refused while anybody is still assigned to work here.',
+  'admin.branches.reason.close': 'Why are you closing this branch?',
+  'admin.branches.reopen': 'Reopen branch',
+  'admin.branches.reopenTitle': 'Reopen this branch?',
+  'admin.branches.reopenBody': 'The branch trades again, under the code it always had.',
+  'admin.branches.reason.reopen': 'Why are you reopening this branch?',
+
+  /* Roles and the permission catalogue. -------------------------------------------------------- */
+  'admin.roles.title': 'Roles and permissions',
+  'admin.roles.caption': 'The roles this business uses, and what each one allows',
+  'admin.roles.loading': 'roles',
+  'admin.roles.empty': 'No role has been defined yet.',
+  'admin.roles.column.name': 'Role',
+  'admin.roles.column.reach': 'Reach',
+  'admin.roles.column.grants': 'Permissions',
+  'admin.roles.column.holders': 'People',
+  'admin.roles.system': 'Shipped with the application',
+  'admin.roles.reach.Branch': 'One branch',
+  'admin.roles.reach.Organisation': 'The whole business',
+  'admin.roles.holders': '{count, plural, =0 {Nobody} one {1 person} other {# people}}',
+  'admin.roles.grantCount':
+    '{count, plural, =0 {Nothing yet} one {1 permission} other {# permissions}}',
+  'admin.role.loading': 'this role',
+  'admin.role.notFound': 'No role matches that address.',
+  'admin.role.permissions': 'What this role allows',
+  'admin.role.permissionsHint':
+    'Tick every permission this role should grant when you are finished, not just the ones you are adding. You can only grant something you hold yourself.',
+  'admin.role.save': 'Save permissions',
+  'admin.role.reason': 'Why are you changing what this role allows?',
+  'admin.role.flag.mfa': 'Needs a second factor',
+  'admin.role.flag.stepUp': 'Needs a fresh check of identity each time',
+  'admin.role.flag.reason': 'Needs a written reason each time',
+
+  /* Feature settings. -------------------------------------------------------------------------- */
+  'admin.features.title': 'Feature settings',
+  'admin.features.caption': 'The settings that switch parts of this application on and off',
+  'admin.features.loading': 'feature settings',
+  'admin.features.empty': 'No setting has been configured yet.',
+  'admin.features.column.key': 'Setting',
+  'admin.features.column.state': 'State',
+  'admin.features.column.changed': 'Last changed',
+  'admin.features.column.reason': 'Why',
+  'admin.features.on': 'On',
+  'admin.features.off': 'Off',
+  'admin.features.turnOn': 'Turn on',
+  'admin.features.turnOff': 'Turn off',
+  'admin.features.confirmOn': 'Turn this on?',
+  'admin.features.confirmOff': 'Turn this off?',
+  'admin.features.body':
+    'Every till and tablet picks this up within about {seconds, plural, one {# second} other {# seconds}}. Until they do, some devices will still be working the old way.',
+  'admin.features.reason': 'Why are you changing this setting?',
+  'admin.features.neverChanged': 'Never changed',
+
+  /* The audit trail. --------------------------------------------------------------------------- */
+  'admin.audit.title': 'Audit trail',
+  'admin.audit.caption': 'What was changed, by whom, and why',
+  'admin.audit.loading': 'the audit trail',
+  'admin.audit.empty': 'Nothing matches what you are looking for.',
+  'admin.audit.filter.action': 'Action starts with',
+  'admin.audit.filter.apply': 'Search the trail',
+  'admin.audit.column.when': 'When',
+  'admin.audit.column.what': 'What happened',
+  'admin.audit.column.who': 'Who',
+  'admin.audit.column.why': 'Why',
+  'admin.audit.noReason': 'No reason recorded',
+  'admin.audit.before': 'Before',
+  'admin.audit.after': 'After',
+  'admin.audit.details': 'Show what changed',
+  'admin.audit.more': 'Show older entries',
+  'admin.audit.correlation': 'Request {correlationId}',
+
+  /* The outbox dead letter. -------------------------------------------------------------------- */
+  'admin.outbox.title': 'Failed messages',
+  'admin.outbox.caption': 'Messages that could not be delivered and were given up on',
+  'admin.outbox.loading': 'failed messages',
+  'admin.outbox.empty': 'Nothing has failed. Everything the shop has published has been delivered.',
+  'admin.outbox.column.event': 'Message',
+  'admin.outbox.column.when': 'Failed',
+  'admin.outbox.column.attempts': 'Attempts',
+  'admin.outbox.column.error': 'What went wrong',
+  'admin.outbox.replay': 'Send again',
+  'admin.outbox.replayTitle': 'Put this message back on the queue?',
+  'admin.outbox.replayBody':
+    'It will be delivered again. If it had in fact reached its destination before it was given up on, whoever receives it gets it twice — a second message to a customer, or a second entry in an accounting system. Check that the problem behind it is fixed before sending it again.',
+  'admin.outbox.reason': 'Why are you sending this again?',
+  'admin.outbox.attempts': '{count, plural, one {1 attempt} other {# attempts}}',
+  'admin.outbox.gone':
+    'That message is no longer waiting — somebody else has already sent it again, or it went through on its own.',
+
   /* Roles and branches held by one account. --------------------------------------------------- */
   'admin.access.title': 'Roles and branches',
   'admin.access.loading': 'this account’s access',
@@ -304,6 +416,202 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   'admin.command.revoke-sessions.reason': 'Why are you ending these sessions?',
   // not translated — awaiting native-speaker review
   'admin.command.done': '{name} — done.',
+  // not translated — awaiting native-speaker review
+  'admin.branches.title': 'Branches',
+  // not translated — awaiting native-speaker review
+  'admin.branches.caption': 'The branches this business trades from',
+  // not translated — awaiting native-speaker review
+  'admin.branches.loading': 'branches',
+  // not translated — awaiting native-speaker review
+  'admin.branches.empty': 'No branch has been opened yet.',
+  // not translated — awaiting native-speaker review
+  'admin.branches.column.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'admin.branches.column.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'admin.branches.column.timeZone': 'Timezone',
+  // not translated — awaiting native-speaker review
+  'admin.branches.column.status': 'Status',
+  // not translated — awaiting native-speaker review
+  'admin.branches.open': 'Open a branch',
+  // not translated — awaiting native-speaker review
+  'admin.branches.codeHint':
+    'Set once and never again: this code is printed in every order, estimate and invoice number the branch produces.',
+  // not translated — awaiting native-speaker review
+  'admin.branches.code': 'Branch code',
+  // not translated — awaiting native-speaker review
+  'admin.branches.name': 'Branch name',
+  // not translated — awaiting native-speaker review
+  'admin.branches.timeZone': 'Timezone',
+  // not translated — awaiting native-speaker review
+  'admin.branches.timeZoneHint':
+    'Every due date, SLA clock and report cut-off for this branch is worked out in this timezone.',
+  // not translated — awaiting native-speaker review
+  'admin.branches.reason.open': 'Why are you opening this branch?',
+  // not translated — awaiting native-speaker review
+  'admin.branches.status.open': 'Trading',
+  // not translated — awaiting native-speaker review
+  'admin.branches.status.closed': 'Closed',
+  // not translated — awaiting native-speaker review
+  'admin.branches.close': 'Close branch',
+  // not translated — awaiting native-speaker review
+  'admin.branches.closeTitle': 'Close this branch?',
+  // not translated — awaiting native-speaker review
+  'admin.branches.closeBody':
+    'The branch stops trading. Nothing is deleted — every order, estimate and invoice it produced keeps its number, and the number keeps its code. Closing is refused while anybody is still assigned to work here.',
+  // not translated — awaiting native-speaker review
+  'admin.branches.reason.close': 'Why are you closing this branch?',
+  // not translated — awaiting native-speaker review
+  'admin.branches.reopen': 'Reopen branch',
+  // not translated — awaiting native-speaker review
+  'admin.branches.reopenTitle': 'Reopen this branch?',
+  // not translated — awaiting native-speaker review
+  'admin.branches.reopenBody': 'The branch trades again, under the code it always had.',
+  // not translated — awaiting native-speaker review
+  'admin.branches.reason.reopen': 'Why are you reopening this branch?',
+  // not translated — awaiting native-speaker review
+  'admin.roles.title': 'Roles and permissions',
+  // not translated — awaiting native-speaker review
+  'admin.roles.caption': 'The roles this business uses, and what each one allows',
+  // not translated — awaiting native-speaker review
+  'admin.roles.loading': 'roles',
+  // not translated — awaiting native-speaker review
+  'admin.roles.empty': 'No role has been defined yet.',
+  // not translated — awaiting native-speaker review
+  'admin.roles.column.name': 'Role',
+  // not translated — awaiting native-speaker review
+  'admin.roles.column.reach': 'Reach',
+  // not translated — awaiting native-speaker review
+  'admin.roles.column.grants': 'Permissions',
+  // not translated — awaiting native-speaker review
+  'admin.roles.column.holders': 'People',
+  // not translated — awaiting native-speaker review
+  'admin.roles.system': 'Shipped with the application',
+  // not translated — awaiting native-speaker review
+  'admin.roles.reach.Branch': 'One branch',
+  // not translated — awaiting native-speaker review
+  'admin.roles.reach.Organisation': 'The whole business',
+  // not translated — awaiting native-speaker review
+  'admin.roles.holders': '{count, plural, =0 {Nobody} one {1 person} other {# people}}',
+  // not translated — awaiting native-speaker review
+  'admin.roles.grantCount':
+    '{count, plural, =0 {Nothing yet} one {1 permission} other {# permissions}}',
+  // not translated — awaiting native-speaker review
+  'admin.role.loading': 'this role',
+  // not translated — awaiting native-speaker review
+  'admin.role.notFound': 'No role matches that address.',
+  // not translated — awaiting native-speaker review
+  'admin.role.permissions': 'What this role allows',
+  // not translated — awaiting native-speaker review
+  'admin.role.permissionsHint':
+    'Tick every permission this role should grant when you are finished, not just the ones you are adding. You can only grant something you hold yourself.',
+  // not translated — awaiting native-speaker review
+  'admin.role.save': 'Save permissions',
+  // not translated — awaiting native-speaker review
+  'admin.role.reason': 'Why are you changing what this role allows?',
+  // not translated — awaiting native-speaker review
+  'admin.role.flag.mfa': 'Needs a second factor',
+  // not translated — awaiting native-speaker review
+  'admin.role.flag.stepUp': 'Needs a fresh check of identity each time',
+  // not translated — awaiting native-speaker review
+  'admin.role.flag.reason': 'Needs a written reason each time',
+  // not translated — awaiting native-speaker review
+  'admin.features.title': 'Feature settings',
+  // not translated — awaiting native-speaker review
+  'admin.features.caption': 'The settings that switch parts of this application on and off',
+  // not translated — awaiting native-speaker review
+  'admin.features.loading': 'feature settings',
+  // not translated — awaiting native-speaker review
+  'admin.features.empty': 'No setting has been configured yet.',
+  // not translated — awaiting native-speaker review
+  'admin.features.column.key': 'Setting',
+  // not translated — awaiting native-speaker review
+  'admin.features.column.state': 'State',
+  // not translated — awaiting native-speaker review
+  'admin.features.column.changed': 'Last changed',
+  // not translated — awaiting native-speaker review
+  'admin.features.column.reason': 'Why',
+  // not translated — awaiting native-speaker review
+  'admin.features.on': 'On',
+  // not translated — awaiting native-speaker review
+  'admin.features.off': 'Off',
+  // not translated — awaiting native-speaker review
+  'admin.features.turnOn': 'Turn on',
+  // not translated — awaiting native-speaker review
+  'admin.features.turnOff': 'Turn off',
+  // not translated — awaiting native-speaker review
+  'admin.features.confirmOn': 'Turn this on?',
+  // not translated — awaiting native-speaker review
+  'admin.features.confirmOff': 'Turn this off?',
+  // not translated — awaiting native-speaker review
+  'admin.features.body':
+    'Every till and tablet picks this up within about {seconds, plural, one {# second} other {# seconds}}. Until they do, some devices will still be working the old way.',
+  // not translated — awaiting native-speaker review
+  'admin.features.reason': 'Why are you changing this setting?',
+  // not translated — awaiting native-speaker review
+  'admin.features.neverChanged': 'Never changed',
+  // not translated — awaiting native-speaker review
+  'admin.audit.title': 'Audit trail',
+  // not translated — awaiting native-speaker review
+  'admin.audit.caption': 'What was changed, by whom, and why',
+  // not translated — awaiting native-speaker review
+  'admin.audit.loading': 'the audit trail',
+  // not translated — awaiting native-speaker review
+  'admin.audit.empty': 'Nothing matches what you are looking for.',
+  // not translated — awaiting native-speaker review
+  'admin.audit.filter.action': 'Action starts with',
+  // not translated — awaiting native-speaker review
+  'admin.audit.filter.apply': 'Search the trail',
+  // not translated — awaiting native-speaker review
+  'admin.audit.column.when': 'When',
+  // not translated — awaiting native-speaker review
+  'admin.audit.column.what': 'What happened',
+  // not translated — awaiting native-speaker review
+  'admin.audit.column.who': 'Who',
+  // not translated — awaiting native-speaker review
+  'admin.audit.column.why': 'Why',
+  // not translated — awaiting native-speaker review
+  'admin.audit.noReason': 'No reason recorded',
+  // not translated — awaiting native-speaker review
+  'admin.audit.before': 'Before',
+  // not translated — awaiting native-speaker review
+  'admin.audit.after': 'After',
+  // not translated — awaiting native-speaker review
+  'admin.audit.details': 'Show what changed',
+  // not translated — awaiting native-speaker review
+  'admin.audit.more': 'Show older entries',
+  // not translated — awaiting native-speaker review
+  'admin.audit.correlation': 'Request {correlationId}',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.title': 'Failed messages',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.caption': 'Messages that could not be delivered and were given up on',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.loading': 'failed messages',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.empty': 'Nothing has failed. Everything the shop has published has been delivered.',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.column.event': 'Message',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.column.when': 'Failed',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.column.attempts': 'Attempts',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.column.error': 'What went wrong',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.replay': 'Send again',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.replayTitle': 'Put this message back on the queue?',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.replayBody':
+    'It will be delivered again. If it had in fact reached its destination before it was given up on, whoever receives it gets it twice — a second message to a customer, or a second entry in an accounting system. Check that the problem behind it is fixed before sending it again.',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.reason': 'Why are you sending this again?',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.attempts': '{count, plural, one {1 attempt} other {# attempts}}',
+  // not translated — awaiting native-speaker review
+  'admin.outbox.gone':
+    'That message is no longer waiting — somebody else has already sent it again, or it went through on its own.',
   // not translated — awaiting native-speaker review
   'admin.access.title': 'Roles and branches',
   // not translated — awaiting native-speaker review

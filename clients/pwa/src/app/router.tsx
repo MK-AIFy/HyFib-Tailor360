@@ -7,6 +7,12 @@ import { ADMIN_PERMISSIONS } from '../admin/adminPermissions'
 import { RequirePermission } from '../admin/RequirePermission'
 import { AboutRoute } from '../routes/AboutRoute'
 import { AdminShell } from '../routes/admin/AdminShell'
+import { AuditTrailRoute } from '../routes/admin/AuditTrailRoute'
+import { BranchListRoute } from '../routes/admin/BranchListRoute'
+import { FeatureFlagRoute } from '../routes/admin/FeatureFlagRoute'
+import { OutboxRoute } from '../routes/admin/OutboxRoute'
+import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
+import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
@@ -167,6 +173,54 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.users}>
                     <StaffDetailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'branches',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.branches}>
+                    <BranchListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'roles',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.roles}>
+                    <RoleListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'roles/:roleId',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.roles}>
+                    <RoleDetailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'features',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.featureFlags}>
+                    <FeatureFlagRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'audit',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.auditRead}>
+                    <AuditTrailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'outbox',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.outboxReplay}>
+                    <OutboxRoute />
                   </RequirePermission>
                 ),
               },
