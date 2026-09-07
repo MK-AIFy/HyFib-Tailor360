@@ -19,6 +19,8 @@
  */
 
 /** Where the request half is fetched from. */
+import { CLIENT_VERSION, CLIENT_VERSION_HEADER } from '../app/clientVersion'
+
 export const ANTIFORGERY_ENDPOINT = '/api/v1/antiforgery'
 
 /** The header the request token is sent in. Matches `AntiforgeryDefaults.HeaderName`. */
@@ -46,7 +48,14 @@ function isTokenResponse(payload: unknown): payload is AntiforgeryTokenResponse 
 async function requestToken(): Promise<string> {
   const response = await fetch(ANTIFORGERY_ENDPOINT, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    // This request does not go through the interceptor — the interceptor is what calls it — so the
+    // build has to be declared here too. A request that omitted it would be the one request a server
+    // too new for this client would answer, and the answer would be a token the next request cannot
+    // spend.
+    headers: {
+      Accept: 'application/json',
+      ...(CLIENT_VERSION === undefined ? {} : { [CLIENT_VERSION_HEADER]: CLIENT_VERSION }),
+    },
     // Same-origin: there is one origin, because the API is a backend-for-frontend behind the same
     // reverse proxy. A cross-origin credentialed request would need CORS the server does not grant.
     credentials: 'same-origin',

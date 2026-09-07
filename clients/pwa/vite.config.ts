@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -5,7 +7,23 @@ import { VitePWA } from 'vite-plugin-pwa'
 /** The web host (src/Hosts/Tailor360.Web) listens on 8080 in every environment, including containers. */
 const WEB_HOST_ORIGIN = 'http://localhost:8080'
 
+/**
+ * This build's version, taken from package.json and compiled into the bundle.
+ *
+ * It is what every request declares in `X-Client-Version`, and what the server compares against the
+ * minimum it supports before answering. Read here rather than imported into application code, so that
+ * the version travels as a literal string and nothing in the bundle can reach the rest of the manifest.
+ */
+const clientVersion: string = (
+  JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8')) as {
+    version: string
+  }
+).version
+
 export default defineConfig({
+  define: {
+    __CLIENT_VERSION__: JSON.stringify(clientVersion),
+  },
   plugins: [
     react(),
     VitePWA({

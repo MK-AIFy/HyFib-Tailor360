@@ -83,6 +83,7 @@ public static class MultiFactorEnrolmentEndpoints
             .Audited(TotpEnrolmentHandler.EnrolmentStartedAction)
             .WithName("BeginMultiFactorEnrolment")
             .WithSummary("Start enrolling an authenticator and return the QR link and manual key.")
+            .Produces<MfaEnrolmentStartedPayload>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapPost("/mfa/enrol/confirm", async (
@@ -105,6 +106,7 @@ public static class MultiFactorEnrolmentEndpoints
             .Audited(TotpEnrolmentHandler.EnrolmentConfirmedAction)
             .WithName("ConfirmMultiFactorEnrolment")
             .WithSummary("Confirm an authenticator with a code and issue the recovery codes.")
+            .Produces<RecoveryCodesPayload>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapPost("/mfa/recovery-codes", async (
@@ -126,6 +128,7 @@ public static class MultiFactorEnrolmentEndpoints
             .Audited(TotpEnrolmentHandler.RecoveryCodesIssuedAction)
             .WithName("ReissueRecoveryCodes")
             .WithSummary("Print a fresh sheet of recovery codes, destroying the previous sheet.")
+            .Produces<RecoveryCodesPayload>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         return auth;

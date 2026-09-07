@@ -2,10 +2,11 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { versionPayload } from '../app/testing/versionFixture'
 import { renderWithProviders } from '../design-system/testing/renderWithProviders'
 import { AboutRoute } from './AboutRoute'
 
-const BUILD = { version: '0.1.0-alpha.42', buildHash: '0abcdef', environment: 'staging' }
+const BUILD = versionPayload({ current: '0.1.0-alpha.42', environment: 'staging' })
 
 function stubVersionEndpoint(response: () => Promise<Response>) {
   const fetchMock = vi.fn(response)
@@ -43,12 +44,14 @@ describe('AboutRoute', () => {
 
     // Found by their labels rather than by position, because the point of the screen is that
     // somebody reads these three out over a telephone.
-    expect(await screen.findByText(BUILD.version)).toBeInTheDocument()
-    expect(screen.getByText(BUILD.buildHash)).toBeInTheDocument()
+    expect(await screen.findByText(BUILD.current)).toBeInTheDocument()
+    expect(screen.getByText(BUILD.commit!)).toBeInTheDocument()
     expect(screen.getByText(BUILD.environment)).toBeInTheDocument()
+    expect(screen.getByText(BUILD.schemaVersion)).toBeInTheDocument()
     expect(screen.getByText('Version')).toBeInTheDocument()
     expect(screen.getByText('Build')).toBeInTheDocument()
     expect(screen.getByText('Environment')).toBeInTheDocument()
+    expect(screen.getByText('Data version')).toBeInTheDocument()
   })
 
   it('names what is loading rather than saying only "loading"', () => {
@@ -80,7 +83,7 @@ describe('AboutRoute', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: /try again/i }))
 
-    expect(await screen.findByText(BUILD.version)).toBeInTheDocument()
+    expect(await screen.findByText(BUILD.current)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 

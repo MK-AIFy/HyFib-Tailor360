@@ -3,16 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AppIntlProvider } from '../../i18n/IntlProvider'
 import { AuthShell } from './AuthShell'
+import { versionPayload } from '../../app/testing/versionFixture'
 
 function stubVersion(environment: string) {
   vi.stubGlobal(
     'fetch',
     vi.fn(() =>
       Promise.resolve(
-        new Response(
-          JSON.stringify({ version: '0.1.0-alpha', buildHash: '0abcdef', environment }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
+        new Response(JSON.stringify(versionPayload({ environment })), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
       ),
     ),
   )

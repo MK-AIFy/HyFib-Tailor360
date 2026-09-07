@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { forgetAntiforgeryToken } from './antiforgery'
-import { ApiError, apiRequest, setSessionChallengeHandler } from './apiClient'
+import { CLIENT_VERSION, CLIENT_VERSION_HEADER } from '../app/clientVersion'
+import {
+  ApiError,
+  apiRequest,
+  setSessionChallengeHandler,
+  UPGRADE_REQUIRED_CODE,
+} from './apiClient'
 import { jsonResponse, noContent, problemResponse, stubFetch } from './testing/fixtures'
 import type { FetchStub } from './testing/fixtures'
 
@@ -63,6 +69,70 @@ describe('what every request carries', () => {
     const init = transport.fetch.mock.calls[0]?.[1] as RequestInit | undefined
     expect(init?.cache).toBe('no-store')
     expect(init?.credentials).toBe('same-origin')
+  })
+
+  it('declares this build on every request, read or write', async () => {
+    transport.route('GET /api/v1/me', () => jsonResponse({ ok: true }))
+    transport.route('POST /api/v1/auth/logout', () => noContent())
+
+    await apiRequest('/api/v1/me')
+    await apiRequest('/api/v1/auth/logout', { method: 'POST' })
+
+    // The server compares it with the minimum client it supports and answers 426 when this build is
+    // too old. A read that omitted it would be answered by a server that thinks it is talking to
+    // something other than the application.
+    for (const call of transport.calls) {
+      expect(call.headers.get(CLIENT_VERSION_HEADER)).toBe(CLIENT_VERSION)
+    }
+
+    expect(CLIENT_VERSION).toBeTypeOf('string')
+  })
+
+  it('sends a correlation identifier that is different on every request', async () => {
+    transport.route('GET /api/v1/me', () => jsonResponse({ ok: true }))
+
+    await apiRequest('/api/v1/me')
+    await apiRequest('/api/v1/me')
+
+    const [first, second] = transport.callsTo('GET /api/v1/me')
+    expect(first?.headers.get('X-Correlation-Id')).toBeTruthy()
+    expect(first?.headers.get('X-Correlation-Id')).not.toBe(second?.headers.get('X-Correlation-Id'))
+  })
+
+  it('sends the idempotency key the caller holds, and none when the caller holds none', async () => {
+    transport.route('POST /api/v1/auth/logout', () => noContent())
+
+    await apiRequest('/api/v1/auth/logout', {
+      method: 'POST',
+      idempotencyKey: '0199b000-0000-7000-8000-00000000dead',
+    })
+    await apiRequest('/api/v1/auth/logout', { method: 'POST' })
+
+    const [withKey, without] = transport.callsTo('POST /api/v1/auth/logout')
+    expect(withKey?.headers.get('Idempotency-Key')).toBe('0199b000-0000-7000-8000-00000000dead')
+    expect(without?.headers.get('Idempotency-Key')).toBeNull()
+  })
+
+  it("reuses the caller's idempotency key when a request is replayed after re-authentication", async () => {
+    // The whole point of the key being the caller's: a replay must be the same command, or the
+    // server would do the thing twice — a second payment, a second confirmation.
+    let attempt = 0
+    transport.route('POST /api/v1/auth/logout', () => {
+      attempt += 1
+      return attempt === 1 ? problemResponse(401, 'identity.session-expired') : noContent()
+    })
+    setSessionChallengeHandler(() => Promise.resolve(true))
+
+    await apiRequest('/api/v1/auth/logout', {
+      method: 'POST',
+      idempotencyKey: '0199b000-0000-7000-8000-00000000beef',
+    })
+
+    const calls = transport.callsTo('POST /api/v1/auth/logout')
+    expect(calls).toHaveLength(2)
+    for (const call of calls) {
+      expect(call.headers.get('Idempotency-Key')).toBe('0199b000-0000-7000-8000-00000000beef')
+    }
   })
 })
 
@@ -262,5 +332,32 @@ describe('what a failure carries back to the screen', () => {
   it('reads a 204 as nothing rather than as a parse failure', async () => {
     transport.route('DELETE /api/v1/sessions/abc', () => noContent())
     await expect(apiRequest('/api/v1/sessions/abc', { method: 'DELETE' })).resolves.toBeUndefined()
+  })
+
+  it('carries a 426 back with the versions the update prompt is written from', async () => {
+    transport.route('GET /api/v1/me', () =>
+      problemResponse(426, UPGRADE_REQUIRED_CODE, {
+        minimumClient: '2.0.0',
+        current: '2.4.1',
+        retryable: false,
+      }),
+    )
+
+    const failure = (await apiRequest('/api/v1/me').catch((cause: unknown) => cause)) as ApiError
+
+    expect(failure.status).toBe(426)
+    expect(failure.code).toBe(UPGRADE_REQUIRED_CODE)
+    expect(failure.problem?.minimumClient).toBe('2.0.0')
+    expect(failure.problem?.current).toBe('2.4.1')
+  })
+
+  it('does not retry a 426, because only a reload fixes it', async () => {
+    transport.route('GET /api/v1/me', () => problemResponse(426, UPGRADE_REQUIRED_CODE))
+    setSessionChallengeHandler(() => Promise.resolve(true))
+
+    await expect(apiRequest('/api/v1/me')).rejects.toBeInstanceOf(ApiError)
+
+    // A client that retried would spin against a server that will never change its answer.
+    expect(transport.callsTo('GET /api/v1/me')).toHaveLength(1)
   })
 })

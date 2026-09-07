@@ -33,7 +33,7 @@ than on the day someone first exercises it.
 | Endpoint inventory | The live route table built by `WebApplicationFactory` | ARCH-007, ARCH-008, ARCH-013, ARCH-017 … ARCH-019, ARCH-022, ARCH-023 | An endpoint's policy, audit and rate-limit metadata exist only once the application is composed |
 | Authorisation matrix | The same route table, reconciled with the endpoint block of `docs/security/permission-matrix.md` and with the permission catalogue, through `AuthorisationMatrix` | ARCH-018 | The rule compares one endpoint against two other artefacts, and a route with no approved row has to fail loudly rather than be absent from both sides |
 | Job declarations | Every hosted service in the composed `Tailor360.Worker` assembly, by reflection | ARCH-021 | A job's declared permissions and branch scope live on the type itself, and a job that carries none compiles perfectly well |
-| Negative control | A synthetic snippet fed to the same detector | Every source-scan rule | Proves the detector still catches a violation, so a broken regular expression cannot make a rule silently pass |
+| Negative control | A synthetic snippet, type or route fed to the same detector | Every source-scan rule, and every rule whose detector is a function of its own — ARCH-013, ARCH-018, ARCH-019, ARCH-022, ARCH-023 | Proves the detector still catches a violation, so a broken regular expression, an unreached branch of a type walk or a misread piece of metadata cannot make a rule silently pass |
 
 ---
 
@@ -53,11 +53,11 @@ than on the day someone first exercises it.
 | ARCH-010 | No Billing project references any Orders project. | `ModuleBoundaryTests` |
 | ARCH-011 | Reporting references only the `Contracts` projects of other modules. | `ModuleBoundaryTests` |
 | ARCH-012 | No project except a test project references `Tailor360.Web` or `Tailor360.Worker`. | `ModuleBoundaryTests` |
-| ARCH-013 | Every request and response payload type on the public API is declared in an `Api` project; no `Domain` type is ever returned from an endpoint. | `EndpointPolicyTests` |
+| ARCH-013 | Every request and response payload type on the public API is declared in an `Api` project; no `Domain` type is ever returned from an endpoint. | `EndpointPayloadTests` |
 | ARCH-014 | `DateTime.Now`, `DateTimeOffset.Now`, `DateTime.UtcNow`, `DateTimeOffset.UtcNow` and `DateTime.Today` appear nowhere in `src/` outside the clock abstraction. | `SourceConventionTests` |
 | ARCH-015 | `Guid.NewGuid()` appears nowhere in `src/` outside the identifier generator. | `SourceConventionTests` |
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp`. | `SourceConventionTests` |
-| ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue. | `EndpointPolicyTests` |
+| ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue. | `EndpointRateLimitTests` |
 | ARCH-018 | Every endpoint whose required permission is marked `RequiresStepUp` declares `.RequireStepUp()`. | `AuthorisationMatrixTests` |
 | ARCH-019 | No endpoint accepts more than one authentication scheme. | `AuthenticationSchemeTests` |
 | ARCH-020 | Only the worker and the command-line hosts reference `IWorkerScopeFactory`. | `BackgroundContextTests` |
@@ -72,11 +72,11 @@ than on the day someone first exercises it.
 | ARCH-001 … ARCH-006 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
 | ARCH-007, ARCH-008 | Enforced | `tests/Tailor360.ContractTests` — see **ROD-01** in Section 6 | #20 |
 | ARCH-009 … ARCH-012 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
-| ARCH-013 | Specified | — | #25, backstopped by the OpenAPI gate in #53 |
+| ARCH-013 | Enforced | `tests/Tailor360.ContractTests` — see **ROD-01** in Section 6 | #53 |
 | ARCH-014 … ARCH-016 | Enforced | `tests/Tailor360.ArchitectureTests` | #20 |
-| ARCH-017 | Specified | — | #53 |
+| ARCH-017 | Enforced | `tests/Tailor360.ContractTests` — see **ROD-01** in Section 6 | #53 |
 | ARCH-018 | Enforced | `tests/Tailor360.IntegrationTests` | #24 |
-| ARCH-019 | Enforced | `tests/Tailor360.ContractTests` | #23 |
+| ARCH-019 | Enforced | `tests/Tailor360.ContractTests` | #23; the per-endpoint assertion #53 |
 | ARCH-020, ARCH-021 | Enforced | `tests/Tailor360.ArchitectureTests` | #24 |
 | ARCH-022, ARCH-023 | Enforced | `tests/Tailor360.ContractTests` | #24 |
 
@@ -244,7 +244,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Returning an aggregate publishes the domain model as an API: a renamed field becomes a breaking change for the PWA, an added property silently leaks data the caller is not entitled to — a customer's contact details, a measurement value, an internal cost — and the field-level minimisation policies that project DTOs per role have nothing to attach to. A DTO in the `Api` project is also the only place where a versioned, documented, `oasdiff`-checked shape can live. |
 | **Allowed exceptions** | Value objects declared in `Tailor360.Platform.Abstractions` that exist precisely to be serialised — `Money`, problem-details payloads, cursor tokens and the shared error contract — plus primitive and framework types. A module's `Contracts` types are for module-to-module use and are **not** an allowed HTTP payload unless the same shape is re-declared in the `Api` project. |
 | **How an exception is registered** | By adding a type to the named allowlist of serialisable platform types in the test, in a pull request that says why the type is safe to publish. |
-| **Test** | `EndpointPolicyTests.Arch013_EndpointPayloadTypesAreDeclaredInApiProjects`, to live in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` alongside ARCH-007 and ARCH-008 because it too reads the composed route table — see **ROD-01**. **Specified, not yet implemented**: the #20 scaffold publishes no data-returning endpoint. Due with the first such endpoint (#25), and no later than the OpenAPI lint and diff gate (#53). |
+| **Test** | `EndpointPayloadTests.Arch013_EndpointPayloadTypesAreDeclaredInApiProjects` in `tests/Tailor360.ContractTests/EndpointPayloadTests.cs`, with `Arch013_EverySchemaInTheDocumentIsADeclaredPayload` reading the same rule from the other end: the first walks the types the route table declares, the second checks that every schema component in the generated document is one of them. It sits in its own file rather than in `EndpointPolicyTests.cs` — which **ROD-01** proposed — for the reason ARCH-022 and ARCH-023 sit in `EndpointResourceScopeTests.cs`: the rule needs two detectors of its own (`PayloadTypeInspector.Classify` and `.Walk`) and a set of negative controls for each, and neither the file nor the review comment reads better for having ARCH-007 in the same class. The controls are `TheClassifierPlacesEachKindOfAssembly`, `TheClassifierAllowsTheNamedSerialisablePlatformTypes`, the four `TheWalkerReaches…` cases and `TheRuleWouldFailOnADomainTypeNestedTwoLevelsDown`, which composes the two over a payload built to break the rule three levels down. |
 
 ### ARCH-014 — The ambient clock is never read outside the clock abstraction
 
@@ -280,11 +280,11 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 
 | | |
 | --- | --- |
-| **Assertion** | Every endpoint in the live route table carries rate-limit metadata naming exactly one policy from the catalogue `auth-anon`, `mfa-challenge`, `link-anon`, `callback`, `telemetry-ingest`, `scan-burst`, `export-heavy`, `default-user`, `default-ip`. |
+| **Assertion** | Every endpoint in the live route table carries rate-limit metadata naming exactly one policy from the catalogue `auth-anon`, `mfa-challenge`, `recovery-anon`, `write`, `scan-burst`, `export-heavy`, `default-user`, `default-ip`, and none declares `DisableRateLimiting`. |
 | **Rationale** | An unlimited endpoint is a denial-of-service and credential-stuffing surface, and the policies differ by an order of magnitude: a scanning burst from Delivery Staff replaying a queued round of scans must not be throttled like a sign-in attempt, and a heavy export must not compete with the counter. Requiring a declaration per endpoint means the choice is made by the author, once, and is visible in review. |
-| **Allowed exceptions** | The health probes, which the reverse proxy and the external uptime check must reach at a fixed cadence. |
+| **Allowed exceptions** | The health probes, which the reverse proxy and the external uptime check must reach at a fixed cadence, and which the inspector recognises by their `HealthProbeMetadata` rather than by path. |
 | **How an exception is registered** | By adding the endpoint to the exempt set in the test with the policy decision recorded in the pull request; adding a new policy to the catalogue requires updating [`components.md`](components.md) Section 5 and this rule together. |
-| **Test** | `EndpointPolicyTests.Arch017_EveryEndpointDeclaresARateLimitPolicy`. **Specified, not yet implemented**: due with #53. The policy names are fixed; their numeric limits are **proposed, to be confirmed** by #19 and are not part of this rule. |
+| **Test** | `EndpointRateLimitTests.Arch017_EveryEndpointDeclaresExactlyOneRateLimitPolicy`, over the composed route table through `RateLimitPolicyInspector`. Its negative controls are `Arch017DetectorCatchesAnEndpointWithNoPolicy`, `…WithTwoPolicies`, `…CatchesAPolicyThatIsNotInTheCatalogue` and `…CatchesAnEndpointThatDisablesRateLimiting`, with `Arch017DetectorAcceptsOnePolicyAndExemptsAHealthProbe` as the positive control. `ThePublishedNamesAndTheRegisteredPoliciesAreTheSameSet` closes the gap the rule itself cannot see: a name published in `RateLimitPolicyNames` that the host registers no limiter for compiles, reviews as correct, and throws on the first request to reach the endpoint that declared it. The policy names are fixed; their numeric limits are **proposed, to be confirmed** by #19 and are not part of this rule. |
 
 ### ARCH-018 — Step-up permissions are declared on the endpoint
 
@@ -304,7 +304,7 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 | **Rationale** | Version 1 registers exactly two authentication paths — the cookie scheme behind the BFF, and justified anonymous endpoints. An endpoint that accepted both a cookie and a future API key would be reachable by a client that carries neither anti-forgery protection nor the browser guarantees the cookie scheme depends on, and confused-deputy bugs of that shape are hard to see in review. Third-party and trusted clients get their own surface at `/api/ext/v1/**` in a later issue. |
 | **Allowed exceptions** | None inside `/api/v1/**`. When `/api/ext/v1/**` arrives, its endpoints accept exactly one scheme too, and the rule gains a per-prefix expectation rather than an exemption. |
 | **How an exception is registered** | It is not; a second scheme on one route requires an ADR in [`../adr/`](../adr/) amending ADR-0006. |
-| **Test** | `AuthenticationSchemeTests.Arch019_TheApplicationRegistersExactlyOneAuthenticationScheme`, over the composed host's `IAuthenticationSchemeProvider`. Asserting the registered set rather than each endpoint's metadata is the stronger form: while one scheme exists, no endpoint can name a second, so the rule holds by construction and cannot be broken one route at a time. The per-endpoint assertion returns when `/api/ext/v1/**` arrives and there is more than one scheme to tell apart. |
+| **Test** | `AuthenticationSchemeTests.Arch019_TheApplicationRegistersExactlyOneAuthenticationScheme`, over the composed host's `IAuthenticationSchemeProvider`, and `AuthenticationSchemeTests.Arch019_NoEndpointNamesMoreThanOneAuthenticationScheme`, over what each route's `IAuthorizeData` names, through `AuthenticationSchemeInspector`. The set assertion is the stronger of the two while one scheme exists: no endpoint can name a second scheme that is not registered, so the rule holds by construction. The per-endpoint assertion is what keeps it true the day a second scheme *is* registered for `/api/ext/v1/**`, because from that day the set assertion has to relax and this is all that is left; it also carries the rule's second clause, that a route under `/api/v1/` names the session scheme and nothing else. Its negative controls are `Arch019DetectorCatchesAnEndpointAcceptingTwoSchemes`, `Arch019DetectorCatchesAForeignSchemeOnTheBrowserSurface` and, so that the detector is not simply refusing everything, `Arch019DetectorAcceptsOneSchemeOnItsOwnSurface`. |
 
 ### ARCH-020 — Only the background hosts build a background principal
 
@@ -397,7 +397,7 @@ position, so no rule above is left undefined while it is open.
 | --- | --- | --- | --- | --- |
 | **ROD-01** | ARCH-007 and ARCH-008 need a composed application to read the route table, which ARCH-012 permits only from a test project and which the contract suite already builds. Should they live in `tests/Tailor360.ArchitectureTests` with their own `WebApplicationFactory`, or stay in `tests/Tailor360.ContractTests`? | They stay in `tests/Tailor360.ContractTests/EndpointPolicyTests.cs` and are listed here as `ARCH-…` rules. Both suites are required checks on every pull request (plan Section 5.3), so the gate is identical either way; only the file location is at issue. Whichever is chosen, the class name `EndpointPolicyTests` and the method names above do not change. | Technical reviewer | 2026-09-04 |
 | **ROD-02** | Does ARCH-004 hold for the customer-timeline composition, where the web host merges `ITimelineSource` entries from five modules? | It holds unchanged: the port is declared in `Tailor360.Platform.Abstractions`, each module implements it in its own `Infrastructure`, and the host composes them — no module references another. If a future requirement needs cross-module joining rather than merging, it needs an ADR before it needs a rule change. | Backend lead | 2026-09-04 |
-| **ROD-03** | ARCH-013's allowlist of serialisable platform types cannot be finalised before the first data-returning endpoints exist. | The allowlist starts empty apart from `Money` and the shared problem-details and pagination contracts, and grows only by named entry with a reason. | Backend lead, with the technical reviewer | 2026-09-04 |
+| **ROD-03** | ARCH-013's allowlist of serialisable platform types cannot be finalised before the first data-returning endpoints exist. | Settled as proposed and now implemented (#53): the allowlist is `PayloadTypeInspector.SerialisablePlatformTypes`, holding `Money` and `BranchScope`, and the shared problem-details shape, which is a schema in the document rather than a CLR type. It is keyed by full type name, not by assembly, so admitting one value object does not admit the library it lives in, and it grows only by named entry in a pull request that says why publishing that shape is safe. | Backend lead, with the technical reviewer | 2026-09-04 |
 
 ---
 
@@ -456,6 +456,7 @@ corresponding list in Section 4 is updated with it.
 | [`invariants.md`](invariants.md) | The aggregate invariants the domain layers protected by ARCH-001 and ARCH-002 enforce |
 | [`conventions.md`](conventions.md) | Money, time, identifiers, concurrency, API versioning and migration compatibility — the conventions behind ARCH-013 … ARCH-016 |
 | [`components.md`](components.md) | The request pipeline whose stages ARCH-006 … ARCH-008 and ARCH-017 … ARCH-019 govern |
+| [`../api/conventions.md`](../api/conventions.md) | How an endpoint governed by ARCH-007, ARCH-008, ARCH-013, ARCH-017, ARCH-019 and ARCH-022 is designed, and [`../api/internal-endpoints.md`](../api/internal-endpoints.md) for the routes that publish no contract |
 | [`container.md`](container.md) and [`deployment.md`](deployment.md) | The containers and networks these rules assume, including the health probes exempted by ARCH-007 |
 | [`context.md`](context.md) | The trust boundary and what is allowed to cross it |
 | [`../adr/`](../adr/) | ADR-0001 modular monolith, ADR-0004 schema per module, ADR-0006 BFF cookie session, ADR-0012 integration adapters and ports — the decisions these rules implement |

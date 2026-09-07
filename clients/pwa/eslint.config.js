@@ -7,7 +7,16 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   {
     // Build output and generated service-worker artefacts are never linted.
-    ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', 'storybook-static'],
+    // src/api/schema.d.ts is generated from the published OpenAPI document; it is the contract,
+    // not code anybody edits, and lint findings in it can only be fixed by changing the API.
+    ignores: [
+      'dist',
+      'dev-dist',
+      'coverage',
+      'node_modules',
+      'storybook-static',
+      'src/api/schema.d.ts',
+    ],
   },
   {
     // The configuration files themselves run in Node and are plain JavaScript.

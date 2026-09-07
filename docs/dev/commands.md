@@ -230,6 +230,7 @@ that a reader is told the document is planned instead of following a link to not
 | Format .NET code | `dotnet format` / `dotnet format --verify-no-changes` |
 | Lint the client | `pnpm --dir clients/pwa lint` |
 | Format the client | `pnpm --dir clients/pwa format` / `format:check` |
+| Regenerate the client's API types | `pnpm --dir clients/pwa generate:api` (`generate:api:check` fails on drift) |
 | Type-check the client only | `pnpm --dir clients/pwa typecheck` |
 | Watch the client tests | `pnpm --dir clients/pwa test:watch` |
 | Preview the built client | `pnpm --dir clients/pwa preview` |

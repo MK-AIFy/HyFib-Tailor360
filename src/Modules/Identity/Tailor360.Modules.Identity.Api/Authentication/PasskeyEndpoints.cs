@@ -93,6 +93,7 @@ public static class PasskeyEndpoints
             .Audited(CeremonyStartedAction)
             .WithName("BeginPasskeyRegistration")
             .WithSummary("Start registering a passkey and return the WebAuthn creation options.")
+            .Produces<PasskeyChallengeResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapPost("/passkeys/register", async (
@@ -119,6 +120,7 @@ public static class PasskeyEndpoints
             .Audited(PasskeyHandler.RegisteredAction)
             .WithName("CompletePasskeyRegistration")
             .WithSummary("Finish registering a passkey.")
+            .Produces<PasskeyPayload>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
     }
 
@@ -137,6 +139,7 @@ public static class PasskeyEndpoints
             .Audited(CeremonyStartedAction)
             .WithName("BeginPasskeyAssertion")
             .WithSummary("Start a passkey sign-in and return the WebAuthn request options.")
+            .Produces<PasskeyChallengeResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapPost("/passkeys/assert", async (
@@ -195,6 +198,7 @@ public static class PasskeyEndpoints
             .Audited(PasskeyHandler.SignedInAction)
             .WithName("CompletePasskeyAssertion")
             .WithSummary("Sign in with a passkey, which satisfies both factors.")
+            .Produces<SignInResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
     }
 
@@ -212,6 +216,7 @@ public static class PasskeyEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithName("ListPasskeys")
             .WithSummary("List the passkeys registered against the caller's account.")
+            .Produces<IReadOnlyList<PasskeyPayload>>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapDelete("/passkeys/{passkeyId:guid}", async (
@@ -229,6 +234,7 @@ public static class PasskeyEndpoints
             .Audited(PasskeyHandler.RemovedAction)
             .WithName("RemovePasskey")
             .WithSummary("Remove one of the caller's passkeys.")
+            .Produces(StatusCodes.Status204NoContent)
             .WithTags(IdentityRoutes.AuthTag);
     }
 

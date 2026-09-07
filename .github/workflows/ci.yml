@@ -337,6 +337,15 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm lint
 
+      - name: Check the generated API types against the published document
+        # src/api/schema.d.ts is generated from docs/api/openapi.v1.json, and src/api/contract.ts
+        # pins the hand-written payload types against it — which is what makes a contract change
+        # fail the type check rather than fail on a shop floor. Regenerating and diffing is what
+        # keeps the committed types honest: a document that moved without a regeneration leaves the
+        # conformance assertions checking against yesterday's contract, and they would still pass.
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm generate:api:check
+
       - name: Type-check
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm typecheck
@@ -385,6 +394,85 @@ jobs:
         # relative links are checked: an external URL is somebody else's uptime and would fail
         # builds for reasons no commit here can fix.
         run: python3 scripts/check-docs-links.py
+
+  api-contract:
+    name: API contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # The committed OpenAPI document is the published contract: it is what the progressive web
+    # application's types are generated from and what a reviewer reads to see the shape of a change.
+    # That the document matches the running application is asserted by the Contract tier in the
+    # .NET job, which regenerates it in process and compares. This job asks the other question, the
+    # one no single commit can answer on its own: how the contract changed since the base branch.
+    #
+    # Inside a major version only additive changes are permitted (docs/architecture/conventions.md
+    # section 5.2). A breaking change needs the api-breaking-approved label from a CODEOWNER of
+    # docs/api/ and a row in docs/api/breaking-changes.md naming this pull request; either alone is
+    # not enough, because a label leaves no record and a record nobody approved is a note to self.
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The base branch has to be reachable to be diffed against.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove the diff gate still detects a breaking change
+        # Same reasoning as the link checker and the coverage floor: a gate that has quietly stopped
+        # detecting reports a clean contract and a broken one identically. The self-test runs the
+        # classifier over twenty-three changes whose answers are known before the real diff is
+        # trusted.
+        run: python3 scripts/openapi-diff.py --self-test
+
+      - name: Take the document from the base branch
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD^' }}
+        run: |
+          # A pull request that introduces the document has nothing to diff against, and neither
+          # does the first commit on a branch: an empty file means "every operation is new", which
+          # the script says out loud rather than treating as a clean diff.
+          mkdir -p artifacts/api
+          git show "$BASE_REF:docs/api/openapi.v1.json" > artifacts/api/base.json 2>/dev/null \
+            || : > artifacts/api/base.json
+
+      - name: Classify the contract change
+        env:
+          # The label is read from the pull-request payload rather than queried, so this job needs
+          # no token at all.
+          APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'api-breaking-approved') }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          # Without pipefail the exit status of the pipeline is tee's, which is always zero — and a
+          # gate that cannot fail is not a gate.
+          set -o pipefail
+          arguments=(--base artifacts/api/base.json --head docs/api/openapi.v1.json)
+          arguments+=(--register docs/api/breaking-changes.md)
+          if [ -n "$PULL_REQUEST" ]; then
+            arguments+=(--pr "$PULL_REQUEST")
+          fi
+          if [ "$APPROVED" = "true" ]; then
+            arguments+=(--approved)
+          fi
+          python3 scripts/openapi-diff.py "${arguments[@]}" | tee artifacts/api/diff.txt
+
+      - name: Summarise the contract change
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "## API contract"
+            echo
+            echo '```'
+            cat artifacts/api/diff.txt 2>/dev/null || echo "the diff produced no output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Lint the published document
+        # The same rules the Contract tier asserts in process, declared in the format the wider
+        # ecosystem reads. Spectral is fetched from the registry, so this step is the one part of
+        # the API gate that depends on the network; it is deliberately not the only enforcement of
+        # these rules — docs/api/openapi-gates.md records why both exist.
+        run: npx --yes @stoplight/spectral-cli@6 lint docs/api/openapi.v1.json --ruleset .spectral.yaml
 
   security:
     name: Security checks

@@ -8,6 +8,7 @@ using Tailor360.Platform.Security.Antiforgery;
 using Tailor360.Platform.Security.Audit;
 using Tailor360.Platform.Security.Authentication;
 using Tailor360.Platform.Security.Authorisation;
+using Tailor360.Platform.Security.Endpoints;
 using Tailor360.Platform.Security.FieldVisibility;
 using Tailor360.Platform.Security.Permissions;
 
@@ -31,6 +32,7 @@ public static class SecurityServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         AddOptions(services);
+        services.AddTailor360RequestSafety();
         AddAuthenticationAndCaller(services);
         AddCrossSiteDefences(services);
         AddAuthorisation(services);

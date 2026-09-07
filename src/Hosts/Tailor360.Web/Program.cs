@@ -40,6 +40,7 @@ using Tailor360.Platform.Security.Endpoints;
 using Tailor360.Web.Configuration;
 using Tailor360.Web.Endpoints;
 using Tailor360.Web.Middleware;
+using Tailor360.Web.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,8 +58,15 @@ builder.Host.UseSerilog((context, _, loggerConfiguration) =>
 builder.Services.ConfigureOptions<ForwardedHeadersOptionsSetup>();
 
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+builder.Services.AddTailor360OpenApi();
 builder.Services.AddRateLimiter(options => options.AddTailor360Policies());
+
+// Validated at start-up rather than at the first request: a minimum client version that does not parse
+// would otherwise present as "the handshake silently stopped refusing anything", which is invisible.
+builder.Services.AddOptions<ClientCompatibilityOptions>()
+    .Bind(builder.Configuration.GetSection(ClientCompatibilityOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 builder.Services.AddTailor360Platform();
 
@@ -110,14 +118,30 @@ if (!app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-app.UseDefaultFiles();
+// The shell is not a static file any more: it is rendered by an endpoint so that each response's
+// content-security-policy nonce can be stamped onto the scripts it loads. This rewrite is what keeps
+// the one path that would still have reached the file directly — the name the service worker precaches
+// the shell under — going to that endpoint instead.
+app.UseAppShellRewrite();
 app.UseStaticFiles();
 
 app.UseRouting();
 
+// A client too old for this server is told so before it is charged a session lookup or a rate-limit
+// permit, and before an endpoint reads a field it may no longer send.
+app.UseTailor360ClientVersion();
+
 // A cross-site attempt is refused on a header comparison, before it can reach the session lookup or
 // spend a rate-limit permit that belongs to the person being attacked.
 app.UseTailor360OriginChecks();
+
+// Buffering for the small, self-selecting set of requests that carry an Idempotency-Key, so that the
+// endpoint filter can fingerprint a body model binding has already read to its end.
+app.UseTailor360IdempotencyKeys();
+
+// The per-endpoint request timeouts of the catalogue. Registered here rather than per endpoint so that
+// a route without a declared policy still runs under the default rather than under none.
+app.UseRequestTimeouts();
 
 app.UseAuthentication();
 
@@ -163,7 +187,13 @@ if (app.Environment.IsDevelopment())
             "The OpenAPI document describes the API surface and is mapped only in the Development " +
             "environment, where it is served to a developer machine. It is never mapped in staging or " +
             "production, so it discloses nothing to an unauthenticated caller of a deployed instance.",
-            "#20");
+            "#20")
+        .InternalEndpoint(
+            "The document cannot describe itself, and it is mapped in Development only. The published " +
+            "contract is the committed copy at docs/api/openapi.v1.json, which is what clients and the " +
+            "diff gate read.",
+            "#53, docs/api/openapi-gates.md")
+        .RequireRateLimiting(RateLimitPolicyNames.DefaultIp);
 }
 
 // An unknown path under /api or /health must be a 404, never the client shell. Once the built client
@@ -175,22 +205,38 @@ app.MapFallback("/api/{**path}", () => Results.NotFound())
         "Returns 404 for an unknown API route and nothing else. Answering here rather than falling " +
         "through to the client shell is what keeps a mistyped API call from receiving HTML with a 200.",
         "#20")
-    .ExcludeFromDescription();
+    .InternalEndpoint(
+        "A catch-all that answers 404 and nothing else. It has no contract to publish, and publishing " +
+        "one would document every path in the API as though it existed.",
+        "#53, docs/api/openapi-gates.md")
+    .RequireRateLimiting(RateLimitPolicyNames.DefaultIp);
 
 app.MapFallback("/health/{**path}", () => Results.NotFound())
     .AllowAnonymousWithJustification(
         "Returns 404 for an unknown health path, so a probe misconfigured to the wrong path fails " +
         "loudly instead of receiving the client shell and reporting the instance healthy.",
         "#20")
-    .ExcludeFromDescription();
+    .InternalEndpoint(
+        "A catch-all that answers 404 and nothing else. The probes it guards are operational routes " +
+        "for the orchestrator and the uptime check, not part of the client contract.",
+        "#53, docs/api/openapi-gates.md")
+    .RequireRateLimiting(RateLimitPolicyNames.DefaultIp);
 
 // The progressive web application is a single-page shell: any other path returns index.html so that a
-// deep link opened from a scanner or a message resolves in the client router.
-app.MapFallbackToFile("index.html")
+// deep link opened from a scanner or a message resolves in the client router. It is rendered rather
+// than served from disk, because the enforcing content-security-policy admits only the scripts carrying
+// this response's nonce, and a file on disk is the same bytes for every response.
+app.MapAppShellFallback(app.Environment)
     .AllowAnonymousWithJustification(
-        "The application shell is a static HTML file containing no data. It must load before a session " +
+        "The application shell is an HTML document containing no data. It must load before a session " +
         "exists so that the sign-in screen can be shown, and so that a deep link opened from a scanner " +
         "or a message resolves in the client router. Every datum the shell then requests is authorised.",
-        "#20");
+        "#20")
+    .InternalEndpoint(
+        "The shell is an HTML document, not an API operation: it answers with markup rather than " +
+        "with a payload, and no client calls it as an interface. What the shell then calls is the " +
+        "documented surface.",
+        "#53, docs/api/openapi-gates.md")
+    .RequireRateLimiting(RateLimitPolicyNames.DefaultIp);
 
 await app.RunAsync();

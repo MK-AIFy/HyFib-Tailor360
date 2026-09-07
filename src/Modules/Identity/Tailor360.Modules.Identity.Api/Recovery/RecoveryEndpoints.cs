@@ -88,6 +88,7 @@ public static class RecoveryEndpoints
             .Audited(PasswordRecoveryHandler.RequestedAction)
             .WithName("RequestPasswordRecovery")
             .WithSummary("Ask for a password recovery link.")
+            .Produces<RecoveryAcceptedPayload>(StatusCodes.Status202Accepted)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapPost("/recovery/confirm", async (
@@ -138,6 +139,7 @@ public static class RecoveryEndpoints
             .Audited(PasswordRecoveryHandler.CompletedAction)
             .WithName("ConfirmPasswordRecovery")
             .WithSummary("Spend a recovery link and set a new password.")
+            .Produces<RecoveryCompletedPayload>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         return auth;

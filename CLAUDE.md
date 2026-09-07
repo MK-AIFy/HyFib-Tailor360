@@ -77,6 +77,7 @@ The scripts deliberately wrap nothing that is already a one-liner. Run these dir
 | Reference data / synthetic data | `dotnet run --project src/Tools/Tailor360.Cli -- init-reference-data` \| `-- seed-synthetic` |
 | Client lint, types, tests, build | `pnpm --dir clients/pwa lint` \| `typecheck` \| `test` \| `build` |
 | Client formatting | `pnpm --dir clients/pwa format:check` (`format` rewrites) |
+| Client API types from the OpenAPI document | `pnpm --dir clients/pwa generate:api` (`generate:api:check` fails on drift) |
 
 A tier names its project as well as its trait on purpose: filtering the whole solution by trait makes projects that
 hold no test of that tier report "zero tests ran", which the test platform returns as exit code 8 — a green tier
@@ -107,11 +108,11 @@ with the reason.**
 | ARCH-010 | No Billing project references any Orders project | Enforced |
 | ARCH-011 | Reporting references only the `Contracts` projects of other modules | Enforced |
 | ARCH-012 | No project except a test project references `Tailor360.Web` or `Tailor360.Worker` | Enforced |
-| ARCH-013 | Public payload types are declared in an `Api` project; no `Domain` type is ever returned | Specified (#25, #53) |
+| ARCH-013 | Public payload types are declared in an `Api` project; no `Domain` type is ever returned | Enforced |
 | ARCH-014 | `DateTime.Now`, `DateTime.UtcNow`, `DateTime.Today`, `DateTimeOffset.Now`, `DateTimeOffset.UtcNow` appear nowhere in `src/` outside the clock abstraction | Enforced |
 | ARCH-015 | `Guid.NewGuid()` appears nowhere in `src/` outside the identifier generator | Enforced |
 | ARCH-016 | `HttpClient` is never constructed directly; outbound calls go through `IOutboundHttp` | Enforced |
-| ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue | Specified (#53) |
+| ARCH-017 | Every endpoint declares exactly one rate-limit policy from the catalogue | Enforced |
 | ARCH-018 | Every endpoint whose permission is marked `RequiresStepUp` declares `.RequireStepUp()` | Enforced |
 | ARCH-019 | No endpoint accepts more than one authentication scheme | Enforced |
 | ARCH-020 | Only the worker and the command-line hosts reference `IWorkerScopeFactory` | Enforced |

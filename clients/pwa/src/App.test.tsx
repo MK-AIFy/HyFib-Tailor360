@@ -6,6 +6,7 @@ import { DisplaySettingsRoute, HomeRoute, NotFoundRoute } from './app/router'
 import { DisplayPreferencesProvider } from './app/DisplayPreferencesProvider'
 import { createInMemoryDisplayPreferencesStore } from './app/preferences'
 import { AppIntlProvider } from './i18n/IntlProvider'
+import { versionPayload } from './app/testing/versionFixture'
 
 /**
  * Renders the real shell over an in-memory copy of the route table, so the test can start on any path
@@ -45,10 +46,10 @@ function stubVersionEndpoint(environment: string) {
     'fetch',
     vi.fn(() =>
       Promise.resolve(
-        new Response(
-          JSON.stringify({ version: '0.1.0-alpha', buildHash: '0abcdef', environment }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
+        new Response(JSON.stringify(versionPayload({ environment })), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
       ),
     ),
   )

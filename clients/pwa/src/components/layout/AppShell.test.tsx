@@ -11,6 +11,7 @@ import { createInMemoryDisplayPreferencesStore } from '../../app/preferences'
 import { DEFAULT_DISPLAY_PREFERENCES } from '../../design-system/foundations/displayPreferences'
 import { AppShell } from './AppShell'
 import type { ShellKind } from '../../design-system/foundations/types'
+import { versionPayload } from '../../app/testing/versionFixture'
 
 /** The visual viewport jsdom does not have. See useVirtualKeyboard.test.ts for the same stub. */
 const viewportListeners = new Set<() => void>()
@@ -70,14 +71,10 @@ beforeEach(() => {
     'fetch',
     vi.fn(() =>
       Promise.resolve(
-        new Response(
-          JSON.stringify({
-            version: '0.1.0-alpha',
-            buildHash: '0abcdef',
-            environment: 'production',
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
+        new Response(JSON.stringify(versionPayload({ environment: 'production' })), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
       ),
     ),
   )

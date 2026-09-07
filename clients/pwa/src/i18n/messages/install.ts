@@ -75,6 +75,8 @@ export const installEn = {
   'about.details.label': 'Build details',
   'about.version.label': 'Version',
   'about.build.label': 'Build',
+  'about.api.label': 'API',
+  'about.schema.label': 'Data version',
   'about.environment.label': 'Environment',
   'about.displayMode.label': 'Opened as',
   'about.displayMode.installed': 'Installed application',
@@ -170,6 +172,8 @@ export const installTa: Record<keyof typeof installEn, string> = {
   'about.details.label': 'Build details',
   'about.version.label': 'பதிப்பு',
   'about.build.label': 'உருவாக்கம்',
+  'about.api.label': 'API',
+  'about.schema.label': 'தரவுப் பதிப்பு',
   'about.environment.label': 'சூழல்',
   // not translated — awaiting native-speaker review
   'about.displayMode.label': 'Opened as',

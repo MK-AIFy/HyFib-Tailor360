@@ -107,6 +107,7 @@ public static class AuthenticationEndpoints
             .Audited(SignInHandler.SucceededAction)
             .WithName("SignIn")
             .WithSummary("Answer the first factor and start a session.")
+            .Produces<SignInResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
     private static void MapChallenge(RouteGroupBuilder auth)
@@ -189,6 +190,7 @@ public static class AuthenticationEndpoints
             .Audited(MultiFactorSignInHandler.SatisfiedAction)
             .WithName("AnswerMultiFactorChallenge")
             .WithSummary("Answer a second-factor challenge with an authenticator or recovery code.")
+            .Produces<MultiFactorChallengeResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
     private static void MapSignOut(RouteGroupBuilder auth)
@@ -223,6 +225,7 @@ public static class AuthenticationEndpoints
             .Audited(SignOutHandler.SignedOutAction)
             .WithName("SignOut")
             .WithSummary("End the session this request is being made under.")
+            .Produces(StatusCodes.Status204NoContent)
             .WithTags(IdentityRoutes.AuthTag);
 
         auth.MapPost("/logout-all", async (
@@ -256,6 +259,7 @@ public static class AuthenticationEndpoints
             .Audited(SignOutHandler.SignedOutEverywhereAction)
             .WithName("SignOutEverywhere")
             .WithSummary("End every session on the caller's account.")
+            .Produces<SignOutEverywhereResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
     }
 

@@ -17,15 +17,17 @@ sunlight and always in a hurry. Every rule below comes from that, not from taste
 Node 22 or newer; pnpm 10 (`corepack enable` picks up the `packageManager` field). Run these from `clients/pwa`,
 or from the repository root with `pnpm --dir clients/pwa <script>`.
 
-| Command             | What it does                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `pnpm install`      | Installs from `pnpm-lock.yaml` (`--frozen-lockfile` under `CI=true`)                      |
-| `pnpm dev`          | Vite dev server on <http://localhost:5173>, proxying `/api` and `/health` to the web host |
-| `pnpm lint`         | ESLint, flat config, type-aware rules                                                     |
-| `pnpm typecheck`    | `tsc -b --noEmit` across both TypeScript projects                                         |
-| `pnpm test`         | Vitest once, in jsdom (`pnpm test:watch` to iterate)                                      |
-| `pnpm build`        | `tsc -b && vite build` — type-checks, then produces `dist/`                               |
-| `pnpm format:check` | Prettier in report mode (`pnpm format` rewrites)                                          |
+| Command                   | What it does                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm install`            | Installs from `pnpm-lock.yaml` (`--frozen-lockfile` under `CI=true`)                      |
+| `pnpm dev`                | Vite dev server on <http://localhost:5173>, proxying `/api` and `/health` to the web host |
+| `pnpm lint`               | ESLint, flat config, type-aware rules                                                     |
+| `pnpm typecheck`          | `tsc -b --noEmit` across both TypeScript projects                                         |
+| `pnpm test`               | Vitest once, in jsdom (`pnpm test:watch` to iterate)                                      |
+| `pnpm build`              | `tsc -b && vite build` — type-checks, then produces `dist/`                               |
+| `pnpm format:check`       | Prettier in report mode (`pnpm format` rewrites)                                          |
+| `pnpm generate:api`       | Regenerates `src/api/schema.d.ts` from `docs/api/openapi.v1.json`                         |
+| `pnpm generate:api:check` | Regenerates and fails when the committed types have drifted (CI runs it)                  |
 
 `pnpm typecheck` uses `tsc -b` because the configuration is solution-style: `tsconfig.json` owns no files and
 references `tsconfig.app.json` (browser, JSX) and `tsconfig.node.json` (Vite and Vitest config, Node types). A
@@ -46,8 +48,13 @@ not running (`./scripts/dev run` from the repository root).
 - **Import the router from `react-router` only, never `react-router/dom`.** The two entry points ship separate
   CommonJS bundles, so under Node's resolution — which Vitest uses — mixing them loads two copies of the router
   context and every router hook throws.
-- The API client is generated from OpenAPI (#53), so a contract change fails the type check. Do not hand-write a
-  fetch wrapper for an endpoint the generator covers.
+- **The contract is generated; the transport is not.** `src/api/schema.d.ts` is generated from
+  `docs/api/openapi.v1.json` by `pnpm generate:api`, and `src/api/contract.ts` pins every hand-written payload type
+  against it — so an endpoint whose response changes fails `pnpm typecheck`. Regenerate in the same commit as the
+  API change; `pnpm generate:api:check` fails on drift and CI runs it. Never edit `schema.d.ts`.
+- **One transport, `src/auth/apiClient.ts`.** It adds `X-Correlation-Id`, `X-Client-Version` and the anti-forgery
+  header itself, sends the `Idempotency-Key` the caller holds, refetches a refused token once, and re-authenticates
+  in place on a 401. Do not hand-write a second `fetch` wrapper.
 
 ## 3. Components
 

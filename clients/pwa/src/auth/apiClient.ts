@@ -1,4 +1,5 @@
 import type { ProblemDetails } from '../components/states/problemDetails'
+import { CLIENT_VERSION, CLIENT_VERSION_HEADER } from '../app/clientVersion'
 import { ANTIFORGERY_HEADER, antiforgeryToken, forgetAntiforgeryToken } from './antiforgery'
 
 /**
@@ -27,8 +28,13 @@ import { ANTIFORGERY_HEADER, antiforgeryToken, forgetAntiforgeryToken } from './
  * path built here would be the thing both of those have to unpick. This is the transport, and the
  * three rules above are transport concerns.
  *
- * `Idempotency-Key` and `X-Client-Version` are #53's, and are added here when that issue fixes the
- * contract for them. None of the authentication endpoints accepts an idempotency key today.
+ * ## The three headers it adds without being asked
+ *
+ * `X-Correlation-Id` on every request, so "it did not work" becomes a line a technical reviewer can
+ * find. `X-Client-Version` on every request, so a build the server no longer supports is told so once
+ * rather than failing one field at a time. And `Idempotency-Key` on a command that asks for one — see
+ * `ApiRequestOptions.idempotent` for why the key is the caller's to hold rather than this module's to
+ * generate.
  */
 
 /** The RFC 9457 body this API answers failures with, including the conventions section 4.3 members. */
@@ -39,6 +45,10 @@ export interface ApiProblem extends ProblemDetails {
   readonly retryable?: boolean
   /** How long to wait, when a throttle refused the request. */
   readonly retryAfterSeconds?: number
+  /** On a 426, the oldest client build the server answers. */
+  readonly minimumClient?: string
+  /** On a 426, the build the server is serving, which is the one to collect. */
+  readonly current?: string
 }
 
 /**
@@ -97,6 +107,18 @@ export const SESSION_STATE_HEADER = 'X-Session-State'
 /** The problem code the server returns when the anti-forgery token is missing or stale. */
 export const ANTIFORGERY_REFUSED_CODE = 'security.antiforgery-token-invalid'
 
+/**
+ * The problem code the server returns when this build is older than the minimum it supports.
+ *
+ * It is never retried and never turned into a field error: the only thing that fixes it is collecting
+ * the current build, so a screen that sees it shows the update prompt. The body carries `minimumClient`
+ * and `current`, which is what the prompt is written from.
+ */
+export const UPGRADE_REQUIRED_CODE = 'client.upgrade-required'
+
+/** The header a command carries the caller's retry key in. */
+export const IDEMPOTENCY_HEADER = 'Idempotency-Key'
+
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -116,6 +138,17 @@ export interface ApiRequestOptions {
    * screen, not a dialog over an empty page.
    */
   readonly challengeOnUnauthenticated?: boolean
+  /**
+   * The retry key for a command, sent as `Idempotency-Key`.
+   *
+   * **The caller holds it, this module does not generate it.** A key generated here would be fresh on
+   * every call, which is the one thing it must not be: the guarantee is that a retry of the *same*
+   * command — the same payment, the same confirmation — reuses the key it first used, so the server
+   * replays the original outcome instead of doing the thing twice. A screen therefore mints the key
+   * when the person commits to the action and holds it for as long as it may retry, including across
+   * an in-place re-authentication, which is exactly what the replay below preserves.
+   */
+  readonly idempotencyKey?: string
 }
 
 /**
@@ -216,6 +249,14 @@ async function send(path: string, options: ApiRequestOptions): Promise<Response>
   const correlationId = newCorrelationId()
   if (correlationId !== undefined) {
     headers.set('X-Correlation-Id', correlationId)
+  }
+
+  if (CLIENT_VERSION !== undefined) {
+    headers.set(CLIENT_VERSION_HEADER, CLIENT_VERSION)
+  }
+
+  if (options.idempotencyKey !== undefined) {
+    headers.set(IDEMPOTENCY_HEADER, options.idempotencyKey)
   }
 
   if (options.body !== undefined) {

@@ -43,24 +43,44 @@ export function BuildDetails({ onRetry }: BuildDetailsProps) {
   return (
     <Card headingLevel={2} title={intl.formatMessage({ id: 'about.details.label' })}>
       {/*
-       * A description list rather than a table: these are four label-and-value pairs, not a grid,
-       * and a screen reader announces a definition list as pairs without the row-and-column
-       * arithmetic a one-column table forces on it.
+       * A description list rather than a table: these are label-and-value pairs, not a grid, and a
+       * screen reader announces a definition list as pairs without the row-and-column arithmetic a
+       * one-column table forces on it.
        */}
       <dl className="about__details">
         <dt>
           <FormattedMessage id="about.version.label" />
         </dt>
-        <dd>{info.version}</dd>
+        <dd>{info.current}</dd>
+
+        {/*
+         * The revision is a development-only member. A pair rendered empty would send somebody
+         * looking for a value that was never sent, so the pair is absent with the value.
+         */}
+        {info.commit === undefined ? null : (
+          <>
+            <dt>
+              <FormattedMessage id="about.build.label" />
+            </dt>
+            {/*
+             * A build hash is read out character by character when it is dictated over a telephone,
+             * so it is set in the tabular figures rather than the body face, where 0 and O are one
+             * shape.
+             */}
+            <dd className="about__value--code">{info.commit}</dd>
+          </>
+        )}
 
         <dt>
-          <FormattedMessage id="about.build.label" />
+          <FormattedMessage id="about.api.label" />
         </dt>
-        {/*
-         * A build hash is read out character by character when it is dictated over a telephone, so
-         * it is set in the tabular figures rather than the body face, where 0 and O are one shape.
-         */}
-        <dd className="about__value--code">{info.buildHash}</dd>
+        <dd>{info.api}</dd>
+
+        <dt>
+          <FormattedMessage id="about.schema.label" />
+        </dt>
+        {/* Fourteen digits, dictated the same way a build hash is. */}
+        <dd className="about__value--code">{info.schemaVersion}</dd>
 
         <dt>
           <FormattedMessage id="about.environment.label" />

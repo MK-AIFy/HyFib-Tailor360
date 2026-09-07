@@ -130,10 +130,17 @@ export function ShellFooter({ className }: { readonly className?: string }) {
   return (
     <footer className={cx('app-footer', className)}>
       {version.status === 'ready' ? (
-        <FormattedMessage
-          id="footer.version"
-          values={{ version: version.info.version, buildHash: version.info.buildHash }}
-        />
+        // The revision is a development-only member, so the footer has two forms rather than one with
+        // an empty half: "Version 0.1.0 · build " reads as a bug to the person being asked to read it
+        // down a telephone.
+        version.info.commit === undefined ? (
+          <FormattedMessage id="footer.version" values={{ version: version.info.current }} />
+        ) : (
+          <FormattedMessage
+            id="footer.versionWithBuild"
+            values={{ version: version.info.current, buildHash: version.info.commit }}
+          />
+        )
       ) : null}
       {version.status === 'error' ? <FormattedMessage id="footer.versionUnavailable" /> : null}
     </footer>

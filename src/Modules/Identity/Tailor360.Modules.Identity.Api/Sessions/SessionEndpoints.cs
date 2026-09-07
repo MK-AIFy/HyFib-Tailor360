@@ -59,6 +59,7 @@ public static class SessionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithName("ListSessions")
             .WithSummary("List the devices the caller's account is signed in on.")
+            .Produces<IReadOnlyList<SessionPayload>>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.SessionTag);
 
         sessions.MapDelete("/{sessionId:guid}", async (
@@ -91,6 +92,7 @@ public static class SessionEndpoints
             .Audited(SignOutHandler.SessionRevokedAction)
             .WithName("RevokeSession")
             .WithSummary("End one session on the caller's account.")
+            .Produces(StatusCodes.Status204NoContent)
             .WithTags(IdentityRoutes.SessionTag);
 
         return sessions;

@@ -74,6 +74,8 @@ public static class AntiForgeryEndpoints
                 "#23, docs/security/threat-models/authentication.md")
             .RequireRateLimiting(RateLimitPolicyNames.DefaultIp)
             .WithName("GetAntiForgeryToken")
+            .WithSummary("Issue the anti-forgery token pair for this browser session.")
+            .Produces<AntiForgeryTokenResponse>(StatusCodes.Status200OK)
             .WithTags("Platform");
 
         return endpoints;

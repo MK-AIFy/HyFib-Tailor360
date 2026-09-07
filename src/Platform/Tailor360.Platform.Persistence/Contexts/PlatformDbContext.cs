@@ -91,6 +91,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(e => e.RequestFingerprint).HasMaxLength(64).IsRequired();
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
             entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("ix_idempotency_keys_expires_at");
+            entity.HasIndex(e => e.InFlightUntil)
+                .HasDatabaseName("ix_idempotency_keys_in_flight")
+                .HasFilter("status = 'in_progress'");
         });
 
         modelBuilder.Entity<SequenceRow>(entity =>

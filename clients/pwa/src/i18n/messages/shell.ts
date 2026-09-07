@@ -36,7 +36,8 @@ export const shellEn = {
   'error.title': 'Something went wrong',
   'error.body':
     'Reload the page. If it happens again, tell your shop administrator what you were doing.',
-  'footer.version': 'Version {version} · build {buildHash}',
+  'footer.version': 'Version {version}',
+  'footer.versionWithBuild': 'Version {version} · build {buildHash}',
   'footer.versionUnavailable': 'Version information is not available.',
 } as const
 
@@ -62,6 +63,7 @@ export const shellTa: Record<keyof typeof shellEn, string> = {
   // not translated — awaiting native-speaker review
   'error.body':
     'Reload the page. If it happens again, tell your shop administrator what you were doing.',
-  'footer.version': 'பதிப்பு {version} · உருவாக்கம் {buildHash}',
+  'footer.version': 'பதிப்பு {version}',
+  'footer.versionWithBuild': 'பதிப்பு {version} · உருவாக்கம் {buildHash}',
   'footer.versionUnavailable': 'பதிப்புத் தகவல் கிடைக்கவில்லை.',
 }

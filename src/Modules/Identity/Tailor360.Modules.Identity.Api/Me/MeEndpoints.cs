@@ -87,6 +87,7 @@ public static class MeEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithName("GetCurrentUser")
             .WithSummary("Return the caller's account, preferences and session expiry.")
+            .Produces<CurrentUserResponse>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         return me;

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -43,6 +44,72 @@ public sealed class AuthenticationSchemeTests(WebHostFixture fixture)
         schemes[0].Name.ShouldBe(SessionAuthenticationDefaults.Scheme);
         schemes[0].HandlerType.ShouldBe(typeof(SessionAuthenticationHandler));
     }
+
+    /// <summary>
+    /// ARCH-019, per endpoint: no route's authorisation metadata names more than one scheme, and no
+    /// route on the browser surface names anything but the session cookie.
+    /// </summary>
+    /// <remarks>
+    /// The assertion above is about what the application registers; this one is about what each route
+    /// asks for. They are both needed and they fail on different days: registering a second scheme for
+    /// <c>/api/ext/v1/**</c> is a legitimate change that relaxes the first, and on that day this is the
+    /// assertion that stops the second scheme leaking on to a browser route.
+    /// </remarks>
+    [Fact]
+    public void Arch019_NoEndpointNamesMoreThanOneAuthenticationScheme()
+    {
+        var routes = AuthenticationSchemeInspector.Read(EndpointSources());
+
+        routes.ShouldNotBeEmpty();
+
+        var complaints = AuthenticationSchemeInspector.Inspect(
+            routes, SessionAuthenticationDefaults.Scheme, BrowserSurfacePrefix);
+
+        complaints.ShouldBeEmpty(
+            "ARCH-019: these endpoints do not accept exactly one authentication scheme:\n"
+            + string.Join('\n', complaints.Select(complaint => "  " + complaint)));
+    }
+
+    /// <summary>
+    /// The detector still detects. An assertion that passes because every route names no scheme at all
+    /// would pass just as happily if the reading were broken, so the rule is fed a route that breaks it.
+    /// </summary>
+    [Fact]
+    public void Arch019DetectorCatchesAnEndpointAcceptingTwoSchemes()
+    {
+        var complaints = AuthenticationSchemeInspector.Inspect(
+            [new("POST /api/v1/orders", "/api/v1/orders", ["ApiKey", SessionAuthenticationDefaults.Scheme])],
+            SessionAuthenticationDefaults.Scheme,
+            BrowserSurfacePrefix);
+
+        complaints.ShouldNotBeEmpty();
+        complaints[0].ShouldContain("names 2 authentication schemes");
+    }
+
+    /// <summary>The converse: one scheme, but the wrong one, on the browser surface.</summary>
+    [Fact]
+    public void Arch019DetectorCatchesAForeignSchemeOnTheBrowserSurface()
+    {
+        var complaints = AuthenticationSchemeInspector.Inspect(
+            [new("POST /api/v1/orders", "/api/v1/orders", ["ApiKey"])],
+            SessionAuthenticationDefaults.Scheme,
+            BrowserSurfacePrefix);
+
+        complaints.ShouldNotBeEmpty();
+        complaints[0].ShouldContain("accepts " + SessionAuthenticationDefaults.Scheme + " only");
+    }
+
+    /// <summary>And it accepts what the rule permits, so it is not simply refusing everything.</summary>
+    [Fact]
+    public void Arch019DetectorAcceptsOneSchemeOnItsOwnSurface()
+        => AuthenticationSchemeInspector.Inspect(
+            [
+                new("POST /api/v1/orders", "/api/v1/orders", [SessionAuthenticationDefaults.Scheme]),
+                new("GET /api/v1/orders", "/api/v1/orders", []),
+                new("POST /api/ext/v1/orders", "/api/ext/v1/orders", ["ApiKey"]),
+            ],
+            SessionAuthenticationDefaults.Scheme,
+            BrowserSurfacePrefix).ShouldBeEmpty();
 
     [Fact]
     public async Task TheOneSchemeIsAlsoTheDefaultForEveryPurpose()
@@ -87,5 +154,14 @@ public sealed class AuthenticationSchemeTests(WebHostFixture fixture)
         options.IdleTimeout.ShouldBe(TimeSpan.FromMinutes(30));
         options.AbsoluteLifetime.ShouldBe(TimeSpan.FromHours(12));
         options.IsUsable.ShouldBeTrue();
+    }
+
+    /// <summary>The prefix of the surface the session cookie is the only credential for.</summary>
+    private const string BrowserSurfacePrefix = "/api/v1/";
+
+    private IEnumerable<EndpointDataSource> EndpointSources()
+    {
+        using var scope = fixture.Services.CreateScope();
+        return [.. scope.ServiceProvider.GetRequiredService<IEnumerable<EndpointDataSource>>()];
     }
 }
