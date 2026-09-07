@@ -414,6 +414,63 @@
         ],
         "type": "object"
       },
+      "FeatureFlagPayload": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "propagationSeconds": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "revision": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "enabled",
+          "reason",
+          "updatedAt",
+          "updatedBy",
+          "revision",
+          "propagationSeconds",
+          "version"
+        ],
+        "type": "object"
+      },
       "InviteStaffMemberPayload": {
         "properties": {
           "displayName": {
@@ -1094,6 +1151,24 @@
           "absoluteExpiresAt",
           "mfaSatisfied",
           "isCurrent"
+        ],
+        "type": "object"
+      },
+      "SetFeatureFlagPayload": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "reason"
         ],
         "type": "object"
       },
@@ -1920,6 +1995,322 @@
         ],
         "x-tailor360-audit": "identity.branch.reopened",
         "x-tailor360-authorisation": "permission:admin.branches",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/admin/feature-flags": {
+      "get": {
+        "operationId": "ListFeatureFlags",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeatureFlagPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the configured feature flags and module toggles.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-authorisation": "permission:admin.feature_flags",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/admin/feature-flags/modules/{code}": {
+      "put": {
+        "operationId": "SetModuleEnabled",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "enabled": false,
+                "reason": "Inventory is not in use until the stock count in November."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SetFeatureFlagPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Switch a module and its menu entries on or off.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-audit": "platform.module.toggled",
+        "x-tailor360-authorisation": "permission:admin.feature_flags",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/admin/feature-flags/{key}": {
+      "get": {
+        "operationId": "GetFeatureFlag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one feature flag, with the version an edit must be made against.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-authorisation": "permission:admin.feature_flags",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "operationId": "SetFeatureFlag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "enabled": true,
+                "reason": "Enabling the new measurement sheet for the pilot branch trial."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SetFeatureFlagPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Turn a feature flag on or off for the organisation.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-audit": "platform.feature-flag.set",
+        "x-tailor360-authorisation": "permission:admin.feature_flags",
         "x-tailor360-rate-limit": "write"
       }
     },

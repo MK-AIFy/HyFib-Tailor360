@@ -225,9 +225,10 @@ public static class AuthorisationMatrix
         "current-branch" => BranchScope.CurrentBranch,
         "assigned-branches" => BranchScope.AssignedBranches,
         "organisation" => BranchScope.Organisation,
+        "not-branch-owned" => BranchScope.NotBranchOwned,
         _ => throw new InvalidOperationException(
             $"'{cell}' is not a branch scope. The endpoints block accepts 'current-branch', "
-            + "'assigned-branches', 'organisation' or an em dash."),
+            + "'assigned-branches', 'organisation', 'not-branch-owned' or an em dash."),
     };
 
     private static string Hyphenate(string pascalCase)

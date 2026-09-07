@@ -1,6 +1,7 @@
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Administration;
 using Tailor360.Modules.Identity.Domain.Branches;
+using Tailor360.Platform.Abstractions.FeatureFlags;
 
 namespace Tailor360.Modules.Identity.Api.Payloads;
 
@@ -323,3 +324,48 @@ public sealed record OpenBranchPayload(
         ContactEmail,
         GstRegistrationReference);
 }
+
+/// <summary>One feature flag or module toggle.</summary>
+/// <param name="Key">The flag key. A module toggle's key is <c>module.</c> and the module code.</param>
+/// <param name="Enabled">Whether it is on for the organisation.</param>
+/// <param name="Reason">Why it was last changed.</param>
+/// <param name="UpdatedAt">When it was last changed.</param>
+/// <param name="UpdatedBy">Who last changed it, or null for a value that arrived with the seed data.</param>
+/// <param name="Revision">How many times it has been set.</param>
+/// <param name="PropagationSeconds">
+/// How long every other node may take to see this value. Stated so an administrator who has just moved
+/// a toggle knows why the till has not changed yet, rather than moving it again.
+/// </param>
+/// <param name="Version">The version an edit must present in <c>If-Match</c>.</param>
+public sealed record FeatureFlagPayload(
+    string Key,
+    bool Enabled,
+    string? Reason,
+    DateTimeOffset UpdatedAt,
+    Guid? UpdatedBy,
+    int Revision,
+    int PropagationSeconds,
+    string Version)
+{
+    /// <summary>Projects a flag onto the wire.</summary>
+    /// <param name="flag">The flag.</param>
+    public static FeatureFlagPayload From(AdministeredFlag flag)
+    {
+        ArgumentNullException.ThrowIfNull(flag);
+
+        return new FeatureFlagPayload(
+            flag.Key,
+            flag.Enabled,
+            flag.Reason,
+            flag.UpdatedAt,
+            flag.UpdatedBy,
+            flag.Revision,
+            FeatureFlagPropagation.DefaultSeconds,
+            flag.Version.Version);
+    }
+}
+
+/// <summary>What a flag should be set to, and why.</summary>
+/// <param name="Enabled">Whether the flag should be on.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record SetFeatureFlagPayload(bool Enabled, string? Reason);

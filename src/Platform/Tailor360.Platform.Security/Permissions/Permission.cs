@@ -49,4 +49,16 @@ public enum PermissionScope
 
     /// <summary>The action configures or governs the organisation as a whole.</summary>
     Organisation = 1,
+
+    /// <summary>
+    /// The action is about the installation rather than about any branch's data — a feature flag, a
+    /// module toggle, a system setting.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="Organisation"/>, which reaches every branch's rows and is right to
+    /// demand organisation-wide reach for it. This reaches none of them, so demanding that reach does
+    /// not make the action safer; it only excludes principals who hold the permission and are assigned
+    /// to no branch — which is exactly what the vendor super-user role is.
+    /// </remarks>
+    NotBranchOwned = 2,
 }

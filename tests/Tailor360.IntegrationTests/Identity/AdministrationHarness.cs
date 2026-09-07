@@ -174,4 +174,7 @@ internal static class Permissions
 
     /// <summary>Administering the branch register.</summary>
     public const string Branches = IdentityPermissions.Branches;
+
+    /// <summary>Changing feature flags and module toggles.</summary>
+    public const string FeatureFlags = PlatformPermissions.FeatureFlags;
 }

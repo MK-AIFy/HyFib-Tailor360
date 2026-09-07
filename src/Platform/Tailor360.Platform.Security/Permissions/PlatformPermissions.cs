@@ -58,7 +58,7 @@ public static class PlatformPermissions
         new(OutboxReplay, "Replay a failed or dead-lettered outbox message.",
             PermissionModules.Platform, PermissionScope.Organisation, RequiresMfa: true, RequiresReason: true),
         new(FeatureFlags, "Change a feature flag value for the organisation or a branch.",
-            PermissionModules.Platform, PermissionScope.Organisation,
+            PermissionModules.Platform, PermissionScope.NotBranchOwned,
             RequiresMfa: true, RequiresStepUp: true, RequiresReason: true),
         new(AuditRead, "Read audit events and run audit chain verification.",
             PermissionModules.Platform, PermissionScope.Organisation, RequiresMfa: true),

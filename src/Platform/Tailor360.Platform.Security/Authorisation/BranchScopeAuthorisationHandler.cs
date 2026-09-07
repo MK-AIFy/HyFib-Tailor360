@@ -41,6 +41,12 @@ public sealed class BranchScopeAuthorisationHandler(ICurrentUser currentUser)
                 currentUser.Context.BranchId is { } branchId && currentUser.CanActInBranch(branchId),
             BranchScope.AssignedBranches => currentUser.AssignedBranches.Count > 0,
             BranchScope.Organisation => currentUser.HasPermission(OrganisationWidePermission),
+
+            // Nothing to compare against. The permission requirement has already decided whether this
+            // caller may perform the action; there is no branch-owned row for a reach check to be
+            // about, so demanding reach here would only exclude principals who hold the permission and
+            // are assigned to no branch.
+            BranchScope.NotBranchOwned => true,
             _ => false,
         };
 

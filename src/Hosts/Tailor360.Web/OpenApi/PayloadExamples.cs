@@ -132,6 +132,20 @@ public static class PayloadExamples
             }
             """,
 
+        ["SetFeatureFlag"] = """
+            {
+              "enabled": true,
+              "reason": "Enabling the new measurement sheet for the pilot branch trial."
+            }
+            """,
+
+        ["SetModuleEnabled"] = """
+            {
+              "enabled": false,
+              "reason": "Inventory is not in use until the stock count in November."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",

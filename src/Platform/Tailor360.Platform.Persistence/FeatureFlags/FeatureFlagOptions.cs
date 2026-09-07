@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Tailor360.Platform.Abstractions.FeatureFlags;
 
 namespace Tailor360.Platform.Persistence.FeatureFlags;
 
@@ -15,5 +16,6 @@ public sealed class FeatureFlagOptions
     /// query on every code path that asks.
     /// </summary>
     [Range(typeof(TimeSpan), "00:00:01", "00:05:00")]
-    public TimeSpan PropagationBound { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan PropagationBound { get; set; } =
+        TimeSpan.FromSeconds(FeatureFlagPropagation.DefaultSeconds);
 }

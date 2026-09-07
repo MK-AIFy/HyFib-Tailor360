@@ -137,6 +137,10 @@ public static class PlatformServiceCollectionExtensions
         services.TryAddSingleton<FeatureFlagStore>();
         services.TryAddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<FeatureFlagStore>());
 
+        // Scoped, not singleton: administration reads and writes through the request's own context,
+        // whereas evaluation answers from a snapshot the singleton holds.
+        services.TryAddScoped<IFeatureFlagAdministration, FeatureFlagAdministration>();
+
         services.TryAddScoped<IOutboxCorrelation, NullOutboxCorrelation>();
         services.TryAddScoped<IEventPublisher, OutboxWriter>();
         services.TryAddSingleton<OutboxDispatcher>();

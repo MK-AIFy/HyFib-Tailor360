@@ -122,6 +122,9 @@ public sealed class RoleMatrixTests(AuthorisationProbeApplication probe)
         var wrong = new List<string>();
         var checks = 0;
 
+        // Organisation-scoped permissions only. One catalogued as not branch-owned demands no reach by
+        // design, so it cannot have a reach gap — and #25 moved admin.feature_flags there precisely
+        // because the gap this list used to hold was the enum missing that third answer.
         foreach (var permission in probe.Catalogue.All.Where(p => p.Scope == PermissionScope.Organisation))
         {
             foreach (var role in SystemRoles.All.Where(r => probe.GrantsOf(r.Key).Contains(permission.Key)))
@@ -291,9 +294,17 @@ public sealed class RoleMatrixTests(AuthorisationProbeApplication probe)
     /// The recorded disagreements between approval and enforcement are exactly the ones that exist.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// It fails in both directions on purpose. A new disagreement fails because nobody wrote it down;
     /// a fixed one fails because the entry outlived the problem, and an exception list nobody prunes
     /// becomes a list nobody reads.
+    /// </para>
+    /// <para>
+    /// The list is empty, and the test stays. Its earlier wording insisted on at least one entry and
+    /// told the reader to delete the test along with the list once there were none — which would have
+    /// thrown away the direction that matters. An empty list is the strongest claim this test can make:
+    /// approval and enforcement agree everywhere, and the next place they stop agreeing fails here.
+    /// </para>
     /// </remarks>
     [Fact]
     public async Task TheRecordedReachGapsAreExactlyTheGapsThatExist()
@@ -304,10 +315,6 @@ public sealed class RoleMatrixTests(AuthorisationProbeApplication probe)
         var recorded = Fixtures.OrganisationReachGaps
             .Select(gap => $"{gap.Role} / {gap.Permission}")
             .ToHashSet(StringComparer.Ordinal);
-
-        recorded.ShouldNotBeEmpty(
-            "There are no recorded gaps. If that is now true, delete this test with the list; if it is "
-            + "not, the fixtures have lost them.");
 
         var actual = new List<string>();
 

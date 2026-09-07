@@ -216,20 +216,25 @@ public sealed class DenialAuditTests(AuthorisationProbeApplication probe)
     {
         Assert.SkipUnless(AuthorisationProbeApplication.IsAvailable, DatabaseAvailability.SkipReason);
 
-        // An organisation-scoped permission the role holds, exercised by a role with no organisation
-        // reach: the caller-side branch requirement is the thing that refuses, and it is the only
-        // requirement that does.
-        const string Permission = PlatformPermissions.FeatureFlags;
-        probe.GrantsOf(SystemRoles.HyFibSuperUser).ShouldContain(Permission);
+        // A permission the role holds, on a route declaring organisation reach, asked by a role that
+        // has no such reach: the caller-side branch requirement is the thing that refuses, and it is
+        // the only requirement that does.
+        const string Permission = OrdersPermissions.Read;
+        probe.GrantsOf(SystemRoles.Reception).ShouldContain(Permission);
+        probe.GrantsOf(SystemRoles.Reception).ShouldNotContain(PlatformPermissions.ReadAllBranches);
 
-        var refused = await probe.ProbeAsSecondCohortAsync(
-            SystemRoles.HyFibSuperUser, ProbeBranch.Other, Permission, write: true);
+        var refused = await probe.ProbeWideWriteAsSecondCohortAsync(
+            SystemRoles.Reception, ProbeBranch.Other, Permission);
 
-        // The answer is the recorded organisation-reach gap's own: this is the vendor principal and
-        // admin.feature_flags, the one place matrix.yaml records approval and enforcement disagreeing.
+        // Until #25 this shape existed only as the recorded reach gap on admin.feature_flags — the
+        // vendor principal holding a permission it could not exercise. Closing that gap removed the one
+        // instance, so the probe publishes the shape rather than leaving the distinction untested.
         refused.ShouldBe(Fixtures.Answer("not-permitted").AsResult());
 
-        var entry = (await EntriesFor(Permission)).ShouldHaveSingleItem();
+        var entry = (await EntriesFor(
+            AuthorisationProbeApplication.WideWriteProbeAuditIdentifier(Permission)))
+            .ShouldHaveSingleItem();
+
         entry.Summary.ShouldContain(nameof(AuthorisationRefusal.OutsideBranchScope));
         entry.Summary.ShouldNotContain(nameof(AuthorisationRefusal.PermissionNotHeld));
         entry.Summary.ShouldContain(((int)refused.Status).ToString(CultureInfo.InvariantCulture));

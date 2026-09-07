@@ -73,7 +73,12 @@ public sealed class PermissionMatrixDocumentTests
             var permission = byKey[key];
 
             row.Text("Module").ShouldBe(permission.Module, key);
-            row.Text("Scope").ShouldBe(permission.Scope.ToString().ToLowerInvariant(), key);
+
+            // Hyphens are stripped before comparing, so the document may write 'not-branch-owned'
+            // where the enum is NotBranchOwned. The alternative is a table cell reading
+            // 'notbranchowned', and a document nobody wants to read is a document nobody checks.
+            row.Text("Scope").Replace("-", string.Empty, StringComparison.Ordinal)
+                .ShouldBe(permission.Scope.ToString().ToLowerInvariant(), key);
             row.Flag("MFA").ShouldBe(permission.RequiresMfa, key);
             row.Flag("Step-up").ShouldBe(permission.RequiresStepUp, key);
             row.Flag("Reason").ShouldBe(permission.RequiresReason, key);

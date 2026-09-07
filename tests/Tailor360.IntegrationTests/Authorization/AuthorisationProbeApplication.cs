@@ -149,6 +149,33 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
     /// <param name="role">The system role key.</param>
     /// <param name="branch">Which branch the resource named belongs to.</param>
     /// <param name="permission">The permission the route demands.</param>
+    /// <summary>
+    /// Asks the <b>second cohort</b> to change something through a route declaring organisation reach.
+    /// </summary>
+    /// <remarks>
+    /// The one shape in which a write is refused for the caller's branch reach alone: the permission is
+    /// held, and only the organisation-wide requirement fails. The second cohort is used for the reason
+    /// given on <see cref="ProbeAsSecondCohortAsync"/> — refusals coalesce per actor, endpoint and
+    /// minute, so a trail assertion must not share its people with the matrix tests.
+    /// </remarks>
+    /// <param name="role">The system role key.</param>
+    /// <param name="branch">Which branch the resource named belongs to.</param>
+    /// <param name="permission">The permission the route demands.</param>
+    public Task<ProbeResult> ProbeWideWriteAsSecondCohortAsync(
+        string role,
+        ProbeBranch branch,
+        string permission)
+    {
+        ArgumentNullException.ThrowIfNull(role);
+        ArgumentNullException.ThrowIfNull(permission);
+
+        return SendAsync(
+            $"/probe-write-wide/{Uri.EscapeDataString(permission)}",
+            BranchIdFor(branch),
+            _cookies[(role, ProbeBranch.Other, SessionStrength.Strong)],
+            HttpMethod.Post);
+    }
+
     public Task<ProbeResult> ProbeWideReadAsync(string role, ProbeBranch branch, string permission)
     {
         ArgumentNullException.ThrowIfNull(role);
@@ -270,6 +297,17 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
         ArgumentNullException.ThrowIfNull(permission);
         return AuthorisationDenialAuditingHandler.IdentifierFor(
             $"POST /probe-write/{permission}/{{branchId}}");
+    }
+
+    /// <summary>
+    /// The audit subject of the organisation-reach write probe, which is the route template hashed.
+    /// </summary>
+    /// <param name="permission">The permission the route demands.</param>
+    public static Guid WideWriteProbeAuditIdentifier(string permission)
+    {
+        ArgumentNullException.ThrowIfNull(permission);
+        return AuthorisationDenialAuditingHandler.IdentifierFor(
+            $"POST /probe-write-wide/{permission}/{{branchId}}");
     }
 
     /// <summary>Asks the same question with no session at all.</summary>
@@ -641,14 +679,32 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
     /// </remarks>
     private static void MapProbe(IEndpointRouteBuilder endpoints, Permission permission)
     {
-        var scope = permission.Scope == PermissionScope.Organisation
-            ? BranchScope.Organisation
-            : BranchScope.CurrentBranch;
+        var scope = permission.Scope switch
+        {
+            PermissionScope.Organisation => BranchScope.Organisation,
+            PermissionScope.NotBranchOwned => BranchScope.NotBranchOwned,
+            _ => BranchScope.CurrentBranch,
+        };
+
+        // A permission about the installation rather than about branch-owned data declares that it
+        // touches no such row, exactly as a real route of that shape must — a resource scope would ask
+        // the inspector to find the branch of something that has none, and be refused for it.
+        const string Unscoped =
+            "The probe stands in for a route about the installation: a feature flag, a module toggle, "
+            + "a system setting. It names no branch-owned row.";
 
         var route = endpoints
             .MapGet($"/probe/{permission.Key}/{{branchId}}", () => Results.Ok(new { permission.Key }))
-            .RequirePermission(permission.Key, scope)
-            .ScopedToResource(ProbeResourceKind, "branchId", scope);
+            .RequirePermission(permission.Key, scope);
+
+        if (scope is BranchScope.NotBranchOwned)
+        {
+            route.TouchesNoBranchOwnedResource(Unscoped, "#25");
+        }
+        else
+        {
+            route.ScopedToResource(ProbeResourceKind, "branchId", scope);
+        }
 
         if (permission.RequiresStepUp)
         {
@@ -661,8 +717,16 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
         var write = endpoints
             .MapPost($"/probe-write/{permission.Key}/{{branchId}}", () => Results.Ok(new { permission.Key }))
             .RequirePermission(permission.Key, scope)
-            .ScopedToResource(ProbeResourceKind, "branchId", scope)
             .Audited($"probe.{permission.Key}", permission.RequiresReason);
+
+        if (scope is BranchScope.NotBranchOwned)
+        {
+            write.TouchesNoBranchOwnedResource(Unscoped, "#25");
+        }
+        else
+        {
+            write.ScopedToResource(ProbeResourceKind, "branchId", scope);
+        }
 
         if (permission.RequiresStepUp)
         {
@@ -671,7 +735,7 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
 
         // The cross-branch read shape, for branch-scoped permissions only. An organisation-scoped
         // permission has no narrower reading to widen.
-        if (permission.Scope == PermissionScope.Organisation)
+        if (permission.Scope is PermissionScope.Organisation or PermissionScope.NotBranchOwned)
         {
             return;
         }
@@ -697,6 +761,22 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
         if (permission.RequiresStepUp)
         {
             wide.RequireStepUp();
+        }
+
+        // The same reach on a state-changing route. It is the only shape in which a *write* can be
+        // refused purely because the caller lacks organisation reach — the caller-side branch check
+        // fails while the permission itself is held — and the denial trail has to tell that apart from
+        // "permission not held". Until #25 that shape existed only as the recorded reach gap on
+        // admin.feature_flags; closing the gap removed the one instance, so the probe publishes it.
+        var wideWrite = endpoints
+            .MapPost($"/probe-write-wide/{permission.Key}/{{branchId}}", () => Results.Ok(new { permission.Key }))
+            .RequirePermission(permission.Key, BranchScope.Organisation)
+            .ScopedToResource(ProbeResourceKind, "branchId", BranchScope.Organisation)
+            .Audited($"probe.{permission.Key}", permission.RequiresReason);
+
+        if (permission.RequiresStepUp)
+        {
+            wideWrite.RequireStepUp();
         }
     }
 

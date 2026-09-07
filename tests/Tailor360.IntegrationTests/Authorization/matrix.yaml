@@ -110,27 +110,15 @@ dimensions:
 # recorded with the reason and the issue that settles it. The test asserts that this list is exactly the
 # set of disagreements that exist: a new one fails, and so does one that has been fixed and not removed.
 # ---------------------------------------------------------------------------------------------------
-organisation-reach-gaps:
-
-  - role: hyfib_super_user
-    permission: admin.feature_flags
-    answer-own-branch: not-permitted
-    answer-other-branch: out-of-reach
-    because: >
-      The vendor principal is seeded holding this permission and nothing else, deliberately
-      (permission-matrix.md section 2). An endpoint about the organisation rather than about a branch
-      declares BranchScope.Organisation, which BranchScopeAuthorisationHandler satisfies only for a
-      caller holding admin.organisation.read_all_branches — so the one role approved to change a
-      feature flag cannot reach the endpoint that changes it. The approval and the enforcement disagree,
-      and this is the record of it rather than a silent pass. The two answers differ because two
-      different requirements fail: in the caller's own branch only the caller-side branch check fails,
-      which is a plain forbidden; naming another branch also fails the resource check, whose refusal is
-      the deliberately uninformative not-found. Both are refusals of the same thing.
-    settled-by: >
-      #25, which builds PUT /api/v1/admin/feature-flags/{key}. It is one of two decisions and both are
-      cheap: either the vendor role also holds organisation reach, or BranchScope gains a value meaning
-      "this action is not about a branch at all", which is what an organisation-scoped permission held
-      by a principal with no branch assignments actually needs.
+organisation-reach-gaps: []
+# Empty, and it stays empty. The one entry here was the vendor super-user role holding
+# admin.feature_flags and being unable to reach the endpoint that changes one, because an
+# organisation-scoped route is satisfied only for a caller holding admin.organisation.read_all_branches
+# — which that role deliberately does not have. #25 settled it by adding BranchScope.NotBranchOwned:
+# a feature flag is a setting for the whole installation, owns no branch and belongs to none, so there
+# is nothing for a branch check to compare against. The alternative, granting the vendor principal
+# organisation-wide read, would have handed it reach over every branch's data in order to let it flip
+# a boolean.
 
 # ---------------------------------------------------------------------------------------------------
 # What this file does not yet describe.

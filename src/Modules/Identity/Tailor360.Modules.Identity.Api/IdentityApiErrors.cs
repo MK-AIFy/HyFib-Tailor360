@@ -50,6 +50,13 @@ public static class IdentityApiErrors
         "Filter by Invited, Active, Suspended or Deactivated.",
         "status");
 
+    /// <summary>The module code names a module this system does not have.</summary>
+    public static Error ModuleNotRecognised { get; } = Error.Validation(
+        "identity.module-not-recognised",
+        "That is not a module of this system. A toggle for one that does not exist would be a switch "
+        + "nothing reads.",
+        "code");
+
     /// <summary>The named second factor is not one this system offers.</summary>
     public static Error FactorNotRecognised { get; } = Error.Validation(
         "identity.factor-not-recognised",

@@ -48,4 +48,28 @@ public static class PermissionModules
 
     /// <summary>Outbound webhooks and integration event delivery.</summary>
     public const string Integration = "Integration";
+
+    /// <summary>
+    /// Every module code, in the order the modules are composed.
+    /// </summary>
+    /// <remarks>
+    /// A list rather than a reflection sweep, because these codes are a published vocabulary: a module
+    /// toggle names one, and an operator quotes one. Reflecting over the assemblies present would make
+    /// that vocabulary depend on which modules a particular host happened to compose.
+    /// </remarks>
+    public static IReadOnlyList<string> All { get; } =
+    [
+        Platform,
+        Identity,
+        Customers,
+        Catalog,
+        Media,
+        Orders,
+        Custody,
+        Inventory,
+        Billing,
+        Reporting,
+        Notifications,
+        Integration,
+    ];
 }

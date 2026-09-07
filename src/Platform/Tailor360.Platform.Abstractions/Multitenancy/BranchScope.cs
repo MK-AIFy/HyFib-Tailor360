@@ -31,4 +31,33 @@ public enum BranchScope
 
     /// <summary>Visible across the whole organisation; requires an organisation-wide permission.</summary>
     Organisation,
+
+    /// <summary>
+    /// The operation is not about a branch at all, so no branch reach is demanded of the caller — only
+    /// the permission the endpoint declares.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is not a weaker <see cref="Organisation"/>. The distinction is whether branch-owned data is
+    /// touched: an organisation-scoped read of orders reaches rows every branch owns, and demanding
+    /// organisation-wide reach for it is exactly right. A feature flag, a module toggle or a system
+    /// setting owns no branch and belongs to none, so there is nothing for a branch check to compare
+    /// against — and demanding one anyway does not make the endpoint safer, it makes it unreachable by
+    /// principals who hold the permission and are assigned to no branch.
+    /// </para>
+    /// <para>
+    /// That was not hypothetical. The vendor super-user role is seeded holding <c>admin.feature_flags</c>
+    /// and nothing else, deliberately, so that the one principal approved to change a flag is not also
+    /// able to read every branch's data. Declaring <see cref="Organisation"/> on the flag endpoint made
+    /// that role unable to reach the only endpoint it exists for, and the alternative — granting it
+    /// organisation-wide read as well — would hand a vendor principal reach over every branch in order
+    /// to let it flip a boolean.
+    /// </para>
+    /// <para>
+    /// Use it only where the claim is true. An endpoint that declares this and then reads a
+    /// branch-owned row has removed its own scope check, and no test can tell that from an endpoint
+    /// where the claim holds.
+    /// </para>
+    /// </remarks>
+    NotBranchOwned,
 }
