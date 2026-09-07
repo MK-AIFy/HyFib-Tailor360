@@ -1201,7 +1201,16 @@ acceptance criteria, which remain the contract.
   (deactivate); safe search/filter/pagination; export restricted to Auditor/Owner.
 - **Tests**: authorisation for every admin action, concurrent role/flag updates (optimistic concurrency),
   suspension revokes sessions immediately, historical references stable after deactivation; UAT script for
-  onboarding, transfer, suspension, emergency revocation.
+  onboarding, transfer, suspension, emergency revocation — written as
+  [`docs/process/uat-administration.md`](process/uat-administration.md), and **not yet run**: it needs a business
+  owner at a keyboard, which is the point of it.
+- **Delivered 2026-09-07, with three things deliberately not built.** The **working calendar** is deferred to #33,
+  the issue that first computes a promise date, because its semantics have no consumer to source them from until
+  then (OD-06). The **tailor-skills attribute** on `IUserDirectory` is deferred to #45 for the same reason. And
+  **dual confirmation** — a second administrator approving an Owner-level change — is recorded as **OD-16** rather
+  than invented: step-up, a mandatory reason and before-and-after audit are built and enforced, and the issue's own
+  criterion reads "step-up/confirmation", but who may approve, within what window, and what a single-Owner shop
+  does are product decisions.
 
 ### #26 [E04-F01] Customer profiles, consent, search, deduplication, timeline
 
