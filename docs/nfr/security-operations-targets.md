@@ -102,7 +102,9 @@ it is not a defect — matched on the rule, the file and a fragment of the messa
 and never on the file alone, so a different finding of the same rule in the same file still fails. An
 accepted finding is still printed in the job summary with its reason beside it: the register removes the
 build failure, not the visibility. An entry that matches nothing also fails the build, because a register
-that has quietly stopped matching is one that is accepting something nobody read. A finding that is
+that has quietly stopped matching is one that is accepting something nobody read — and each entry names
+the scan it belongs to, so that rule stays usable across the CodeQL matrix rather than failing whichever
+language the entry does not describe. A finding that is
 genuinely right and is being shipped anyway is not this; that is a waiver, with an owner and an expiry,
 in [`../process/waivers.md`](../process/waivers.md).
 

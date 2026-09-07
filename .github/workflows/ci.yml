@@ -824,12 +824,15 @@ jobs:
         # as not a defect in .github/sarif-accepted.json with the reason beside it, or waived under
         # docs/process/waivers.md; nothing is dismissed by lowering this number. An accepted finding
         # is still printed in the summary, and an accepted entry that matches nothing fails the job.
+        # --scope is what keeps that last rule usable in a matrix: this step runs once per language,
+        # and an entry written for one of them would otherwise be stale on the other and fail it.
         if: ${{ !cancelled() }}
         run: >-
           python3 scripts/sarif-gate.py artifacts/security/codeql
           --label "CodeQL: ${{ matrix.language }}"
           --fail-on-severity 7.0
           --accepted .github/sarif-accepted.json
+          --scope "${{ matrix.language }}"
 
   infrastructure-scan:
     name: Container and dependency scan

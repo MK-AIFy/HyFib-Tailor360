@@ -7,7 +7,7 @@
     "summary, with the reason below beside it, so a reviewer sees what the gate did not stop on. What",
     "the entry removes is the build failure, and only for the exact finding it describes.",
     "",
-    "Matching is on the rule, the file and a fragment of the message — never on a line number, which",
+    "Matching is on the rule, the file and a fragment of the message - never on a line number, which",
     "moves with the next edit above it, and never on the file alone. A different finding of the same",
     "rule in the same file is a different finding and fails the build until somebody reads it too.",
     "",
@@ -15,25 +15,27 @@
     "described has been fixed or has changed, so the register would otherwise be accepting something",
     "nobody has read. Remove the entry, or read the finding again.",
     "",
-    "This register is for findings that are wrong. A finding that is right but is being carried",
-    "anyway is a different thing and belongs in docs/process/waivers.md, with an owner and an expiry.",
+    "`scope` names the scan the entry belongs to, and the gate is given a --scope so it applies only",
+    "the entries written for the run in hand. It is not decoration: the CodeQL job is a matrix over",
+    "csharp and javascript-typescript, and without it these two C# entries match nothing on the",
+    "JavaScript run and fail it as stale - which is what happened the first time this was wired in.",
+    "The same field is what will let a Trivy finding live here beside a CodeQL one.",
     "",
-    "It is passed to the CodeQL gate only, and not to the Trivy gates, precisely because an entry that",
-    "matches nothing fails: a register handed to a scan whose report could never contain these",
-    "findings would fail that scan every time. A Trivy finding to accept gets its own register and its",
-    "own --accepted argument."
+    "This register is for findings that are wrong. A finding that is right but is being carried",
+    "anyway is a different thing and belongs in docs/process/waivers.md, with an owner and an expiry."
   ],
-
   "accepted": [
     {
+      "scope": "csharp",
       "rule": "cs/cleartext-storage-of-sensitive-information",
       "path": "src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Sessions/SessionService.cs",
       "message_contains": "PasswordChanged : SessionRotationReason",
-      "reason": "The value logged is the enum member SessionRotationReason.PasswordChanged — a reason code, not a credential. CodeQL's heuristic reads the identifier, sees 'Password', and treats the constant as sensitive data reaching a log sink. What the line actually writes is 'Rotated session X into Y because PasswordChanged', which is the audit trail this rotation exists to leave.",
+      "reason": "The value logged is the enum member SessionRotationReason.PasswordChanged \u2014 a reason code, not a credential. CodeQL's heuristic reads the identifier, sees 'Password', and treats the constant as sensitive data reaching a log sink. What the line actually writes is 'Rotated session X into Y because PasswordChanged', which is the audit trail this rotation exists to leave.",
       "reviewed": "2026-09-07",
       "reviewed_in": "#53, PR #67"
     },
     {
+      "scope": "csharp",
       "rule": "cs/cleartext-storage-of-sensitive-information",
       "path": "src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Sessions/SessionService.cs",
       "message_contains": "PasswordChanged : SessionEndReason",

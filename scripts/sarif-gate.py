@@ -172,8 +172,18 @@ def read_findings(path: str) -> tuple[list[dict], list[str]]:
     return findings, tools
 
 
-def load_accepted(path: str | None) -> list[dict]:
-    """The register of findings a person has read and accepted, or an empty list when there is none."""
+def load_accepted(path: str | None, scope: str | None) -> list[dict]:
+    """
+    The entries of the register that apply to this scan, or an empty list when there is none.
+
+    A scan is identified by `scope` — the CodeQL language, or the name of a Trivy report. Entries
+    belonging to another scan are dropped here rather than carried through and reported as stale,
+    because the stale check exists to catch an entry whose finding has changed, and an entry that was
+    never going to appear in *this* report has not changed at all. Getting that wrong turns one
+    register shared by two scans into a build that can never be green: the C# entries would match
+    nothing on the JavaScript run and fail it, which is exactly what happened when this was first
+    wired into a matrix job.
+    """
     if not path:
         return []
 
@@ -182,14 +192,21 @@ def load_accepted(path: str | None) -> list[dict]:
 
     entries = document.get("accepted") or []
     for index, entry in enumerate(entries):
-        for field in ("rule", "path", "message_contains", "reason", "reviewed"):
+        for field in ("scope", "rule", "path", "message_contains", "reason", "reviewed"):
             if not str(entry.get(field) or "").strip():
                 raise ValueError(
-                    f"accepted[{index}] has no {field}. Every entry names the rule, the file, a "
-                    "fragment of the message, the reason it is not a defect, and the date somebody "
-                    "decided that."
+                    f"accepted[{index}] has no {field}. Every entry names the scan it belongs to, "
+                    "the rule, the file, a fragment of the message, the reason it is not a defect, "
+                    "and the date somebody decided that."
                 )
-    return entries
+
+    if scope is None:
+        raise ValueError(
+            "--accepted needs --scope, so that an entry is only applied to the scan it was written "
+            "for. Without it a register shared by two scans fails whichever one it does not describe."
+        )
+
+    return [entry for entry in entries if entry["scope"] == scope]
 
 
 def accepts(entry: dict, finding: dict) -> bool:
@@ -315,6 +332,7 @@ def gate(
     threshold: float,
     allow_empty: bool,
     accepted_path: str | None = None,
+    scope: str | None = None,
 ) -> int:
     """Read the reports, write the summary and decide the build result."""
     reports = sarif_files(paths)
@@ -340,7 +358,7 @@ def gate(
         findings.extend(found)
 
     try:
-        accepted = load_accepted(accepted_path)
+        accepted = load_accepted(accepted_path, scope)
     except (OSError, ValueError) as error:
         print(f"{label}: {accepted_path} could not be read: {error}", file=sys.stderr)
         return 1
@@ -508,23 +526,45 @@ def self_test_accepted(directory: str, report: str) -> list[str]:
     findings, _ = read_findings(report)
     gated = next(f for f in findings if f["severity"] >= 9.0)
     entry = {
+        "scope": "self-test-scan",
         "rule": gated["rule"],
         "path": gated["location"].rsplit(":", 1)[0],
         "message_contains": gated["message"][:20],
         "reason": "A self-test fixture, not a real finding.",
         "reviewed": "2026-09-07",
     }
-
     matching = register(os.path.join(directory, "accepted.json"), [entry])
-    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=matching) != 0:
+    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=matching,
+            scope="self-test-scan") != 0:
         failures.append("an accepted finding still fails the gate")
+
+    # The regression this scope exists for: one register, two scans. An entry written for another
+    # scan is neither applied here nor counted stale here, so the run it does not describe still
+    # passes on its own findings.
+    other = register(
+        os.path.join(directory, "other-scan.json"),
+        [{**entry, "scope": "a-different-scan"}],
+    )
+    if gate([report], "self-test", 9.9, allow_empty=False, accepted_path=other,
+            scope="self-test-scan") != 0:
+        failures.append("an entry for another scan is treated as stale in this one")
+    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=other,
+            scope="self-test-scan") != 1:
+        failures.append("an entry for another scan is applied in this one")
+
+    # Gated at 9.9 again, above every finding, so the missing --scope is the only thing that can
+    # fail this run. At 9.0 it would fail whether or not the guard existed, because no entry would
+    # be applied and the critical finding would still be gated — a pass for the wrong reason.
+    if gate([report], "self-test", 9.9, allow_empty=False, accepted_path=matching, scope=None) != 1:
+        failures.append("--accepted without --scope no longer refuses to run")
 
     # The same rule and the same file, a different message: a different finding, still gated.
     narrow = register(
         os.path.join(directory, "narrow.json"),
         [{**entry, "message_contains": "a message this finding does not carry"}],
     )
-    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=narrow) != 1:
+    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=narrow,
+            scope="self-test-scan") != 1:
         failures.append("the register matches on more than the finding it names")
 
     # Nothing in the report matches: the entry is stale and the build has to say so.
@@ -537,14 +577,16 @@ def self_test_accepted(directory: str, report: str) -> list[str]:
         os.path.join(directory, "stale.json"),
         [{**entry, "rule": "self-test/rule-that-fired-nowhere"}],
     )
-    if gate([report], "self-test", 9.9, allow_empty=False, accepted_path=stale) != 1:
+    if gate([report], "self-test", 9.9, allow_empty=False, accepted_path=stale,
+            scope="self-test-scan") != 1:
         failures.append("an acceptance that matches nothing no longer fails the build")
 
-    for field in ("rule", "path", "message_contains", "reason", "reviewed"):
+    for field in ("scope", "rule", "path", "message_contains", "reason", "reviewed"):
         incomplete = register(
             os.path.join(directory, f"no-{field}.json"), [{**entry, field: "  "}]
         )
-        if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=incomplete) != 1:
+        if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=incomplete,
+                scope="self-test-scan") != 1:
             failures.append(f"an acceptance with no {field} is accepted")
 
     if critical is None:  # pragma: no cover - keeps the fixture referenced and honest
@@ -573,6 +615,11 @@ def main() -> int:
         default=None,
         help="A register of findings already read and accepted as not defects.",
     )
+    parser.add_argument(
+        "--scope",
+        default=None,
+        help="Which scan this run is, so --accepted applies only the entries written for it.",
+    )
     parser.add_argument("--self-test", action="store_true", help="Prove the detector still detects.")
     arguments = parser.parse_args()
 
@@ -587,6 +634,7 @@ def main() -> int:
         arguments.fail_on_severity,
         arguments.allow_empty,
         arguments.accepted,
+        arguments.scope,
     )
 
 
