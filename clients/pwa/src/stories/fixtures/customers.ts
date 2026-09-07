@@ -35,7 +35,7 @@ export const CUSTOMERS: readonly JourneyCustomer[] = [
   {
     id: 'C-CBE01-004182',
     name: 'Kavitha Raman',
-    phone: '+91 98430 21174',
+    phone: '+91 90000 21174',
     searchKey: '021174',
     since: '2025-08-03T10:00:00+05:30',
     lastOrder: DATES.lastMonth,
@@ -51,7 +51,7 @@ export const CUSTOMERS: readonly JourneyCustomer[] = [
   {
     id: 'C-CBE01-004610',
     name: 'Revathi Murugan',
-    phone: '+91 94420 66315',
+    phone: '+91 90000 66315',
     searchKey: '066315',
     since: '2026-06-02T17:40:00+05:30',
     lastOrder: null,
@@ -67,7 +67,7 @@ export const CUSTOMERS: readonly JourneyCustomer[] = [
   {
     id: 'C-CBE01-004903',
     name: 'Bhuvaneswari Karthik',
-    phone: '+91 99529 18840',
+    phone: '+91 90000 18840',
     searchKey: '918840',
     since: '2025-11-19T12:15:00+05:30',
     lastOrder: DATES.yesterday,
