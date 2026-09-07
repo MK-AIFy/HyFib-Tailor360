@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List staff accounts, filtered and paged. */
+        get: operations["ListStaffUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users/{userId}": {
         parameters: {
             query?: never;
@@ -732,6 +749,25 @@ export interface components {
             /** Format: int32 */
             sessionsEnded: number | string;
         };
+        StaffPagePayload: {
+            nextCursor: null | string;
+            users: components["schemas"]["StaffSummaryPayload"][];
+        };
+        StaffSummaryPayload: {
+            /** Format: date-time */
+            createdAt: string;
+            displayName: string;
+            /** Format: uuid */
+            homeBranchId: null | string;
+            /** Format: date-time */
+            lastSignInAt: null | string;
+            mfaEnrolment: string;
+            roleKeys: string[];
+            status: string;
+            /** Format: uuid */
+            userId: string;
+            userName: string;
+        };
         StaffUserPayload: {
             /** Format: date-time */
             createdAt: string;
@@ -852,6 +888,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ListStaffUsers: {
+        parameters: {
+            query?: {
+                status?: string;
+                role?: string;
+                branch?: string;
+                q?: string;
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffPagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     GetStaffUser: {
         parameters: {
             query?: never;

@@ -556,6 +556,96 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         valid.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// Paging returns every account once, even when the list changes underneath the reader.
+    /// </summary>
+    /// <remarks>
+    /// The property a keyset cursor exists for. With an offset, inviting somebody while an
+    /// administrator is on page two shifts every later row by one, so one account is shown twice and
+    /// another is never shown at all — and nobody notices, because both pages look plausible.
+    /// </remarks>
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task PagingTheListReturnsEveryAccountOnceEvenWhileItIsChanging()
+    {
+        using var administrator = await AdministratorAsync("adm-list", "203.0.113.87");
+
+        // The test database is migrated and not dropped between runs, so the list is scoped to this
+        // run's accounts by a token in their names. Paging the whole organisation would walk every
+        // account every previous run left behind, which is slow and says nothing extra.
+        var token = $"l{Guid.CreateVersion7():n}"[..7];
+
+        var seeded = new List<Guid>();
+        for (var index = 0; index < 5; index++)
+        {
+            seeded.Add((await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, token)).Id);
+        }
+
+        var seen = new List<Guid>();
+        string? cursor = null;
+        var added = 0;
+
+        do
+        {
+            var query = $"?limit=2&q={token}"
+                        + (cursor is null ? string.Empty : $"&cursor={Uri.EscapeDataString(cursor)}");
+
+            var page = await ListAsync(administrator, query);
+            page.Users.Count.ShouldBeLessThanOrEqualTo(2);
+
+            seen.AddRange(page.Users.Select(user => user.UserId));
+            cursor = page.NextCursor;
+
+            // A fresh account after the first two pages, which is exactly what breaks an offset: with
+            // one, every later row shifts by one and an account is shown twice or not at all.
+            if (cursor is not null && added < 2)
+            {
+                await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, token);
+                added++;
+            }
+        }
+        while (cursor is not null);
+
+        seen.Distinct().Count().ShouldBe(seen.Count, "no account is returned on two pages");
+
+        foreach (var userId in seeded)
+        {
+            seen.ShouldContain(userId, "an account that existed throughout is on exactly one page");
+        }
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task TheListFiltersByStatusAndNeverAnswersQuestionsAboutAnAddress()
+    {
+        using var administrator = await AdministratorAsync("adm-filter", "203.0.113.88");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-filter");
+
+        await CommandAsync(administrator, subject.Id, "suspend");
+
+        var suspended = await ListAsync(administrator, "?status=Suspended&limit=100");
+        suspended.Users.ShouldContain(user => user.UserId == subject.Id);
+        suspended.Users.ShouldAllBe(user => user.Status == nameof(UserStatus.Suspended));
+
+        var active = await ListAsync(administrator, "?status=Active&limit=100");
+        active.Users.ShouldNotContain(user => user.UserId == subject.Id);
+
+        // A status this system does not have is a field error, not an empty list that reads as "nobody
+        // is in that state".
+        (await administrator.GetAsync("/api/v1/admin/users/?status=Retired"))
+            .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        // Searching by address must not confirm whether one belongs to a member of staff, and no
+        // address is returned to be matched against either.
+        var byAddress = await ListAsync(administrator, $"?q={Uri.EscapeDataString(subject.Email)}&limit=100");
+        byAddress.Users.ShouldBeEmpty("the free-text term matches names, never contact details");
+
+        var byName = await ListAsync(administrator, $"?q={Uri.EscapeDataString(subject.UserName)}&limit=100");
+        byName.Users.ShouldContain(user => user.UserId == subject.Id);
+    }
+
     private static string Route(Guid userId) => $"/api/v1/admin/users/{userId}";
 
     private static async Task SignInAsync(AuthenticationClient client, string userName)
@@ -655,6 +745,16 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return (user, role.Id);
+    }
+
+    private static async Task<StaffPageBody> ListAsync(AdministratorClient client, string query)
+    {
+        var response = await client.GetAsync($"/api/v1/admin/users/{query}");
+        response.StatusCode.ShouldBe(
+            HttpStatusCode.OK,
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        return (await AuthenticationClient.ReadAsync<StaffPageBody>(response)).ShouldNotBeNull();
     }
 
     private static async Task<string> VersionOfAsync(AdministratorClient client, string path)
@@ -818,6 +918,10 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         string Action, string Summary, string? Reason, string? Before, string? After, Guid? ActorId);
 
     private sealed record StaffUserBody(Guid UserId, string Status, string Version);
+
+    private sealed record StaffPageBody(IReadOnlyList<StaffSummaryBody> Users, string? NextCursor);
+
+    private sealed record StaffSummaryBody(Guid UserId, string UserName, string Status);
 
     private sealed record EnrolmentBody(string ManualEntryKey, int PeriodSeconds, int Digits);
 

@@ -943,6 +943,83 @@
         ],
         "type": "object"
       },
+      "StaffPagePayload": {
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/StaffSummaryPayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "users",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "StaffSummaryPayload": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "homeBranchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastSignInAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mfaEnrolment": {
+            "type": "string"
+          },
+          "roleKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "displayName",
+          "userName",
+          "status",
+          "mfaEnrolment",
+          "homeBranchId",
+          "roleKeys",
+          "lastSignInAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "StaffUserPayload": {
         "properties": {
           "createdAt": {
@@ -1057,6 +1134,103 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/admin/users": {
+      "get": {
+        "operationId": "ListStaffUsers",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "branch",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 25,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffPagePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List staff accounts, filtered and paged.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-authorisation": "permission:admin.users",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/admin/users/{userId}": {
       "get": {
         "operationId": "GetStaffUser",

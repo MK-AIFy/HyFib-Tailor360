@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Tailor360.Modules.Identity.Api.Payloads;
+using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Administration;
 using Tailor360.Modules.Identity.Domain;
+using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Platform.Abstractions.Multitenancy;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Security.Authorisation;
@@ -91,6 +93,49 @@ public static class UserAdminEndpoints
             .Produces<StaffUserPayload>(StatusCodes.Status200OK)
             .WithName("GetStaffUser")
             .WithSummary("Read one staff account for administration.")
+            .WithTags(IdentityRoutes.AdminTag)
+            .RequirePermission(IdentityPermissions.Users, BranchScope.Organisation)
+            .RequireStepUp()
+            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser);
+
+        users.MapGet("/", async Task<IResult> (
+                HttpContext context,
+                IStaffDirectory directory,
+                ICurrentUser caller,
+                CancellationToken cancellationToken,
+                string? status = null,
+                string? role = null,
+                Guid? branch = null,
+                string? q = null,
+                string? cursor = null,
+                int limit = StaffQuery.DefaultLimit) =>
+            {
+                if (status is { Length: > 0 } && !Enum.TryParse<UserStatus>(status, ignoreCase: true, out _))
+                {
+                    return Problems.From(IdentityApiErrors.StatusNotRecognised, context);
+                }
+
+                var page = await directory.SearchAsync(
+                    new StaffQuery(
+                        caller.Context.OrganisationId,
+                        status is { Length: > 0 } ? Enum.Parse<UserStatus>(status, ignoreCase: true) : null,
+                        role,
+                        branch,
+                        q,
+                        cursor,
+                        limit),
+                    cancellationToken);
+
+                // Names and standing for every member of staff, which is personal data shown to an
+                // administrator and to nobody else. A shared counter device must not keep a copy.
+                context.Response.Headers.CacheControl = "no-store";
+
+                return Results.Ok(StaffPagePayload.From(page));
+            })
+            .Produces<StaffPagePayload>(StatusCodes.Status200OK)
+            .WithName("ListStaffUsers")
+            .WithSummary("List staff accounts, filtered and paged.")
             .WithTags(IdentityRoutes.AdminTag)
             .RequirePermission(IdentityPermissions.Users, BranchScope.Organisation)
             .RequireStepUp()

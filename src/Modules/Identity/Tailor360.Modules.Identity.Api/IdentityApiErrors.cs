@@ -44,6 +44,12 @@ public static class IdentityApiErrors
         $"Keep the reason under {Payloads.AdminRequests.MaximumReasonLength} characters.",
         "reason");
 
+    /// <summary>The account status filter named a state that does not exist.</summary>
+    public static Error StatusNotRecognised { get; } = Error.Validation(
+        "identity.status-not-recognised",
+        "Filter by Invited, Active, Suspended or Deactivated.",
+        "status");
+
     /// <summary>The named second factor is not one this system offers.</summary>
     public static Error FactorNotRecognised { get; } = Error.Validation(
         "identity.factor-not-recognised",

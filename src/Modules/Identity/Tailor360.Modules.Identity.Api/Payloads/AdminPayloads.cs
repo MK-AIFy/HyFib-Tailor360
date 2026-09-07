@@ -1,3 +1,4 @@
+using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Administration;
 
 namespace Tailor360.Modules.Identity.Api.Payloads;
@@ -136,3 +137,66 @@ public sealed record ReplaceRolesPayload(IReadOnlyList<string>? RoleKeys, string
 public sealed record ReplaceBranchesPayload(
     IReadOnlyList<BranchAssignmentPayload>? Branches,
     string? Reason);
+
+/// <summary>One page of staff accounts.</summary>
+/// <param name="Users">The accounts on this page, oldest first.</param>
+/// <param name="NextCursor">
+/// Pass this back as <c>cursor</c> to read the next page, or null when this is the last one.
+/// </param>
+public sealed record StaffPagePayload(IReadOnlyList<StaffSummaryPayload> Users, string? NextCursor)
+{
+    /// <summary>Projects a page onto the wire.</summary>
+    /// <param name="page">The page.</param>
+    public static StaffPagePayload From(StaffPage page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        return new StaffPagePayload(
+            [.. page.Users.Select(StaffSummaryPayload.From)],
+            page.NextCursor);
+    }
+}
+
+/// <summary>One account in an administrative list.</summary>
+/// <remarks>
+/// No email address. The list is a screen an administrator scans, and an address is only needed on the
+/// record itself — so the endpoint that returns a hundred accounts at a time returns none of them.
+/// </remarks>
+/// <param name="UserId">The account.</param>
+/// <param name="DisplayName">The name shown on screen.</param>
+/// <param name="UserName">The sign-in name.</param>
+/// <param name="Status"><c>Invited</c>, <c>Active</c>, <c>Suspended</c> or <c>Deactivated</c>.</param>
+/// <param name="MfaEnrolment">Whether a second factor is enrolled.</param>
+/// <param name="HomeBranchId">Its default branch, if it has one.</param>
+/// <param name="RoleKeys">The roles it holds.</param>
+/// <param name="LastSignInAt">When it was last used, or null if it never has been.</param>
+/// <param name="CreatedAt">When it was created.</param>
+public sealed record StaffSummaryPayload(
+    Guid UserId,
+    string DisplayName,
+    string UserName,
+    string Status,
+    string MfaEnrolment,
+    Guid? HomeBranchId,
+    IReadOnlyList<string> RoleKeys,
+    DateTimeOffset? LastSignInAt,
+    DateTimeOffset CreatedAt)
+{
+    /// <summary>Projects one summary onto the wire.</summary>
+    /// <param name="user">The account.</param>
+    public static StaffSummaryPayload From(StaffSummary user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        return new StaffSummaryPayload(
+            user.UserId,
+            user.DisplayName,
+            user.UserName,
+            user.Status.ToString(),
+            user.MfaEnrolment.ToString(),
+            user.HomeBranchId,
+            user.RoleKeys,
+            user.LastSignInAt,
+            user.CreatedAt);
+    }
+}
