@@ -74,11 +74,22 @@
     font-size: var(--font-size-100);
   }
 
+  /*
+   * The label-and-value grid on a detail screen.
+   *
+   * `minmax(0, ...)` on both tracks rather than `max-content 1fr`, and it is the whole fix for a real
+   * defect: a grid item's `min-width` defaults to `auto`, so a `1fr` track will not shrink below its
+   * content's minimum, and one long unbroken value — an email address — pushed the whole row past the
+   * viewport. The page then scrolled sideways at 320 and 390 px, which section 4's reflow rule forbids
+   * outright. `minmax(0, …)` lets the tracks shrink and `overflow-wrap` lets the address break.
+   */
   .admin__detailGrid {
     display: grid;
-    grid-template-columns: max-content 1fr;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
     gap: var(--space-1) var(--space-3);
     margin: 0;
+    container-type: inline-size;
+    container-name: admin-detail;
   }
 
   .admin__detailGrid dt {
@@ -87,6 +98,27 @@
 
   .admin__detailGrid dd {
     margin: 0;
+    /*
+     * `anywhere` rather than `break-word`: an address has no space to break at, and a value that
+     * cannot break is a value that decides the column's width. It applies to the value and never to
+     * the label, because a label broken mid-word is harder to read than a label that wraps.
+     */
+    overflow-wrap: anywhere;
+  }
+
+  /*
+   * Narrow enough that a label beside its value leaves too little for either, so they stack. A
+   * container query rather than a media query, because this grid also appears inside a
+   * master-detail pane that is narrow on a wide screen.
+   */
+  @container admin-detail (width < 22rem) {
+    .admin__detailGrid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin__detailGrid dd {
+      margin-block-end: var(--space-2);
+    }
   }
 
   .admin__actions {
