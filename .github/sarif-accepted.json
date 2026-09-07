@@ -1,0 +1,45 @@
+{
+  "$comment": [
+    "Static-analysis findings a person has read and accepted as not defects, honoured by",
+    "scripts/sarif-gate.py in the CodeQL and Trivy jobs of .github/workflows/ci.yml.",
+    "",
+    "This is not a way to stop seeing a finding. An accepted finding is still listed in the job",
+    "summary, with the reason below beside it, so a reviewer sees what the gate did not stop on. What",
+    "the entry removes is the build failure, and only for the exact finding it describes.",
+    "",
+    "Matching is on the rule, the file and a fragment of the message — never on a line number, which",
+    "moves with the next edit above it, and never on the file alone. A different finding of the same",
+    "rule in the same file is a different finding and fails the build until somebody reads it too.",
+    "",
+    "An entry that matches nothing fails the build. That is the dangerous state: the finding it",
+    "described has been fixed or has changed, so the register would otherwise be accepting something",
+    "nobody has read. Remove the entry, or read the finding again.",
+    "",
+    "This register is for findings that are wrong. A finding that is right but is being carried",
+    "anyway is a different thing and belongs in docs/process/waivers.md, with an owner and an expiry.",
+    "",
+    "It is passed to the CodeQL gate only, and not to the Trivy gates, precisely because an entry that",
+    "matches nothing fails: a register handed to a scan whose report could never contain these",
+    "findings would fail that scan every time. A Trivy finding to accept gets its own register and its",
+    "own --accepted argument."
+  ],
+
+  "accepted": [
+    {
+      "rule": "cs/cleartext-storage-of-sensitive-information",
+      "path": "src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Sessions/SessionService.cs",
+      "message_contains": "PasswordChanged : SessionRotationReason",
+      "reason": "The value logged is the enum member SessionRotationReason.PasswordChanged — a reason code, not a credential. CodeQL's heuristic reads the identifier, sees 'Password', and treats the constant as sensitive data reaching a log sink. What the line actually writes is 'Rotated session X into Y because PasswordChanged', which is the audit trail this rotation exists to leave.",
+      "reviewed": "2026-09-07",
+      "reviewed_in": "#53, PR #67"
+    },
+    {
+      "rule": "cs/cleartext-storage-of-sensitive-information",
+      "path": "src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Sessions/SessionService.cs",
+      "message_contains": "PasswordChanged : SessionEndReason",
+      "reason": "The same heuristic on the same word, one type along: SessionEndReason.PasswordChanged is the reason every other session was revoked when somebody changed their password. The enum is persisted by name (IdentityDbContext maps it with HasConversion<string>), so the member is a stored reason code; renaming it to something without the word 'password' would be a data migration made to satisfy a scanner, and would make the vocabulary worse.",
+      "reviewed": "2026-09-07",
+      "reviewed_in": "#53, PR #67"
+    }
+  ]
+}

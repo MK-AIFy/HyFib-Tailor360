@@ -172,8 +172,74 @@ def read_findings(path: str) -> tuple[list[dict], list[str]]:
     return findings, tools
 
 
-def render(label: str, findings: list[dict], threshold: float, sources: list[str]) -> str:
+def load_accepted(path: str | None) -> list[dict]:
+    """The register of findings a person has read and accepted, or an empty list when there is none."""
+    if not path:
+        return []
+
+    with open(path, encoding="utf-8-sig") as handle:
+        document = json.load(handle)
+
+    entries = document.get("accepted") or []
+    for index, entry in enumerate(entries):
+        for field in ("rule", "path", "message_contains", "reason", "reviewed"):
+            if not str(entry.get(field) or "").strip():
+                raise ValueError(
+                    f"accepted[{index}] has no {field}. Every entry names the rule, the file, a "
+                    "fragment of the message, the reason it is not a defect, and the date somebody "
+                    "decided that."
+                )
+    return entries
+
+
+def accepts(entry: dict, finding: dict) -> bool:
+    """
+    Whether one register entry covers one finding.
+
+    Deliberately matched on rule, file and a fragment of the message rather than on a line number: a
+    line moves with the next edit above it, and an entry that silently stopped matching would turn a
+    recorded acceptance into an unrecorded one. Equally deliberately, it is not matched on the file
+    alone — a different finding of the same rule in the same file is a different finding, and has to
+    be read on its own.
+    """
+    location = finding["location"].rsplit(":", 1)[0] if ":" in finding["location"] else finding["location"]
+    return (
+        finding["rule"] == entry["rule"]
+        and location.replace("\\", "/").endswith(entry["path"])
+        and entry["message_contains"] in finding["message"]
+    )
+
+
+def partition_accepted(
+    findings: list[dict], accepted: list[dict]
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Split the findings into those still gated, those accepted, and the entries that matched none."""
+    gated: list[dict] = []
+    covered: list[dict] = []
+    matched: set[int] = set()
+
+    for finding in findings:
+        for index, entry in enumerate(accepted):
+            if accepts(entry, finding):
+                matched.add(index)
+                covered.append({**finding, "accepted": entry})
+                break
+        else:
+            gated.append(finding)
+
+    stale = [entry for index, entry in enumerate(accepted) if index not in matched]
+    return gated, covered, stale
+
+
+def render(
+    label: str,
+    findings: list[dict],
+    threshold: float,
+    sources: list[str],
+    accepted: list[dict] | None = None,
+) -> str:
     """The markdown block written to the step summary."""
+    accepted = accepted or []
     lines = [f"### {label}", ""]
 
     if not findings:
@@ -181,6 +247,7 @@ def render(label: str, findings: list[dict], threshold: float, sources: list[str
             f"No findings. Gate: anything at severity {threshold:g} or above fails the build.",
             "",
         ]
+        lines += accepted_rows(accepted)
         return "\n".join(lines)
 
     counts: dict[str, int] = {}
@@ -216,11 +283,39 @@ def render(label: str, findings: list[dict], threshold: float, sources: list[str
             f"| … | _{len(ordered) - MAX_DETAIL_ROWS} more_ | | _see the uploaded SARIF artefact_ |"
         )
 
+    lines += accepted_rows(accepted)
     lines += ["", f"Reports read: {', '.join(f'`{os.path.basename(s)}`' for s in sources)}", ""]
     return "\n".join(lines)
 
 
-def gate(paths: list[str], label: str, threshold: float, allow_empty: bool) -> int:
+def accepted_rows(accepted: list[dict]) -> list[str]:
+    """The accepted findings, listed so that a reviewer sees what the gate did not stop on."""
+    if not accepted:
+        return []
+
+    lines = [
+        "",
+        f"{len(accepted)} finding(s) read and accepted as not defects. They do not gate the build; "
+        "the reason for each is in `.github/sarif-accepted.json`.",
+        "",
+        "| Rule | Location | Why it is not a defect |",
+        "| --- | --- | --- |",
+    ]
+    for finding in accepted:
+        reason = finding["accepted"]["reason"].replace("|", "\\|")
+        lines.append(
+            f"| `{finding['rule']}` | `{finding['location'] or '-'}` | {reason} |"
+        )
+    return lines
+
+
+def gate(
+    paths: list[str],
+    label: str,
+    threshold: float,
+    allow_empty: bool,
+    accepted_path: str | None = None,
+) -> int:
     """Read the reports, write the summary and decide the build result."""
     reports = sarif_files(paths)
 
@@ -244,13 +339,36 @@ def gate(paths: list[str], label: str, threshold: float, allow_empty: bool) -> i
             return 1
         findings.extend(found)
 
-    summary = render(label, findings, threshold, reports)
+    try:
+        accepted = load_accepted(accepted_path)
+    except (OSError, ValueError) as error:
+        print(f"{label}: {accepted_path} could not be read: {error}", file=sys.stderr)
+        return 1
+
+    findings, covered, stale = partition_accepted(findings, accepted)
+
+    # Accepted findings stay in the summary. Removing them would make the register a way to stop
+    # seeing something rather than a way to record having looked at it.
+    summary = render(label, findings, threshold, reports, covered)
     print(summary)
 
     destination = os.environ.get("GITHUB_STEP_SUMMARY")
     if destination:
         with open(destination, "a", encoding="utf-8") as handle:
             handle.write(summary + "\n")
+
+    if stale:
+        # An entry that matches nothing is the dangerous state: the finding it described has moved or
+        # changed, so the register is now accepting something nobody read. Same reasoning as the
+        # unmatched floor in scripts/coverage-floor.py.
+        print(
+            f"::error title={label}::{len(stale)} accepted finding(s) matched nothing in this "
+            f"report. Either the finding is fixed, in which case remove the entry from "
+            f"{accepted_path}, or it changed and needs reading again.",
+        )
+        for entry in stale:
+            print(f"  {entry['rule']} {entry['path']}: {entry['message_contains']}", file=sys.stderr)
+        return 1
 
     breaching = [f for f in findings if f["severity"] >= threshold]
     if breaching:
@@ -352,6 +470,8 @@ def self_test() -> int:
                 failures.append("a missing report no longer counts as a failed scan")
             if gate([os.path.join(directory, "absent")], "self-test", 9.0, allow_empty=True) != 0:
                 failures.append("--allow-empty no longer tolerates a missing report")
+
+            failures.extend(self_test_accepted(directory, report))
         finally:
             if environment is not None:
                 os.environ["GITHUB_STEP_SUMMARY"] = environment
@@ -362,8 +482,75 @@ def self_test() -> int:
             print(f"  {failure}", file=sys.stderr)
         return 1
 
-    print("self-test passed: severities read, suppressed and passing results ignored, gate enforced")
+    print(
+        "self-test passed: severities read, suppressed and passing results ignored, gate enforced, "
+        "accepted findings honoured one at a time and a stale acceptance caught"
+    )
     return 0
+
+
+def self_test_accepted(directory: str, report: str) -> list[str]:
+    """
+    Prove the acceptance register accepts exactly what it names, and nothing else.
+
+    The three failures worth guarding against are the three ways a register like this rots: it stops
+    covering the finding it was written for, it starts covering a finding nobody read, or an entry is
+    added with no reason and nobody notices.
+    """
+    failures: list[str] = []
+    critical = next(iter(SELF_TEST_EXPECTED))
+
+    def register(path: str, entries: list[dict]) -> str:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"accepted": entries}, handle)
+        return path
+
+    findings, _ = read_findings(report)
+    gated = next(f for f in findings if f["severity"] >= 9.0)
+    entry = {
+        "rule": gated["rule"],
+        "path": gated["location"].rsplit(":", 1)[0],
+        "message_contains": gated["message"][:20],
+        "reason": "A self-test fixture, not a real finding.",
+        "reviewed": "2026-09-07",
+    }
+
+    matching = register(os.path.join(directory, "accepted.json"), [entry])
+    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=matching) != 0:
+        failures.append("an accepted finding still fails the gate")
+
+    # The same rule and the same file, a different message: a different finding, still gated.
+    narrow = register(
+        os.path.join(directory, "narrow.json"),
+        [{**entry, "message_contains": "a message this finding does not carry"}],
+    )
+    if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=narrow) != 1:
+        failures.append("the register matches on more than the finding it names")
+
+    # Nothing in the report matches: the entry is stale and the build has to say so.
+    #
+    # Gated at 9.9, above every finding in the fixture, so the run would pass on its findings alone —
+    # which the threshold case above already asserts. The stale entry is therefore the only thing that
+    # can fail it, and a stale check that stopped working would show up here as a green run rather
+    # than being masked by a finding that was failing anyway.
+    stale = register(
+        os.path.join(directory, "stale.json"),
+        [{**entry, "rule": "self-test/rule-that-fired-nowhere"}],
+    )
+    if gate([report], "self-test", 9.9, allow_empty=False, accepted_path=stale) != 1:
+        failures.append("an acceptance that matches nothing no longer fails the build")
+
+    for field in ("rule", "path", "message_contains", "reason", "reviewed"):
+        incomplete = register(
+            os.path.join(directory, f"no-{field}.json"), [{**entry, field: "  "}]
+        )
+        if gate([report], "self-test", 9.0, allow_empty=False, accepted_path=incomplete) != 1:
+            failures.append(f"an acceptance with no {field} is accepted")
+
+    if critical is None:  # pragma: no cover - keeps the fixture referenced and honest
+        failures.append("the self-test fixture no longer holds a critical finding")
+
+    return failures
 
 
 def main() -> int:
@@ -381,6 +568,11 @@ def main() -> int:
         action="store_true",
         help="Treat a missing report as nothing to gate rather than as a failed scan.",
     )
+    parser.add_argument(
+        "--accepted",
+        default=None,
+        help="A register of findings already read and accepted as not defects.",
+    )
     parser.add_argument("--self-test", action="store_true", help="Prove the detector still detects.")
     arguments = parser.parse_args()
 
@@ -389,7 +581,13 @@ def main() -> int:
     if not arguments.paths:
         parser.error("give at least one SARIF file or directory")
 
-    return gate(arguments.paths, arguments.label, arguments.fail_on_severity, arguments.allow_empty)
+    return gate(
+        arguments.paths,
+        arguments.label,
+        arguments.fail_on_severity,
+        arguments.allow_empty,
+        arguments.accepted,
+    )
 
 
 if __name__ == "__main__":

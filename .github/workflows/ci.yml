@@ -820,13 +820,16 @@ jobs:
 
       - name: Gate on the CodeQL findings
         # Reads the SARIF the analysis wrote and fails at high severity or above, so the scan gates
-        # the build whether or not the alerts page is available. A finding is either fixed or
-        # waived under docs/process/waivers.md; nothing is dismissed by lowering this number.
+        # the build whether or not the alerts page is available. A finding is either fixed, accepted
+        # as not a defect in .github/sarif-accepted.json with the reason beside it, or waived under
+        # docs/process/waivers.md; nothing is dismissed by lowering this number. An accepted finding
+        # is still printed in the summary, and an accepted entry that matches nothing fails the job.
         if: ${{ !cancelled() }}
         run: >-
           python3 scripts/sarif-gate.py artifacts/security/codeql
           --label "CodeQL: ${{ matrix.language }}"
           --fail-on-severity 7.0
+          --accepted .github/sarif-accepted.json
 
   infrastructure-scan:
     name: Container and dependency scan
