@@ -24,6 +24,12 @@ public sealed class CustomerStore(CustomersDbContext context, ISequenceAllocator
         => context.Customers
             .Include(customer => customer.Aliases)
             .Include(customer => customer.Visibility)
+            // Two collections on one aggregate, so a single query would return the Cartesian product of
+            // aliases and visibility rows — every alias repeated once per branch that can see the
+            // record. EF Core warns about exactly this; splitting is safe here because the query names
+            // one row by its key and so cannot see a different set of children between the two round
+            // trips than a single query would have.
+            .AsSplitQuery()
             .FirstOrDefaultAsync(customer => customer.Id == customerId, cancellationToken);
 
     /// <inheritdoc />

@@ -252,6 +252,7 @@ templates and the confirmed, immutable measurement versions the workshop works f
 | --- | --- |
 | `customers` | Customer record, `customer_number`, normalised and native name, status |
 | `customer_aliases` | Previous names, spellings and merged customer numbers, kept searchable |
+| `customer_branch_visibility` | Which branches see an organisation-wide record in ordinary search results. A row is added when a second branch opens the record, which is the branch-scoped attribute of an organisation-wide record that [`../prd/workflows/branch-scenarios.md`](../prd/workflows/branch-scenarios.md) section 3.2 names |
 | `duplicate_candidates` | Scored, explained duplicate suspicions raised at create time |
 | `customer_merges` | The irreversible authorised merge decision and its re-pointing record |
 | `consent_records` | Versioned consent per purpose with wording version, source, actor and time |
@@ -269,7 +270,7 @@ templates and the confirmed, immutable measurement versions the workshop works f
 **Publishes — read contracts.** `IConsentQuery`, `ICommunicationPreferenceQuery`, `ICustomerSnapshotQuery`, and an
 `ITimelineSource` implementation for the customer timeline.
 
-**Consumes.** Identity (branch scope, via `IUserDirectory`); Platform ports.
+**Consumes.** Identity, through its published contracts only — `IBranchDirectory` for the branch code a customer number is allocated from and for whether the branch is open, and `IUserDirectory` for branch scope; Platform ports.
 
 **Cross-module access.** No module reads `customers.*`. Notifications must call `IConsentQuery` and
 `ICommunicationPreferenceQuery` before every send; Orders copies measurement values through

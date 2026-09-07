@@ -92,13 +92,13 @@ public sealed class CustomerTests
         var customer = CustomersTestData.Registered();
 
         customer.Correct(
-            CustomersTestData.Details(phone: "94420 66315"),
+            CustomersTestData.Details(phone: "90000 66315"),
             CustomersTestData.Now.AddHours(1),
             CustomersTestData.Actor,
             CustomersTestData.Id("unused-alias"));
 
         customer.Aliases.ShouldBeEmpty();
-        customer.PhoneE164.ShouldBe("+919442066315");
+        customer.PhoneE164.ShouldBe("+919000066315");
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class CustomerTests
         var owner = customer.OwningBranchId;
 
         customer.Correct(
-            CustomersTestData.Details("Kavitha Murugan", "94420 66315"),
+            CustomersTestData.Details("Kavitha Murugan", "90000 66315"),
             CustomersTestData.Now.AddDays(2),
             CustomersTestData.Actor,
             CustomersTestData.Id("alias-2"));
@@ -185,7 +185,7 @@ public sealed class CustomerTests
     public void ALanguageTheProductDoesNotServeIsRefused(string language)
     {
         var result = CustomerDetails.Create(
-            "Kavitha Raman", null, "98430 21174", null, null, null, null, null, language);
+            "Kavitha Raman", null, "90000 21174", null, null, null, null, null, language);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.Code.ShouldBe("customers.language-not-supported");
@@ -201,7 +201,7 @@ public sealed class CustomerTests
     public void AnEmailWithoutAnAtSignIsRefused()
     {
         var result = CustomerDetails.Create(
-            "Kavitha Raman", null, "98430 21174", null, "not-an-address", null, null, null, null);
+            "Kavitha Raman", null, "90000 21174", null, "not-an-address", null, null, null, null);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.Target.ShouldBe("email");

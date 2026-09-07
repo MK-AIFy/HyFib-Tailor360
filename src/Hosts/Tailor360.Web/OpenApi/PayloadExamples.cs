@@ -258,6 +258,48 @@ public static class PayloadExamples
             }
             """,
 
+        ["RegisterCustomer"] = """
+            {
+              "displayName": "Lakshmi Ramanathan",
+              "nativeName": "\u0BB2\u0B9F\u0BCD\u0B9A\u0BC1\u0BAE\u0BBF",
+              "phone": "+91 90000 00021",
+              "alternatePhone": null,
+              "email": "lakshmi.demo@example.invalid",
+              "addressLine": "12 Second Street, Demo Nagar",
+              "locality": "Peelamedu",
+              "postcode": "641004",
+              "language": "ta-IN",
+              "duplicatesReviewed": false
+            }
+            """,
+
+        ["CorrectCustomer"] = """
+            {
+              "displayName": "Lakshmi Sundaram",
+              "nativeName": "\u0BB2\u0B9F\u0BCD\u0B9A\u0BC1\u0BAE\u0BBF",
+              "phone": "+91 90000 00021",
+              "alternatePhone": "+91 90000 00022",
+              "email": "lakshmi.demo@example.invalid",
+              "addressLine": "12 Second Street, Demo Nagar",
+              "locality": "Peelamedu",
+              "postcode": "641004",
+              "language": "ta-IN",
+              "reason": "Married in August and asked for the new surname on her receipts."
+            }
+            """,
+
+        ["DeactivateCustomer"] = """
+            {
+              "reason": "Moved out of the city and asked us not to contact her about new offers."
+            }
+            """,
+
+        ["ReactivateCustomer"] = """
+            {
+              "reason": "Moved back and came in for a blouse; she asked us to use the old record."
+            }
+            """,
+
         ["RequestPasswordRecovery"] = """
             {
               "email": "counter.demo@example.invalid"

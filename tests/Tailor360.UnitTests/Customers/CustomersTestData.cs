@@ -47,7 +47,7 @@ internal static class CustomersTestData
     /// <returns>The details.</returns>
     public static CustomerDetails Details(
         string displayName = "Kavitha Raman",
-        string phone = "98430 21174",
+        string phone = "90000 21174",
         string? alternatePhone = null,
         string? nativeName = null,
         string? locality = "RS Puram",
@@ -68,7 +68,7 @@ internal static class CustomersTestData
     /// <param name="displayName">The name.</param>
     /// <param name="phone">The primary number.</param>
     /// <returns>The customer.</returns>
-    public static Customer Registered(string displayName = "Kavitha Raman", string phone = "98430 21174")
+    public static Customer Registered(string displayName = "Kavitha Raman", string phone = "90000 21174")
         => Customer.Register(
             Id(displayName),
             Organisation,

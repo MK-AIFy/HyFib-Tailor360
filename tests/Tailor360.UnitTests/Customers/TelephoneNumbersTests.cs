@@ -15,22 +15,22 @@ namespace Tailor360.UnitTests.Customers;
 public sealed class TelephoneNumbersTests
 {
     [Theory]
-    [InlineData("+91 98430 21174")]
-    [InlineData("+919843021174")]
-    [InlineData("0091 98430 21174")]
-    [InlineData("98430 21174")]
-    [InlineData("9843021174")]
-    [InlineData("098430 21174")]
-    [InlineData("(98430) 21174")]
-    [InlineData("98430-21174")]
-    [InlineData("98430.21174")]
-    [InlineData("  9843021174  ")]
+    [InlineData("+91 90000 21174")]
+    [InlineData("+919000021174")]
+    [InlineData("0091 90000 21174")]
+    [InlineData("90000 21174")]
+    [InlineData("9000021174")]
+    [InlineData("090000 21174")]
+    [InlineData("(90000) 21174")]
+    [InlineData("90000-21174")]
+    [InlineData("90000.21174")]
+    [InlineData("  9000021174  ")]
     public void EveryWayOneNumberIsWrittenReadsAsTheSameNumber(string written)
     {
         var read = TelephoneNumbers.TryRead(written, "phone");
 
         read.IsSuccess.ShouldBeTrue(read.IsFailure ? read.Error.Code : null);
-        read.Value.E164.ShouldBe("+919843021174");
+        read.Value.E164.ShouldBe("+919000021174");
         read.Value.LastSix.ShouldBe("021174");
     }
 
@@ -61,10 +61,10 @@ public sealed class TelephoneNumbersTests
     }
 
     [Theory]
-    [InlineData("98430")]
+    [InlineData("90000")]
     [InlineData("12345")]
     [InlineData("no digits at all")]
-    [InlineData("+9198430211749843021174123")]
+    [InlineData("+9190000211749000021174123")]
     public void ANumberThatCouldNotBeDialledIsRefused(string written)
     {
         var read = TelephoneNumbers.TryRead(written, "alternatePhone");
@@ -79,7 +79,7 @@ public sealed class TelephoneNumbersTests
     {
         // Reception types the tail of the number, not the whole of it. Six digits is what the search
         // screen asks for, and storing them is what lets that search use an index.
-        var read = TelephoneNumbers.TryRead("+91 94420 66315", "phone");
+        var read = TelephoneNumbers.TryRead("+91 90000 66315", "phone");
 
         read.Value.LastSix.ShouldBe("066315");
         read.Value.LastSix.Length.ShouldBe(TelephoneNumber.SearchTailLength);
@@ -90,7 +90,7 @@ public sealed class TelephoneNumbersTests
     {
         // The canonical form is written to a column and read back through the same function when a
         // correction arrives. A form this could not re-read would make a stored number unmatchable.
-        var once = TelephoneNumbers.TryRead("98430 21174", "phone").Value;
+        var once = TelephoneNumbers.TryRead("90000 21174", "phone").Value;
 
         TelephoneNumbers.TryRead(once.E164, "phone").Value.ShouldBe(once);
     }

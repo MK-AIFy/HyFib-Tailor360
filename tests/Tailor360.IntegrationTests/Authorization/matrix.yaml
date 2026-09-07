@@ -152,6 +152,19 @@ identifier-editing:
       The same shape, on the credential a person signs in with. A distinguishable answer would say
       whether an account has passkeys and which, which is a map of who to attack and how.
 
+  - route: GET /api/v1/customers/{customerId}
+    identifier: a customer record created at a branch the caller is not assigned to, and one that
+      belongs to no record at all
+    because: >
+      This route is here for both halves of the rule, because on a customer they point opposite ways.
+      Reaching a record created at another branch is approved rather than closed: a customer record is
+      organisation-wide (docs/prd/workflows/branch-scenarios.md section 3.2), and refusing the second
+      branch is what makes Reception there create a duplicate, whose remedy is an irreversible
+      step-up merge. What must stay indistinguishable is the refusal: an identifier matching no record
+      and one matching a record in another organisation are the same 404 carrying
+      customers.customer-not-found, so the route never says which of the two it was. Without that,
+      typing identifiers at it would enumerate which customer identifiers exist.
+
 # ---------------------------------------------------------------------------------------------------
 # Which fields each role is shown. Not here, and this is the record of why.
 # ---------------------------------------------------------------------------------------------------

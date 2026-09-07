@@ -741,6 +741,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find a customer by name, native name, customer number or telephone number.
+         * @description Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters returns nothing rather than the whole customer list.
+         */
+        get: operations["SearchCustomers"];
+        put?: never;
+        /**
+         * Create a customer record at the branch the caller is working in.
+         * @description Refused with 409 and a `candidates` member when an existing record resembles this one strongly enough to be worth reading — a shared telephone number, or a matching name in the same place. Read them, then either open one or send the request again with `duplicatesReviewed` set, which records that a person took the decision.
+         */
+        post: operations["RegisterCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one customer record, with the version a correction must be made against.
+         * @description The contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null, which is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires rather than an omission.
+         */
+        get: operations["GetCustomer"];
+        /**
+         * Correct what a customer record says about the person.
+         * @description A changed name is kept as an alias, so a customer who married last year is still found under the name on her old receipts. The trail records which fields changed and never what they changed to.
+         */
+        put: operations["CorrectCustomer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a customer record from ordinary use.
+         * @description The record stays readable and its history stays resolvable — this is not a deletion, and an order placed last year still names the person who placed it. What changes is that a search no longer offers the record when somebody starts a new order.
+         */
+        post: operations["DeactivateCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the caller's branch has begun serving this customer.
+         * @description Adds the caller's branch to the record's visibility, so the record appears in that branch's ordinary search results from now on, and writes the cross-branch entry `branch-scenarios.md` section 3.1 requires — actor, branch and correlation. Opening a record the branch already sees changes nothing and writes no entry. There is no `If-Match`: Reception opens from a search card, which carries no version because it is not the record.
+         */
+        post: operations["OpenCustomerAtBranch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return a withdrawn customer record to ordinary use.
+         * @description The record appears in ordinary search results again. Gated on the same permission as withdrawing it, so a record cannot be put beyond the reach of everybody present.
+         */
+        post: operations["ReactivateCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -879,6 +987,18 @@ export interface components {
             timeZoneId: string;
             version: string;
         };
+        CorrectCustomerRequest: {
+            addressLine: null | string;
+            alternatePhone: null | string;
+            displayName: null | string;
+            email: null | string;
+            language: null | string;
+            locality: null | string;
+            nativeName: null | string;
+            phone: null | string;
+            postcode: null | string;
+            reason: null | string;
+        };
         CurrentUserResponse: {
             /** Format: uuid */
             branchId: null | string;
@@ -894,6 +1014,57 @@ export interface components {
             /** Format: uuid */
             userId: string;
             userName: string;
+        };
+        CustomerAliasPayload: {
+            kind: string;
+            /** Format: date-time */
+            recordedAt: string;
+            value: string;
+        };
+        CustomerCardPayload: {
+            /** Format: uuid */
+            customerId: string;
+            customerNumber: string;
+            displayName: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+            maskedPhone: string;
+            nativeName: null | string;
+            /** Format: uuid */
+            owningBranchId: string;
+            status: string;
+            visibleToCaller: boolean;
+        };
+        CustomerPagePayload: {
+            customers: components["schemas"]["CustomerCardPayload"][];
+            nextCursor: null | string;
+        };
+        CustomerPayload: {
+            addressLine: null | string;
+            aliases: components["schemas"]["CustomerAliasPayload"][];
+            alternatePhone: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            customerId: string;
+            customerNumber: string;
+            displayName: string;
+            email: null | string;
+            language: string;
+            locality: null | string;
+            nativeName: null | string;
+            /** Format: uuid */
+            owningBranchId: string;
+            phone: null | string;
+            postcode: null | string;
+            status: string;
+            /** Format: date-time */
+            updatedAt: string;
+            version: string;
+            visibilityBranchIds: string[];
+        };
+        CustomerReasonRequest: {
+            reason: null | string;
         };
         DeadLetteredMessagePayload: {
             /** Format: uuid */
@@ -1120,6 +1291,19 @@ export interface components {
         };
         RecoveryRequestPayload: {
             email: null | string;
+        };
+        RegisterCustomerRequest: {
+            addressLine: null | string;
+            alternatePhone: null | string;
+            displayName: null | string;
+            /** @default false */
+            duplicatesReviewed: boolean;
+            email: null | string;
+            language: null | string;
+            locality: null | string;
+            nativeName: null | string;
+            phone: null | string;
+            postcode: null | string;
         };
         ReplaceBranchesPayload: {
             branches: null | components["schemas"]["BranchAssignmentPayload"][];
@@ -3688,6 +3872,423 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             415: components["responses"]["UnsupportedMediaType"];
             426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SearchCustomers: {
+        parameters: {
+            query?: {
+                term?: string;
+                includeDeactivated?: boolean;
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RegisterCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "addressLine": "12 Second Street, Demo Nagar",
+                 *       "alternatePhone": null,
+                 *       "displayName": "Lakshmi Ramanathan",
+                 *       "duplicatesReviewed": false,
+                 *       "email": "lakshmi.demo@example.invalid",
+                 *       "language": "ta-IN",
+                 *       "locality": "Peelamedu",
+                 *       "nativeName": "லட்சுமி",
+                 *       "phone": "+91 90000 00021",
+                 *       "postcode": "641004"
+                 *     }
+                 */
+                "application/json": components["schemas"]["RegisterCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "addressLine": "12 Second Street, Demo Nagar",
+                 *       "alternatePhone": "+91 90000 00022",
+                 *       "displayName": "Lakshmi Sundaram",
+                 *       "email": "lakshmi.demo@example.invalid",
+                 *       "language": "ta-IN",
+                 *       "locality": "Peelamedu",
+                 *       "nativeName": "லட்சுமி",
+                 *       "phone": "+91 90000 00021",
+                 *       "postcode": "641004",
+                 *       "reason": "Married in August and asked for the new surname on her receipts."
+                 *     }
+                 */
+                "application/json": components["schemas"]["CorrectCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DeactivateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Moved out of the city and asked us not to contact her about new offers."
+                 *     }
+                 */
+                "application/json": components["schemas"]["CustomerReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    OpenCustomerAtBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ReactivateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Moved back and came in for a blouse; she asked us to use the old record."
+                 *     }
+                 */
+                "application/json": components["schemas"]["CustomerReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

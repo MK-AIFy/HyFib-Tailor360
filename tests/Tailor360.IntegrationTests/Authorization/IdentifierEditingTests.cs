@@ -2,7 +2,9 @@ using System.Net;
 using System.Text.Json;
 using OtpNet;
 using Shouldly;
+using Tailor360.IntegrationTests.Customers;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.IntegrationTests.Authorization;
 
@@ -29,6 +31,9 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
 {
     private static readonly MatrixFixtures Fixtures = MatrixFixtures.Load();
 
+    private static readonly Guid IdorFirstBranchId = Guid.Parse("0199c000-0000-7000-8000-0000000000d1");
+    private static readonly Guid IdorSecondBranchId = Guid.Parse("0199c000-0000-7000-8000-0000000000d2");
+
     /// <summary>Every route the fixtures list is one this suite actually asks about.</summary>
     [Fact]
     public void EveryIdentifierEditingCaseIsCovered()
@@ -37,6 +42,7 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
         [
             "DELETE /api/v1/sessions/{sessionId}",
             "DELETE /api/v1/auth/passkeys/{passkeyId}",
+            "GET /api/v1/customers/{customerId}",
         ];
 
         Fixtures.IdentifierEditing.ShouldNotBeEmpty();
@@ -117,6 +123,69 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
         // The half a status code alone would not have told anybody: the request did not remove it.
         (await AuthenticationTestData.HoldsPasskeyAsync(fixture, stranger.Id, theirPasskeyId))
             .ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The customer record, where the rule points both ways: an identifier from another branch reaches
+    /// the record on purpose, and the two refusals — nothing, and another organisation's record — are
+    /// the same answer.
+    /// </summary>
+    /// <remarks>
+    /// The second half is the one worth constructing carefully. An "other organisation" record cannot
+    /// be created through the API, because a session carries the organisation it acts in; it is written
+    /// straight into the schema so that what is being compared is a real row the handler refuses rather
+    /// than an identifier that matches nothing twice over. Without that, the assertion would hold for
+    /// an implementation with no organisation check at all.
+    /// </remarks>
+    [Fact]
+    public async Task ACustomerOfAnotherBranchIsReadableAndOneOfAnotherOrganisationIsNotEvenAcknowledged()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, IdorFirstBranchId, "IDOR1");
+        await CustomerHarness.BranchAsync(fixture, IdorSecondBranchId, "IDOR2");
+
+        using var owner = await CustomerHarness.CounterAsync(
+            fixture, "idor-cust-a", "203.0.113.74", IdorFirstBranchId, CustomerHarness.Reception);
+
+        var created = await owner.PostAsync(
+            "/api/v1/customers/",
+            new
+            {
+                displayName = $"Kavitha idor {AdministrationHarness.UniqueToken(6)}",
+                phone = "+919000" + Guid.CreateVersion7().ToString("N")
+                    .Where(char.IsAsciiDigit).TakeLast(6).Aggregate(string.Empty, (all, digit) => all + digit),
+                email = "idor.demo@example.invalid",
+                locality = "Peelamedu",
+                postcode = "641004",
+                language = "ta-IN",
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var customerId = JsonDocument
+            .Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .RootElement.GetProperty("customerId").GetGuid();
+
+        using var elsewhere = await CustomerHarness.CounterAsync(
+            fixture, "idor-cust-b", "203.0.113.75", IdorSecondBranchId, CustomersPermissions.Read);
+
+        // Approved, and asserted so that closing it later has to be a decision rather than a slip.
+        (await elsewhere.GetAsync($"/api/v1/customers/{customerId}"))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var foreignOrganisationCustomerId = await CustomerHarness.CustomerOfAnotherOrganisationAsync(
+            fixture, IdorFirstBranchId);
+
+        var foreign = await elsewhere.GetAsync($"/api/v1/customers/{foreignOrganisationCustomerId}");
+        var invented = await elsewhere.GetAsync($"/api/v1/customers/{Guid.CreateVersion7()}");
+
+        foreign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreign.StatusCode.ShouldBe(invented.StatusCode);
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe("customers.customer-not-found");
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
+        (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
     }
 
     /// <summary>

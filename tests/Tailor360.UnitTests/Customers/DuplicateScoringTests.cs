@@ -15,7 +15,7 @@ public sealed class DuplicateScoringTests
 {
     private static DuplicateSubject Subject(
         string normalisedName = "kavita raman",
-        string phone = "+919843021174",
+        string phone = "+919000021174",
         string? alternatePhone = null,
         string? nativeName = null,
         string? locality = "RS Puram",
@@ -38,7 +38,7 @@ public sealed class DuplicateScoringTests
     {
         // A customer who gave her own number last year and her husband's this year is one customer.
         var match = DuplicateScoring.Compare(
-            Subject(normalisedName: "anita selvam", phone: "+919111111111", alternatePhone: "+919843021174"),
+            Subject(normalisedName: "anita selvam", phone: "+919111111111", alternatePhone: "+919000021174"),
             Subject());
 
         match.Confidence.ShouldBe(DuplicateConfidence.High);
