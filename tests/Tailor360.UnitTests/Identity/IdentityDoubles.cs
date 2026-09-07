@@ -76,6 +76,18 @@ internal sealed class InMemoryIdentityStore : IIdentityStore
 
     public void AddRecoveryToken(RecoveryToken token) => _tokens.Add(token);
 
+    public void AddUser(StaffUser user) => _users.Add(user);
+
+    public Task<bool> IsIdentifierTakenAsync(
+        Guid organisationId,
+        string userName,
+        string normalisedEmail,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(_users.Any(user =>
+            user.OrganisationId == organisationId
+            && (string.Equals(user.UserName, userName, StringComparison.Ordinal)
+                || string.Equals(user.NormalisedEmail, normalisedEmail, StringComparison.Ordinal))));
+
     public Task<RecoveryToken?> FindRecoveryTokenAsync(
         string tokenHash,
         CancellationToken cancellationToken = default)

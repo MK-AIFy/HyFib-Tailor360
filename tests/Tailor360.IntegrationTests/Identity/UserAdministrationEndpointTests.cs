@@ -6,6 +6,7 @@ using OtpNet;
 using Shouldly;
 using Tailor360.Modules.Identity.Domain.Access;
 using Tailor360.Modules.Identity.Domain.Branches;
+using Tailor360.Modules.Identity.Domain.Recovery;
 using Tailor360.Modules.Identity.Domain.Sessions;
 using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
@@ -646,6 +647,76 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         byName.Users.ShouldContain(user => user.UserId == subject.Id);
     }
 
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task AnInvitedAccountCannotSignInUntilItHasSetItsOwnPassword()
+    {
+        using var administrator = await AdministratorAsync("adm-invite", "203.0.113.89");
+        var userName = $"inv{Guid.CreateVersion7():n}"[..16];
+
+        var created = await administrator.PostAsync(
+            "/api/v1/admin/users/",
+            new
+            {
+                userName,
+                email = $"{userName}@synthetic.invalid",
+                displayName = "Invited Person",
+                homeBranchId = SessionTestData.HomeBranchId,
+                reason = Reason,
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        created.StatusCode.ShouldBe(
+            HttpStatusCode.Created,
+            await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        created.Headers.Location.ShouldNotBeNull("the administrator is told where the record is");
+
+        var payload = await AuthenticationClient.ReadAsync<StaffUserBody>(created);
+        payload.ShouldNotBeNull();
+        payload.Status.ShouldBe(nameof(UserStatus.Invited));
+
+        // The account exists and has no password. An administrator who could set one would know a
+        // credential belonging to somebody else, so there is nothing here to sign in with.
+        using var attempt = AuthenticationClient.Open(fixture, "203.0.113.90");
+        (await attempt.PostAsync(
+                "/api/v1/auth/login",
+                new { identifier = userName, password = AuthenticationTestData.Password }))
+            .StatusCode.ShouldNotBe(HttpStatusCode.OK);
+
+        // A single-use invitation link was issued against the account, which is what makes it reachable.
+        (await OutstandingInvitationsAsync(payload.UserId)).ShouldBe(1);
+
+        var entry = await LastAuditEntryAsync(payload.UserId, "identity.user.invited");
+        entry.ShouldNotBeNull();
+        entry.Reason.ShouldBe(Reason);
+        entry.Before.ShouldBeNull("nothing existed before, so there is nothing to record as a prior state");
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ASignInNameOrAddressAlreadyInUseIsRefusedTheSameWayForBoth()
+    {
+        using var administrator = await AdministratorAsync("adm-dup", "203.0.113.91");
+        var existing = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-dup");
+
+        var byName = await InviteAsync(
+            administrator, existing.UserName, $"other{Guid.CreateVersion7():n}"[..14] + "@synthetic.invalid");
+
+        var byAddress = await InviteAsync(
+            administrator, $"other{Guid.CreateVersion7():n}"[..14], existing.Email);
+
+        byName.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        byAddress.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        // Identical answers. Telling an administrator which of the two collided would also tell anyone
+        // who reached this endpoint whether a given address already belongs to a member of staff.
+        (await AuthenticationClient.CodeAsync(byName))
+            .ShouldBe(await AuthenticationClient.CodeAsync(byAddress));
+    }
+
     private static string Route(Guid userId) => $"/api/v1/admin/users/{userId}";
 
     private static async Task SignInAsync(AuthenticationClient client, string userName)
@@ -745,6 +816,25 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return (user, role.Id);
+    }
+
+    private static Task<HttpResponseMessage> InviteAsync(
+        AdministratorClient administrator, string userName, string email)
+        => administrator.PostAsync(
+            "/api/v1/admin/users/",
+            new { userName, email, displayName = "Duplicate Candidate", reason = Reason },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+    private async Task<int> OutstandingInvitationsAsync(Guid userId)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+
+        return await context.RecoveryTokens
+            .AsNoTracking()
+            .CountAsync(
+                token => token.UserId == userId && token.Purpose == RecoveryPurpose.Invitation,
+                TestContext.Current.CancellationToken);
     }
 
     private static async Task<StaffPageBody> ListAsync(AdministratorClient client, string query)
@@ -888,14 +978,23 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
             .SingleAsync(user => user.Id == userId, TestContext.Current.CancellationToken)).Status;
     }
 
-    private async Task<AuditRow?> LastAuditEntryAsync(Guid entityId)
+    /// <summary>
+    /// The most recent entry about one account, optionally of one action.
+    /// </summary>
+    /// <remarks>
+    /// The filter is not a convenience. An account collects entries from more than the administrative
+    /// surface — a refused sign-in writes one too — so "the last entry" answers a different question
+    /// from "what did this command record", and asserting on the wrong one passes or fails for reasons
+    /// that have nothing to do with the test.
+    /// </remarks>
+    private async Task<AuditRow?> LastAuditEntryAsync(Guid entityId, string? action = null)
     {
         using var scope = fixture.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
         return await context.AuditEvents
             .AsNoTracking()
-            .Where(entry => entry.EntityId == entityId)
+            .Where(entry => entry.EntityId == entityId && (action == null || entry.Action == action))
             .OrderByDescending(entry => entry.OccurredAt)
             .Select(entry => new AuditRow(
                 entry.Action, entry.Summary, entry.Reason, entry.Before, entry.After, entry.ActorId))

@@ -76,6 +76,20 @@ public sealed class IdentityStore(IdentityDbContext context) : IIdentityStore
     }
 
     /// <inheritdoc />
+    public void AddUser(StaffUser user) => context.Users.Add(user);
+
+    /// <inheritdoc />
+    public Task<bool> IsIdentifierTakenAsync(
+        Guid organisationId,
+        string userName,
+        string normalisedEmail,
+        CancellationToken cancellationToken = default)
+        => context.Users.AsNoTracking().AnyAsync(
+            user => user.OrganisationId == organisationId
+                    && (user.UserName == userName || user.NormalisedEmail == normalisedEmail),
+            cancellationToken);
+
+    /// <inheritdoc />
     public EntityTag EntityTagOf(StaffUser user) => context.EntityTagOf(user);
 
     /// <inheritdoc />

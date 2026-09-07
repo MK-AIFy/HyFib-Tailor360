@@ -278,6 +278,19 @@ public static class IdentityErrors
         "This would leave nobody able to administer accounts. Give somebody else an administrative "
         + "role first, then take this one away.");
 
+    /// <summary>
+    /// The sign-in name or the address is already in use in this organisation.
+    /// </summary>
+    /// <remarks>
+    /// One error for both. Saying which of the two collided would tell whoever reached the endpoint
+    /// whether a particular address already belongs to a member of staff, and the answer to that is
+    /// not an administrator's to give out by trying.
+    /// </remarks>
+    public static Error IdentifierAlreadyTaken { get; } = Error.Conflict(
+        "identity.identifier-already-taken",
+        "That sign-in name or address is already in use. Check whether this person already has an "
+        + "account before creating a second one.");
+
     /// <summary>The session is revoked, idle-expired or past its absolute expiry.</summary>
     public static Error SessionNotActive { get; } = Error.Forbidden(
         "identity.session-not-active",

@@ -34,6 +34,37 @@ public interface IIdentityStore
     void AddRecoveryToken(RecoveryToken token);
 
     /// <summary>
+    /// Adds a newly invited account.
+    /// </summary>
+    /// <remarks>
+    /// Provisioning widens what this store is for, which the note above asks to be a visible decision
+    /// rather than a quiet one. It belongs here because an invitation writes the account and its
+    /// single-use token in one unit of work, and splitting them across two stores would mean an account
+    /// that exists with no way to reach it, or a token pointing at nothing.
+    /// </remarks>
+    /// <param name="user">The account.</param>
+    void AddUser(StaffUser user);
+
+    /// <summary>
+    /// Whether a sign-in name or an address is already in use in this organisation.
+    /// </summary>
+    /// <remarks>
+    /// Asked before the insert so that a collision is a field error naming the field, rather than a
+    /// unique-index violation reaching the caller as a server error. It is a check and not a promise:
+    /// two invitations racing on one name still meet the index, which is the guarantee, and the loser
+    /// is answered as the conflict it is.
+    /// </remarks>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="userName">The sign-in name being claimed.</param>
+    /// <param name="normalisedEmail">The upper-cased address being claimed.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<bool> IsIdentifierTakenAsync(
+        Guid organisationId,
+        string userName,
+        string normalisedEmail,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Finds a recovery token by its digest, whatever its state. A spent or expired token is returned
     /// rather than filtered out, so that the caller reports one failure for every unusable token
     /// instead of a different one for "not found".

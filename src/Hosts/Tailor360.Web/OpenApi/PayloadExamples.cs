@@ -79,6 +79,16 @@ public static class PayloadExamples
             }
             """,
 
+        ["InviteStaffUser"] = """
+            {
+              "userName": "priya.counter",
+              "email": "priya.counter@synthetic.invalid",
+              "displayName": "Priya R",
+              "homeBranchId": "0199c000-0000-7000-8000-00000000000a",
+              "reason": "Joining the counter team on 15 September; approved by the branch manager."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",

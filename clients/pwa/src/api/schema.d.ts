@@ -14,7 +14,8 @@ export interface paths {
         /** List staff accounts, filtered and paged. */
         get: operations["ListStaffUsers"];
         put?: never;
-        post?: never;
+        /** Invite somebody to work in the shop. */
+        post: operations["InviteStaffUser"];
         delete?: never;
         options?: never;
         head?: never;
@@ -580,6 +581,14 @@ export interface components {
             passkey: boolean;
             recoveryCode: boolean;
         };
+        InviteStaffMemberPayload: {
+            displayName: null | string;
+            email: null | string;
+            /** Format: uuid */
+            homeBranchId: null | string;
+            reason: null | string;
+            userName: null | string;
+        };
         JsonElement: unknown;
         MfaEnrolmentConfirmationPayload: {
             code: null | string;
@@ -916,6 +925,72 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    InviteStaffUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "displayName": "Priya R",
+                 *       "email": "priya.counter@synthetic.invalid",
+                 *       "homeBranchId": "0199c000-0000-7000-8000-00000000000a",
+                 *       "reason": "Joining the counter team on 15 September; approved by the branch manager.",
+                 *       "userName": "priya.counter"
+                 *     }
+                 */
+                "application/json": components["schemas"]["InviteStaffMemberPayload"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUserPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

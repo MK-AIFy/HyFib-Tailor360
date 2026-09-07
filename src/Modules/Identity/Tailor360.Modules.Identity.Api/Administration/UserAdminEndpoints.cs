@@ -142,6 +142,61 @@ public static class UserAdminEndpoints
             .TouchesNoBranchOwnedResource(NoBranchResource, Review)
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser);
 
+        users.MapPost("/", async Task<IResult> (
+                InviteStaffMemberPayload request,
+                HttpContext context,
+                StaffInvitationHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                if (request?.Reason is not { } given || string.IsNullOrWhiteSpace(given))
+                {
+                    return Problems.From(IdentityApiErrors.ReasonRequired, context);
+                }
+
+                var reason = given.Trim();
+
+                if (reason.Length > AdminRequests.MaximumReasonLength)
+                {
+                    return Problems.From(IdentityApiErrors.ReasonTooLong, context);
+                }
+
+                var result = await handler.InviteAsync(
+                    new InviteStaffMember(
+                        caller.Context.OrganisationId,
+                        request.UserName,
+                        request.Email,
+                        request.DisplayName,
+                        request.HomeBranchId),
+                    reason,
+                    caller.UserId,
+                    cancellationToken);
+
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.SetEntityTag(result.Value.Version);
+
+                // Created, with the location of the record the administrator will open next. No
+                // If-Match: there is nothing yet to have changed underneath them.
+                return Results.Created(
+                    $"{IdentityRoutes.AdminUsers}/{result.Value.UserId}",
+                    StaffUserPayload.From(result.Value));
+            })
+            .Produces<StaffUserPayload>(StatusCodes.Status201Created)
+            .WithName("InviteStaffUser")
+            .WithSummary("Invite somebody to work in the shop.")
+            .WithTags(IdentityRoutes.AdminTag)
+            .RequirePermission(IdentityPermissions.Users, BranchScope.Organisation)
+            .RequireStepUp()
+            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(StaffInvitationHandler.InvitedAction, reasonRequired: true)
+            .RequireIdempotency()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
         // Every command on this surface is the same shape — a reason, a precondition, a domain
         // transition and an audit entry — so they are mapped from one place. A route added by hand
         // would be one missing .RequireStepUp() or one missing .Audited(...) away from being a hole

@@ -319,6 +319,49 @@
         ],
         "type": "object"
       },
+      "InviteStaffMemberPayload": {
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "homeBranchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "userName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "userName",
+          "email",
+          "displayName",
+          "homeBranchId",
+          "reason"
+        ],
+        "type": "object"
+      },
       "JsonElement": {},
       "MfaEnrolmentConfirmationPayload": {
         "properties": {
@@ -1229,6 +1272,99 @@
         ],
         "x-tailor360-authorisation": "permission:admin.users",
         "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "operationId": "InviteStaffUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "displayName": "Priya R",
+                "email": "priya.counter@synthetic.invalid",
+                "homeBranchId": "0199c000-0000-7000-8000-00000000000a",
+                "reason": "Joining the counter team on 15 September; approved by the branch manager.",
+                "userName": "priya.counter"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/InviteStaffMemberPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffUserPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Invite somebody to work in the shop.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-audit": "identity.user.invited",
+        "x-tailor360-authorisation": "permission:admin.users",
+        "x-tailor360-rate-limit": "write"
       }
     },
     "/api/v1/admin/users/{userId}": {

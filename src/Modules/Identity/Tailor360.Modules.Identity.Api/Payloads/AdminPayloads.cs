@@ -200,3 +200,21 @@ public sealed record StaffSummaryPayload(
             user.CreatedAt);
     }
 }
+
+/// <summary>Who to invite, and why.</summary>
+/// <remarks>
+/// The organisation is not a field. It is taken from the caller's own session, because an
+/// administrator invites into their organisation and nowhere else, and a request that could name one
+/// would be a request worth trying against somebody else's.
+/// </remarks>
+/// <param name="UserName">The sign-in name the person will use.</param>
+/// <param name="Email">Where the invitation is sent.</param>
+/// <param name="DisplayName">The name colleagues will see.</param>
+/// <param name="HomeBranchId">The branch they usually work in, if it is known yet.</param>
+/// <param name="Reason">Why the account is being created.</param>
+public sealed record InviteStaffMemberPayload(
+    string? UserName,
+    string? Email,
+    string? DisplayName,
+    Guid? HomeBranchId,
+    string? Reason);
