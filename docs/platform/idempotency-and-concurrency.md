@@ -110,9 +110,16 @@ counter, the payment did not happen, and every retry is refused for a week. The 
 `Idempotency:InFlightLease` — 45 seconds — after which the next request takes the claim over in the same
 atomic statement that would otherwise have inserted it.
 
-The lease must be **longer than the longest request timeout**, or a claim could be taken over while its
-first holder was still working, which would run one command twice at once. A configuration test asserts the
-relationship rather than trusting the two numbers to be edited together.
+The lease must be **longer than the request timeout of every endpoint that declares idempotency**, or a
+claim could be taken over while its first holder was still working, which would run one command twice at
+once — something the fencing in section 1.6 does not prevent, because both executions are real.
+
+It is deliberately not longer than the *longest* timeout in the catalogue. The lease is also how long a
+crashed process holds a key, and a customer at a counter whose payment died should not wait out an export's
+two minutes to retry; the 45-second lease outlives the 30-second command timeout that a command-shaped
+endpoint actually uses. The pairing is therefore bounded per endpoint rather than globally, by
+`EndpointRequestSafetyTests.AnIdempotentEndpointFinishesInsideItsClaimLease` over the composed route table,
+which fails an endpoint that declares idempotency alongside a timeout the lease does not outlive.
 
 ### 1.8 The window this does not close, and who closes it
 

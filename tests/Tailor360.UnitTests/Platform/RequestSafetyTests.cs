@@ -126,11 +126,32 @@ public sealed class RequestSafetyTests
         EntityTag.TryParse(header, out _).ShouldBeFalse();
     }
 
+    /// <summary>
+    /// The lease outlives the timeout of the commands it is paired with — which is the command timeout,
+    /// not the longest timeout in the catalogue.
+    /// </summary>
+    /// <remarks>
+    /// This test used to be named for the longest timeout while comparing against the command timeout,
+    /// and the two are not the same: the lease is 45 seconds and the catalogue publishes a 60-second
+    /// report timeout and a 120-second export timeout. Nothing stopped an endpoint pairing idempotency
+    /// with either, and a claim taken over while its first holder was still working runs one command
+    /// twice at once — which the fencing on the store does not prevent, because both executions are
+    /// real.
+    ///
+    /// Raising the lease above 120 seconds would be the wrong fix: the lease is also how long a crashed
+    /// process holds a key, and a customer at a counter whose payment died should not wait two minutes
+    /// to retry. The pairing is bounded per endpoint instead, by
+    /// <c>EndpointRequestSafetyTests.AnIdempotentEndpointFinishesInsideItsClaimLease</c>.
+    /// </remarks>
     [Fact]
-    public void TheClaimLeaseOutlivesTheLongestRequestTimeout()
+    public void TheClaimLeaseOutlivesACommandsTimeout()
     {
         // A claim taken over while its first holder is still working would run one command twice at once.
         new IdempotencyOptions().InFlightLease.ShouldBeGreaterThan(RequestTimeoutPolicies.CommandTimeout);
+
+        // And the honest statement of what is *not* covered here, so the gap is visible rather than
+        // implied by a name: the catalogue holds timeouts this lease does not outlive.
+        RequestTimeoutPolicies.ExportTimeout.ShouldBeGreaterThan(new IdempotencyOptions().InFlightLease);
     }
 
     [Fact]
