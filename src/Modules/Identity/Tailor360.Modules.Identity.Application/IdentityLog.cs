@@ -75,6 +75,17 @@ internal static partial class IdentityLog
         Message = "An administrator applied {Action} to branch {BranchId}.")]
     public static partial void BranchAdministered(ILogger logger, Guid branchId, string action);
 
+    [LoggerMessage(EventId = 2322, Level = LogLevel.Information,
+        Message = "An administrator applied {Action} to role {RoleId}, which now grants " +
+                  "{PermissionCount} permission(s). The reason they gave is in the audit trail, not here.")]
+    public static partial void RoleAdministered(
+        ILogger logger, Guid roleId, string action, int permissionCount);
+
+    [LoggerMessage(EventId = 2323, Level = LogLevel.Warning,
+        Message = "A grant to role {RoleId} was refused because the administrator making it does not " +
+                  "hold the permission themselves. The key is in the audit trail, not here.")]
+    public static partial void RoleGrantExceededGranter(ILogger logger, Guid roleId);
+
     [LoggerMessage(EventId = 2313, Level = LogLevel.Error,
         Message = "The stored authenticator secret for account {UserId} could not be read with the current " +
                   "data-protection keys. The holder has to re-enrol; check that the key ring is persisted.")]

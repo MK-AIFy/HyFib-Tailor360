@@ -186,4 +186,7 @@ internal static class Permissions
 
     /// <summary>Replaying a dead-lettered outbox message.</summary>
     public const string OutboxReplay = PlatformPermissions.OutboxReplay;
+
+    /// <summary>Editing the role register and what each role grants.</summary>
+    public const string Roles = IdentityPermissions.Roles;
 }

@@ -474,6 +474,13 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
                 .WithOne()
                 .HasForeignKey(p => p.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // The grants live in their own table and carry no token of their own, so two administrators
+            // editing one role's permissions at the same moment would both succeed and the second would
+            // silently discard the first. The role row is claimed as part of the change, which makes
+            // both edits contend for the one row that does carry a token — the same shape, and for the
+            // same reason, as the account row in IUserAssignmentStore.ReplaceRolesAsync.
+            UseRowVersion(entity);
         });
 
         modelBuilder.Entity<RolePermission>(entity =>

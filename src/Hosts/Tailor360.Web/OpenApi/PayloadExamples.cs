@@ -217,6 +217,41 @@ public static class PayloadExamples
             }
             """,
 
+        ["DefineRole"] = """
+            {
+              "key": "senior_cashier",
+              "name": "Senior Cashier",
+              "description": "A cashier who may also approve a refund and close the day's session.",
+              "reach": "Branch",
+              "reason": "The Erode counter needs somebody who can close the day when the manager is away."
+            }
+            """,
+
+        ["DescribeRole"] = """
+            {
+              "name": "Senior Cashier",
+              "description": "A cashier who may also approve a refund and close the day's session.",
+              "reason": "The old description said 'counter lead', which nobody in the shop calls it."
+            }
+            """,
+
+        ["ReplaceRolePermissions"] = """
+            {
+              "permissionKeys": [
+                "billing.invoice.read",
+                "billing.payment.record",
+                "billing.session.close"
+              ],
+              "reason": "Approved at the September operations review; the counter closes its own session from Monday."
+            }
+            """,
+
+        ["DeleteRole"] = """
+            {
+              "reason": "The trial of a separate measurement role ended; nobody was ever assigned to it."
+            }
+            """,
+
         ["ReplayOutboxMessage"] = """
             {
               "reason": "The notification provider outage was resolved at 09:40; the customer was never told their order was ready."

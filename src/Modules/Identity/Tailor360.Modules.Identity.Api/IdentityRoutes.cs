@@ -39,6 +39,12 @@ public static class IdentityRoutes
     /// <summary>Administering feature flags and module toggles.</summary>
     public const string AdminFeatureFlags = "/api/v1/admin/feature-flags";
 
+    /// <summary>Administering the role register and what each role grants.</summary>
+    public const string AdminRoles = "/api/v1/admin/roles";
+
+    /// <summary>Reading the catalogue of permissions a role may be granted.</summary>
+    public const string AdminPermissions = "/api/v1/admin/permissions";
+
     /// <summary>Reading the outbox dead letter and replaying from it.</summary>
     public const string AdminOutbox = "/api/v1/admin/outbox";
 

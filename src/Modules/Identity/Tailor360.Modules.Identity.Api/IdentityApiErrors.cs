@@ -50,6 +50,12 @@ public static class IdentityApiErrors
         "Filter by Invited, Active, Suspended or Deactivated.",
         "status");
 
+    /// <summary>The reach named on a role is not one the register understands.</summary>
+    public static Error RoleReachNotRecognised { get; } = Error.Validation(
+        "identity.role-reach-not-recognised",
+        "A role reaches either one branch or the whole organisation. Send Branch or Organisation.",
+        "reach");
+
     /// <summary>The module code names a module this system does not have.</summary>
     public static Error ModuleNotRecognised { get; } = Error.Validation(
         "identity.module-not-recognised",

@@ -14,7 +14,7 @@ namespace Tailor360.Modules.Identity.Api;
 /// profile and their session inventory.
 /// </summary>
 /// <remarks>
-/// Nine groups are mapped from one extension method, which is what the host composes (architecture rule
+/// Eleven groups are mapped from one extension method, which is what the host composes (architecture rule
 /// ARCH-006). They are separate groups because they are separate resources — see
 /// <see cref="IdentityRoutes"/> for why authentication does not live under the module's own prefix —
 /// and one method because a host must not have to know how many of them there are.
@@ -62,6 +62,14 @@ public static class IdentityEndpoints
         endpoints.MapGroup(IdentityRoutes.AdminBranches)
             .WithTags(IdentityRoutes.AdminTag)
             .MapBranchAdminEndpoints();
+
+        endpoints.MapGroup(IdentityRoutes.AdminRoles)
+            .WithTags(IdentityRoutes.AdminTag)
+            .MapRoleAdminEndpoints();
+
+        endpoints.MapGroup(IdentityRoutes.AdminPermissions)
+            .WithTags(IdentityRoutes.AdminTag)
+            .MapPermissionCatalogueEndpoints();
 
         endpoints.MapGroup(IdentityRoutes.AdminFeatureFlags)
             .WithTags(IdentityRoutes.AdminTag)

@@ -291,6 +291,87 @@ public static class IdentityErrors
         "That sign-in name or address is already in use. Check whether this person already has an "
         + "account before creating a second one.");
 
+    /// <summary>No role matches the identifier supplied.</summary>
+    public static Error RoleNotFoundById { get; } = Error.NotFound(
+        "identity.role-not-found",
+        "No role matches that identifier.");
+
+    /// <summary>Another role in this organisation already uses that key.</summary>
+    public static Error RoleKeyAlreadyTaken { get; } = Error.Conflict(
+        "identity.role-key-already-taken",
+        "Another role already uses that key. A key is what the permission matrix, the seed data and "
+        + "the tests name a role by, so two roles cannot share one.");
+
+    /// <summary>
+    /// The permission key is not one the application declares.
+    /// </summary>
+    /// <remarks>
+    /// The line between what an administrator may configure and what they may invent. Grants are data
+    /// and editable; the catalogue is code and is not, so a typo becomes a refusal rather than a role
+    /// that grants nothing and looks as though it grants something.
+    /// </remarks>
+    public static Error PermissionNotCatalogued(string? key) => Error.Validation(
+        "identity.permission-not-catalogued",
+        $"'{key}' is not a permission this application declares.",
+        "permissionKeys");
+
+    /// <summary>
+    /// An organisation-scoped permission was granted to a role that reaches one branch.
+    /// </summary>
+    /// <remarks>
+    /// The runtime half of the rule <c>docs/security/permission-matrix.md</c> section 4 states and its
+    /// document test checks against the seeded register. Without it the invariant would hold for the
+    /// roles this release ships and stop holding the moment an administrator edited one, which is the
+    /// worst of both: an approved rule that the software enforces only until somebody uses the screen
+    /// built to change it.
+    /// </remarks>
+    public static Error PermissionExceedsRoleReach(string? key) => Error.Validation(
+        "identity.permission-exceeds-role-reach",
+        $"'{key}' governs the whole organisation, and this role reaches one branch. Give the role "
+        + "organisation reach, or grant the permission to a role that has it.",
+        "permissionKeys");
+
+    /// <summary>
+    /// The administrator tried to grant a permission they do not themselves hold.
+    /// </summary>
+    /// <remarks>
+    /// Vertical privilege escalation, and the reason it has to be refused here rather than reviewed
+    /// later: an administrator who may edit any role may otherwise write themselves a role granting
+    /// anything the catalogue declares, which makes every other permission boundary advisory. The rule
+    /// is that a grant may only pass on authority the granter already has, so the Owner — who holds
+    /// everything — is unrestricted, and nobody below them can mint a power upwards.
+    /// </remarks>
+    public static Error PermissionNotHeldByGranter(string? key) => Error.Forbidden(
+        "identity.permission-not-held-by-granter",
+        $"You do not hold '{key}', so you cannot grant it. Ask somebody who does.");
+
+    /// <summary>
+    /// The change would leave the organisation with nobody who can edit roles.
+    /// </summary>
+    /// <remarks>
+    /// The same trap as <see cref="LastAdministrator"/> and one step further in, because the surface
+    /// that would put the permission back is the one being edited. Checked against the accounts that
+    /// would remain, not against the role being changed.
+    /// </remarks>
+    public static Error LastRoleAdministrator { get; } = Error.Conflict(
+        "identity.last-role-administrator",
+        "This would leave nobody able to edit roles, and the screen that would put it back is this "
+        + "one. Grant the permission to another role first.");
+
+    /// <summary>A system role cannot be deleted.</summary>
+    public static Error SystemRoleNotDeletable { get; } = Error.Conflict(
+        "identity.system-role-not-deletable",
+        "This release ships this role and the permission matrix records it, so it cannot be deleted. "
+        + "Take its permissions away, or unassign it, instead.");
+
+    /// <summary>
+    /// The role cannot be deleted because accounts still hold it.
+    /// </summary>
+    /// <remarks>A count rather than names, for the reason <see cref="BranchStillInUse"/> gives.</remarks>
+    public static Error RoleStillHeld(int accounts) => Error.Conflict(
+        "identity.role-still-held",
+        $"{accounts} account(s) still hold this role. Take it off them before deleting it.");
+
     /// <summary>No branch matches the identifier supplied.</summary>
     public static Error BranchNotFound { get; } = Error.NotFound(
         "identity.branch-not-found",

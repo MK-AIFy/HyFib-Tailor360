@@ -4,6 +4,7 @@ using Tailor360.Modules.Identity.Domain.Branches;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.FeatureFlags;
 using Tailor360.Platform.Abstractions.Outbox;
+using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Modules.Identity.Api.Payloads;
 
@@ -550,3 +551,128 @@ public sealed record DeadLetteredMessagePayload(
             message.CorrelationId);
     }
 }
+
+/// <summary>One role as the administration screens show it.</summary>
+/// <param name="RoleId">The role.</param>
+/// <param name="Key">The stable lower-case key. It never changes, which is why the matrix names roles by it.</param>
+/// <param name="Name">The name shown on screen.</param>
+/// <param name="Description">What the role is for, in operator language.</param>
+/// <param name="Reach"><c>Branch</c> or <c>Organisation</c>.</param>
+/// <param name="IsSystem">True when this release ships the role, in which case it cannot be deleted.</param>
+/// <param name="AssignedByDefault">True when an installation is expected to assign it at onboarding.</param>
+/// <param name="PermissionKeys">What it grants, in key order.</param>
+/// <param name="Holders">How many accounts that are not deactivated hold it.</param>
+/// <param name="UpdatedAt">When it last changed.</param>
+/// <param name="UpdatedBy">Who last changed it, or null for a value that arrived with the seed data.</param>
+/// <param name="Version">The version an edit must present in <c>If-Match</c>.</param>
+public sealed record RolePayload(
+    Guid RoleId,
+    string Key,
+    string Name,
+    string Description,
+    string Reach,
+    bool IsSystem,
+    bool AssignedByDefault,
+    IReadOnlyList<string> PermissionKeys,
+    int Holders,
+    DateTimeOffset UpdatedAt,
+    Guid? UpdatedBy,
+    string Version)
+{
+    /// <summary>Projects a role onto the wire.</summary>
+    /// <param name="role">The role.</param>
+    public static RolePayload From(AdministeredRole role)
+    {
+        ArgumentNullException.ThrowIfNull(role);
+
+        return new RolePayload(
+            role.RoleId,
+            role.Key,
+            role.Name,
+            role.Description,
+            role.Reach.ToString(),
+            role.IsSystem,
+            role.AssignedByDefault,
+            role.PermissionKeys,
+            role.Holders,
+            role.UpdatedAt,
+            role.UpdatedBy,
+            role.Version.Version);
+    }
+}
+
+/// <summary>One permission the application declares, as the role screens offer it.</summary>
+/// <remarks>
+/// The flags are published because they change what an administrator is deciding. Granting a role a
+/// permission marked for step-up means everybody holding that role will be asked to re-authenticate
+/// before using it, and a screen that showed only the key would hide that consequence until somebody
+/// hit it on the shop floor.
+/// </remarks>
+/// <param name="Key">The stable dotted key, for example <c>orders.confirm</c>.</param>
+/// <param name="Description">What holding it allows, in operator language.</param>
+/// <param name="Module">The module that owns it.</param>
+/// <param name="Scope"><c>Branch</c>, <c>Organisation</c> or <c>NotBranchOwned</c>.</param>
+/// <param name="RequiresMfa">True when a holder's session must have completed a second factor.</param>
+/// <param name="RequiresStepUp">True when a fresh re-authentication is demanded immediately before the action.</param>
+/// <param name="RequiresReason">True when the caller must supply a reason that is written to the trail.</param>
+public sealed record PermissionPayload(
+    string Key,
+    string Description,
+    string Module,
+    string Scope,
+    bool RequiresMfa,
+    bool RequiresStepUp,
+    bool RequiresReason)
+{
+    /// <summary>Projects a catalogue entry onto the wire.</summary>
+    /// <param name="permission">The permission.</param>
+    public static PermissionPayload From(Permission permission)
+    {
+        ArgumentNullException.ThrowIfNull(permission);
+
+        return new PermissionPayload(
+            permission.Key,
+            permission.Description,
+            permission.Module,
+            permission.Scope.ToString(),
+            permission.RequiresMfa,
+            permission.RequiresStepUp,
+            permission.RequiresReason);
+    }
+}
+
+/// <summary>A custom role to define. It starts granting nothing.</summary>
+/// <param name="Key">The stable lower-case key: letters, digits and underscores, starting with a letter.</param>
+/// <param name="Name">The name shown on screen.</param>
+/// <param name="Description">What the role is for.</param>
+/// <param name="Reach"><c>Branch</c> or <c>Organisation</c>.</param>
+/// <param name="Reason">Why the role is being created.</param>
+public sealed record DefineRolePayload(
+    string? Key,
+    string? Name,
+    string? Description,
+    string? Reach,
+    string? Reason);
+
+/// <summary>The new name and description of a role that already exists.</summary>
+/// <remarks>
+/// No key and no reach. The key never changes, because the permission matrix, the seed data and the
+/// tests all name a role by it; the reach is not editable here because changing it would silently
+/// invalidate grants already made under the old one, and the register has no way to ask which of them
+/// the administrator meant to keep.
+/// </remarks>
+/// <param name="Name">The new name.</param>
+/// <param name="Description">The new description.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record DescribeRolePayload(string? Name, string? Description, string? Reason);
+
+/// <summary>What a role should grant afterwards, and why.</summary>
+/// <remarks>
+/// The whole set, not the additions. An administrator sends the permissions the role should have when
+/// they are finished, which is what the screen shows and what the audit entry can be read against.
+/// </remarks>
+/// <param name="PermissionKeys">Every permission the role should grant.</param>
+/// <param name="Reason">Why the change is being made.</param>
+public sealed record ReplaceRolePermissionsPayload(
+    IReadOnlyList<string>? PermissionKeys,
+    string? Reason);
