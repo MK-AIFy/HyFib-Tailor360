@@ -105,6 +105,18 @@ export function measureHorizontalOverflow(): OverflowMeasurement {
       continue
     }
 
+    /*
+     * An element parked entirely off the left edge is the off-screen technique, not a reflow
+     * failure: the shell's own skip link sits at `left: -10000px` until it takes focus, and every
+     * screen in this application renders one. Nothing can be scrolled *to* it — in a left-to-right
+     * document the scrollable width grows to the right only, which is why `documentScrollWidth`
+     * above does not see it either. An element that straddles the edge is a different matter and
+     * still reported, because part of it is on the screen and cut off.
+     */
+    if (rect.right <= 0) {
+      continue
+    }
+
     let scrollsHorizontally = false
     for (
       let ancestor = element.parentElement;
