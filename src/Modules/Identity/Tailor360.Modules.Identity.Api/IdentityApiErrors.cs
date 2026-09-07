@@ -57,6 +57,18 @@ public static class IdentityApiErrors
         + "nothing reads.",
         "code");
 
+    /// <summary>
+    /// An audit query named a subject identifier without saying what kind of thing it is.
+    /// </summary>
+    /// <remarks>
+    /// Identifiers are unique, so the query would work — and it would use no index, because the trail
+    /// is indexed on the pair. Refusing is cheaper than a table scan somebody triggers by accident.
+    /// </remarks>
+    public static Error AuditSubjectIncomplete { get; } = Error.Validation(
+        "identity.audit-subject-incomplete",
+        "Say what kind of thing the identifier names, for example StaffUser or Branch.",
+        "entityType");
+
     /// <summary>The named second factor is not one this system offers.</summary>
     public static Error FactorNotRecognised { get; } = Error.Validation(
         "identity.factor-not-recognised",

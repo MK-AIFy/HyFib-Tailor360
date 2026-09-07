@@ -224,6 +224,113 @@
         ],
         "type": "object"
       },
+      "AuditEntryPayload": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actorDisplayName": {
+            "type": "string"
+          },
+          "actorId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "after": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "before": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "correlationId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sequence": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "occurredAt",
+          "action",
+          "entityType",
+          "entityId",
+          "actorId",
+          "actorDisplayName",
+          "branchId",
+          "correlationId",
+          "reason",
+          "summary",
+          "before",
+          "after"
+        ],
+        "type": "object"
+      },
+      "AuditPagePayload": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntryPayload"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "entries",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
       "BranchAssignmentPayload": {
         "properties": {
           "branchId": {
@@ -392,6 +499,83 @@
           "security",
           "preferences",
           "session"
+        ],
+        "type": "object"
+      },
+      "ExportAuditPayload": {
+        "properties": {
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actorId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entityId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entityType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "from": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "limit": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "to": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "entityType",
+          "entityId",
+          "actorId",
+          "action",
+          "from",
+          "to",
+          "cursor",
+          "limit",
+          "reason"
         ],
         "type": "object"
       },
@@ -1522,6 +1706,192 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/admin/audit": {
+      "get": {
+        "operationId": "ReadAuditTrail",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entityType",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPagePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read the audit trail, filtered by subject, actor, action and time.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-authorisation": "permission:admin.audit.read",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/admin/audit/export": {
+      "post": {
+        "operationId": "ExportAuditTrail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "action": "identity.user.",
+                "actorId": null,
+                "cursor": null,
+                "entityId": "0192f3c1-9b1e-7a44-9a1b-1f9a0c2e77d1",
+                "entityType": "StaffUser",
+                "from": "2026-09-01T00:00:00+05:30",
+                "limit": 500,
+                "reason": "Quarterly access review requested by the owner.",
+                "to": "2026-10-01T00:00:00+05:30"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ExportAuditPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPagePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Export a slice of the audit trail for an external review.",
+        "tags": [
+          "Administration"
+        ],
+        "x-tailor360-audit": "platform.audit.exported",
+        "x-tailor360-authorisation": "permission:audit.export",
+        "x-tailor360-rate-limit": "export-heavy"
+      }
+    },
     "/api/v1/admin/branches": {
       "get": {
         "operationId": "ListBranches",

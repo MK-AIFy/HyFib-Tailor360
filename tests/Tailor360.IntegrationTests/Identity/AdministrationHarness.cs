@@ -177,4 +177,10 @@ internal static class Permissions
 
     /// <summary>Changing feature flags and module toggles.</summary>
     public const string FeatureFlags = PlatformPermissions.FeatureFlags;
+
+    /// <summary>Reading the audit trail.</summary>
+    public const string AuditRead = PlatformPermissions.AuditRead;
+
+    /// <summary>Exporting the audit trail.</summary>
+    public const string AuditExport = PlatformPermissions.AuditExport;
 }

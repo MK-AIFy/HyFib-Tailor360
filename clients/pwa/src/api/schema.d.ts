@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the audit trail, filtered by subject, actor, action and time. */
+        get: operations["ReadAuditTrail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export a slice of the audit trail for an external review. */
+        post: operations["ExportAuditTrail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/branches": {
         parameters: {
             query?: never;
@@ -677,6 +711,30 @@ export interface components {
             roleKeys: string[];
             version: string;
         };
+        AuditEntryPayload: {
+            action: string;
+            actorDisplayName: string;
+            /** Format: uuid */
+            actorId: null | string;
+            after: null | string;
+            before: null | string;
+            /** Format: uuid */
+            branchId: null | string;
+            correlationId: null | string;
+            /** Format: uuid */
+            entityId: string;
+            entityType: string;
+            /** Format: date-time */
+            occurredAt: string;
+            reason: null | string;
+            /** Format: int64 */
+            sequence: number | string;
+            summary: string;
+        };
+        AuditPagePayload: {
+            entries: components["schemas"]["AuditEntryPayload"][];
+            nextCursor: null | string;
+        };
         BranchAssignmentPayload: {
             /** Format: uuid */
             branchId: string;
@@ -715,6 +773,22 @@ export interface components {
             /** Format: uuid */
             userId: string;
             userName: string;
+        };
+        ExportAuditPayload: {
+            action: null | string;
+            /** Format: uuid */
+            actorId: null | string;
+            cursor: null | string;
+            /** Format: uuid */
+            entityId: null | string;
+            entityType: null | string;
+            /** Format: date-time */
+            from: null | string;
+            /** Format: int32 */
+            limit: null | number | string;
+            reason: null | string;
+            /** Format: date-time */
+            to: null | string;
         };
         FactorAvailabilityPayload: {
             authenticator: boolean;
@@ -1082,6 +1156,85 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ReadAuditTrail: {
+        parameters: {
+            query?: {
+                entityType?: string;
+                entityId?: string;
+                actorId?: string;
+                action?: string;
+                from?: string;
+                to?: string;
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ExportAuditTrail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "action": "identity.user.",
+                 *       "actorId": null,
+                 *       "cursor": null,
+                 *       "entityId": "0192f3c1-9b1e-7a44-9a1b-1f9a0c2e77d1",
+                 *       "entityType": "StaffUser",
+                 *       "from": "2026-09-01T00:00:00+05:30",
+                 *       "limit": 500,
+                 *       "reason": "Quarterly access review requested by the owner.",
+                 *       "to": "2026-10-01T00:00:00+05:30"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ExportAuditPayload"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            415: components["responses"]["UnsupportedMediaType"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     ListBranches: {
         parameters: {
             query?: never;

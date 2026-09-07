@@ -1,6 +1,7 @@
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Application.Administration;
 using Tailor360.Modules.Identity.Domain.Branches;
+using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.FeatureFlags;
 
 namespace Tailor360.Modules.Identity.Api.Payloads;
@@ -412,3 +413,93 @@ public sealed record ReconfigureBranchPayload(
         ContactEmail,
         GstRegistrationReference);
 }
+
+/// <summary>One page of the audit trail.</summary>
+/// <param name="Entries">The entries, newest first.</param>
+/// <param name="NextCursor">Pass this back as <c>cursor</c> for the next page, or null at the end.</param>
+public sealed record AuditPagePayload(IReadOnlyList<AuditEntryPayload> Entries, string? NextCursor)
+{
+    /// <summary>Projects a page onto the wire.</summary>
+    /// <param name="page">The page.</param>
+    public static AuditPagePayload From(AuditPage page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        return new AuditPagePayload(
+            [.. page.Entries.Select(AuditEntryPayload.From)],
+            page.NextCursor);
+    }
+}
+
+/// <summary>One audit entry as a reviewer reads it.</summary>
+/// <param name="Sequence">Its position in the chain, which is what an operator quotes.</param>
+/// <param name="OccurredAt">When it happened.</param>
+/// <param name="Action">The stable dotted action name.</param>
+/// <param name="EntityType">The kind of thing it was about.</param>
+/// <param name="EntityId">Which one.</param>
+/// <param name="ActorId">Who acted, or null for the system.</param>
+/// <param name="ActorDisplayName">Their name, as it was at the time.</param>
+/// <param name="BranchId">The branch the action was taken in, where there was one.</param>
+/// <param name="CorrelationId">The request it belonged to, for joining it to logs and traces.</param>
+/// <param name="Reason">The reason the actor gave, where the action demanded one.</param>
+/// <param name="Summary">What happened, in words.</param>
+/// <param name="Before">Redacted prior state as JSON, or null for a creation.</param>
+/// <param name="After">Redacted resulting state as JSON, or null for a deletion.</param>
+public sealed record AuditEntryPayload(
+    long Sequence,
+    DateTimeOffset OccurredAt,
+    string Action,
+    string EntityType,
+    Guid EntityId,
+    Guid? ActorId,
+    string ActorDisplayName,
+    Guid? BranchId,
+    string? CorrelationId,
+    string? Reason,
+    string Summary,
+    string? Before,
+    string? After)
+{
+    /// <summary>Projects one entry onto the wire.</summary>
+    /// <param name="entry">The entry.</param>
+    public static AuditEntryPayload From(AuditRecord entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        return new AuditEntryPayload(
+            entry.Sequence,
+            entry.OccurredAt,
+            entry.Action,
+            entry.EntityType,
+            entry.EntityId,
+            entry.ActorId,
+            entry.ActorDisplayName,
+            entry.BranchId,
+            entry.CorrelationId,
+            entry.Reason,
+            entry.Summary,
+            entry.Before,
+            entry.After);
+    }
+}
+
+/// <summary>The slice of the trail to export, and why.</summary>
+/// <param name="EntityType">Only entries about this kind of thing.</param>
+/// <param name="EntityId">Only entries about this one.</param>
+/// <param name="ActorId">Only entries recorded against this actor.</param>
+/// <param name="Action">Only actions starting with this.</param>
+/// <param name="From">Only entries at or after this instant.</param>
+/// <param name="To">Only entries strictly before this instant.</param>
+/// <param name="Cursor">Where to continue from, for an export taken in parts.</param>
+/// <param name="Limit">How many entries to return.</param>
+/// <param name="Reason">Why the export is being taken. Recorded in the trail with the exporter's name.</param>
+public sealed record ExportAuditPayload(
+    string? EntityType,
+    Guid? EntityId,
+    Guid? ActorId,
+    string? Action,
+    DateTimeOffset? From,
+    DateTimeOffset? To,
+    string? Cursor,
+    int? Limit,
+    string? Reason);

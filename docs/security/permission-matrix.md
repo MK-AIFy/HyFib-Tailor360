@@ -300,6 +300,8 @@ The first business endpoint fills in a row here in the same pull request that ma
 | Method | Route | Declaration | Permission | Branch scope | Resource | Audited as | What it is for |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `POST` | `/api/v1/admin/users/` | permission | `admin.users` | organisation | — | `identity.user.invited` | Invites somebody: creates an account that cannot yet sign in and sends a single-use link that lets them set their own first password. No `If-Match`, because there is nothing yet to have changed |
+| `GET` | `/api/v1/admin/audit/` | permission | `admin.audit.read` | organisation | — | — | Reads the audit trail, filtered by subject, actor, action prefix and time, paged by keyset on the sequence. No step-up: the permission is catalogued as demanding a second factor and not a recent re-authentication, and an auditor reading the trail changes nothing |
+| `POST` | `/api/v1/admin/audit/export` | permission | `audit.export` | organisation | — | `platform.audit.exported` | Exports a slice of the trail. Audited although it changes nothing, because taking a copy out of the system *is* the act: it is how the record of what everybody did leaves the building |
 | `GET` | `/api/v1/admin/branches/` | permission | `admin.branches` | organisation | — | — | Lists the organisation's branches |
 | `POST` | `/api/v1/admin/branches/` | permission | `admin.branches` | organisation | — | `identity.branch.opened` | Opens a branch. The code is set once here and never again: it is embedded in every order, estimate and invoice number the branch produces |
 | `GET` | `/api/v1/admin/branches/{branchId}` | permission | `admin.branches` | organisation | — | — | Reads one branch with the version an edit must be made against |

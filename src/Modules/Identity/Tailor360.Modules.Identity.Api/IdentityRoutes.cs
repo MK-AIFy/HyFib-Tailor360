@@ -39,6 +39,9 @@ public static class IdentityRoutes
     /// <summary>Administering feature flags and module toggles.</summary>
     public const string AdminFeatureFlags = "/api/v1/admin/feature-flags";
 
+    /// <summary>Reading and exporting the audit trail.</summary>
+    public const string AdminAudit = "/api/v1/admin/audit";
+
     /// <summary>The OpenAPI tag applied to the authentication surface.</summary>
     public const string AuthTag = "Authentication";
 

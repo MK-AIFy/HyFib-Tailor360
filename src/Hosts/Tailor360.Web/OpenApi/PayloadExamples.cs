@@ -148,6 +148,20 @@ public static class PayloadExamples
             }
             """,
 
+        ["ExportAuditTrail"] = """
+            {
+              "entityType": "StaffUser",
+              "entityId": "0192f3c1-9b1e-7a44-9a1b-1f9a0c2e77d1",
+              "actorId": null,
+              "action": "identity.user.",
+              "from": "2026-09-01T00:00:00+05:30",
+              "to": "2026-10-01T00:00:00+05:30",
+              "cursor": null,
+              "limit": 500,
+              "reason": "Quarterly access review requested by the owner."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",
