@@ -32,6 +32,36 @@ public static class PayloadExamples
             }
             """,
 
+        ["ReinstateStaffUser"] = """
+            {
+              "reason": "Returned from unpaid leave; the manager confirmed the start date."
+            }
+            """,
+
+        ["DeactivateStaffUser"] = """
+            {
+              "reason": "Resigned; last working day was 5 September."
+            }
+            """,
+
+        ["ReactivateStaffUser"] = """
+            {
+              "reason": "Rejoined the shop; identity confirmed in person by the branch manager."
+            }
+            """,
+
+        ["ResetStaffUserMfa"] = """
+            {
+              "reason": "Lost the phone holding the authenticator; identity confirmed in person."
+            }
+            """,
+
+        ["RevokeStaffUserSessions"] = """
+            {
+              "reason": "Tablet left on a bus; signing every device out while it is recovered."
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",

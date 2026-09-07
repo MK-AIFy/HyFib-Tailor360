@@ -66,9 +66,10 @@ internal static partial class IdentityLog
     public static partial void ChallengeAnswerSuperseded(ILogger logger, Guid userId, string factor);
 
     [LoggerMessage(EventId = 2320, Level = LogLevel.Warning,
-        Message = "Account {UserId} was suspended by an administrator and {EndedSessions} session(s) " +
-                  "were ended.")]
-    public static partial void AccountSuspended(ILogger logger, Guid userId, int endedSessions);
+        Message = "An administrator applied {Action} to account {UserId}; {EndedSessions} session(s) " +
+                  "were ended. The reason they gave is in the audit trail, not here.")]
+    public static partial void AccountAdministered(
+        ILogger logger, Guid userId, string action, int endedSessions);
 
     [LoggerMessage(EventId = 2313, Level = LogLevel.Error,
         Message = "The stored authenticator secret for account {UserId} could not be read with the current " +

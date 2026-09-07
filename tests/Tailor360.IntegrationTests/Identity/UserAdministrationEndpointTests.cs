@@ -240,6 +240,163 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         (await ReloadStatusAsync(administrator.UserId)).ShouldBe(UserStatus.Active);
     }
 
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ASuspensionIsLiftedAndTheAccountCanSignInAgain()
+    {
+        using var administrator = await AdministratorAsync("adm-reinstate", "203.0.113.69");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-reinstate");
+
+        await CommandAsync(administrator, subject.Id, "suspend");
+
+        // Suspension blocks the sign-in itself, not only the sessions that existed — so the account
+        // being able to sign in again is what makes reinstatement mean anything.
+        using var refused = AuthenticationClient.Open(fixture, "203.0.113.70");
+        (await refused.PostAsync(
+                "/api/v1/auth/login",
+                new { identifier = subject.UserName, password = AuthenticationTestData.Password }))
+            .StatusCode.ShouldNotBe(HttpStatusCode.OK);
+
+        await CommandAsync(administrator, subject.Id, "reinstate");
+        (await ReloadStatusAsync(subject.Id)).ShouldBe(UserStatus.Active);
+
+        using var allowed = AuthenticationClient.Open(fixture, "203.0.113.71");
+        (await allowed.PostAsync(
+                "/api/v1/auth/login",
+                new { identifier = subject.UserName, password = AuthenticationTestData.Password }))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ClosingAnAccountEndsItsSessionsAndKeepsItsHistoryResolvable()
+    {
+        using var administrator = await AdministratorAsync("adm-close", "203.0.113.72");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-close");
+
+        using var device = AuthenticationClient.Open(fixture, "203.0.113.73");
+        await SignInAsync(device, subject.UserName);
+
+        await CommandAsync(administrator, subject.Id, "deactivate");
+
+        (await ReloadStatusAsync(subject.Id)).ShouldBe(UserStatus.Deactivated);
+        (await LiveSessionsAsync(subject.Id)).ShouldBe(0);
+
+        // The acceptance criterion that is easiest to lose: the row is still there, still readable, and
+        // still the thing every audit entry and every future order points at. There is no delete
+        // endpoint on this surface, and this is the test that would fail if one were ever added.
+        var administered = await administrator.GetAsync(Route(subject.Id));
+        administered.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var entry = await LastAuditEntryAsync(subject.Id);
+        entry.ShouldNotBeNull();
+        entry.Action.ShouldBe("identity.user.deactivated");
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ReopeningAClosedAccountLeavesItUnableToSignInUntilItIsInvitedAgain()
+    {
+        using var administrator = await AdministratorAsync("adm-reopen", "203.0.113.74");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-reopen");
+
+        await CommandAsync(administrator, subject.Id, "deactivate");
+        await CommandAsync(administrator, subject.Id, "reactivate");
+
+        (await ReloadStatusAsync(subject.Id)).ShouldBe(
+            UserStatus.Invited, "the person returning proves who they are from the beginning");
+
+        // The password the account had before it was closed must not work. A reactivation that restored
+        // a working credential would turn a departed colleague's old password into a live one.
+        using var attempt = AuthenticationClient.Open(fixture, "203.0.113.75");
+        (await attempt.PostAsync(
+                "/api/v1/auth/login",
+                new { identifier = subject.UserName, password = AuthenticationTestData.Password }))
+            .StatusCode.ShouldNotBe(HttpStatusCode.OK);
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task AnIllegalTransitionIsRefusedAndTheAccountIsUntouched()
+    {
+        using var administrator = await AdministratorAsync("adm-illegal", "203.0.113.76");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-illegal");
+
+        // Reinstating an account that was never suspended, and reopening one that was never closed.
+        // Both are refused by the domain; what is asserted here is that the refusal reaches the caller
+        // as a conflict rather than as a silent success or a server error.
+        foreach (var segment in (string[])["reinstate", "reactivate"])
+        {
+            var version = await VersionOfAsync(administrator, subject.Id);
+
+            var refused = await administrator.PostAsync(
+                $"{Route(subject.Id)}/{segment}",
+                new { reason = Reason },
+                ("If-Match", version),
+                ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+            refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        }
+
+        (await ReloadStatusAsync(subject.Id)).ShouldBe(UserStatus.Active);
+        (await AuditEntryCountAsync(subject.Id, "identity.user.reinstated")).ShouldBe(
+            0, "a refused command writes no entry, or the trail records changes that never happened");
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task ClearingASecondFactorEndsTheSessionsItWasProtecting()
+    {
+        using var administrator = await AdministratorAsync("adm-resetmfa", "203.0.113.77");
+
+        // The subject is a full administrator in their own right, because only an account that has
+        // enrolled has a second factor to clear.
+        using var subject = await AdministratorAsync("sub-resetmfa", "203.0.113.78");
+        (await LiveSessionsAsync(subject.UserId)).ShouldBeGreaterThan(0);
+        (await MfaStateAsync(subject.UserId)).ShouldBe(nameof(MfaEnrolmentState.Enrolled));
+
+        await CommandAsync(administrator, subject.UserId, "reset-mfa");
+
+        // ResetRequired rather than NotEnrolled: the account is not merely without a factor, it owes
+        // one, and the sign-in path is what makes that demand.
+        (await MfaStateAsync(subject.UserId)).ShouldBeOneOf(
+            nameof(MfaEnrolmentState.NotEnrolled), nameof(MfaEnrolmentState.ResetRequired));
+        (await LiveSessionsAsync(subject.UserId)).ShouldBe(
+            0, "an account whose factor somebody else cleared must not stay signed in anywhere");
+    }
+
+    [Fact(Skip = DatabaseAvailability.SkipMessage,
+        SkipUnless = nameof(Available),
+        SkipType = typeof(UserAdministrationEndpointTests))]
+    public async Task RevokingSessionsSignsEveryDeviceOutAndLeavesTheAccountAbleToReturn()
+    {
+        using var administrator = await AdministratorAsync("adm-revoke", "203.0.113.79");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-revoke");
+
+        using var phone = AuthenticationClient.Open(fixture, "203.0.113.80");
+        using var counter = AuthenticationClient.Open(fixture, "203.0.113.81");
+        await SignInAsync(phone, subject.UserName);
+        await SignInAsync(counter, subject.UserName);
+
+        await CommandAsync(administrator, subject.Id, "revoke-sessions");
+
+        (await LiveSessionsAsync(subject.Id)).ShouldBe(0);
+
+        // Unlike suspension, the account is not in trouble: the person simply signs in again.
+        (await ReloadStatusAsync(subject.Id)).ShouldBe(UserStatus.Active);
+
+        using var again = AuthenticationClient.Open(fixture, "203.0.113.82");
+        (await again.PostAsync(
+                "/api/v1/auth/login",
+                new { identifier = subject.UserName, password = AuthenticationTestData.Password }))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static string Route(Guid userId) => $"/api/v1/admin/users/{userId}";
 
     private static async Task SignInAsync(AuthenticationClient client, string userName)
@@ -346,6 +503,33 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return (user, role.Id);
+    }
+
+    /// <summary>Applies one administrative command and insists it succeeded.</summary>
+    private static async Task CommandAsync(AdministratorClient administrator, Guid userId, string segment)
+    {
+        var version = await VersionOfAsync(administrator, userId);
+
+        var response = await administrator.PostAsync(
+            $"{Route(userId)}/{segment}",
+            new { reason = Reason },
+            ("If-Match", version),
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        response.StatusCode.ShouldBe(
+            HttpStatusCode.OK,
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    private async Task<string> MfaStateAsync(Guid userId)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+
+        return (await context.Users
+            .AsNoTracking()
+            .SingleAsync(user => user.Id == userId, TestContext.Current.CancellationToken))
+            .MfaEnrolment.ToString();
     }
 
     private async Task<int> LiveSessionsAsync(Guid userId)

@@ -97,76 +97,134 @@ public static class UserAdminEndpoints
             .TouchesNoBranchOwnedResource(NoBranchResource, Review)
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser);
 
-        users.MapPost("/{userId:guid}/suspend", async Task<IResult> (
-                Guid userId,
-                ReasonPayload request,
-                HttpContext context,
-                UserAdministrationHandler handler,
-                ICurrentUser caller,
-                CancellationToken cancellationToken) =>
-            {
-                if (request?.Reason is not { } given || string.IsNullOrWhiteSpace(given))
-                {
-                    return Problems.From(IdentityApiErrors.ReasonRequired, context);
-                }
-
-                var reason = given.Trim();
-
-                if (reason.Length > AdminRequests.MaximumReasonLength)
-                {
-                    return Problems.From(IdentityApiErrors.ReasonTooLong, context);
-                }
-
-                var current = await handler.ReadAsync(userId, cancellationToken);
-                if (current.IsFailure)
-                {
-                    return Problems.From(current.Error, context);
-                }
-
-                var precondition = ConcurrencyResults.CheckIfMatch(
-                    context,
-                    current.Value.Version,
-                    AdminRequests.VersionConflict,
-                    AdminRequests.VersionConflictDetail);
-
-                if (precondition is not null)
-                {
-                    return precondition;
-                }
-
-                var result = await handler.SuspendAsync(
-                    userId, reason, caller.UserId, cancellationToken);
-
-                if (result.IsFailure)
-                {
-                    // A concurrent change between the precondition and the write is the same answer the
-                    // precondition would have given, so the caller sees one behaviour rather than two.
-                    return result.Error == IdentityErrors.ConcurrentChange
-                        ? ConcurrencyResults.VersionConflict(
-                            context,
-                            AdminRequests.VersionConflict,
-                            AdminRequests.VersionConflictDetail,
-                            current.Value.Version)
-                        : Problems.From(result.Error, context);
-                }
-
-                context.Response.SetEntityTag(result.Value.Version);
-
-                return Results.Ok(StaffUserPayload.From(result.Value));
-            })
-            .Produces<StaffUserPayload>(StatusCodes.Status200OK)
-            .WithName("SuspendStaffUser")
-            .WithSummary("Suspend a staff account and end its sessions.")
-            .WithTags(IdentityRoutes.AdminTag)
-            .RequirePermission(IdentityPermissions.Users, BranchScope.Organisation)
-            .RequireStepUp()
-            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
-            .RequireRateLimiting(RateLimitPolicyNames.Write)
-            .Audited(UserAdministrationHandler.SuspendedAction, reasonRequired: true)
-            .RequireIdempotency()
-            .RequireIfMatch()
-            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+        // Every command on this surface is the same shape — a reason, a precondition, a domain
+        // transition and an audit entry — so they are mapped from one place. A route added by hand
+        // would be one missing .RequireStepUp() or one missing .Audited(...) away from being a hole
+        // that no reviewer would see, and this way the declarations cannot drift apart.
+        foreach (var command in Commands)
+        {
+            users.MapPost($"/{{userId:guid}}/{command.Segment}", async Task<IResult> (
+                    Guid userId,
+                    ReasonPayload request,
+                    HttpContext context,
+                    UserAdministrationHandler handler,
+                    ICurrentUser caller,
+                    CancellationToken cancellationToken) =>
+                    await ApplyAsync(userId, request, context, handler, caller, command, cancellationToken))
+                .Produces<StaffUserPayload>(StatusCodes.Status200OK)
+                .WithName(command.OperationId)
+                .WithSummary(command.Summary)
+                .WithTags(IdentityRoutes.AdminTag)
+                .RequirePermission(IdentityPermissions.Users, BranchScope.Organisation)
+                .RequireStepUp()
+                .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+                .RequireRateLimiting(RateLimitPolicyNames.Write)
+                .Audited(command.AuditAction, reasonRequired: true)
+                .RequireIdempotency()
+                .RequireIfMatch()
+                .WithRequestTimeout(RequestTimeoutPolicies.Command);
+        }
 
         return users;
     }
+
+    /// <summary>
+    /// Reads the account, checks the precondition, applies the command and answers.
+    /// </summary>
+    /// <remarks>
+    /// The read before the precondition is what makes <c>If-Match</c> mean anything: the version the
+    /// caller presented is compared against the version the row carries now, not against the one they
+    /// were sent. A change slipping in between that check and the write is answered the same way,
+    /// because to the caller the two are the same event.
+    /// </remarks>
+    private static async Task<IResult> ApplyAsync(
+        Guid userId,
+        ReasonPayload request,
+        HttpContext context,
+        UserAdministrationHandler handler,
+        ICurrentUser caller,
+        AdminCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (request?.Reason is not { } given || string.IsNullOrWhiteSpace(given))
+        {
+            return Problems.From(IdentityApiErrors.ReasonRequired, context);
+        }
+
+        var reason = given.Trim();
+
+        if (reason.Length > AdminRequests.MaximumReasonLength)
+        {
+            return Problems.From(IdentityApiErrors.ReasonTooLong, context);
+        }
+
+        var current = await handler.ReadAsync(userId, cancellationToken);
+        if (current.IsFailure)
+        {
+            return Problems.From(current.Error, context);
+        }
+
+        var precondition = ConcurrencyResults.CheckIfMatch(
+            context,
+            current.Value.Version,
+            AdminRequests.VersionConflict,
+            AdminRequests.VersionConflictDetail);
+
+        if (precondition is not null)
+        {
+            return precondition;
+        }
+
+        var result = await command.Apply(handler, userId, reason, caller.UserId, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error == IdentityErrors.ConcurrentChange
+                ? ConcurrencyResults.VersionConflict(
+                    context,
+                    AdminRequests.VersionConflict,
+                    AdminRequests.VersionConflictDetail,
+                    current.Value.Version)
+                : Problems.From(result.Error, context);
+        }
+
+        context.Response.SetEntityTag(result.Value.Version);
+
+        return Results.Ok(StaffUserPayload.From(result.Value));
+    }
+
+    /// <summary>One administrative command, and everything the route needs to declare about it.</summary>
+    /// <param name="Segment">The path segment after the account identifier.</param>
+    /// <param name="OperationId">The published operation name.</param>
+    /// <param name="AuditAction">The stable audit action the endpoint declares and the handler writes.</param>
+    /// <param name="Summary">What the operation does, for the API document.</param>
+    /// <param name="Apply">The handler method that performs it.</param>
+    private sealed record AdminCommand(
+        string Segment,
+        string OperationId,
+        string AuditAction,
+        string Summary,
+        Func<UserAdministrationHandler, Guid, string, Guid, CancellationToken, Task<Result<AdministeredUser>>> Apply);
+
+    private static IReadOnlyList<AdminCommand> Commands { get; } =
+    [
+        new("suspend", "SuspendStaffUser", UserAdministrationHandler.SuspendedAction,
+            "Suspend a staff account and end its sessions.",
+            (handler, id, reason, actor, token) => handler.SuspendAsync(id, reason, actor, token)),
+        new("reinstate", "ReinstateStaffUser", UserAdministrationHandler.ReinstatedAction,
+            "Lift a suspension so the account may sign in again.",
+            (handler, id, reason, actor, token) => handler.ReinstateAsync(id, reason, actor, token)),
+        new("deactivate", "DeactivateStaffUser", UserAdministrationHandler.DeactivatedAction,
+            "Close a staff account, ending its sessions and remembered devices.",
+            (handler, id, reason, actor, token) => handler.DeactivateAsync(id, reason, actor, token)),
+        new("reactivate", "ReactivateStaffUser", UserAdministrationHandler.ReactivatedAction,
+            "Reopen a closed account as an invitation, with no password and no second factor.",
+            (handler, id, reason, actor, token) => handler.ReactivateAsync(id, reason, actor, token)),
+        new("reset-mfa", "ResetStaffUserMfa", UserAdministrationHandler.MfaResetAction,
+            "Clear the account's second factor and end its sessions.",
+            (handler, id, reason, actor, token) => handler.ResetMfaAsync(id, reason, actor, token)),
+        new("revoke-sessions", "RevokeStaffUserSessions", UserAdministrationHandler.SessionsRevokedAction,
+            "End every session the account holds, leaving its standing unchanged.",
+            (handler, id, reason, actor, token) => handler.RevokeSessionsAsync(id, reason, actor, token)),
+    ];
 }

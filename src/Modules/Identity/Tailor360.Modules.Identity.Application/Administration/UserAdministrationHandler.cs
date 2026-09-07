@@ -45,6 +45,21 @@ public sealed class UserAdministrationHandler(
     /// <summary>The audit action recorded when an account is suspended.</summary>
     public const string SuspendedAction = "identity.user.suspended";
 
+    /// <summary>The audit action recorded when a suspension is lifted.</summary>
+    public const string ReinstatedAction = "identity.user.reinstated";
+
+    /// <summary>The audit action recorded when an account is closed.</summary>
+    public const string DeactivatedAction = "identity.user.deactivated";
+
+    /// <summary>The audit action recorded when a closed account is brought back.</summary>
+    public const string ReactivatedAction = "identity.user.reactivated";
+
+    /// <summary>The audit action recorded when an administrator clears a second factor.</summary>
+    public const string MfaResetAction = "identity.user.mfa-reset";
+
+    /// <summary>The audit action recorded when an administrator ends an account's sessions.</summary>
+    public const string SessionsRevokedAction = "identity.user.sessions-revoked";
+
     /// <summary>Reads one account for an administrative screen, with the version it may be edited against.</summary>
     /// <param name="userId">The account.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -59,22 +74,179 @@ public sealed class UserAdministrationHandler(
             : Result.Success(Describe(user, store.EntityTagOf(user)));
     }
 
-    /// <summary>
-    /// Stops an account temporarily and ends every session it holds.
-    /// </summary>
+    /// <summary>Stops an account temporarily and ends every session it holds.</summary>
     /// <param name="userId">The account to suspend.</param>
     /// <param name="reason">Why, as the administrator typed it. Recorded in the audit trail.</param>
-    /// <param name="actor">The administrator, for the refusal below.</param>
+    /// <param name="actor">The administrator.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task<Result<AdministeredUser>> SuspendAsync(
+    public Task<Result<AdministeredUser>> SuspendAsync(
         Guid userId,
         string reason,
         Guid actor,
         CancellationToken cancellationToken = default)
+        => ApplyAsync(
+            userId,
+            reason,
+            actor,
+            (user, now) => user.Suspend(now, actor),
+            SuspendedAction,
+            ended => $"The account was suspended and {ended} session(s) were ended.",
+            SessionEndReason.RevokedByAdministrator,
+            cancellationToken);
+
+    /// <summary>Lifts a suspension, so the account may sign in again.</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="reason">Why, as the administrator typed it.</param>
+    /// <param name="actor">The administrator.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public Task<Result<AdministeredUser>> ReinstateAsync(
+        Guid userId,
+        string reason,
+        Guid actor,
+        CancellationToken cancellationToken = default)
+        => ApplyAsync(
+            userId,
+            reason,
+            actor,
+            (user, now) => user.Reinstate(now, actor),
+            ReinstatedAction,
+            _ => "The suspension was lifted.",
+            endSessions: null,
+            cancellationToken);
+
+    /// <summary>
+    /// Closes an account for good, ending its sessions and its remembered devices.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is deleted. Every "who did this" reference in the audit trail, every order taken at a
+    /// counter and every invoice raised names an account, and those have to stay resolvable for years
+    /// after the person has left — which is why there is no delete endpoint here and never will be.
+    /// </remarks>
+    /// <param name="userId">The account.</param>
+    /// <param name="reason">Why, as the administrator typed it.</param>
+    /// <param name="actor">The administrator.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public Task<Result<AdministeredUser>> DeactivateAsync(
+        Guid userId,
+        string reason,
+        Guid actor,
+        CancellationToken cancellationToken = default)
+        => ApplyAsync(
+            userId,
+            reason,
+            actor,
+            (user, now) => user.Deactivate(now, actor),
+            DeactivatedAction,
+            ended => $"The account was closed and {ended} session(s) were ended.",
+            SessionEndReason.AccountClosed,
+            cancellationToken);
+
+    /// <summary>
+    /// Brings a closed account back, as an invitation rather than as a working account.
+    /// </summary>
+    /// <remarks>
+    /// The domain empties the password and the second factors, so what comes back is an account that
+    /// has to prove itself again from the beginning. That is the point: the person returning has to be
+    /// shown to be the person who left, and a reactivation that restored a working credential would
+    /// turn a departed colleague's old password into a live one.
+    /// </remarks>
+    /// <param name="userId">The account.</param>
+    /// <param name="reason">Why, as the administrator typed it.</param>
+    /// <param name="actor">The administrator.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public Task<Result<AdministeredUser>> ReactivateAsync(
+        Guid userId,
+        string reason,
+        Guid actor,
+        CancellationToken cancellationToken = default)
+        => ApplyAsync(
+            userId,
+            reason,
+            actor,
+            (user, now) => user.Reactivate(now, actor, reason),
+            ReactivatedAction,
+            _ => "The account was reopened and must be invited again before it can be used.",
+            endSessions: null,
+            cancellationToken);
+
+    /// <summary>
+    /// Clears the account's second factor, after the administrator has identified the holder out of
+    /// band.
+    /// </summary>
+    /// <remarks>
+    /// This is the most abusable action on the surface — it is how somebody who has lost their phone
+    /// gets back in, and therefore how somebody who has taken over an administrator's session gets into
+    /// anybody's account. Ending the holder's sessions is part of the reset rather than a courtesy: an
+    /// account whose factor was cleared by somebody else must not stay signed in on a device the real
+    /// holder cannot see.
+    /// </remarks>
+    /// <param name="userId">The account.</param>
+    /// <param name="reason">Why, as the administrator typed it.</param>
+    /// <param name="actor">The administrator.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public Task<Result<AdministeredUser>> ResetMfaAsync(
+        Guid userId,
+        string reason,
+        Guid actor,
+        CancellationToken cancellationToken = default)
+        => ApplyAsync(
+            userId,
+            reason,
+            actor,
+            (user, now) => user.ResetMfa(now, actor, reason),
+            MfaResetAction,
+            ended => $"The second factor was cleared and {ended} session(s) were ended.",
+            SessionEndReason.MfaReset,
+            cancellationToken);
+
+    /// <summary>
+    /// Ends every session the account holds, without changing its standing.
+    /// </summary>
+    /// <remarks>
+    /// The emergency lever: a phone left on a bus, a shared machine nobody signed out of. It is
+    /// separate from suspension because the account is not in trouble — the person keeps their access
+    /// and simply has to sign in again.
+    /// </remarks>
+    /// <param name="userId">The account.</param>
+    /// <param name="reason">Why, as the administrator typed it.</param>
+    /// <param name="actor">The administrator.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public Task<Result<AdministeredUser>> RevokeSessionsAsync(
+        Guid userId,
+        string reason,
+        Guid actor,
+        CancellationToken cancellationToken = default)
+        => ApplyAsync(
+            userId,
+            reason,
+            actor,
+            (_, _) => Result.Success(),
+            SessionsRevokedAction,
+            ended => $"{ended} session(s) were ended by an administrator.",
+            SessionEndReason.RevokedByAdministrator,
+            cancellationToken);
+
+    /// <summary>
+    /// The shape every administrative change to an account shares: refuse to act on your own account,
+    /// read it, snapshot it, let the domain decide, save, end sessions if the change implies it, and
+    /// record what changed and why.
+    /// </summary>
+    /// <remarks>
+    /// One method rather than six near-copies, because the parts that must not vary are the parts that
+    /// are easy to leave out of a copy: the self-administration guard, the before-image taken before
+    /// the change rather than after it, and an audit entry that is written for every path that
+    /// succeeded. A sixth command added later gets all three by construction.
+    /// </remarks>
+    private async Task<Result<AdministeredUser>> ApplyAsync(
+        Guid userId,
+        string reason,
+        Guid actor,
+        Func<StaffUser, DateTimeOffset, Result> change,
+        string action,
+        Func<int, string> summary,
+        SessionEndReason? endSessions,
+        CancellationToken cancellationToken)
     {
-        // An administrator suspending themselves would end their own sessions in the same request and
-        // then be unable to sign in and undo it. Refusing is not paternalism: the account that can lift
-        // a suspension is the one being suspended, so this is a door that locks from the outside only.
         if (userId == actor)
         {
             return Result.Failure<AdministeredUser>(IdentityErrors.CannotAdministerOwnAccount);
@@ -88,10 +260,10 @@ public sealed class UserAdministrationHandler(
 
         var before = SnapshotOf(user);
 
-        var suspended = user.Suspend(clock.UtcNow, actor);
-        if (suspended.IsFailure)
+        var changed = change(user, clock.UtcNow);
+        if (changed.IsFailure)
         {
-            return Result.Failure<AdministeredUser>(suspended.Error);
+            return Result.Failure<AdministeredUser>(changed.Error);
         }
 
         var written = await store.TrySaveChangesAsync(cancellationToken);
@@ -100,24 +272,31 @@ public sealed class UserAdministrationHandler(
             return Result.Failure<AdministeredUser>(written.Error);
         }
 
-        // Ended after the status is committed, so a failure here leaves a suspended account with live
-        // sessions that the store's own repair will close on their next request — rather than an active
-        // account whose sessions were ended for no recorded reason.
-        var ended = await sessions.RevokeAllForUserAsync(
-            userId, SessionEndReason.RevokedByAdministrator, exceptSessionId: null, cancellationToken);
+        var ended = 0;
+
+        if (endSessions is { } endReason)
+        {
+            // After the change is committed, so a failure here leaves the account in its new standing
+            // with sessions the store's own repair will close on their next request — rather than an
+            // unchanged account whose sessions were ended for no recorded reason.
+            var revoked = await sessions.RevokeAllForUserAsync(
+                userId, endReason, exceptSessionId: null, cancellationToken);
+
+            ended = revoked.Value;
+        }
 
         await AdministrationAudit.RecordAsync(
             audit,
-            SuspendedAction,
+            action,
             AdministrationAudit.StaffUserEntity,
             userId,
-            $"The account was suspended and {ended.Value} session(s) were ended.",
+            summary(ended),
             reason,
             before,
             SnapshotOf(user),
             cancellationToken);
 
-        IdentityLog.AccountSuspended(logger, userId, ended.Value);
+        IdentityLog.AccountAdministered(logger, userId, action, ended);
 
         return Result.Success(Describe(user, store.EntityTagOf(user)));
     }
