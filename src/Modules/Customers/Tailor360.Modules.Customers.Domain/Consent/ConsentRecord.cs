@@ -126,11 +126,22 @@ public sealed class ConsentRecord
         DateTimeOffset now,
         Guid? by)
     {
-        var key = purposeKey?.Trim();
+        // The same rule the purpose itself is held to. A record naming a key no purpose could ever
+        // have is one that cannot be resolved back to what the customer was actually asked.
+        var key = ConsentPurposeKeys.Read(purposeKey, "purposeKey");
 
-        if (string.IsNullOrEmpty(key))
+        if (key.IsFailure)
         {
-            return Result.Failure<ConsentRecord>(CustomersErrors.Required("purposeKey"));
+            return Result.Failure<ConsentRecord>(key.Error);
+        }
+
+        // An outcome that is none of the three is not a weaker answer, it is an uninterpretable one:
+        // the current-consent query reads the latest row and would have nothing to say about it. A
+        // value outside the enumeration reaches here only from a cast, and a cast is exactly what a
+        // deserialiser does with a number it did not recognise.
+        if (!Enum.IsDefined(decision))
+        {
+            return Result.Failure<ConsentRecord>(CustomersErrors.ConsentDecisionNotUnderstood("decision"));
         }
 
         if (wordingVersion < ConsentWording.FirstVersion)
@@ -150,6 +161,7 @@ public sealed class ConsentRecord
         return given.Length > MaximumSourceLength
             ? Result.Failure<ConsentRecord>(CustomersErrors.TooLong("source", MaximumSourceLength))
             : Result.Success(new ConsentRecord(
-                id, organisationId, customerId, key, wordingVersion, decision, given, branchId, now, by));
+                id, organisationId, customerId, key.Value, wordingVersion, decision, given, branchId,
+                now, by));
     }
 }

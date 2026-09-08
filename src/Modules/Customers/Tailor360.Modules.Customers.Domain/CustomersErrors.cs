@@ -118,6 +118,18 @@ public static class CustomersErrors
         "A consent purpose key is lower-case letters, digits and underscores.",
         field);
 
+    /// <summary>A consent decision was a value that is none of the outcomes the system records.</summary>
+    /// <remarks>
+    /// Not a weaker answer — an uninterpretable one. The query that reads the latest record to decide
+    /// whether a message may be sent would have nothing to say about it, and a row that cannot be read
+    /// is not evidence.
+    /// </remarks>
+    /// <param name="field">The field carrying the decision.</param>
+    public static Error ConsentDecisionNotUnderstood(string field) => Error.Validation(
+        "customers.consent-decision-not-understood",
+        "A consent decision is granted, declined or withdrawn.",
+        field);
+
     /// <summary>The purpose is retired, so it is not asked about and its wording does not change.</summary>
     /// <param name="key">The purpose key.</param>
     public static Error ConsentPurposeRetired(string key) => Error.Conflict(

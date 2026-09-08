@@ -1,3 +1,5 @@
+using Tailor360.Platform.Abstractions.Results;
+
 namespace Tailor360.Modules.Customers.Domain.Consent;
 
 /// <summary>
@@ -55,4 +57,38 @@ public static class ConsentPurposeKeys
 
     /// <summary>The longest purpose key the column holds.</summary>
     public const int MaximumLength = 64;
+
+    /// <summary>
+    /// Reads a written purpose key, or says why it is not one.
+    /// </summary>
+    /// <remarks>
+    /// One rule in one place, because two callers need it and they must not disagree.
+    /// <see cref="ConsentPurpose.Define"/> applies it when a purpose is created, and
+    /// <see cref="ConsentRecord.Record"/> applies it to the key written into an evidentiary row — a
+    /// record naming a key no purpose could ever have is one that cannot be resolved back to what the
+    /// customer was actually asked, which is the one thing the record exists to carry.
+    /// </remarks>
+    /// <param name="key">The key as written.</param>
+    /// <param name="field">The field name a validation failure is attached to.</param>
+    /// <returns>The trimmed key, or the reason it was refused.</returns>
+    public static Result<string> Read(string? key, string field)
+    {
+        var trimmed = key?.Trim();
+
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return Result.Failure<string>(CustomersErrors.Required(field));
+        }
+
+        if (trimmed.Length > MaximumLength)
+        {
+            return Result.Failure<string>(CustomersErrors.TooLong(field, MaximumLength));
+        }
+
+        // Held to a shape that survives a URL, a log line and a configuration file unaltered.
+        return trimmed.All(character =>
+            char.IsAsciiLetterLower(character) || char.IsAsciiDigit(character) || character == '_')
+            ? Result.Success(trimmed)
+            : Result.Failure<string>(CustomersErrors.ConsentPurposeKeyNotAllowed(field));
+    }
 }

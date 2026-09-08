@@ -73,15 +73,26 @@ public sealed class ConsentWording
     /// <summary>The Owner who published it, or null when it was seeded as reference data.</summary>
     public Guid? PublishedBy { get; private set; }
 
-    /// <summary>Publishes a wording version.</summary>
+    /// <summary>
+    /// Publishes a wording version. <strong>Internal: the purpose is the only way in.</strong>
+    /// </summary>
+    /// <remarks>
+    /// Reachable only from <see cref="ConsentPurpose.PublishWording"/>, which is where the two
+    /// invariants live — that a retired purpose gains no new wording, and that versions run
+    /// consecutively from <see cref="FirstVersion"/>. A public factory here would let a handler or a
+    /// seeder publish for a retired purpose, repeat a version or skip one, and every consent record
+    /// that named the resulting version would point at wording nobody could reconstruct. There is no
+    /// version guard in this method for the same reason there is no way to call it wrongly: the
+    /// aggregate computes the number.
+    /// </remarks>
     /// <param name="id">The identifier, from the generator.</param>
     /// <param name="purposeId">The purpose it words.</param>
-    /// <param name="version">The version number, one more than the purpose's current highest.</param>
+    /// <param name="version">The version number the purpose computed.</param>
     /// <param name="text">The words. Required.</param>
     /// <param name="now">The clock.</param>
     /// <param name="by">The Owner publishing it, or null when seeded.</param>
     /// <returns>The version, or the reason it was refused.</returns>
-    public static Result<ConsentWording> Publish(
+    internal static Result<ConsentWording> Publish(
         Guid id,
         Guid purposeId,
         int version,
@@ -96,13 +107,8 @@ public sealed class ConsentWording
             return Result.Failure<ConsentWording>(CustomersErrors.Required("text"));
         }
 
-        if (words.Length > MaximumTextLength)
-        {
-            return Result.Failure<ConsentWording>(CustomersErrors.TooLong("text", MaximumTextLength));
-        }
-
-        return version < FirstVersion
-            ? Result.Failure<ConsentWording>(CustomersErrors.Required("version"))
+        return words.Length > MaximumTextLength
+            ? Result.Failure<ConsentWording>(CustomersErrors.TooLong("text", MaximumTextLength))
             : Result.Success(new ConsentWording(id, purposeId, version, words, now, by));
     }
 }

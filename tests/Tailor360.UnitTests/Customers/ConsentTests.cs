@@ -159,13 +159,21 @@ public sealed class ConsentTests
         published.Error.Code.ShouldBe("customers.value-too-long");
     }
 
+    /// <summary>
+    /// The version sequence belongs to the purpose, and nothing outside it can publish a wording.
+    /// </summary>
+    /// <remarks>
+    /// A publicly reachable factory would let a handler or a seeder publish for a retired purpose,
+    /// repeat a version or skip one, and every consent record naming the resulting version would point
+    /// at wording nobody could reconstruct. This asserts the type publishes no factory at all — which
+    /// is also why the test above has to go through <see cref="ConsentPurpose.PublishWording"/>.
+    /// </remarks>
     [Fact]
-    public void AWordingVersionBelowTheFirstIsRefused()
+    public void NothingOutsideThePurposeCanPublishAWording()
     {
-        var published = ConsentWording.Publish(Guid.NewGuid(), Guid.NewGuid(), 0, "Words.", Now);
-
-        published.IsFailure.ShouldBeTrue();
-        published.Error.Target.ShouldBe("version");
+        typeof(ConsentWording)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .ShouldBeEmpty("ConsentWording publishes a factory the aggregate does not control");
     }
 
     /* Retirement -------------------------------------------------------------------------------- */
@@ -273,6 +281,82 @@ public sealed class ConsentTests
                 ConsentDecision.Granted, new string('a', ConsentRecord.MaximumSourceLength + 1), null,
                 Now, null)
             .Error.Code.ShouldBe("customers.value-too-long");
+    }
+
+    /// <summary>
+    /// An outcome that is none of the three is refused, because it is uninterpretable rather than
+    /// weaker: the query that reads the latest record to decide whether a message may be sent would
+    /// have nothing to say about it. A value outside the enumeration arrives from a cast, which is
+    /// exactly what a deserialiser does with a number it did not recognise.
+    /// </summary>
+    [Theory]
+    [InlineData(3)]
+    [InlineData(-1)]
+    [InlineData(99)]
+    public void ADecisionThatIsNoneOfTheOutcomesIsRefused(int raw)
+    {
+        var recorded = ConsentRecord.Record(
+            Guid.NewGuid(),
+            Organisation,
+            Guid.NewGuid(),
+            ConsentPurposeKeys.MarketingMessages,
+            1,
+            (ConsentDecision)raw,
+            "counter, verbal",
+            branchId: null,
+            Now,
+            by: null);
+
+        recorded.IsFailure.ShouldBeTrue();
+        recorded.Error.Code.ShouldBe("customers.consent-decision-not-understood");
+        recorded.Error.Target.ShouldBe("decision");
+    }
+
+    /// <summary>
+    /// A record is held to the same key rule as the purpose it names. One that names a key no purpose
+    /// could ever have cannot be resolved back to what the customer was actually asked.
+    /// </summary>
+    [Theory]
+    [InlineData("Marketing_Messages")]
+    [InlineData("marketing messages")]
+    [InlineData("marketing-messages")]
+    public void ARecordNamingAKeyNoPurposeCouldHaveIsRefused(string key)
+    {
+        var recorded = ConsentRecord.Record(
+            Guid.NewGuid(),
+            Organisation,
+            Guid.NewGuid(),
+            key,
+            1,
+            ConsentDecision.Granted,
+            "counter, verbal",
+            branchId: null,
+            Now,
+            by: null);
+
+        recorded.IsFailure.ShouldBeTrue();
+        recorded.Error.Code.ShouldBe("customers.consent-purpose-key-not-allowed");
+        recorded.Error.Target.ShouldBe("purposeKey");
+    }
+
+    [Fact]
+    public void ARecordNamingAKeyLongerThanTheColumnIsRefused()
+    {
+        var recorded = ConsentRecord.Record(
+            Guid.NewGuid(),
+            Organisation,
+            Guid.NewGuid(),
+            new string('a', ConsentPurposeKeys.MaximumLength + 1),
+            1,
+            ConsentDecision.Granted,
+            "counter, verbal",
+            branchId: null,
+            Now,
+            by: null);
+
+        recorded.IsFailure.ShouldBeTrue();
+        recorded.Error.Code.ShouldBe("customers.value-too-long");
+        recorded.Error.Target.ShouldBe("purposeKey");
     }
 
     /* The structural guards --------------------------------------------------------------------- */

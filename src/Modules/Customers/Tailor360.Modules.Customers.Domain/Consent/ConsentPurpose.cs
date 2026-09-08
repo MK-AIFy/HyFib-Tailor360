@@ -111,24 +111,11 @@ public sealed class ConsentPurpose
         DateTimeOffset now,
         Guid? by = null)
     {
-        var purposeKey = key?.Trim();
+        var purposeKey = ConsentPurposeKeys.Read(key, "key");
 
-        if (string.IsNullOrEmpty(purposeKey))
+        if (purposeKey.IsFailure)
         {
-            return Result.Failure<ConsentPurpose>(CustomersErrors.Required("key"));
-        }
-
-        if (purposeKey.Length > ConsentPurposeKeys.MaximumLength)
-        {
-            return Result.Failure<ConsentPurpose>(
-                CustomersErrors.TooLong("key", ConsentPurposeKeys.MaximumLength));
-        }
-
-        // The key is written into every consent record and read by other modules, so it is held to a
-        // shape that survives a URL, a log line and a configuration file unaltered.
-        if (!purposeKey.All(character => char.IsAsciiLetterLower(character) || char.IsAsciiDigit(character) || character == '_'))
-        {
-            return Result.Failure<ConsentPurpose>(CustomersErrors.ConsentPurposeKeyNotAllowed("key"));
+            return Result.Failure<ConsentPurpose>(purposeKey.Error);
         }
 
         var displayName = name?.Trim();
@@ -151,7 +138,7 @@ public sealed class ConsentPurpose
             : Result.Success(new ConsentPurpose(
                 id,
                 organisationId,
-                purposeKey,
+                purposeKey.Value,
                 displayName,
                 string.IsNullOrEmpty(text) ? null : text,
                 now,
