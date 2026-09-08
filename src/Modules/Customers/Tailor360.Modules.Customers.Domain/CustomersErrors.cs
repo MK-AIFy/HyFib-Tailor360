@@ -159,6 +159,32 @@ public static class CustomersErrors
         + "messages altogether, allow no channel.",
         field);
 
+    /// <summary>No purpose in the organisation's register carries that key.</summary>
+    /// <remarks>
+    /// Purposes are configuration an Owner maintains
+    /// (<c>docs/prd/configurable-vs-fixed.md</c> row 75), so a key that names none is a caller asking
+    /// about something this shop does not ask its customers. Recording an answer against it would put
+    /// a row in the evidence that nothing could ever resolve back to a question.
+    /// </remarks>
+    /// <param name="key">The purpose key.</param>
+    public static Error ConsentPurposeNotFound(string key) => Error.NotFound(
+        "customers.consent-purpose-not-found",
+        $"No consent purpose in this organisation's register is called '{key}'.");
+
+    /// <summary>The purpose exists, but nobody has published the words a customer would be read.</summary>
+    /// <remarks>
+    /// The refusal <c>init-reference-data</c> is built around. It seeds the five purposes and
+    /// deliberately publishes no wording, because inventing the notice text a customer is read is
+    /// exactly what <c>docs/nfr/data-classification.md</c> section 4.1 says this system does not do.
+    /// A consent record names the wording version it was taken under, so until an Owner publishes one
+    /// there is nothing for a record to name, and the refusal is DC-01 enforced rather than mentioned.
+    /// </remarks>
+    /// <param name="key">The purpose key.</param>
+    public static Error ConsentWordingNotPublished(string key) => Error.Conflict(
+        "customers.consent-wording-not-published",
+        $"The consent purpose '{key}' has no published wording yet, so there are no words to read the "
+        + "customer and nothing for a record to be evidence of. An Owner publishes the wording first.");
+
     /// <summary>The caller is assigned to no branch, so there is no branch to create the record in.</summary>
     public static Error NoBranchInContext { get; } = Error.Forbidden(
         "customers.no-branch-in-context",

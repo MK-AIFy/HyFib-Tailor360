@@ -442,6 +442,168 @@
         ],
         "type": "object"
       },
+      "CommunicationPreferencePayload": {
+        "properties": {
+          "allowedChannels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "hasBeenRecorded": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string"
+          },
+          "quietHoursEnd": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quietHoursStart": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerId",
+          "hasBeenRecorded",
+          "allowedChannels",
+          "language",
+          "quietHoursStart",
+          "quietHoursEnd",
+          "updatedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ConsentAnswerPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "decision": {
+            "type": "string"
+          },
+          "purposeKey": {
+            "type": "string"
+          },
+          "recordId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "wordingVersion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "recordId",
+          "purposeKey",
+          "decision",
+          "wordingVersion",
+          "recordedAt",
+          "source",
+          "recordedBy",
+          "branchId"
+        ],
+        "type": "object"
+      },
+      "ConsentPurposePayload": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentAnswerPayload"
+            },
+            "type": "array"
+          },
+          "canBeAnswered": {
+            "type": "boolean"
+          },
+          "currentWordingVersion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isRetired": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "isRetired",
+          "currentWordingVersion",
+          "canBeAnswered",
+          "status",
+          "answers"
+        ],
+        "type": "object"
+      },
       "CorrectCustomerRequest": {
         "properties": {
           "addressLine": {
@@ -645,6 +807,20 @@
           "visibleToCaller",
           "status",
           "lastSeenAt"
+        ],
+        "type": "object"
+      },
+      "CustomerConsentPayload": {
+        "properties": {
+          "purposes": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentPurposePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "purposes"
         ],
         "type": "object"
       },
@@ -1672,6 +1848,34 @@
         ],
         "type": "object"
       },
+      "RecordConsentRequest": {
+        "properties": {
+          "decision": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purposeKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "purposeKey",
+          "decision",
+          "source"
+        ],
+        "type": "object"
+      },
       "RecoveryAcceptedPayload": {
         "properties": {
           "message": {
@@ -1851,6 +2055,46 @@
         "required": [
           "branches",
           "reason"
+        ],
+        "type": "object"
+      },
+      "ReplacePreferencesRequest": {
+        "properties": {
+          "allowedChannels": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quietHoursEnd": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quietHoursStart": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "allowedChannels",
+          "language",
+          "quietHoursStart",
+          "quietHoursEnd"
         ],
         "type": "object"
       },
@@ -6636,6 +6880,344 @@
           "Customers"
         ],
         "x-tailor360-audit": "customers.customer.corrected",
+        "x-tailor360-authorisation": "permission:customers.update",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/communication-preferences": {
+      "get": {
+        "description": "`hasBeenRecorded` is false when nobody has asked her, and the response then carries no ETag — there is no version of a row that does not exist, which is why the first write is the one change that needs no `If-Match`. An empty `allowedChannels` on a recorded preference is an answer and not a gap: it means do not message her, and it withdraws consent to nothing.",
+        "operationId": "GetCustomerCommunicationPreferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationPreferencePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read how a customer wants to be reached.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read_consent",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "The whole preference is replaced rather than patched, so that the trail reads as a state and \"which channels does she accept\" has one answer. An empty `allowedChannels` is how she says do not message me, and it withdraws consent to nothing. Quiet hours are wall-clock times at the branch and may run backwards over midnight, which is the ordinary case; send both ends or neither. `If-Match` is required once a preference exists and must be omitted before then, because there is no version of a row that does not exist.",
+        "operationId": "ReplaceCustomerCommunicationPreferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "allowedChannels": [
+                  "Sms",
+                  "WhatsApp"
+                ],
+                "language": "ta-IN",
+                "quietHoursEnd": "08:00:00",
+                "quietHoursStart": "21:30:00"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ReplacePreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationPreferencePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record how a customer wants to be reached, replacing what was there.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.preferences.changed",
+        "x-tailor360-authorisation": "permission:customers.update",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/consent": {
+      "get": {
+        "description": "The whole register comes back, including purposes she has never been asked about — which is how the counter knows to ask — and purposes that have been retired, because what she said about one still stands. Answers are newest first, so the first of them is the one that stands; `canBeAnswered` says whether a new answer may be recorded now.",
+        "operationId": "GetCustomerConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerConsentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read what a customer has agreed to, purpose by purpose.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read_consent",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "Appends an answer; it never edits one. Withdrawing is a `Withdrawn` answer and agreeing again is another `Granted` one, so the evidence that she once withdrew survives her changing her mind. The wording version is read from the register here rather than sent, because a client that could name a version could record an answer against words she was never read; a purpose with no published wording is refused for the same reason. A withdrawal is written to the trail as `customers.consent.withdrawn` rather than as the action this route declares, because a withdrawal is what somebody reviewing the trail is looking for.",
+        "operationId": "RecordCustomerConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "decision": "Granted",
+                "purposeKey": "photo_capture",
+                "source": "counter, verbal"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RecordConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentAnswerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record what a customer said about one purpose.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.consent.recorded",
         "x-tailor360-authorisation": "permission:customers.update",
         "x-tailor360-rate-limit": "write"
       }

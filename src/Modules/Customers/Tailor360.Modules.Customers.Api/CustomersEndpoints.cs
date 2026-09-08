@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Tailor360.Modules.Customers.Api.Consent;
 using Tailor360.Modules.Customers.Api.Customers;
 
 namespace Tailor360.Modules.Customers.Api;
@@ -26,7 +27,8 @@ public static class CustomersEndpoints
 
         endpoints.MapGroup(GroupPrefix)
             .WithTags(OpenApiTag)
-            .MapCustomerEndpoints();
+            .MapCustomerEndpoints()
+            .MapConsentEndpoints();
 
         return endpoints;
     }

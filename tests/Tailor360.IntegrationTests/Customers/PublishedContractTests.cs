@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
+using Tailor360.IntegrationTests.Identity;
+using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Contracts.Consent;
 using Tailor360.Modules.Customers.Contracts.Customers;
 using Tailor360.Modules.Customers.Contracts.Preferences;
@@ -143,32 +145,49 @@ public sealed class PublishedContractTests(WebApplicationFixture fixture)
     }
 
     /// <summary>
-    /// A screen that records five answers at once stamps one instant on all of them, so the standing
-    /// answer cannot be decided by time alone. Identifiers are UUIDv7 and sort by generation, which is
-    /// what makes the tie-break the later answer rather than an arbitrary one.
+    /// Two answers sharing an instant have to resolve to one standing answer, and to the same one on
+    /// every read.
     /// </summary>
+    /// <remarks>
+    /// The tie-break is the identifier, and it is a tie-break rather than a judgement about which was
+    /// given second — a version-7 identifier orders by time only to the millisecond, and two generated
+    /// inside one differ only in random bits. What the query owes a caller is a <em>total, repeatable</em>
+    /// answer, so this asks for exactly that: read it several times and get the same row, and get the
+    /// row PostgreSQL's own ordering picks rather than one .NET's differently-ordered <c>Guid</c>
+    /// comparison would.
+    /// </remarks>
     [Fact]
-    public async Task TwoAnswersAtTheSameInstantAreBrokenByWhichWasWrittenLater()
+    public async Task TwoAnswersAtTheSameInstantResolveToOneAnswerAndAlwaysTheSameOne()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
 
         var customerId = await CustomerAsync();
         var purpose = ConsentPurposeKeys.FeedbackRequests;
 
-        var earlier = Guid.CreateVersion7();
-        var later = Guid.CreateVersion7();
-
-        later.ShouldBeGreaterThan(earlier);
-
-        await CustomerHarness.ConsentAsync(
-            fixture, customerId, purpose, ConsentDecision.Declined, Morning, recordId: earlier);
-        await CustomerHarness.ConsentAsync(
-            fixture, customerId, purpose, ConsentDecision.Granted, Morning, recordId: later);
+        var first = await CustomerHarness.ConsentAsync(
+            fixture, customerId, purpose, ConsentDecision.Declined, Morning);
+        var second = await CustomerHarness.ConsentAsync(
+            fixture, customerId, purpose, ConsentDecision.Granted, Morning);
 
         var state = await ConsentAsync(customerId, purpose);
 
-        state.RecordId.ShouldBe(later);
-        state.Status.ShouldBe(ConsentStatus.Granted);
+        // One of the two, never neither and never something else.
+        state.RecordId.ShouldBeOneOf(first, second);
+
+        // And the same one every time. A tie broken by whatever order the database returned would
+        // make a customer's consent depend on the query plan.
+        for (var read = 0; read < 5; read++)
+        {
+            var again = await ConsentAsync(customerId, purpose);
+
+            again.RecordId.ShouldBe(state.RecordId);
+            again.Status.ShouldBe(state.Status);
+        }
+
+        // The screen and the contract read the same rows and must not order them differently, which
+        // is the failure a second sort in memory would introduce.
+        var handled = await StandingAnswerAsync(customerId, purpose);
+        handled.ShouldBe(state.RecordId);
     }
 
     /// <summary>
@@ -368,6 +387,23 @@ public sealed class PublishedContractTests(WebApplicationFixture fixture)
         await CustomerHarness.BranchAsync(fixture, BranchId, BranchCode);
 
         return await CustomerHarness.CustomerAsync(fixture, BranchId, language);
+    }
+
+    /// <summary>What the counter screen would show as the standing answer for one purpose.</summary>
+    private async Task<Guid?> StandingAnswerAsync(Guid customerId, string purposeKey)
+    {
+        using var scope = fixture.Services.CreateScope();
+
+        var consent = await scope.ServiceProvider.GetRequiredService<ConsentHandler>()
+            .ReadAsync(customerId, SessionTestData.OrganisationId, TestContext.Current.CancellationToken);
+
+        consent.IsSuccess.ShouldBeTrue();
+
+        var answers = consent.Value.Purposes
+            .Single(purpose => purpose.Key == purposeKey)
+            .Answers;
+
+        return answers.Count == 0 ? null : answers[0].RecordId;
     }
 
     private async Task<ConsentState> ConsentAsync(Guid customerId, string purposeKey)

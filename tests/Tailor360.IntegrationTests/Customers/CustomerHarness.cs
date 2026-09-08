@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Customers;
 using Tailor360.Modules.Customers.Domain.Preferences;
@@ -50,6 +51,7 @@ internal static class CustomerHarness
     [
         CustomersPermissions.Read,
         CustomersPermissions.ReadContact,
+        CustomersPermissions.ReadConsent,
         CustomersPermissions.Create,
         CustomersPermissions.Update,
         CustomersPermissions.Deactivate,
@@ -284,6 +286,84 @@ internal static class CustomerHarness
         var digits = new string([.. Guid.CreateVersion7().ToString("N").Where(char.IsAsciiDigit)]);
 
         return "+919000" + (digits.Length >= 6 ? digits[^6..] : digits.PadLeft(6, '7'));
+    }
+
+    /// <summary>
+    /// Defines a consent purpose of this test's own, and optionally publishes a wording for it.
+    /// </summary>
+    /// <remarks>
+    /// A purpose per test rather than the five <c>init-reference-data</c> seeds, because a purpose is
+    /// organisation-wide: publishing a wording bumps a version every other test would then be asserting
+    /// against, and retiring one is not undone by re-running the seeder. Keys are lower-case hexadecimal
+    /// with an underscore, which is what the key rule allows.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="withWording">Whether to publish a first wording, which is what lets it be answered.</param>
+    /// <param name="retired">Whether to retire it immediately.</param>
+    /// <returns>The purpose's key.</returns>
+    public static async Task<string> PurposeAsync(
+        WebApplicationFixture fixture,
+        bool withWording = true,
+        bool retired = false)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var ids = scope.ServiceProvider.GetRequiredService<IIdGenerator>();
+
+        var key = $"test_{AdministrationHarness.UniqueToken(12)}";
+
+        var purpose = ConsentPurpose.Define(
+            ids.NewId(),
+            SessionTestData.OrganisationId,
+            key,
+            $"Test purpose {key}",
+            "Defined by an integration test. Nothing is ever sent on the strength of it.",
+            clock.UtcNow);
+
+        purpose.IsSuccess.ShouldBeTrue();
+
+        if (withWording)
+        {
+            // Deliberately not the words of any real notice. What matters to these tests is that a
+            // version exists for a record to name, not what it says.
+            purpose.Value.PublishWording(
+                ids.NewId(),
+                "Synthetic wording for an integration test.",
+                clock.UtcNow)
+                .IsSuccess.ShouldBeTrue();
+        }
+
+        if (retired)
+        {
+            purpose.Value.Retire(clock.UtcNow, null).IsSuccess.ShouldBeTrue();
+        }
+
+        context.ConsentPurposes.Add(purpose.Value);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return key;
+    }
+
+    /// <summary>Seeds the five consent purposes <c>init-reference-data</c> creates.</summary>
+    /// <remarks>
+    /// Idempotent, like the command itself, so a test that needs the register to exist may call it
+    /// without caring whether another test already did. It publishes no wording, because the command
+    /// does not either — inventing the words a customer is read is what the classification document
+    /// forbids, and the refusal that follows is DC-01 enforced rather than mentioned.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <returns>A task that completes when the register exists.</returns>
+    public static async Task SeededPurposesAsync(WebApplicationFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+
+        await scope.ServiceProvider.GetRequiredService<IConsentReferenceDataSeeder>()
+            .SeedConsentPurposesAsync(SessionTestData.OrganisationId, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Appends one consent record, straight into the schema.</summary>

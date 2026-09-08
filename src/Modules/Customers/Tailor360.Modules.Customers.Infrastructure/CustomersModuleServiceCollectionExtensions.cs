@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Tailor360.Modules.Customers.Application.Abstractions;
 using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Application.Customers;
+using Tailor360.Modules.Customers.Application.Preferences;
 using Tailor360.Modules.Customers.Contracts.Consent;
 using Tailor360.Modules.Customers.Contracts.Customers;
 using Tailor360.Modules.Customers.Contracts.Preferences;
@@ -54,6 +55,10 @@ public static class CustomersModuleServiceCollectionExtensions
         services.TryAddScoped<ICustomerStore, CustomerStore>();
         services.TryAddScoped<ICustomerDirectory, CustomerDirectory>();
         services.TryAddScoped<CustomerHandler>();
+        services.TryAddScoped<IConsentStore, ConsentStore>();
+        services.TryAddScoped<IPreferenceStore, PreferenceStore>();
+        services.TryAddScoped<ConsentHandler>();
+        services.TryAddScoped<PreferenceHandler>();
         services.TryAddScoped<IConsentReferenceDataSeeder, ConsentReferenceDataSeeder>();
 
         // The module's published surface. Registered here rather than in each consuming module so

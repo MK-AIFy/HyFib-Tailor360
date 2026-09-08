@@ -16,11 +16,20 @@ namespace Tailor360.Modules.Customers.Infrastructure.Persistence;
 /// <c>ix_consent_records_customer_purpose_recorded</c> is ordered to make that read a single seek.
 /// </para>
 /// <para>
-/// <strong>The tie-break is the identifier, and it is not arbitrary.</strong> Two records for the same
-/// purpose can share a <c>RecordedAt</c> — the clock has a resolution, and a screen that records five
-/// answers at once takes one instant for all of them. Identifiers are UUIDv7, which sort by the time
-/// they were generated, so ordering by identifier after time puts the later of two simultaneous
-/// answers last, which is the one that stands.
+/// <strong>The tie-break is the identifier, and it is a tie-break rather than a judgement.</strong>
+/// Two records for the same purpose could in principle share a <c>RecordedAt</c>. Ordering by
+/// identifier after time makes the answer <em>total and repeatable</em> — the same row on every read,
+/// and the same row the counter screen shows, instead of whatever order the database happened to
+/// return. It does not claim to say which of two simultaneous answers was given second: a version-7
+/// identifier orders by time only down to the millisecond, and two generated inside one differ only in
+/// random bits. Nothing in the row records a finer order, so this query does not pretend one exists.
+/// </para>
+/// <para>
+/// <strong>The order is decided here, in SQL, and nowhere else.</strong> The store reads a customer's
+/// records with the same expression and the handler that serves the screen keeps that order rather
+/// than re-sorting in memory — which matters, because PostgreSQL orders a <c>uuid</c> by its bytes
+/// while .NET's <c>Guid</c> comparison walks its fields in a different order, so two sorts of the same
+/// rows would not always agree. One authority, and the screen and the contract cannot disagree.
 /// </para>
 /// </remarks>
 /// <param name="context">The module's context.</param>
