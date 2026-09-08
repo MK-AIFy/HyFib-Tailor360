@@ -253,10 +253,11 @@ templates and the confirmed, immutable measurement versions the workshop works f
 | `customers` | Customer record, `customer_number`, normalised and native name, status |
 | `customer_aliases` | Previous names, spellings and merged customer numbers, kept searchable |
 | `customer_branch_visibility` | Which branches see an organisation-wide record in ordinary search results. A row is added when a second branch opens the record, which is the branch-scoped attribute of an organisation-wide record that [`../prd/workflows/branch-scenarios.md`](../prd/workflows/branch-scenarios.md) section 3.2 names |
+| `consent_purposes`, `consent_wordings` | The things a customer is asked to agree to, and the published versions of the words used to ask. Configuration an Owner maintains ([`../prd/configurable-vs-fixed.md`](../prd/configurable-vs-fixed.md) row 75); a purpose is retired, never deleted, because consent records name it for as long as they exist |
 | `duplicate_candidates` | Scored, explained duplicate suspicions raised at create time |
 | `customer_merges` | The irreversible authorised merge decision and its re-pointing record |
-| `consent_records` | Versioned consent per purpose with wording version, source, actor and time |
-| `communication_preferences` | Allowed channels, language, quiet hours |
+| `consent_records` | Versioned consent per purpose with wording version, source, actor and time. **Append-only**, enforced by a database trigger: withdrawing inserts a `Withdrawn` row rather than changing the row that granted ([`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3) |
+| `communication_preferences` | Allowed channels, language, quiet hours. One row per customer, editable in place — a current instruction rather than evidence. Quiet hours are wall-clock times in the branch's timezone (BR-7), and both ends are present or neither |
 | `measurement_templates`, `measurement_template_versions`, `measurement_template_fields` | The configurable field sets, draft to published to retired |
 | `measurement_drafts`, `measurement_draft_values` | Branch-shared work in progress, consumed exactly once |
 | `measurement_versions`, `measurement_values` | Confirmed, immutable millimetre values with display unit and provenance |
