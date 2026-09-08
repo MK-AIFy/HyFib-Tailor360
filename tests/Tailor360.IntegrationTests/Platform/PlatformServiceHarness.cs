@@ -8,6 +8,7 @@ using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Persistence.Conventions;
+using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Persistence.Outbox;
 
 namespace Tailor360.IntegrationTests.Platform;
@@ -32,7 +33,6 @@ public static class PlatformServiceHarness
         services.AddSingleton<IIdGenerator, UuidV7IdGenerator>();
         services.AddScoped<IAuditContext, SystemAuditContext>();
         services.AddScoped<IOutboxCorrelation, NullOutboxCorrelation>();
-        services.AddScoped<IEventPublisher, OutboxWriter>();
         services.AddSingleton(Options.Create(new OutboxOptions()));
         services.AddSingleton<OutboxDispatcher>();
 
@@ -40,6 +40,19 @@ public static class PlatformServiceHarness
             .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
                 ModuleDbContext.MigrationsHistoryTable, PlatformDbContext.SchemaName))
             .UseSnakeCaseNamingConvention());
+
+        // The publisher is bound to one context, and this harness composes one: the platform's own.
+        // A test publishing here writes to platform.outbox_messages and could not reach another
+        // module's if it tried, which is the property #77 was about.
+        services.AddScoped<ModuleEventPublisher<PlatformDbContext>>();
+        services.AddScoped<IEventPublisher>(
+            provider => provider.GetRequiredService<ModuleEventPublisher<PlatformDbContext>>());
+
+        services.AddSingleton(new ModuleContextRegistry(
+            [new ModuleContextRegistration(
+                typeof(PlatformDbContext),
+                PlatformDbContext.SchemaName,
+                ModuleContextRegistry.PlatformOrder)]));
 
         configure?.Invoke(services);
 
@@ -50,7 +63,12 @@ public static class PlatformServiceHarness
 /// <summary>A handler that records what it was given, so a test can assert on delivery.</summary>
 /// <param name="eventType">The event type it consumes.</param>
 /// <param name="handlerName">Its inbox name.</param>
-public sealed class RecordingHandler(string eventType, string handlerName) : IOutboxMessageHandler
+/// <param name="schema">The module whose inbox records it. The platform's, in this harness.</param>
+public sealed class RecordingHandler(
+    string eventType,
+    string handlerName,
+    string schema = PlatformDbContext.SchemaName)
+    : IOutboxMessageHandler
 {
     private readonly List<OutboxDelivery> _deliveries = [];
     private readonly Lock _gate = new();
@@ -60,6 +78,9 @@ public sealed class RecordingHandler(string eventType, string handlerName) : IOu
 
     /// <inheritdoc />
     public string HandlerName { get; } = handlerName;
+
+    /// <inheritdoc />
+    public string Schema { get; } = schema;
 
     /// <summary>Set to make the handler throw, so failure paths can be exercised.</summary>
     public bool ThrowOnHandle { get; set; }

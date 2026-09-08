@@ -52,6 +52,12 @@ public static class CustomersModuleServiceCollectionExtensions
 
         AddPersistence(services);
 
+        // This module's own publisher, over this module's context and therefore its own outbox. The
+        // binding is per module because IEventPublisher is one interface and every module is composed
+        // into one container (#77).
+        services.AddModuleOutbox<CustomersDbContext>();
+        services.TryAddScoped<ICustomersEventPublisher, CustomersEventPublisher>();
+
         services.TryAddScoped<ICustomerStore, CustomerStore>();
         services.TryAddScoped<ICustomerDirectory, CustomerDirectory>();
         services.TryAddScoped<CustomerHandler>();

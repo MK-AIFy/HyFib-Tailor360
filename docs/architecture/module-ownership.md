@@ -127,8 +127,11 @@ Notes on the graph:
 | Integration | `integration` | — | `IntegrationDbContext` | #54, #55 |
 | Platform | `platform` | — | `PlatformDbContext` | #21 |
 
-Every business module schema additionally carries its **own** `outbox_messages` table (plan D6); it is listed once
-here rather than repeated in each section below. The table set given per module in section 5 is the set implied by
+Every module schema — the platform's included — additionally carries its **own** `outbox_messages` and
+`inbox_messages` tables (plan D6); they are listed once here rather than repeated in each section below. Both are
+mapped by `ModuleDbContext`, so a module has them by construction and a module added later gets them without
+anybody remembering. That is what lets a module's write and its event commit together, and a handler's effect
+commit with the row recording that it ran (issue #77). The table set given per module in section 5 is the set implied by
 plan Section 4.3 and 4.5; the exact columns and constraints of each table are fixed by the migration in the issue
 that introduces it, and a table may only be added to a schema by its owning module.
 
@@ -621,7 +624,6 @@ in `Platform.Abstractions`.
 | Table | Holds |
 | --- | --- |
 | `idempotency_keys` | `(principal_id, route template, key)`, request hash, status, stored response, `in_flight_until` |
-| `inbox_messages` | Handler de-duplication for at-least-once delivery |
 | `sequences`, `sequence_values` | Per-branch, per-financial-year number series behind `ISequenceAllocator` |
 | `audit_events` | Append-only, hash-chained (`seq`, `prev_hash`, `row_hash`), month-partitioned, trigger-owned |
 | `configuration` | Runtime configuration records that are data rather than deployment settings |
@@ -631,8 +633,10 @@ in `Platform.Abstractions`.
 | `data_protection_keys` | The ASP.NET Core Data Protection key ring. **Stored unencrypted today:** the ring is persisted to this table and nothing calls `ProtectKeysWith…`, because no key-encryption certificate is provisioned. It wraps every stored TOTP shared secret, so anyone who can read this table can read those secrets — recorded as **W-002** in `docs/process/waivers.md` and as **RR-04** in `docs/security/threat-models/authentication.md`, and closed by #59 |
 | `job_leases`, `worker_heartbeats` | Scheduled-job leases and per-instance liveness |
 
-Per-module `outbox_messages` tables live in each module's own schema; Platform owns the dispatcher, the claim
-semantics and the dead-letter handling, not the rows.
+`outbox_messages` and `inbox_messages` live in each module's own schema, including this one's — Platform owns the
+dispatcher, the claim semantics and the dead-letter handling, not the rows. Its own pair are the platform module's,
+not everybody's: a shared table would be a second connection and a second transaction for every other module, which
+is the one thing a transactional outbox exists to rule out (issue #77).
 
 **Owned object-storage prefix.** None.
 

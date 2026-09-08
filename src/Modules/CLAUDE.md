@@ -119,25 +119,23 @@ entries, scan events, custody transfers, posted invoices, payments, receipts, QC
 database triggers that reject `UPDATE` and `DELETE` from the application role. Business records are never
 soft-deleted; deactivate, retire or cancel instead.
 
-Publishing an integration event is meant to write a row in the same transaction as the change:
+Publishing an integration event writes a row in the same transaction as the change:
 
 ```csharp
-await publisher.PublishAsync(new OrderConfirmed(…), cancellationToken);
+events.Publish(new OrderConfirmed(…));               // the module's own publisher
 await context.SaveChangesAsync(cancellationToken);   // the event commits with the order
 ```
 
-**It does not, yet, and a module must not publish an event alongside its own write until issue #77
-closes.** `IEventPublisher` writes to `platform.outbox_messages` on `PlatformDbContext`, while the
-change is on the module's context — two connections and two transactions, so one ordering loses events
-for work that committed and the other announces work that rolled back.
-[ADR-0008](../../docs/adr/0008-transactional-outbox-and-workers.md) decided an `outbox_messages` table
-per module schema, which is what makes the snippet true; #21 built one shared table instead.
-[`../../docs/platform/outbox.md`](../../docs/platform/outbox.md) has the detail. Use a read contract
-until then — a consumer that pulls loses nothing in between.
+`ModuleDbContext` maps `outbox_messages` and `inbox_messages` into the module's own schema, so the
+event is tracked by the same change tracker as the aggregate and goes out on the same save. A module
+injects **its own** publisher — a port its `Application` project declares, such as
+`ICustomersEventPublisher` — because `IEventPublisher` is one interface and the host composes every
+module at once. Publishing is synchronous on purpose: a second round trip on a second connection is
+what made this two transactions before issue #77.
 
-`IAuditWriter` is the same two-context split and is a different case: it is a recorded trade-off with a
-fixed ordering — **save the change first, then record it** — because the trail may lag reality and must
-never lead it. See [`../../docs/platform/outbox.md`](../../docs/platform/outbox.md) and
+`IAuditWriter` is a two-context split and is a different case: it is a recorded trade-off with a fixed
+ordering — **save the change first, then record it** — because the trail may lag reality and must never
+lead it. See [`../../docs/platform/outbox.md`](../../docs/platform/outbox.md) and
 [`../../docs/platform/database.md`](../../docs/platform/database.md).
 
 ## 6. Migrations

@@ -1010,6 +1010,9 @@
               "string"
             ]
           },
+          "module": {
+            "type": "string"
+          },
           "occurredAt": {
             "format": "date-time",
             "type": "string"
@@ -1025,6 +1028,7 @@
         },
         "required": [
           "id",
+          "module",
           "aggregateId",
           "eventType",
           "schemaVersion",
