@@ -1,10 +1,12 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
 using Tailor360.Modules.Customers.Contracts.Consent;
 using Tailor360.Modules.Customers.Contracts.Preferences;
+using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Security.Permissions;
 
@@ -417,6 +419,148 @@ public sealed class ConsentEndpointTests(WebApplicationFixture fixture)
         entry.After.ShouldContain("hasQuietHours");
     }
 
+    /* The events -------------------------------------------------------------------------------- */
+
+    /// <summary>
+    /// Recording an answer writes its event into <strong>this module's</strong> outbox, in the same
+    /// save.
+    /// </summary>
+    /// <remarks>
+    /// The assertion that matters is the schema. Before #77 there was one shared
+    /// <c>platform.outbox_messages</c> on another context, so the event and the consent record were
+    /// two transactions and a crash between them lost one of them. Reading the row out of
+    /// <c>customers.outbox_messages</c> is what says that is no longer true.
+    /// </remarks>
+    [Fact]
+    public async Task RecordingAnAnswerPublishesItsEventIntoTheCustomersOutbox()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("consent-event", "203.0.113.170");
+        var customerId = await CustomerAsync();
+        var purpose = await CustomerHarness.PurposeAsync(fixture);
+
+        var response = await RecordAsync(counter, customerId, purpose, "Granted", "counter, verbal");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var answer = await ReadAsync<AnswerBody>(response);
+        var message = (await OutboxAsync(customerId))
+            .SingleOrDefault(row => row.EventType == "customers.consent-recorded.v1")
+            .ShouldNotBeNull("The answer committed without its event.");
+
+        message.SchemaVersion.ShouldBe(1);
+        message.AggregateId.ShouldBe(customerId);
+
+        var payload = JsonDocument.Parse(message.Payload).RootElement;
+        payload.GetProperty("recordId").GetGuid().ShouldBe(answer.RecordId);
+        payload.GetProperty("purposeKey").GetString().ShouldBe(purpose);
+        payload.GetProperty("wordingVersion").GetInt32().ShouldBe(1);
+        payload.GetProperty("branchId").GetGuid().ShouldBe(BranchId);
+
+        // The name, not the ordinal. An operator reading a dead-lettered row sees what she said.
+        payload.GetProperty("status").GetString().ShouldBe("Granted");
+
+        // conventions.md section 5.5 admits identifiers, codes, statuses, timestamps, amounts and
+        // branch codes. "counter, verbal" is free text: it is on the record, and IConsentQuery hands
+        // it to a consumer approved to read it.
+        payload.TryGetProperty("source", out _).ShouldBeFalse(
+            "The payload carries the free-text source, which conventions.md section 5.5 does not "
+            + "admit and which fans out to every registered handler.");
+    }
+
+    /// <summary>
+    /// A withdrawal publishes its own event, so a consumer that must honour one subscribes to exactly
+    /// that fact rather than to every answer with a filter it can forget.
+    /// </summary>
+    [Fact]
+    public async Task WithdrawingPublishesItsOwnEventAndNotARecordedOne()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("consent-wd-event", "203.0.113.171");
+        var customerId = await CustomerAsync();
+        var purpose = await CustomerHarness.PurposeAsync(fixture);
+
+        await RecordAsync(counter, customerId, purpose, "Granted", "counter, verbal");
+        await RecordAsync(counter, customerId, purpose, "Withdrawn", "telephone");
+
+        var messages = await OutboxAsync(customerId);
+
+        messages.Select(row => row.EventType).ShouldBe(
+            ["customers.consent-recorded.v1", "customers.consent-withdrawn.v1"],
+            "The grant and the withdrawal are two events, in the order she gave them.");
+
+        var withdrawal = JsonDocument
+            .Parse(messages[1].Payload)
+            .RootElement;
+
+        // The event type is the status, so there is no status field a consumer has to check.
+        withdrawal.TryGetProperty("status", out _).ShouldBeFalse();
+        withdrawal.GetProperty("purposeKey").GetString().ShouldBe(purpose);
+
+        // Both are the customer's, so the dispatcher cannot deliver the grant after the withdrawal
+        // that revoked it.
+        messages.Select(row => row.AggregateId).Distinct().ShouldHaveSingleItem().ShouldBe(customerId);
+    }
+
+    /// <summary>
+    /// A refused answer publishes nothing, because the event is committed by the same save as the
+    /// record and there was no record.
+    /// </summary>
+    [Fact]
+    public async Task ARefusedAnswerLeavesNoEventBehind()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("consent-no-event", "203.0.113.172");
+        var customerId = await CustomerAsync();
+        var retired = await CustomerHarness.PurposeAsync(fixture, retired: true);
+
+        var response = await RecordAsync(counter, customerId, retired, "Granted", "counter, verbal");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await OutboxAsync(customerId)).ShouldBeEmpty(
+            "An answer the module refused announced itself anyway.");
+    }
+
+    /// <summary>
+    /// Replacing a preference publishes a change notification carrying no preference.
+    /// </summary>
+    /// <remarks>
+    /// The negative half is the point. Channels, language and quiet hours are Personal under
+    /// <c>docs/nfr/data-classification.md</c> section 5.3, whose consumer "reads it through
+    /// <c>IConsentQuery</c> and never copies it" — and an outbox row is a copy that fans out to every
+    /// registered handler and outlives the moment. The event says the answer changed; the reader asks
+    /// what it now is.
+    /// </remarks>
+    [Fact]
+    public async Task ChangingThePreferencePublishesThatItChangedAndNothingAboutIt()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("pref-event", "203.0.113.173");
+        var customerId = await CustomerAsync();
+
+        await ReplaceAsync(counter, customerId, ["Sms"], "ta-IN", "22:15", "07:45");
+
+        var first = (await OutboxAsync(customerId)).ShouldHaveSingleItem();
+        first.EventType.ShouldBe("customers.preferences-changed.v1");
+        first.AggregateId.ShouldBe(customerId);
+
+        var payload = JsonDocument.Parse(first.Payload).RootElement;
+        payload.GetProperty("wasFirstRecorded").GetBoolean().ShouldBeTrue();
+
+        foreach (var withheld in new[]
+        {
+            "allowedChannels", "language", "quietHours", "quietHoursStart", "quietHoursEnd",
+        })
+        {
+            payload.TryGetProperty(withheld, out _).ShouldBeFalse(
+                $"The payload carries '{withheld}'. Section 5.3 classifies it Personal and names who "
+                + "may access it; an outbox row broadcasts it to every registered handler.");
+        }
+    }
+
     /* Arrangement -------------------------------------------------------------------------------- */
 
     private async Task<Guid> CustomerAsync()
@@ -499,6 +643,34 @@ public sealed class ConsentEndpointTests(WebApplicationFixture fixture)
             .GetAsync(customerId, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>
+    /// This customer's outbox rows, from the Customers schema, oldest first.
+    /// </summary>
+    /// <remarks>
+    /// Read through <c>CustomersDbContext</c>, which maps <c>customers.outbox_messages</c> and no
+    /// other module's. A test that read the platform's table would pass against the arrangement #77
+    /// replaced and say nothing about this one.
+    /// </remarks>
+    private async Task<IReadOnlyList<OutboxRow>> OutboxAsync(Guid customerId)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+
+        return
+        [
+            .. await context.OutboxMessages
+                .Where(message => message.AggregateId == customerId)
+                .OrderBy(message => message.OccurredAt)
+                .ThenBy(message => message.Id)
+                .Select(message => new OutboxRow(
+                    message.EventType,
+                    message.SchemaVersion,
+                    message.AggregateId,
+                    message.Payload))
+                .ToListAsync(TestContext.Current.CancellationToken),
+        ];
+    }
+
     private async Task<IReadOnlyList<AuditRow>> AuditEntriesAsync(Guid customerId)
     {
         using var scope = fixture.Services.CreateScope();
@@ -519,6 +691,12 @@ public sealed class ConsentEndpointTests(WebApplicationFixture fixture)
         => ("Idempotency-Key", Guid.CreateVersion7().ToString());
 
     private sealed record AuditRow(string Action, string Summary, string? Before, string? After);
+
+    private sealed record OutboxRow(
+        string EventType,
+        int SchemaVersion,
+        Guid AggregateId,
+        string Payload);
 
     private sealed record ConsentBody(IReadOnlyList<PurposeBody> Purposes);
 

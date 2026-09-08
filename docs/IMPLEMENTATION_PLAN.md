@@ -1246,11 +1246,17 @@ acceptance criteria, which remain the contract.
   the query server-side before every send; `ICustomerSnapshotQuery.Get(customerId, callerPermissions)` →
   `{ customerNumber, displayName, nativeName, language, branchId, contact fields only with customers.read_contact }`
   used by #32a (order/estimate snapshot) and #42 (invoice customer snapshot). Contract tests in this PR.
-  **The three read contracts are built. The three integration events were blocked by #77** — #21 had built one
-  shared `platform.outbox_messages` where [ADR-0008](adr/0008-transactional-outbox-and-workers.md) decided a table
-  per module schema, so a module's write and its event were on two contexts and two transactions — and #77 has
-  since moved both the outbox and the inbox into each module's schema. The events are unblocked and land with the
-  merge slice.
+  **The three read contracts and the three integration events are built.** The events were blocked by #77 — #21
+  had built one shared `platform.outbox_messages` where
+  [ADR-0008](adr/0008-transactional-outbox-and-workers.md) decided a table per module schema, so a module's write
+  and its event were on two contexts and two transactions — and #77 moved both the outbox and the inbox into each
+  module's schema. Each is declared in `Customers.Contracts`, published before the save that commits the record,
+  and documented by a JSON Schema and an example under
+  [`integration/events/`](integration/events/README.md). Their payloads are thin on purpose: section 5.3 of
+  [`nfr/data-classification.md`](nfr/data-classification.md) classifies consent records and communication
+  preferences **Personal** and says the consuming module "reads it through `IConsentQuery` and never copies it",
+  so the consent events carry purpose, outcome and wording version and not the free-text source, and
+  `preferences-changed` carries no preference at all.
 - **Field-level visibility**: DTOs projected through a `CustomerViewPolicy`: `customers.read` returns name,
   customer number, branch and status; `customers.read_contact` adds phones/email/address; `customers.read_notes`
   adds notes; consent history requires `customers.read_consent`. Tailor and Tailor Master receive no contact

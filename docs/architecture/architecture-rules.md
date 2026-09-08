@@ -382,8 +382,15 @@ a rule today.
 | --- | --- | --- |
 | No `float` or `double` appears in a money or tax type | The convention is stated in [`conventions.md`](conventions.md) and enforced centrally by the EF decimal facets; a source-scan rule needs a way to distinguish money from a legitimate ratio such as a wastage percentage | #42 |
 | Every append-only table has a trigger rejecting `UPDATE` and `DELETE` from the application role | This is a database fact, not a project or source fact; it belongs to a migration-inspection integration test | #21 |
-| Every integration event class has a JSON Schema and an example under `docs/integration/events/` | No integration event exists yet | #21, extended by #54 |
 | Every module writes only to its own object-storage prefix | Enforced by per-module storage credentials or a bucket policy and asserted by an integration test against MinIO, not by a static rule | #31 |
+
+**Adopted since this list was written.** "Every integration event class has a JSON Schema and an example under
+`docs/integration/events/`" was a candidate only because no integration event existed to hold to it. The first three
+arrived with #26, and `IntegrationEventTests` in the contract tier now enforces it and four things beside it: the
+wire name's shape, that the name's major version and `SchemaVersion` agree, that the schema describes exactly the
+properties the event serialises, and that no payload carries a field named like personal data. It lives in the
+contract tier rather than here for the reason ARCH-007 and ARCH-008 do: it reads what a type actually puts on the
+wire, which no `.csproj` records.
 
 ---
 

@@ -1,0 +1,13 @@
+{
+  "eventId": "019bd0f4-2c31-7a4e-9f10-6b2c8d5e4a71",
+  "occurredAt": "2026-09-08T09:24:16.4820000+00:00",
+  "aggregateId": "019bcf80-11a2-7c3d-8e45-0f9a1b2c3d4e",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "recordId": "019bd0f4-2c30-7f88-b7a2-3c4d5e6f7a80",
+  "purposeKey": "photo_capture",
+  "status": "Granted",
+  "wordingVersion": 2,
+  "branchId": "019bcf80-04c5-7e9a-9b33-2a1b0c9d8e7f",
+  "eventType": "customers.consent-recorded.v1",
+  "schemaVersion": 1
+}

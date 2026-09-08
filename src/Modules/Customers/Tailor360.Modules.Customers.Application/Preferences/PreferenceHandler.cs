@@ -1,8 +1,10 @@
 using Tailor360.Modules.Customers.Application.Abstractions;
+using Tailor360.Modules.Customers.Contracts.Events;
 using Tailor360.Modules.Customers.Domain;
 using Tailor360.Modules.Customers.Domain.Preferences;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Concurrency;
+using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Abstractions.Time;
 
@@ -26,13 +28,17 @@ namespace Tailor360.Modules.Customers.Application.Preferences;
 /// </remarks>
 /// <param name="preferences">The preference store.</param>
 /// <param name="customers">The record store, for the customer this is about.</param>
+/// <param name="events">This module's event publisher, over this module's outbox.</param>
 /// <param name="audit">The platform's audit writer.</param>
 /// <param name="clock">The clock.</param>
+/// <param name="ids">The identifier generator.</param>
 public sealed class PreferenceHandler(
     IPreferenceStore preferences,
     ICustomerStore customers,
+    ICustomersEventPublisher events,
     IAuditWriter audit,
-    IClock clock)
+    IClock clock,
+    IIdGenerator ids)
 {
     /// <summary>A customer's communication preference was recorded or changed.</summary>
     public const string ChangedAction = "customers.preferences.changed";
@@ -123,6 +129,18 @@ public sealed class PreferenceHandler(
                 return Result.Failure<AdministeredPreferences>(replaced.Error);
             }
         }
+
+        // Published before the save, so the outbox row and the preference are one save on this
+        // module's context and one connection (#77). It carries nothing about the preference itself —
+        // channels, language and quiet hours are Personal under data-classification.md section 5.3,
+        // whose consumer "reads it through IConsentQuery and never copies it", and an outbox row is a
+        // copy. The event says the answer changed; the reader asks what it now is.
+        events.Publish(new PreferencesChanged(
+            ids.NewId(),
+            clock.UtcNow,
+            command.CustomerId,
+            command.OrganisationId,
+            before is null));
 
         var saved = await preferences.TrySaveChangesAsync(cancellationToken);
 

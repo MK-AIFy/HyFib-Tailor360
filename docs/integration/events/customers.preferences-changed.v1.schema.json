@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.preferences-changed.v1.schema.json",
+  "title": "customers.preferences-changed.v1",
+  "description": "A customer's communication preference was recorded or replaced. The payload carries no preference — channels, language and quiet hours are Personal under data-classification.md section 5.3, whose consumer 'reads it through IConsentQuery and never copies it', and an outbox row is a copy. The event says the answer changed; the reader asks ICommunicationPreferenceQuery what it now is.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "wasFirstRecorded",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the preference was recorded or replaced, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer. Ordering is preserved per aggregate, so two changes cannot be seen out of order."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the customer belongs to."
+    },
+    "wasFirstRecorded": {
+      "type": "boolean",
+      "description": "True when nobody had recorded a preference for this customer before. A fact about the system's knowledge rather than about her: the difference between a consumer that had nothing cached and one whose cache is now stale."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.preferences-changed.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

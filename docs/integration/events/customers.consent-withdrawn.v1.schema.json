@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.consent-withdrawn.v1.schema.json",
+  "title": "customers.consent-withdrawn.v1",
+  "description": "A customer withdrew consent she had given. Separate from customers.consent-recorded.v1 because this is the one a consumer must act on: data-classification.md section 5.3 says the record exists to honour a withdrawal immediately. There is no status field — the event type is the status.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "recordId",
+    "purposeKey",
+    "wordingVersion",
+    "branchId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the withdrawal was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer. Ordering is preserved per aggregate, so this cannot arrive before the grant it revokes."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the customer belongs to."
+    },
+    "recordId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The withdrawal record. Withdrawing appends a row rather than changing the one that granted, so this is the withdrawal, not the grant it revokes."
+    },
+    "purposeKey": {
+      "type": "string",
+      "description": "The purpose she is withdrawing from, by its stable key."
+    },
+    "wordingVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The wording version the withdrawal was recorded against."
+    },
+    "branchId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "The branch the withdrawal was taken at, or null where it was taken at none."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.consent-withdrawn.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}
