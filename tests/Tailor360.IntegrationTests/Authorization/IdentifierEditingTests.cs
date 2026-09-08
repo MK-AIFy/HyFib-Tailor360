@@ -2,7 +2,9 @@ using System.Net;
 using System.Text.Json;
 using OtpNet;
 using Shouldly;
+using Tailor360.IntegrationTests.Customers;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.IntegrationTests.Authorization;
 
@@ -29,6 +31,9 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
 {
     private static readonly MatrixFixtures Fixtures = MatrixFixtures.Load();
 
+    private static readonly Guid IdorFirstBranchId = Guid.Parse("0199c000-0000-7000-8000-0000000000d1");
+    private static readonly Guid IdorSecondBranchId = Guid.Parse("0199c000-0000-7000-8000-0000000000d2");
+
     /// <summary>Every route the fixtures list is one this suite actually asks about.</summary>
     [Fact]
     public void EveryIdentifierEditingCaseIsCovered()
@@ -37,6 +42,10 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
         [
             "DELETE /api/v1/sessions/{sessionId}",
             "DELETE /api/v1/auth/passkeys/{passkeyId}",
+            "GET /api/v1/customers/{customerId}",
+            "GET /api/v1/customers/{customerId}/duplicates",
+            "POST /api/v1/customers/{customerId}/merge",
+            "GET /api/v1/customers/{customerId}/exports/{exportId}",
         ];
 
         Fixtures.IdentifierEditing.ShouldNotBeEmpty();
@@ -118,6 +127,184 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
         (await AuthenticationTestData.HoldsPasskeyAsync(fixture, stranger.Id, theirPasskeyId))
             .ShouldBeTrue();
     }
+
+    /// <summary>
+    /// The customer record, where the rule points both ways: an identifier from another branch reaches
+    /// the record on purpose, and the two refusals — nothing, and another organisation's record — are
+    /// the same answer.
+    /// </summary>
+    /// <remarks>
+    /// The second half is the one worth constructing carefully. An "other organisation" record cannot
+    /// be created through the API, because a session carries the organisation it acts in; it is written
+    /// straight into the schema so that what is being compared is a real row the handler refuses rather
+    /// than an identifier that matches nothing twice over. Without that, the assertion would hold for
+    /// an implementation with no organisation check at all.
+    /// </remarks>
+    [Fact]
+    public async Task ACustomerOfAnotherBranchIsReadableAndOneOfAnotherOrganisationIsNotEvenAcknowledged()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, IdorFirstBranchId, "IDOR1");
+        await CustomerHarness.BranchAsync(fixture, IdorSecondBranchId, "IDOR2");
+
+        using var owner = await CustomerHarness.CounterAsync(
+            fixture, "idor-cust-a", "203.0.113.74", IdorFirstBranchId, CustomerHarness.Reception);
+
+        var created = await owner.PostAsync(
+            "/api/v1/customers/",
+            new
+            {
+                displayName = $"Kavitha idor {AdministrationHarness.UniqueToken(6)}",
+                phone = "+919000" + Guid.CreateVersion7().ToString("N")
+                    .Where(char.IsAsciiDigit).TakeLast(6).Aggregate(string.Empty, (all, digit) => all + digit),
+                email = "idor.demo@example.invalid",
+                locality = "Peelamedu",
+                postcode = "641004",
+                language = "ta-IN",
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var customerId = JsonDocument
+            .Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .RootElement.GetProperty("customerId").GetGuid();
+
+        using var elsewhere = await CustomerHarness.CounterAsync(
+            fixture, "idor-cust-b", "203.0.113.75", IdorSecondBranchId, CustomersPermissions.Read);
+
+        // Approved, and asserted so that closing it later has to be a decision rather than a slip.
+        (await elsewhere.GetAsync($"/api/v1/customers/{customerId}"))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var foreignOrganisationCustomerId = await CustomerHarness.CustomerOfAnotherOrganisationAsync(
+            fixture, IdorFirstBranchId);
+
+        var foreign = await elsewhere.GetAsync($"/api/v1/customers/{foreignOrganisationCustomerId}");
+        var invented = await elsewhere.GetAsync($"/api/v1/customers/{Guid.CreateVersion7()}");
+
+        foreign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreign.StatusCode.ShouldBe(invented.StatusCode);
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe("customers.customer-not-found");
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
+        (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
+    }
+
+    /// <summary>
+    /// The duplicate screen resolves its subject through the same organisation-scoped load as the
+    /// read, and refuses on the same terms.
+    /// </summary>
+    /// <remarks>
+    /// A separate route needs its own case, because "it uses the same handler method" is a fact about
+    /// today's code and this file is about what the wire says. A later change that gave this route its
+    /// own load would break the test rather than the guarantee.
+    /// </remarks>
+    [Fact]
+    public async Task TheDuplicateScreenAnswersAnotherOrganisationsRecordAsOneThatDoesNotExist()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, IdorFirstBranchId, "IDOR1");
+
+        using var caller = await CustomerHarness.CounterAsync(
+            fixture, "idor-dup", "203.0.113.76", IdorFirstBranchId, CustomerHarness.Reception);
+
+        var elsewhere = await CustomerHarness.CustomerOfAnotherOrganisationAsync(
+            fixture, IdorFirstBranchId);
+
+        var foreign = await caller.GetAsync($"/api/v1/customers/{elsewhere}/duplicates");
+        var invented = await caller.GetAsync($"/api/v1/customers/{Guid.CreateVersion7()}/duplicates");
+
+        foreign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreign.StatusCode.ShouldBe(invented.StatusCode);
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe("customers.customer-not-found");
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
+        (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
+    }
+
+    /// <summary>
+    /// The merge is the only route on this surface whose identifier arrives in the <em>body</em>, and
+    /// the one where guessing would be worth most.
+    /// </summary>
+    /// <remarks>
+    /// A caller who could tell "no such record" from "a record you may not reach" could enumerate
+    /// another organisation's customers while holding a permission that looks branch-scoped — and
+    /// would learn it from a request that changes nothing, because both attempts are refused. The
+    /// merge is irreversible, so the survivor is read back afterwards to show that neither attempt
+    /// did anything to it.
+    /// </remarks>
+    [Fact]
+    public async Task AMergeNamingAnotherOrganisationsRecordIsAnsweredAsOneThatDoesNotExist()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, IdorFirstBranchId, "IDOR1");
+
+        using var manager = await CustomerHarness.ManagerAsync(
+            fixture, "idor-merge", "203.0.113.77", IdorFirstBranchId, CustomerHarness.BranchManager);
+
+        var created = await manager.PostAsync(
+            "/api/v1/customers/",
+            new
+            {
+                displayName = $"Kavitha idor merge {AdministrationHarness.UniqueToken(6)}",
+                phone = CustomerHarness.UniquePhone(),
+                email = "idor.merge.demo@example.invalid",
+                locality = "Peelamedu",
+                postcode = "641004",
+                language = "ta-IN",
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var survivor = JsonDocument
+            .Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .RootElement;
+
+        var survivorId = survivor.GetProperty("customerId").GetGuid();
+        var version = survivor.GetProperty("version").GetString();
+
+        var elsewhere = await CustomerHarness.CustomerOfAnotherOrganisationAsync(
+            fixture, IdorFirstBranchId);
+
+        var foreign = await MergeAttemptAsync(manager, survivorId, elsewhere, version);
+        var invented = await MergeAttemptAsync(manager, survivorId, Guid.CreateVersion7(), version);
+
+        foreign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreign.StatusCode.ShouldBe(invented.StatusCode);
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe("customers.customer-not-found");
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
+        (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
+
+        var after = await manager.GetAsync($"/api/v1/customers/{survivorId}");
+        after.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        JsonDocument.Parse(await after.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .RootElement.GetProperty("aliases").GetArrayLength().ShouldBe(0);
+    }
+
+    private static Task<HttpResponseMessage> MergeAttemptAsync(
+        AuthenticationClient client,
+        Guid survivorId,
+        Guid mergedCustomerId,
+        string? version)
+        => client.PostAsync(
+            $"/api/v1/customers/{survivorId}/merge",
+            new
+            {
+                mergedCustomerId,
+
+                // Any concrete version will do, and never matches: both targets here are unreachable,
+                // so the answer is settled before a precondition is compared. What matters is that the
+                // field is *present* — omitting it would refuse with a 400 about the payload, which is
+                // a different refusal from the one this test is about.
+                mergedCustomerVersion = "1",
+                reason = "Checking that a refusal says nothing about which it was.",
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()),
+            ("If-Match", $"\"{version}\""));
 
     /// <summary>
     /// Signs in and satisfies a second factor, so that a request reaches a handler behind

@@ -883,7 +883,16 @@ understandable, because a blocked dispatch that sounds like a broken screen is h
 ### 6.8 `A11Y-RJ-01` to `A11Y-RJ-08` — the eight per-role reference journeys of plan #50
 
 These are the set plan Section 9, issue **#50**, calls "the eight reference journeys" and walks against this
-document at W1, with VoiceOver on iOS and TalkBack on Android. Three of them are already covered end to end by a
+document at W1, with VoiceOver on iOS and TalkBack on Android.
+
+**Where to walk them.** All eight are built as Storybook stories, under **Journeys → Reference journeys**
+(`clients/pwa/src/stories/journeys/`), each rendered inside the real application shell with the navigation its role
+actually has, at one of the widths of section 3.6, against the synthetic set of
+[`../prd/walkthroughs.md`](../prd/walkthroughs.md) section 1.2. Three of them — Tailor, Delivery and Cashier — are
+also published at the 320 px reflow floor. The four Storybook toolbars apply to every one: locale (including the
+pseudo-locale, which is the 40% text-growth check), theme (including the high-contrast sunlight theme), the
+product's own text size, and density. Run `pnpm --dir clients/pwa storybook` and open the folder; the modules the
+screens will eventually live in do not exist yet, which is why the journeys are stories and not routes. Three of them are already covered end to end by a
 priority-zero record and are **not walked twice**: the mapping column says so, and the runner completes the named
 record instead of a second one. The remaining five have no record anywhere else in this document and are written
 out below. That the three mapped journeys are satisfied by the priority-zero record rather than re-walked under a

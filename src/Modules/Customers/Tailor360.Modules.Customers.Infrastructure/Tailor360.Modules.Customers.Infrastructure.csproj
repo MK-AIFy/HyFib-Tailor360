@@ -1,12 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- Supplies UseSnakeCaseNamingConvention(), which the whole column convention depends on. -->
+    <PackageReference Include="EFCore.NamingConventions" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <!-- Supplies IDesignTimeDbContextFactory, without which `dotnet ef migrations add` cannot run. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Customers.Application\Tailor360.Modules.Customers.Application.csproj" />
+    <ProjectReference Include="..\Tailor360.Modules.Customers.Contracts\Tailor360.Modules.Customers.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
   </ItemGroup>

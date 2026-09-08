@@ -218,6 +218,26 @@ where an ordering matters, a row lock (section 4.4).
 | `If-Match` missing where it is required | `428 Precondition Required` — recorded convention, confirmed by issue #53 (**COD-05**) |
 | `If-Match` present but stale | `409` with the conflict payload in section 4.3 |
 | Command on an append-only aggregate | No `If-Match`; `Idempotency-Key` instead |
+| Command whose subject is a **second** aggregate | That one's version travels in the request body as `<name>Version` and is checked inside the same lock. Missing or unusable → `400` with the module's `value-required` code; stale → the `409` of section 4.3 |
+
+**A command that destroys or consumes a second aggregate needs a precondition on that one too.** `If-Match` is
+defined over the resource the request URI names, and there is only one of those, so a command acting on a *pair*
+can protect only half the pair with it — and the unprotected half is usually the one being consumed, which is the
+half with no undo. The other version therefore goes in the body: `POST /customers/{survivor}/merge` carries
+`mergedCustomerVersion`, the folded record's version as the caller read it from its own `GET`.
+
+A body-carried version is **not** an `If-Match` value, and the difference is not cosmetic. `If-Match` has a
+wildcard — `*`, meaning "any current representation" — and there is no such thing as "any version" of a record
+somebody approved destroying, so `*` is refused rather than honoured. Read the field as a concrete version and
+compare it with `Equals`; do not route it through `EntityTag.TryParse` or `EntityTag.Matches`, both of which exist
+for the header and both of which implement the header's wildcard.
+
+The two halves also **refuse differently**, because they send the caller to different records. A stale addressed
+resource is the 409 of section 4.3: its own code, `currentVersion`, and the response's `ETag`. A stale second
+aggregate needs its own code, and reports that aggregate's current version under the name of the body field it has
+to be resent in — never as `currentVersion`, and never as an `ETag`, both of which describe the resource named in
+the request URI. A client sent to re-read the wrong record finds the version it already holds and has nothing to
+show the person.
 
 ### 4.3 The 409 contract
 

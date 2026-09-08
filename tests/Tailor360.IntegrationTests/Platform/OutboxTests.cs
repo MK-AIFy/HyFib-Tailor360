@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Shouldly;
 using Tailor360.Platform.Abstractions.Events;
 using Tailor360.Platform.Persistence.Contexts;
+using Tailor360.Platform.Persistence.Entities;
 using Tailor360.Platform.Persistence.Outbox;
 
 namespace Tailor360.IntegrationTests.Platform;
@@ -34,8 +35,7 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
             await using var transaction = await scoped.Database.BeginTransactionAsync(
                 TestContext.Current.CancellationToken);
 
-            await publisher.PublishAsync(SampleEvent.Create(Guid.CreateVersion7()),
-                TestContext.Current.CancellationToken);
+            publisher.Publish(SampleEvent.Create(Guid.CreateVersion7()));
             await scoped.SaveChangesAsync(TestContext.Current.CancellationToken);
             await transaction.RollbackAsync(TestContext.Current.CancellationToken);
         }
@@ -91,6 +91,100 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
         // The handler ran once. At-least-once delivery is what the transport gives; the inbox row is
         // what turns it into at-most-once effect.
         handler.Deliveries.Count.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// The inbox half of issue #77. A handler stages a write and then fails, and neither the write nor
+    /// the row recording that it ran survives.
+    /// </summary>
+    /// <remarks>
+    /// Until #77 the inbox row was written on the platform's context while a handler wrote through its
+    /// own module's, so the two were separate transactions: a crash between them left the effect
+    /// applied with nothing to say so, and redelivery applied it again. That is precisely the
+    /// at-most-once <em>effect</em> ADR-0008 section 4.2 says the row buys, so this asks for it
+    /// directly — the handler's writes and its inbox row are one commit or neither.
+    /// </remarks>
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
+    public async Task AHandlerThatFailsAfterStagingItsWriteLeavesNeitherTheWriteNorTheInboxRow()
+    {
+        await using var context = await fixture.CreateDatabaseAsync("outboxstaged");
+        var sequenceKey = "staged-" + Guid.CreateVersion7().ToString("N")[..8];
+        var behaviour = new StagingBehaviour(sequenceKey) { Throw = true };
+
+        await using var provider = PlatformServiceHarness.Build(
+            context,
+            services => services.AddScoped<IOutboxMessageHandler>(sp => new StagingHandler(
+                sp.GetRequiredService<PlatformDbContext>(), behaviour)));
+
+        await PublishAsync(provider, Guid.CreateVersion7());
+
+        var dispatcher = provider.GetRequiredService<OutboxDispatcher>();
+        await dispatcher.RunCycleAsync("dispatcher-1", TestContext.Current.CancellationToken);
+
+        behaviour.Invocations.ShouldBe(1);
+
+        context.ChangeTracker.Clear();
+
+        (await context.Sequences.CountAsync(
+            row => row.SequenceKey == sequenceKey, TestContext.Current.CancellationToken))
+            .ShouldBe(0, "the handler's staged write survived a failure it was part of.");
+
+        (await context.InboxMessages.CountAsync(
+            row => row.HandlerName == StagingHandler.Name, TestContext.Current.CancellationToken))
+            .ShouldBe(0, "the handler was recorded as having run when it did not.");
+
+        // The message is back on the queue rather than processed, which is what makes the retry below
+        // the system's own behaviour rather than the test's.
+        var message = await context.OutboxMessages.AsNoTracking()
+            .SingleAsync(TestContext.Current.CancellationToken);
+
+        message.ProcessedAt.ShouldBeNull();
+        message.LastError.ShouldNotBeNull();
+    }
+
+    /// <summary>
+    /// And the other side of it: once the handler stops failing, the effect and the row that records
+    /// it land together, and a further redelivery does nothing.
+    /// </summary>
+    [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
+    public async Task AStagedWriteAndItsInboxRowLandTogetherAndOnlyOnce()
+    {
+        await using var context = await fixture.CreateDatabaseAsync("outboxstagedok");
+        var sequenceKey = "staged-" + Guid.CreateVersion7().ToString("N")[..8];
+        var behaviour = new StagingBehaviour(sequenceKey);
+
+        await using var provider = PlatformServiceHarness.Build(
+            context,
+            services => services.AddScoped<IOutboxMessageHandler>(sp => new StagingHandler(
+                sp.GetRequiredService<PlatformDbContext>(), behaviour)));
+
+        var messageId = Guid.CreateVersion7();
+        await PublishAsync(provider, Guid.CreateVersion7(), messageId);
+
+        var dispatcher = provider.GetRequiredService<OutboxDispatcher>();
+        await dispatcher.RunCycleAsync("dispatcher-1", TestContext.Current.CancellationToken);
+
+        context.ChangeTracker.Clear();
+
+        (await context.Sequences.CountAsync(
+            row => row.SequenceKey == sequenceKey, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.InboxMessages.CountAsync(
+            row => row.HandlerName == StagingHandler.Name, TestContext.Current.CancellationToken))
+            .ShouldBe(1);
+
+        // Force the message back into the queue as a lost lease would.
+        await context.Database.ExecuteSqlAsync(
+            $"UPDATE platform.outbox_messages SET processed_at = NULL WHERE id = {messageId}",
+            TestContext.Current.CancellationToken);
+
+        await dispatcher.RunCycleAsync("dispatcher-1", TestContext.Current.CancellationToken);
+
+        behaviour.Invocations.ShouldBe(1, "the inbox row did not stop the second delivery.");
+
+        context.ChangeTracker.Clear();
+
+        (await context.Sequences.CountAsync(
+            row => row.SequenceKey == sequenceKey, TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(OutboxTests))]
@@ -377,9 +471,7 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
         var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var publisher = scope.ServiceProvider.GetRequiredService<IEventPublisher>();
 
-        await publisher.PublishAsync(
-            SampleEvent.Create(aggregateId, messageId, occurredAt),
-            TestContext.Current.CancellationToken);
+        publisher.Publish(SampleEvent.Create(aggregateId, messageId, occurredAt));
 
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
@@ -393,12 +485,66 @@ public sealed class OutboxTests(PlatformDatabaseFixture fixture)
 
         public string HandlerName { get; } = handlerName;
 
+        public string Schema { get; } = PlatformDbContext.SchemaName;
+
         public int Invocations => Volatile.Read(ref _invocations);
 
         public async Task HandleAsync(OutboxDelivery delivery, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _invocations);
             await Task.Delay(delay, cancellationToken);
+        }
+    }
+
+    /// <summary>What a <see cref="StagingHandler"/> should do, shared across the scopes it runs in.</summary>
+    /// <param name="sequenceKey">The row the handler writes, so a test can look for it.</param>
+    private sealed class StagingBehaviour(string sequenceKey)
+    {
+        private int _invocations;
+
+        public string SequenceKey { get; } = sequenceKey;
+
+        /// <summary>Set to make the handler fail after staging its write.</summary>
+        public bool Throw { get; init; }
+
+        public int Invocations => Volatile.Read(ref _invocations);
+
+        public void Record() => Interlocked.Increment(ref _invocations);
+    }
+
+    /// <summary>
+    /// A handler that stages a real write on the module's context and does not save it, which is the
+    /// contract <see cref="IOutboxMessageHandler"/> states: the dispatcher commits the writes with the
+    /// inbox row that records them.
+    /// </summary>
+    /// <param name="context">The module's context, the same instance the dispatcher will save.</param>
+    /// <param name="behaviour">What to do, and where to count it.</param>
+    private sealed class StagingHandler(PlatformDbContext context, StagingBehaviour behaviour)
+        : IOutboxMessageHandler
+    {
+        public const string Name = "test.staging-writer";
+
+        public string EventType => SampleEvent.TypeName;
+
+        public string HandlerName => Name;
+
+        public string Schema => PlatformDbContext.SchemaName;
+
+        public Task HandleAsync(OutboxDelivery delivery, CancellationToken cancellationToken)
+        {
+            behaviour.Record();
+
+            context.Sequences.Add(new SequenceRow
+            {
+                SequenceKey = behaviour.SequenceKey,
+                Scope = "outbox-test",
+                NextValue = 1,
+                UpdatedAt = DateTimeOffset.UnixEpoch,
+            });
+
+            return behaviour.Throw
+                ? throw new InvalidOperationException("staged, then failed")
+                : Task.CompletedTask;
         }
     }
 

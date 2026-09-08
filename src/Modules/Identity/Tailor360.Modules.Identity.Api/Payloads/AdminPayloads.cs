@@ -514,8 +514,12 @@ public sealed record ExportAuditPayload(
 /// went wrong.
 /// </remarks>
 /// <param name="Id">Identity of the message, and of the event it carries.</param>
+/// <param name="Module">
+/// The schema whose outbox holds it. Every module has its own, so this is what tells an operator where
+/// the message actually is (issue #77).
+/// </param>
 /// <param name="AggregateId">The aggregate the event belongs to.</param>
-/// <param name="EventType">The stable wire name, for example <c>orders.order_confirmed</c>.</param>
+/// <param name="EventType">The stable wire name, for example <c>orders.order-confirmed.v1</c>.</param>
 /// <param name="SchemaVersion">The payload schema version.</param>
 /// <param name="OccurredAt">When the event occurred.</param>
 /// <param name="DeadLetteredAt">When it exhausted its delivery attempts.</param>
@@ -524,6 +528,7 @@ public sealed record ExportAuditPayload(
 /// <param name="CorrelationId">The correlation identifier of the request that produced the event.</param>
 public sealed record DeadLetteredMessagePayload(
     Guid Id,
+    string Module,
     Guid AggregateId,
     string EventType,
     int SchemaVersion,
@@ -541,6 +546,7 @@ public sealed record DeadLetteredMessagePayload(
 
         return new DeadLetteredMessagePayload(
             message.Id,
+            message.Module,
             message.AggregateId,
             message.EventType,
             message.SchemaVersion,

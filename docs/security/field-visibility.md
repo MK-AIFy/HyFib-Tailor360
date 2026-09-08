@@ -91,6 +91,30 @@ and job number and never their phone number, **which is why a Tailor can be show
 Minimisation here is not a restriction bolted onto a screen. It is what makes the screen shareable with the people
 who do the work.
 
+### 3.1 A view is a response shape, and it is not the only place a field is withheld
+
+A view governs what leaves the server *to a browser*. It says nothing about what leaves one module *to another*,
+and those are different questions with different answers.
+
+`Customers.Contracts.ICustomerSnapshotQuery` is the first case. Orders (#32a) and Billing (#42) copy a customer
+onto an estimate, an order and an invoice, and neither may read `customers.customers`
+([`../architecture/module-ownership.md`](../architecture/module-ownership.md) section 5.2), so the snapshot is how
+those facts leave the module. It takes the caller's permissions and populates the contact fields only for a caller
+holding `customers.read_contact` — the same rule, applied a step earlier. The mask is evaluated inside the SQL
+projection, so for a caller who does not hold it the telephone number, email address and postal address are never
+read out of PostgreSQL at all.
+
+This does not re-derive the rule section 2 warns about. The rule is written once, keyed off one permission whose
+key the contract repeats from the catalogue under a test that fails if the two ever differ. What it adds is a
+second boundary in front of the first: Orders will declare its own view withholding `CustomerContact`, and by then
+a masked caller's contact fields will not have reached Orders to be withheld.
+
+The customer record's own response views — `customers.read` returning name, number, branch and status,
+`customers.read_contact` adding the contact fields, `customers.read_notes` adding notes, and consent history
+behind `customers.read_consent` — are the `CustomerViewPolicy` half of #26 and are **not built yet**. Until they
+are, the customer endpoints mask by hand in their payload projection, which is exactly the arrangement section 2
+argues against and is why it is written down here rather than left to be discovered.
+
 ---
 
 ## 4. The fields

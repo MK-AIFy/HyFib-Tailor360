@@ -21,8 +21,12 @@
     "",
     "Generated code and the test projects are excluded; scripts/coverage-floor.py explains why.",
     "Projects with fewer than `minimum_lines` coverable lines are not gated unless they are named",
-    "below: the module Contracts, Domain and Application projects currently hold nothing but an",
-    "assembly marker class, and a percentage over two lines measures nothing."
+    "below: most module projects still hold nothing but an assembly marker class, and a percentage",
+    "over two lines measures nothing. `Customers.Contracts` is the first exception — it holds three",
+    "published interfaces and the records they carry — and is under the threshold anyway, because a",
+    "contract is mostly declarations. Its behaviour is covered all the same, by PublishedContractTests",
+    "in the Unit and Integration tiers, so being ungated is a statement about how few lines it has and",
+    "not about how little is checked."
   ],
 
   "minimum_lines": 50,
@@ -36,8 +40,8 @@
   "projects": {
     "Tailor360.Platform.Persistence": {
       "floor": 92.0,
-      "measured": 94.2,
-      "note": "The persistence platform of #21. Exercised by all four tiers."
+      "measured": 95.2,
+      "note": "The persistence platform of #21, with the per-module outbox and inbox of #77. Exercised by all four tiers."
     },
     "Tailor360.Platform.Observability": {
       "floor": 94.0,
@@ -61,8 +65,28 @@
     },
     "Tailor360.Worker": {
       "floor": 22.0,
-      "measured": 25.2,
-      "note": "Recorded debt, not an accepted standard, and below the default deliberately. The worker's own decisions are covered — HeartbeatHealthCheck and WorkerOptions at 100%, HeartbeatService at 64%, including that a database it cannot reach does not stop the beat. What is not covered is the part that cannot be reached without a host and a live database: OutboxDispatcherService, AuditPartitionMaintenanceService and the composition root, 81 of the 135 lines. Until this project was gated it was invisible: nothing executed it, so it appeared in no coverage report at all, and it only started being measured when the ARCH-020/ARCH-021 tests of #24 began reflecting over the assembly — which reports every line of a never-executed assembly as uncovered. The floor rises to the default when #54 exercises the outbox relay and #58 restarts the worker under fault injection."
+      "measured": 23.1,
+      "note": "Recorded debt, not an accepted standard, and below the default deliberately. The worker's own decisions are covered — HeartbeatHealthCheck and WorkerOptions at 100%, HeartbeatService at 64%, including that a database it cannot reach does not stop the beat. What is not covered is the part that cannot be reached without a host and a live database: OutboxDispatcherService, AuditPartitionMaintenanceService and the composition root, 113 of the 147 lines. It measured 25.2% until the worker began composing every module (ARCH-006, issue #77): a module the worker does not register has an outbox nothing claims from, so the eleven registrations are load-bearing, and they land in the one part of this project no test executes. Until this project was gated it was invisible: nothing executed it, so it appeared in no coverage report at all, and it only started being measured when the ARCH-020/ARCH-021 tests of #24 began reflecting over the assembly — which reports every line of a never-executed assembly as uncovered. The floor rises to the default when #54 exercises the outbox relay and #58 restarts the worker under fault injection."
+    },
+    "Tailor360.Modules.Customers.Domain": {
+      "floor": 92.0,
+      "measured": 96.9,
+      "note": "The customer aggregate, the name and telephone normalisers, the duplicate score and the consent and preference types of #26, covered by the Unit tier."
+    },
+    "Tailor360.Modules.Customers.Application": {
+      "floor": 92.0,
+      "measured": 96.6,
+      "note": "The customer, consent and preference handlers and their audit projections, covered by the Integration tier through the endpoints."
+    },
+    "Tailor360.Modules.Customers.Infrastructure": {
+      "floor": 94.0,
+      "measured": 97.2,
+      "note": "The DbContext, the stores, the counter search, the three published queries and the module's own event publisher. The figure depends on the migrations being applied during the run, which is what covers the roughly 1,070 lines of the two migrations and their designers; CI's service container is empty on every run, so it is. A developer re-running the Integration tier against a database that already carries the schema measures about 46% for this project and should not read that as a regression: the whole difference is migration code that had nothing left to do."
+    },
+    "Tailor360.Modules.Customers.Api": {
+      "floor": 92.0,
+      "measured": 96.0,
+      "note": "The eleven customer, consent and communication-preference endpoints and their payloads, covered by the Contract and Integration tiers."
     },
     "Tailor360.Cli": {
       "floor": 4.0,

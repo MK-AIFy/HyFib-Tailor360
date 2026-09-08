@@ -101,7 +101,7 @@ with the reason.**
 | ARCH-003 | An `Application` project never references another module's `Infrastructure` or `Api` | Enforced |
 | ARCH-004 | Only a module's `Contracts` project and the `Platform.*` libraries cross a module boundary | Enforced |
 | ARCH-005 | No `DbContext` maps a table in another module's schema | Enforced |
-| ARCH-006 | A host composes a module only through its registration extensions, and references only `Api`, `Infrastructure` or `Contracts` | Enforced |
+| ARCH-006 | Every host composes every module through its registration extensions, and references only `Api`, `Infrastructure` or `Contracts` | Enforced |
 | ARCH-007 | Every endpoint declares an authorisation policy or a justified anonymous exposure | Enforced |
 | ARCH-008 | Every state-changing endpoint carries the audit filter | Enforced |
 | ARCH-009 | Provider SDK packages are referenced only by `Integration.Infrastructure` and by test projects | Enforced |

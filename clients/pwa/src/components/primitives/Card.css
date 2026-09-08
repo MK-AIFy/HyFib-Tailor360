@@ -39,14 +39,24 @@
     gap: var(--space-2);
   }
 
+  /*
+   * `min-inline-size: 0` on both children, because a flex item's default minimum is its content and
+   * `flex-wrap` moves items to a new line rather than letting one of them shrink. Without it a card
+   * whose title is a customer name and a garment — which is every card in a queue — is as wide as
+   * that title wants to be, and the card takes the page with it. `overflow-wrap: anywhere` is for
+   * the word that still does not fit: a job number, an address, or any Tamil compound.
+   */
   .card__title {
     margin: 0;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
     font-size: var(--font-size-300);
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-tight);
   }
 
   .card__meta {
+    min-inline-size: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;

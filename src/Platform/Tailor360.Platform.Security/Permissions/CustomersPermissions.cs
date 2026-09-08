@@ -17,7 +17,17 @@ public static class CustomersPermissions
     /// <summary>Read a customer's phone number, email address and postal address.</summary>
     public const string ReadContact = "customers.read_contact";
 
-    /// <summary>Read the consent record — which purposes were agreed, when and how.</summary>
+    /// <summary>
+    /// Read the consent record and the communication preferences — which purposes were agreed, when
+    /// and how, and how the customer wants to be reached.
+    /// </summary>
+    /// <remarks>
+    /// One permission over both because <c>docs/nfr/data-classification.md</c> section 5.3 is one
+    /// inventory row covering "consent records and communication preferences" and names one set of
+    /// people who may see it: Reception and Branch Manager to record and read, Auditor to read. Reading
+    /// preferences under <c>customers.read</c> instead would show a customer's quiet hours to every
+    /// workshop role that can find her, which that row does not approve.
+    /// </remarks>
     public const string ReadConsent = "customers.read_consent";
 
     /// <summary>Read the free-text notes held against a customer.</summary>
@@ -26,7 +36,15 @@ public static class CustomersPermissions
     /// <summary>Create a customer record.</summary>
     public const string Create = "customers.create";
 
-    /// <summary>Correct a customer record and record or withdraw consent.</summary>
+    /// <summary>
+    /// Correct a customer record, record or withdraw consent, and set how the customer is contacted.
+    /// </summary>
+    /// <remarks>
+    /// The reason flag belongs to the correction. A correction changes what the record says about a
+    /// person and the trail has to say why; a consent answer and a communication preference are what
+    /// the customer asked for, and the trail already carries the purpose, the outcome and the wording
+    /// version. So the endpoints demand a reason where they correct and not where they record.
+    /// </remarks>
     public const string Update = "customers.update";
 
     /// <summary>Deactivate a customer record, which keeps history resolvable.</summary>
@@ -61,10 +79,12 @@ public static class CustomersPermissions
     [
         new(Read, "Find a customer and read their identifying fields.", PermissionModules.Customers),
         new(ReadContact, "Read a customer's phone, email and address.", PermissionModules.Customers),
-        new(ReadConsent, "Read a customer's consent record.", PermissionModules.Customers),
+        new(ReadConsent, "Read a customer's consent record and communication preferences.",
+            PermissionModules.Customers),
         new(ReadNotes, "Read the free-text notes held against a customer.", PermissionModules.Customers),
         new(Create, "Create a customer record.", PermissionModules.Customers),
-        new(Update, "Correct a customer record and record or withdraw consent.",
+        new(Update, "Correct a customer record, record or withdraw consent, and set how the customer "
+            + "is contacted.",
             PermissionModules.Customers, RequiresReason: true),
         new(Deactivate, "Deactivate a customer record.",
             PermissionModules.Customers, RequiresReason: true),

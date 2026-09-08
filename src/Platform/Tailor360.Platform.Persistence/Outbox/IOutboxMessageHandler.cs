@@ -16,7 +16,30 @@ public interface IOutboxMessageHandler
     /// </summary>
     string HandlerName { get; }
 
-    /// <summary>Handles one delivery. Must be safe to call twice with the same message.</summary>
+    /// <summary>
+    /// The schema of the module this handler writes to, and therefore the inbox that records it ran.
+    /// </summary>
+    /// <remarks>
+    /// The inbox row is only worth anything if it commits with the writes it records, so it has to be
+    /// in the schema those writes land in. Naming the wrong one, or one no module owns, fails loudly
+    /// on the first delivery rather than quietly recording the handler somewhere its effect is not
+    /// (issue #77).
+    /// </remarks>
+    string Schema { get; }
+
+    /// <summary>
+    /// Handles one delivery. Must be safe to call twice with the same message.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Stage writes; do not save them.</strong> The dispatcher opens a transaction on the
+    /// module's context, calls this, adds the inbox row and saves both together — which is what makes a
+    /// redelivered message a no-op rather than a second effect. A handler that called
+    /// <c>SaveChangesAsync</c> itself would commit its effect separately from the row that records it,
+    /// and a crash in between would leave the effect with nothing to say it had happened.
+    /// </remarks>
+    /// <param name="delivery">The message.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>A task that completes when the handler's writes are staged.</returns>
     Task HandleAsync(OutboxDelivery delivery, CancellationToken cancellationToken);
 }
 

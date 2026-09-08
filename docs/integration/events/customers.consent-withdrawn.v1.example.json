@@ -1,0 +1,12 @@
+{
+  "eventId": "019bd10c-7f52-7b93-a0e4-1d2c3b4a5968",
+  "occurredAt": "2026-09-08T11:02:53.1170000+00:00",
+  "aggregateId": "019bcf80-11a2-7c3d-8e45-0f9a1b2c3d4e",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "recordId": "019bd10c-7f51-7d46-8c19-4e5f60718293",
+  "purposeKey": "marketing_messages",
+  "wordingVersion": 2,
+  "branchId": null,
+  "eventType": "customers.consent-withdrawn.v1",
+  "schemaVersion": 1
+}

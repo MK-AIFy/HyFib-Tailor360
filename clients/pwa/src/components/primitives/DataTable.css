@@ -23,6 +23,14 @@
    * a keyboard.
    */
   .data-table__scroll {
+    /*
+     * Positioned, so that an absolutely positioned descendant resolves against this box rather than
+     * against the page. `.visually-hidden` is `position: absolute`, the header's row-actions label
+     * uses it, and inside a table 992 px wide in a 734 px container that label kept its static
+     * position — 805 px, 37 px past the right edge of a 768 px screen — and stretched the document
+     * with it. The page then scrolled sideways while the table sat innocently in its scroller.
+     */
+    position: relative;
     overflow-x: auto;
     /* Stops a sideways drag from turning into a browser back gesture halfway through a queue. */
     overscroll-behavior-x: contain;
@@ -31,8 +39,21 @@
     background: var(--colour-surface);
   }
 
+  /*
+   * `min-inline-size`, not `inline-size`.
+   *
+   * With a fixed `inline-size: 100%` the table can only ever squeeze: a workboard with eight columns
+   * at 1280 px compressed its action column until "Assign" broke one letter to a line, and the
+   * scroll container above never engaged, because there was nothing left to scroll. That is the
+   * exact failure the comment at the top of this file says the component avoids.
+   *
+   * A minimum instead of a fixed width keeps a short table filling its container and lets a wide one
+   * grow to what it needs, at which point `.data-table__scroll` does its job. 1.4.10 asks that the
+   * *page* not scroll sideways; it explicitly allows a wide table to scroll inside its own
+   * container, and that container is focusable and named so a keyboard can reach it.
+   */
   .data-table__table {
-    inline-size: 100%;
+    min-inline-size: 100%;
     border-collapse: collapse;
     /* Numbers line up column to column, which is what makes a ledger scannable. */
     font-variant-numeric: tabular-nums;
@@ -88,11 +109,17 @@
     text-align: center;
   }
 
+  /*
+   * A row action's own label never breaks. Its whole job is to say which row it belongs to, and a
+   * word broken across four lines says nothing — it also collapses the column to the width of one
+   * letter, which is how a table ends up squeezed rather than scrolled.
+   */
   .data-table__row-actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--target-spacing-standard);
+    white-space: nowrap;
   }
 
   /* In the table layout the column name is already in the header row. */
@@ -190,8 +217,11 @@
       padding-block-start: var(--space-3);
     }
 
+    /* In the card layout there is no column to protect and the row is the full width, so a long
+       action label wraps like everything else rather than pushing the card sideways. */
     .data-table__row-actions {
       justify-content: flex-start;
+      white-space: normal;
     }
 
     .data-table__empty {

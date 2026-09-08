@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.consent-recorded.v1.schema.json",
+  "title": "customers.consent-recorded.v1",
+  "description": "A customer answered about one consent purpose. A withdrawal is customers.consent-withdrawn.v1, not this event with a different status, so a consumer that must honour a withdrawal immediately subscribes to exactly the fact it has to react to.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "recordId",
+    "purposeKey",
+    "status",
+    "wordingVersion",
+    "branchId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the answer was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer. The dispatcher never reorders this customer's committed messages, but it cannot serialise two counters answering at once: see the ordering row in docs/integration/events/README.md before relying on the order two events arrived in."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the customer belongs to."
+    },
+    "recordId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The consent record this event announces. Media (#31) stores it against every photograph it keeps."
+    },
+    "purposeKey": {
+      "type": "string",
+      "description": "The purpose, by its stable key. Renaming a purpose in the register does not change it."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Granted", "Declined"],
+      "description": "What she said. Never Withdrawn, which has its own event, and never NeverAsked, which is the absence of an answer and cannot be one."
+    },
+    "wordingVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The version of the wording she was read. A later version re-consents nobody; comparing it against the current version is how a shop finds who to ask again."
+    },
+    "branchId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "The branch the answer was taken at, or null where it was taken at none."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.consent-recorded.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}
