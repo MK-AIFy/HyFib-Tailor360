@@ -789,6 +789,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{customerId}/communication-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read how a customer wants to be reached.
+         * @description `hasBeenRecorded` is false when nobody has asked her, and the response then carries no ETag — there is no version of a row that does not exist, which is why the first write is the one change that needs no `If-Match`. An empty `allowedChannels` on a recorded preference is an answer and not a gap: it means do not message her, and it withdraws consent to nothing.
+         */
+        get: operations["GetCustomerCommunicationPreferences"];
+        /**
+         * Record how a customer wants to be reached, replacing what was there.
+         * @description The whole preference is replaced rather than patched, so that the trail reads as a state and "which channels does she accept" has one answer. An empty `allowedChannels` is how she says do not message me, and it withdraws consent to nothing. Quiet hours are wall-clock times at the branch and may run backwards over midnight, which is the ordinary case; send both ends or neither. `If-Match` is required once a preference exists and must be omitted before then, because there is no version of a row that does not exist.
+         */
+        put: operations["ReplaceCustomerCommunicationPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read what a customer has agreed to, purpose by purpose.
+         * @description The whole register comes back, including purposes she has never been asked about — which is how the counter knows to ask — and purposes that have been retired, because what she said about one still stands. Answers are newest first, so the first of them is the one that stands; `canBeAnswered` says whether a new answer may be recorded now.
+         */
+        get: operations["GetCustomerConsent"];
+        put?: never;
+        /**
+         * Record what a customer said about one purpose.
+         * @description Appends an answer; it never edits one. Withdrawing is a `Withdrawn` answer and agreeing again is another `Granted` one, so the evidence that she once withdrew survives her changing her mind. The wording version is read from the register here rather than sent, because a client that could name a version could record an answer against words she was never read; a purpose with no published wording is refused for the same reason. A withdrawal is written to the trail as `customers.consent.withdrawn` rather than as the action this route declares, because a withdrawal is what somebody reviewing the trail is looking for.
+         */
+        post: operations["RecordCustomerConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/{customerId}/deactivate": {
         parameters: {
             query?: never;
@@ -987,6 +1035,46 @@ export interface components {
             timeZoneId: string;
             version: string;
         };
+        CommunicationPreferencePayload: {
+            allowedChannels: string[];
+            /** Format: uuid */
+            customerId: string;
+            hasBeenRecorded: boolean;
+            language: string;
+            /** Format: time */
+            quietHoursEnd: null | string;
+            /** Format: time */
+            quietHoursStart: null | string;
+            /** Format: date-time */
+            updatedAt: null | string;
+            version: null | string;
+        };
+        ConsentAnswerPayload: {
+            /** Format: uuid */
+            branchId: null | string;
+            decision: string;
+            purposeKey: string;
+            /** Format: uuid */
+            recordId: string;
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: uuid */
+            recordedBy: null | string;
+            source: string;
+            /** Format: int32 */
+            wordingVersion: number | string;
+        };
+        ConsentPurposePayload: {
+            answers: components["schemas"]["ConsentAnswerPayload"][];
+            canBeAnswered: boolean;
+            /** Format: int32 */
+            currentWordingVersion: number | string;
+            description: null | string;
+            isRetired: boolean;
+            key: string;
+            name: string;
+            status: string;
+        };
         CorrectCustomerRequest: {
             addressLine: null | string;
             alternatePhone: null | string;
@@ -1034,6 +1122,9 @@ export interface components {
             owningBranchId: string;
             status: string;
             visibleToCaller: boolean;
+        };
+        CustomerConsentPayload: {
+            purposes: components["schemas"]["ConsentPurposePayload"][];
         };
         CustomerPagePayload: {
             customers: components["schemas"]["CustomerCardPayload"][];
@@ -1273,6 +1364,11 @@ export interface components {
             state: null | string;
             timeZoneId: null | string;
         };
+        RecordConsentRequest: {
+            decision: null | string;
+            purposeKey: null | string;
+            source: null | string;
+        };
         RecoveryAcceptedPayload: {
             message: string;
         };
@@ -1308,6 +1404,14 @@ export interface components {
         ReplaceBranchesPayload: {
             branches: null | components["schemas"]["BranchAssignmentPayload"][];
             reason: null | string;
+        };
+        ReplacePreferencesRequest: {
+            allowedChannels: null | string[];
+            language: null | string;
+            /** Format: time */
+            quietHoursEnd: null | string;
+            /** Format: time */
+            quietHoursStart: null | string;
         };
         ReplaceRolePermissionsPayload: {
             permissionKeys: null | string[];
@@ -4086,6 +4190,202 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCustomerCommunicationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunicationPreferencePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ReplaceCustomerCommunicationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "allowedChannels": [
+                 *         "Sms",
+                 *         "WhatsApp"
+                 *       ],
+                 *       "language": "ta-IN",
+                 *       "quietHoursEnd": "08:00:00",
+                 *       "quietHoursStart": "21:30:00"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ReplacePreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunicationPreferencePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCustomerConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerConsentPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RecordCustomerConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "decision": "Granted",
+                 *       "purposeKey": "photo_capture",
+                 *       "source": "counter, verbal"
+                 *     }
+                 */
+                "application/json": components["schemas"]["RecordConsentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentAnswerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

@@ -2,7 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Modules.Customers.Application.Consent;
+using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Customers;
+using Tailor360.Modules.Customers.Domain.Preferences;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Domain.Access;
@@ -48,6 +51,7 @@ internal static class CustomerHarness
     [
         CustomersPermissions.Read,
         CustomersPermissions.ReadContact,
+        CustomersPermissions.ReadConsent,
         CustomersPermissions.Create,
         CustomersPermissions.Update,
         CustomersPermissions.Deactivate,
@@ -210,5 +214,241 @@ internal static class CustomerHarness
             .StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
 
         return client;
+    }
+
+    /// <summary>
+    /// Writes a customer record belonging to this organisation, straight into the schema.
+    /// </summary>
+    /// <remarks>
+    /// The published queries are the thing under test, so the record they read is arranged directly
+    /// rather than through the endpoints. Going through the API would work and would also make every
+    /// one of those tests fail whenever the registration endpoint changed, which is a coupling worth
+    /// not having: the endpoints have their own tests, and these ask about the contract.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="owningBranchId">The branch to record as the owner.</param>
+    /// <param name="language">
+    /// The language on the record, which is what an unrecorded preference falls back to.
+    /// </param>
+    /// <returns>The identifier of the record.</returns>
+    public static async Task<Guid> CustomerAsync(
+        WebApplicationFixture fixture,
+        Guid owningBranchId,
+        string language = "en-IN")
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var ids = scope.ServiceProvider.GetRequiredService<IIdGenerator>();
+
+        var token = AdministrationHarness.UniqueToken(6);
+
+        var details = CustomerDetails.Create(
+            $"Contract subject {token}",
+            "\u0BAE\u0BC0\u0BA9\u0BBE",
+            UniquePhone(),
+            null,
+            $"contract.{token}@example.invalid",
+            "12 Trichy Road",
+            "Ramanathapuram",
+            "641045",
+            language);
+
+        details.IsSuccess.ShouldBeTrue();
+
+        var customer = Customer.Register(
+            ids.NewId(),
+            SessionTestData.OrganisationId,
+            $"C-CONTRACT-{token}",
+            owningBranchId,
+            details.Value,
+            clock.UtcNow).Value;
+
+        context.Customers.Add(customer);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return customer.Id;
+    }
+
+    /// <summary>
+    /// A telephone number nothing else in the suite uses.
+    /// </summary>
+    /// <remarks>
+    /// Synthetic and obviously so — <c>+91 9000 …</c> with a tail taken from a version-7 identifier —
+    /// so that no fixture can be reading a number a person really holds, and two tests running in the
+    /// same second cannot collide on the duplicate check the way a fixed number would.
+    /// </remarks>
+    /// <returns>The number, in E.164.</returns>
+    public static string UniquePhone()
+    {
+        var digits = new string([.. Guid.CreateVersion7().ToString("N").Where(char.IsAsciiDigit)]);
+
+        return "+919000" + (digits.Length >= 6 ? digits[^6..] : digits.PadLeft(6, '7'));
+    }
+
+    /// <summary>
+    /// Defines a consent purpose of this test's own, and optionally publishes a wording for it.
+    /// </summary>
+    /// <remarks>
+    /// A purpose per test rather than the five <c>init-reference-data</c> seeds, because a purpose is
+    /// organisation-wide: publishing a wording bumps a version every other test would then be asserting
+    /// against, and retiring one is not undone by re-running the seeder. Keys are lower-case hexadecimal
+    /// with an underscore, which is what the key rule allows.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="withWording">Whether to publish a first wording, which is what lets it be answered.</param>
+    /// <param name="retired">Whether to retire it immediately.</param>
+    /// <returns>The purpose's key.</returns>
+    public static async Task<string> PurposeAsync(
+        WebApplicationFixture fixture,
+        bool withWording = true,
+        bool retired = false)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var ids = scope.ServiceProvider.GetRequiredService<IIdGenerator>();
+
+        var key = $"test_{AdministrationHarness.UniqueToken(12)}";
+
+        var purpose = ConsentPurpose.Define(
+            ids.NewId(),
+            SessionTestData.OrganisationId,
+            key,
+            $"Test purpose {key}",
+            "Defined by an integration test. Nothing is ever sent on the strength of it.",
+            clock.UtcNow);
+
+        purpose.IsSuccess.ShouldBeTrue();
+
+        if (withWording)
+        {
+            // Deliberately not the words of any real notice. What matters to these tests is that a
+            // version exists for a record to name, not what it says.
+            purpose.Value.PublishWording(
+                ids.NewId(),
+                "Synthetic wording for an integration test.",
+                clock.UtcNow)
+                .IsSuccess.ShouldBeTrue();
+        }
+
+        if (retired)
+        {
+            purpose.Value.Retire(clock.UtcNow, null).IsSuccess.ShouldBeTrue();
+        }
+
+        context.ConsentPurposes.Add(purpose.Value);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return key;
+    }
+
+    /// <summary>Seeds the five consent purposes <c>init-reference-data</c> creates.</summary>
+    /// <remarks>
+    /// Idempotent, like the command itself, so a test that needs the register to exist may call it
+    /// without caring whether another test already did. It publishes no wording, because the command
+    /// does not either — inventing the words a customer is read is what the classification document
+    /// forbids, and the refusal that follows is DC-01 enforced rather than mentioned.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <returns>A task that completes when the register exists.</returns>
+    public static async Task SeededPurposesAsync(WebApplicationFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+
+        await scope.ServiceProvider.GetRequiredService<IConsentReferenceDataSeeder>()
+            .SeedConsentPurposesAsync(SessionTestData.OrganisationId, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Appends one consent record, straight into the schema.</summary>
+    /// <remarks>
+    /// The table is append-only and its trigger enforces that, so a test that wants a customer to have
+    /// changed her mind writes two records rather than editing one — which is exactly what the endpoint
+    /// will do when it exists.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="customerId">The customer who answered.</param>
+    /// <param name="purposeKey">The purpose, by key.</param>
+    /// <param name="decision">What they said.</param>
+    /// <param name="recordedAt">When they said it.</param>
+    /// <param name="wordingVersion">The wording version they were asked under.</param>
+    /// <param name="source">How the answer reached the system.</param>
+    /// <param name="recordId">The identifier to give the record, when the test needs a known one.</param>
+    /// <returns>The identifier of the record written.</returns>
+    public static async Task<Guid> ConsentAsync(
+        WebApplicationFixture fixture,
+        Guid customerId,
+        string purposeKey,
+        ConsentDecision decision,
+        DateTimeOffset recordedAt,
+        int wordingVersion = 1,
+        string source = "counter, verbal",
+        Guid? recordId = null)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+        var ids = scope.ServiceProvider.GetRequiredService<IIdGenerator>();
+
+        var record = ConsentRecord.Record(
+            recordId ?? ids.NewId(),
+            SessionTestData.OrganisationId,
+            customerId,
+            purposeKey,
+            wordingVersion,
+            decision,
+            source,
+            null,
+            recordedAt,
+            null);
+
+        record.IsSuccess.ShouldBeTrue();
+
+        context.ConsentRecords.Add(record.Value);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return record.Value.Id;
+    }
+
+    /// <summary>Records a customer's communication preference, straight into the schema.</summary>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="customerId">The customer.</param>
+    /// <param name="channels">The channels they accept. An empty set is a valid answer.</param>
+    /// <param name="language">The language to write to them in, or null for the default.</param>
+    /// <param name="quietHours">The window they would rather not be messaged in, or null.</param>
+    /// <returns>Nothing; the row is committed.</returns>
+    public static async Task PreferenceAsync(
+        WebApplicationFixture fixture,
+        Guid customerId,
+        IEnumerable<CommunicationChannel> channels,
+        string? language = null,
+        QuietHours? quietHours = null)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+
+        var preference = CommunicationPreferences.Record(
+            customerId,
+            SessionTestData.OrganisationId,
+            channels,
+            language,
+            quietHours,
+            clock.UtcNow,
+            null);
+
+        preference.IsSuccess.ShouldBeTrue();
+
+        context.CommunicationPreferences.Add(preference.Value);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 }

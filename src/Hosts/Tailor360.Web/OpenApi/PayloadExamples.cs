@@ -300,6 +300,23 @@ public static class PayloadExamples
             }
             """,
 
+        ["RecordCustomerConsent"] = """
+            {
+              "purposeKey": "photo_capture",
+              "decision": "Granted",
+              "source": "counter, verbal"
+            }
+            """,
+
+        ["ReplaceCustomerCommunicationPreferences"] = """
+            {
+              "allowedChannels": ["Sms", "WhatsApp"],
+              "language": "ta-IN",
+              "quietHoursStart": "21:30:00",
+              "quietHoursEnd": "08:00:00"
+            }
+            """,
+
         ["RequestPasswordRecovery"] = """
             {
               "email": "counter.demo@example.invalid"

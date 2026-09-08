@@ -111,6 +111,80 @@ public static class CustomersErrors
         "One or more existing customers look like this person. Read them, then either open one or "
         + "confirm that this is somebody new.");
 
+    /// <summary>A consent purpose key held a character that would not survive a URL or a log line.</summary>
+    /// <param name="field">The field carrying the key.</param>
+    public static Error ConsentPurposeKeyNotAllowed(string field) => Error.Validation(
+        "customers.consent-purpose-key-not-allowed",
+        "A consent purpose key is lower-case letters, digits and underscores.",
+        field);
+
+    /// <summary>A consent decision was a value that is none of the outcomes the system records.</summary>
+    /// <remarks>
+    /// Not a weaker answer — an uninterpretable one. The query that reads the latest record to decide
+    /// whether a message may be sent would have nothing to say about it, and a row that cannot be read
+    /// is not evidence.
+    /// </remarks>
+    /// <param name="field">The field carrying the decision.</param>
+    public static Error ConsentDecisionNotUnderstood(string field) => Error.Validation(
+        "customers.consent-decision-not-understood",
+        "A consent decision is granted, declined or withdrawn.",
+        field);
+
+    /// <summary>The purpose is retired, so it is not asked about and its wording does not change.</summary>
+    /// <param name="key">The purpose key.</param>
+    public static Error ConsentPurposeRetired(string key) => Error.Conflict(
+        "customers.consent-purpose-retired",
+        $"The consent purpose '{key}' is retired. What customers already said about it stands; it is "
+        + "no longer asked about, and its wording is not changed.");
+
+    /// <summary>A communication channel was a value that is none of the ones the shop can send on.</summary>
+    /// <param name="field">The field carrying the channels.</param>
+    public static Error CommunicationChannelNotUnderstood(string field) => Error.Validation(
+        "customers.communication-channel-not-understood",
+        "A communication channel is one the shop can actually send on.",
+        field);
+
+    /// <summary>One end of a quiet-hours window was given without the other.</summary>
+    /// <param name="field">The end that is missing.</param>
+    public static Error QuietHoursIncomplete(string field) => Error.Validation(
+        "customers.quiet-hours-incomplete",
+        "Quiet hours need both a start and an end, or neither.",
+        field);
+
+    /// <summary>A quiet-hours window opened and closed at the same time, so it covers nothing.</summary>
+    /// <param name="field">The field carrying the start.</param>
+    public static Error QuietHoursEmpty(string field) => Error.Validation(
+        "customers.quiet-hours-empty",
+        "A quiet-hours window that starts and ends at the same time covers no time at all. To stop "
+        + "messages altogether, allow no channel.",
+        field);
+
+    /// <summary>No purpose in the organisation's register carries that key.</summary>
+    /// <remarks>
+    /// Purposes are configuration an Owner maintains
+    /// (<c>docs/prd/configurable-vs-fixed.md</c> row 75), so a key that names none is a caller asking
+    /// about something this shop does not ask its customers. Recording an answer against it would put
+    /// a row in the evidence that nothing could ever resolve back to a question.
+    /// </remarks>
+    /// <param name="key">The purpose key.</param>
+    public static Error ConsentPurposeNotFound(string key) => Error.NotFound(
+        "customers.consent-purpose-not-found",
+        $"No consent purpose in this organisation's register is called '{key}'.");
+
+    /// <summary>The purpose exists, but nobody has published the words a customer would be read.</summary>
+    /// <remarks>
+    /// The refusal <c>init-reference-data</c> is built around. It seeds the five purposes and
+    /// deliberately publishes no wording, because inventing the notice text a customer is read is
+    /// exactly what <c>docs/nfr/data-classification.md</c> section 4.1 says this system does not do.
+    /// A consent record names the wording version it was taken under, so until an Owner publishes one
+    /// there is nothing for a record to name, and the refusal is DC-01 enforced rather than mentioned.
+    /// </remarks>
+    /// <param name="key">The purpose key.</param>
+    public static Error ConsentWordingNotPublished(string key) => Error.Conflict(
+        "customers.consent-wording-not-published",
+        $"The consent purpose '{key}' has no published wording yet, so there are no words to read the "
+        + "customer and nothing for a record to be evidence of. An Owner publishes the wording first.");
+
     /// <summary>The caller is assigned to no branch, so there is no branch to create the record in.</summary>
     public static Error NoBranchInContext { get; } = Error.Forbidden(
         "customers.no-branch-in-context",

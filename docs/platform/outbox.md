@@ -21,6 +21,27 @@ await context.SaveChangesAsync(cancellationToken);   // the event commits with t
 
 `IEventPublisher` writes to `platform.outbox_messages`. It never sends anything.
 
+### A module cannot do this yet — issue #77
+
+The snippet above holds only where `context` is `PlatformDbContext`, and that is not where a module's
+change lives. [ADR-0008](../adr/0008-transactional-outbox-and-workers.md) decided an `outbox_messages`
+table **in each module's own schema**, so that the module's own context writes both the aggregate and
+the event and one `SaveChangesAsync` commits them together. What issue #21 built is a single shared
+`platform.outbox_messages` on the platform context.
+
+The mechanism below — claims, leases, per-aggregate ordering, retries, dead-lettering, replay — is
+built and tested and is not what is wrong. What is missing is the atomicity, and it is missing exactly
+for the callers the pattern exists for: a module publishing beside its own write has two contexts, two
+connections and two transactions, so saving the change first can commit work whose event is lost, and
+saving the event first can announce work that rolled back. `OutboxTests` publishes and rolls back on
+the platform context alone, which is why the suite is green.
+
+Until #77 closes, **do not publish an integration event alongside a module's own write**. A read
+contract is the alternative that works today: a consumer that pulls asks the owner at the moment it
+needs the answer, and nothing is lost in between. That is why the Customers module publishes
+`IConsentQuery`, `ICommunicationPreferenceQuery` and `ICustomerSnapshotQuery` and publishes none of its
+three integration events yet.
+
 ## Delivery
 
 The worker runs one or more dispatcher instances. Each cycle:

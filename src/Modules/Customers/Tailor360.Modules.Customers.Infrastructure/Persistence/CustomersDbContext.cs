@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Customers;
 using Tailor360.Modules.Customers.Domain.Naming;
+using Tailor360.Modules.Customers.Domain.Preferences;
 using Tailor360.Platform.Persistence.Conventions;
 
 namespace Tailor360.Modules.Customers.Infrastructure.Persistence;
@@ -47,6 +49,18 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
     /// <summary>Which branches see which records in ordinary search.</summary>
     public DbSet<CustomerBranchVisibility> CustomerBranchVisibility => Set<CustomerBranchVisibility>();
 
+    /// <summary>The things a customer is asked to agree to. Configuration, seeded and Owner-maintained.</summary>
+    public DbSet<ConsentPurpose> ConsentPurposes => Set<ConsentPurpose>();
+
+    /// <summary>The published wording versions of each purpose.</summary>
+    public DbSet<ConsentWording> ConsentWordings => Set<ConsentWording>();
+
+    /// <summary>What customers said, when, and against which wording. Append-only.</summary>
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+
+    /// <summary>How each customer wants to be reached.</summary>
+    public DbSet<CommunicationPreferences> CommunicationPreferences => Set<CommunicationPreferences>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +70,9 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         ConfigureCustomers(modelBuilder);
         ConfigureAliases(modelBuilder);
         ConfigureVisibility(modelBuilder);
+        ConfigureConsentPurposes(modelBuilder);
+        ConfigureConsentRecords(modelBuilder);
+        ConfigurePreferences(modelBuilder);
     }
 
     private static void ConfigureCustomers(ModelBuilder modelBuilder)
@@ -185,4 +202,121 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
             .Navigation(customer => customer.Visibility)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
+
+    private static void ConfigureConsentPurposes(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ConsentPurpose>(entity =>
+        {
+            entity.ToTable("consent_purposes");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Key)
+                .HasMaxLength(ConsentPurposeKeys.MaximumLength).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(ConsentPurpose.MaximumNameLength).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(ConsentPurpose.MaximumDescriptionLength);
+
+            // Derived from the wording rows; there is nothing to store, and a stored copy is a second
+            // place for the highest version to be wrong.
+            entity.Ignore(e => e.CurrentWordingVersion);
+
+            // One purpose per key, because a consent record names the key and two purposes answering
+            // to one would make a record ambiguous about what was agreed.
+            entity.HasIndex(e => new { e.OrganisationId, e.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_consent_purposes_organisation_key");
+
+            // Editable configuration: an Owner renames one or retires it, and two doing so at once is
+            // the ordinary race.
+            UseRowVersion(entity);
+        });
+
+        modelBuilder.Entity<ConsentWording>(entity =>
+        {
+            entity.ToTable("consent_wordings");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Text).HasMaxLength(ConsentWording.MaximumTextLength).IsRequired();
+
+            entity.HasOne<ConsentPurpose>()
+                .WithMany(purpose => purpose.Wordings)
+                .HasForeignKey(wording => wording.PurposeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The version a consent record names has to resolve to exactly one wording.
+            entity.HasIndex(e => new { e.PurposeId, e.Version })
+                .IsUnique()
+                .HasDatabaseName("ux_consent_wordings_purpose_version");
+        });
+
+        modelBuilder.Entity<ConsentPurpose>()
+            .Navigation(purpose => purpose.Wordings)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+
+    private static void ConfigureConsentRecords(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<ConsentRecord>(entity =>
+        {
+            entity.ToTable("consent_records");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PurposeKey)
+                .HasMaxLength(ConsentPurposeKeys.MaximumLength).IsRequired();
+            entity.Property(e => e.Decision).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Source)
+                .HasMaxLength(ConsentRecord.MaximumSourceLength).IsRequired();
+
+            // No foreign key to consent_purposes. A record names a key, and the key survives the
+            // purpose being renamed in the register or removed from a later configuration — which is
+            // the point of holding evidence rather than a pointer to current configuration.
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(record => record.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The query every send makes: the latest record for one customer and one purpose. Ordered
+            // descending so the answer is the index's first row rather than a sort over the history.
+            entity.HasIndex(e => new { e.CustomerId, e.PurposeKey, e.RecordedAt })
+                .IsDescending(false, false, true)
+                .HasDatabaseName("ix_consent_records_customer_purpose_recorded");
+
+            // No concurrency token: the table is append-only, so there is nothing to overwrite. The
+            // migration adds the trigger that makes that true of the database and not only of the
+            // domain type.
+        });
+
+    private static void ConfigurePreferences(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<CommunicationPreferences>(entity =>
+        {
+            entity.ToTable("communication_preferences");
+
+            // One row per customer, so the customer is the key rather than a surrogate beside it.
+            entity.HasKey(e => e.CustomerId);
+
+            entity.Property(e => e.Language)
+                .HasMaxLength(CustomerDetails.MaximumLanguageLength).IsRequired();
+
+            // Stored as the channel names rather than their ordinals, so that adding a channel to the
+            // enumeration or reordering it cannot silently re-point every stored preference.
+            entity.PrimitiveCollection(e => e.AllowedChannels)
+                .HasColumnName("allowed_channels")
+                .ElementType(element => element.HasConversion<string>().HasMaxLength(20))
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .IsRequired();
+
+            // Wall-clock times in the branch's timezone, so `time` and never `timestamptz` (BR-7).
+            entity.ComplexProperty(e => e.QuietHours, quiet =>
+            {
+                quiet.IsRequired(false);
+                quiet.Property(q => q.Start).HasColumnName("quiet_hours_start");
+                quiet.Property(q => q.End).HasColumnName("quiet_hours_end");
+            });
+
+            entity.HasOne<Customer>()
+                .WithOne()
+                .HasForeignKey<CommunicationPreferences>(preferences => preferences.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Editable: a customer changes her mind, and two counters saving at once is the race.
+            UseRowVersion(entity);
+        });
 }
