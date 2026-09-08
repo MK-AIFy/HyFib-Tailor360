@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Platform.Persistence.Contexts;
 
@@ -41,6 +42,7 @@ public static class InitReferenceDataCommand
             using var scope = host.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var seeder = scope.ServiceProvider.GetRequiredService<IIdentityReferenceDataSeeder>();
+            var consent = scope.ServiceProvider.GetRequiredService<IConsentReferenceDataSeeder>();
 
             Console.WriteLine($"Environment: {EnvironmentGuard.CurrentEnvironment}");
 
@@ -66,6 +68,24 @@ public static class InitReferenceDataCommand
             Console.WriteLine(
                 $"Default grants: {roles.PermissionsGranted} added, {roles.PermissionsRevoked} removed "
                 + "to match docs/security/permission-matrix.md.");
+            var purposes = await consent.SeedConsentPurposesAsync(organisationId, cancellationToken);
+
+            Console.WriteLine(
+                $"Consent purposes: {purposes.PurposesCreated} created, {purposes.PurposesUpdated} "
+                + $"updated, {purposes.PurposesUnchanged} already current.");
+
+            if (purposes.PurposesAwaitingWording > 0)
+            {
+                // Not a warning about the seeder; a statement about what the shop cannot do yet. A
+                // consent record names a wording version, so a purpose without one cannot be consented
+                // to at all — which is deliberate, and is DC-01 enforced rather than mentioned.
+                Console.WriteLine(
+                    $"  {purposes.PurposesAwaitingWording} of them have no published wording, so "
+                    + "consent cannot be recorded against them yet. An Owner publishes the words a "
+                    + "customer is actually read, after review — this command does not invent them "
+                    + "(docs/nfr/data-classification.md section 4.1, DC-01).");
+            }
+
             Console.WriteLine(
                 "The default service catalogue is added by issue #29; this command grows with it and "
                 + "stays idempotent.");

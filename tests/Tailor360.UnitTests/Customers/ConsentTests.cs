@@ -1,5 +1,6 @@
 using System.Reflection;
 using Shouldly;
+using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Domain.Consent;
 
 namespace Tailor360.UnitTests.Customers;
@@ -395,6 +396,100 @@ public sealed class ConsentTests
             ConsentPurpose.Define(Guid.NewGuid(), Organisation, key, "Seeded", null, Now)
                 .IsSuccess.ShouldBeTrue(key);
         }
+    }
+
+    /// <summary>
+    /// Renaming corrects the register and touches nothing a customer said.
+    /// </summary>
+    /// <remarks>
+    /// A consent record names the key, and the key does not change — which is what lets a shop reword
+    /// the label on a counter screen without anybody's stored answer coming to mean something
+    /// different.
+    /// </remarks>
+    [Fact]
+    public void RenamingAPurposeChangesTheLabelAndNotTheKey()
+    {
+        var purpose = Purpose();
+        purpose.PublishWording(Guid.NewGuid(), "We may send you offers.", Now);
+
+        purpose.Rename("Offers and news", "Anything not about an order in hand.", Now.AddDays(1), by: null)
+            .ShouldBeTrue();
+
+        purpose.Name.ShouldBe("Offers and news");
+        purpose.Description.ShouldBe("Anything not about an order in hand.");
+        purpose.Key.ShouldBe(ConsentPurposeKeys.MarketingMessages);
+        purpose.CurrentWordingVersion.ShouldBe(1);
+        purpose.UpdatedAt.ShouldBe(Now.AddDays(1));
+    }
+
+    /// <summary>
+    /// The seeder runs on every deployment, so a rename that changes nothing must report nothing.
+    /// </summary>
+    [Fact]
+    public void RenamingAPurposeToWhatItAlreadySaysChangesNothing()
+    {
+        var purpose = Purpose();
+
+        purpose.Rename(
+                "Marketing messages",
+                "Anything that is not about an order in hand.",
+                Now.AddDays(1),
+                by: null)
+            .ShouldBeFalse();
+
+        purpose.UpdatedAt.ShouldBe(Now);
+    }
+
+    /// <summary>
+    /// Every purpose the seeder writes is one the domain would accept if it were typed in by hand.
+    /// </summary>
+    /// <remarks>
+    /// The seeder throws rather than writing half a register if this ever stops being true, so this is
+    /// the test that keeps an install from being the thing that discovers it.
+    /// </remarks>
+    [Fact]
+    public void EverySeededPurposeIsOneTheDomainAccepts()
+    {
+        SeededConsentPurposes.All.Count.ShouldBe(ConsentPurposeKeys.Seeded.Count);
+        SeededConsentPurposes.All.Select(purpose => purpose.Key)
+            .ShouldBe(ConsentPurposeKeys.Seeded, ignoreOrder: true);
+
+        foreach (var seeded in SeededConsentPurposes.All)
+        {
+            var defined = ConsentPurpose.Define(
+                Guid.NewGuid(), Organisation, seeded.Key, seeded.Name, seeded.Description, Now);
+
+            defined.IsSuccess.ShouldBeTrue(
+                defined.IsFailure ? $"{seeded.Key}: {defined.Error.Code}" : seeded.Key);
+        }
+    }
+
+    /// <summary>
+    /// The seeder publishes no wording, so nothing it writes can be consented to until an Owner
+    /// publishes words that were actually reviewed. DC-01 enforced rather than mentioned.
+    /// </summary>
+    [Fact]
+    public void ASeededPurposeCannotBeConsentedToUntilItHasWording()
+    {
+        var seeded = SeededConsentPurposes.All[0];
+        var purpose = ConsentPurpose.Define(
+            Guid.NewGuid(), Organisation, seeded.Key, seeded.Name, seeded.Description, Now).Value;
+
+        purpose.CurrentWordingVersion.ShouldBe(0);
+
+        // A record must name a version, and version zero is not one.
+        ConsentRecord.Record(
+                Guid.NewGuid(),
+                Organisation,
+                Guid.NewGuid(),
+                purpose.Key,
+                purpose.CurrentWordingVersion,
+                ConsentDecision.Granted,
+                "counter, verbal",
+                branchId: null,
+                Now,
+                by: null)
+            .IsFailure.ShouldBeTrue();
     }
 
     private static void NothingMutable(Type type)

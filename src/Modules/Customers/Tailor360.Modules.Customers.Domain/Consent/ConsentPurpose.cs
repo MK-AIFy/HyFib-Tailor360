@@ -172,6 +172,39 @@ public sealed class ConsentPurpose
         return published;
     }
 
+    /// <summary>
+    /// Corrects the name and description in the register.
+    /// </summary>
+    /// <remarks>
+    /// Touches no consent record. A record names the <see cref="Key"/>, and the key does not change —
+    /// which is what lets a shop reword the label on a counter screen without anybody's stored answer
+    /// coming to mean something different.
+    /// </remarks>
+    /// <param name="name">The name a screen shows.</param>
+    /// <param name="description">What agreeing allows.</param>
+    /// <param name="now">The clock.</param>
+    /// <param name="by">The actor, or null when seeded.</param>
+    /// <returns>True when something changed, false when the register already said this.</returns>
+    public bool Rename(string name, string? description, DateTimeOffset now, Guid? by)
+    {
+        var displayName = name?.Trim() ?? string.Empty;
+        var text = description?.Trim();
+        text = string.IsNullOrEmpty(text) ? null : text;
+
+        if (string.Equals(Name, displayName, StringComparison.Ordinal)
+            && string.Equals(Description, text, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        Name = displayName;
+        Description = text;
+        UpdatedAt = now;
+        UpdatedBy = by;
+
+        return true;
+    }
+
     /// <summary>Stops the purpose being asked about, without touching what anybody already said.</summary>
     /// <param name="now">The clock.</param>
     /// <param name="by">The actor.</param>

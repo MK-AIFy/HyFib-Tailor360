@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Customers.Application.Abstractions;
+using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Application.Customers;
+using Tailor360.Modules.Customers.Infrastructure.Consent;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
@@ -49,6 +51,7 @@ public static class CustomersModuleServiceCollectionExtensions
         services.TryAddScoped<ICustomerStore, CustomerStore>();
         services.TryAddScoped<ICustomerDirectory, CustomerDirectory>();
         services.TryAddScoped<CustomerHandler>();
+        services.TryAddScoped<IConsentReferenceDataSeeder, ConsentReferenceDataSeeder>();
 
         return services;
     }
