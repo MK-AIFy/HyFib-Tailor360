@@ -132,8 +132,9 @@ export function aFeatureFlag(overrides: Partial<FeatureFlag> = {}): FeatureFlag 
 export function aDeadLetter(overrides: Partial<DeadLetteredMessage> = {}): DeadLetteredMessage {
   return {
     id: '0199bb00-0000-7000-8000-0000000000c1',
+    module: 'notifications',
     aggregateId: '0199bb00-0000-7000-8000-0000000000c2',
-    eventType: 'notifications.message_queued',
+    eventType: 'notifications.message-queued.v1',
     schemaVersion: 1,
     occurredAt: '2026-09-06T10:00:00.000Z',
     deadLetteredAt: '2026-09-06T10:12:00.000Z',

@@ -198,6 +198,11 @@ export interface AuditPage {
 /** One outbox message that exhausted its delivery attempts. */
 export interface DeadLetteredMessage {
   readonly id: string
+  /**
+   * The schema whose outbox holds it. Every module has its own, so this is what tells an operator
+   * where the message actually is.
+   */
+  readonly module: string
   readonly aggregateId: string
   readonly eventType: string
   readonly schemaVersion: number
