@@ -291,7 +291,17 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
         string? version)
         => client.PostAsync(
             $"/api/v1/customers/{survivorId}/merge",
-            new { mergedCustomerId, reason = "Checking that a refusal says nothing about which it was." },
+            new
+            {
+                mergedCustomerId,
+
+                // Any concrete version will do, and never matches: both targets here are unreachable,
+                // so the answer is settled before a precondition is compared. What matters is that the
+                // field is *present* — omitting it would refuse with a 400 about the payload, which is
+                // a different refusal from the one this test is about.
+                mergedCustomerVersion = "1",
+                reason = "Checking that a refusal says nothing about which it was.",
+            },
             ("Idempotency-Key", Guid.CreateVersion7().ToString()),
             ("If-Match", $"\"{version}\""));
 

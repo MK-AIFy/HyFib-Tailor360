@@ -463,19 +463,33 @@ public static class CustomerEndpoints
                     return precondition;
                 }
 
+                // Read as a concrete version, never as an If-Match value: the wildcard that header
+                // parsing accepts would make this precondition match anything at all.
+                if (request is null || !request.TryReadMergedCustomerVersion(out var mergedVersion))
+                {
+                    return Problems.From(CustomersErrors.Required("mergedCustomerVersion"), context);
+                }
+
                 var result = await handler.MergeAsync(
                     new MergeCustomersCommand(
                         customerId,
-                        request?.MergedCustomerId ?? Guid.Empty,
+                        request.MergedCustomerId,
                         caller.Context.OrganisationId,
                         caller.Context.BranchId,
                         current.Value.Version,
-                        request?.Reason,
+                        mergedVersion,
+                        request.Reason,
                         caller.UserId),
                     cancellationToken);
 
                 if (result.IsFailure)
                 {
+                    if (result.Error == CustomersErrors.MergedRecordChanged)
+                    {
+                        return await MergedRecordChangedAsync(
+                            request.MergedCustomerId, context, handler, caller, cancellationToken);
+                    }
+
                     return result.Error == CustomersErrors.ConcurrentChange
                         ? ConcurrencyResults.VersionConflict(
                             context,
@@ -501,7 +515,20 @@ public static class CustomerEndpoints
                 + "ordinary use. Every branch that could see it can now see the survivor. Measurements "
                 + "and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already "
                 + "frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh "
-                + "re-authentication, and there is no un-merge.")
+                + "re-authentication, and there is no un-merge.\n\n"
+                + "Both records are preconditions. `If-Match` carries the survivor's version and "
+                + "`mergedCustomerVersion` carries the folded record's, because what a manager "
+                + "approves is a *pair*: if either has been corrected since they were read, the pair "
+                + "being merged is not the pair that was approved, and the answer is 409 rather than "
+                + "an irreversible merge of something nobody looked at. `mergedCustomerVersion` is a "
+                + "concrete version and never an `If-Match` value: `*` is refused, because there is "
+                + "no such thing as \"any version\" of a record somebody approved destroying.\n\n"
+                + "The two halves refuse differently, because they send the caller to different "
+                + "records. A stale survivor is `customers.version-conflict`, carrying "
+                + "`currentVersion` and an `ETag`. A stale record being folded in is "
+                + "`customers.merged-record-changed`, carrying `mergedCustomerVersion` — the "
+                + "value to resend in that field — and no `ETag`, since an `ETag` would describe "
+                + "the survivor, which is not what changed.")
             .RequirePermission(CustomersPermissions.Merge, BranchScope.AssignedBranches)
             .RequireStepUp()
             .TouchesNoBranchOwnedResource(NoBranchResource, Review)
@@ -510,6 +537,54 @@ public static class CustomerEndpoints
             .RequireIdempotency()
             .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
+    }
+
+    /// <summary>
+    /// Answers a merge whose <em>other</em> half went stale.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberately not <see cref="ConcurrencyResults.VersionConflict"/>. That helper is the answer for
+    /// the resource the request is addressed to: it puts the current version in <c>currentVersion</c>
+    /// and stamps the response's <c>ETag</c>. Both would be the survivor here, and the survivor is not
+    /// what changed — a client following them would re-read the survivor, find the version it already
+    /// holds, and have nothing to show the person.
+    /// </para>
+    /// <para>
+    /// So the current version of the record being folded in travels under the name of the field it has
+    /// to be resent in, and the response carries no <c>ETag</c>, because an <c>ETag</c> describes the
+    /// resource in the request URI and this one is about a different record.
+    /// </para>
+    /// </remarks>
+    private static async Task<IResult> MergedRecordChangedAsync(
+        Guid mergedCustomerId,
+        HttpContext context,
+        CustomerHandler handler,
+        ICurrentUser caller,
+        CancellationToken cancellationToken)
+    {
+        var merged = await handler.ReadAsync(
+            mergedCustomerId, caller.Context.OrganisationId, cancellationToken);
+
+        var extensions = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        // It was readable a moment ago, inside the merge. If it somehow is not now, the refusal still
+        // stands and simply cannot say what to resend.
+        if (merged.IsSuccess)
+        {
+            extensions["mergedCustomerVersion"] = merged.Value.Version.Version;
+        }
+
+        return ProblemResults.From(
+            context,
+            StatusCodes.Status409Conflict,
+            CustomersErrors.MergedRecordChanged.Code,
+            "That record changed since you opened it",
+            "The record you are folding in was corrected while the pair was on your screen. Open it "
+            + "again, check the two are still the same person, and merge again. A merge cannot be "
+            + "undone, so it is only ever made against records as they read now.",
+            retryable: false,
+            extensions: extensions);
     }
 
     /// <summary>

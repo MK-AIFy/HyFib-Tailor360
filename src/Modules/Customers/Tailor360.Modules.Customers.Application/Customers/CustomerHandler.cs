@@ -543,6 +543,26 @@ public sealed class CustomerHandler(
             return Result.Failure<MergeCommit>(CustomersErrors.ConcurrentChange);
         }
 
+        // And the same for the record about to be destroyed. A manager approves a *pair*: these two
+        // records, as they read on the screen, are one person. If somebody corrects the folded record
+        // in between — a different name, a different number, a different address — the pair that gets
+        // merged is not the pair that was approved, and there is no undo. The score computed below
+        // would record the change and change nothing about the outcome.
+        //
+        // Compared with Equals rather than Matches: Matches honours the If-Match wildcard, and this
+        // precondition has no wildcard. The endpoint refuses one, and this is the second place that
+        // holds, for a caller reaching the handler by another route.
+        //
+        // Its own error, not ConcurrentChange: the two send the caller to different records, and a 409
+        // that names the wrong one is a 409 the client cannot act on.
+        if (!string.Equals(
+                command.ExpectedMergedVersion.Version,
+                customers.EntityTagOf(merged).Version,
+                StringComparison.Ordinal))
+        {
+            return Result.Failure<MergeCommit>(CustomersErrors.MergedRecordChanged);
+        }
+
         // Scored before the absorption, so the stored decision explains the pair a person was looking
         // at rather than the single record left afterwards.
         var match = DuplicateScoring.Compare(SubjectOf(survivor), SubjectOf(merged));
@@ -847,6 +867,11 @@ public sealed record CustomerRegistration(
 /// <param name="OrganisationId">The caller's organisation. Both records must belong to it.</param>
 /// <param name="BranchId">The branch the decision is being taken at, where there is one.</param>
 /// <param name="ExpectedVersion">The version of the surviving record the caller read.</param>
+/// <param name="ExpectedMergedVersion">
+/// The version of the record being folded in, as the caller read it. A merge approves a pair, so both
+/// halves of that pair are preconditions. Compared exactly: unlike an <c>If-Match</c>, this one has no
+/// wildcard, because there is no such thing as "any version" of a record somebody approved destroying.
+/// </param>
 /// <param name="Reason">Why they are one person. Required; a merge cannot be undone.</param>
 /// <param name="By">The actor.</param>
 public sealed record MergeCustomersCommand(
@@ -855,6 +880,7 @@ public sealed record MergeCustomersCommand(
     Guid OrganisationId,
     Guid? BranchId,
     EntityTag ExpectedVersion,
+    EntityTag ExpectedMergedVersion,
     string? Reason,
     Guid? By);
 

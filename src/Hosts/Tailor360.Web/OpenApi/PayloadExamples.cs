@@ -303,6 +303,7 @@ public static class PayloadExamples
         ["MergeCustomers"] = """
             {
               "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+              "mergedCustomerVersion": "8241",
               "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
             }
             """,

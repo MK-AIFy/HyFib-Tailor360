@@ -79,6 +79,18 @@ public static class CustomersErrors
         "customers.concurrent-change",
         "Somebody else changed this customer while you had it open.");
 
+    /// <summary>The record being folded in by a merge changed between being read and being merged.</summary>
+    /// <remarks>
+    /// Separate from <see cref="ConcurrentChange"/> because the two send the caller to different records.
+    /// A merge is addressed to the survivor, so the survivor's staleness is what <c>If-Match</c> and the
+    /// 409's <c>currentVersion</c> are about; if this endpoint answered the same way for the other half
+    /// of the pair, a client would re-read the survivor, find the version it already holds, and have
+    /// nothing to show the person.
+    /// </remarks>
+    public static Error MergedRecordChanged { get; } = Error.Conflict(
+        "customers.merged-record-changed",
+        "Somebody changed the record you are folding in while you had it open.");
+
     /// <summary>The requested status change is not legal from the record's current status.</summary>
     /// <param name="from">The status the record is in.</param>
     /// <param name="to">The status the caller asked for.</param>

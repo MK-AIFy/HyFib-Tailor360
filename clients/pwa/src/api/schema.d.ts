@@ -889,6 +889,10 @@ export interface paths {
         /**
          * Fold one customer record into another. This cannot be undone.
          * @description The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.
+         *
+         *     Both records are preconditions. `If-Match` carries the survivor's version and `mergedCustomerVersion` carries the folded record's, because what a manager approves is a *pair*: if either has been corrected since they were read, the pair being merged is not the pair that was approved, and the answer is 409 rather than an irreversible merge of something nobody looked at. `mergedCustomerVersion` is a concrete version and never an `If-Match` value: `*` is refused, because there is no such thing as "any version" of a record somebody approved destroying.
+         *
+         *     The two halves refuse differently, because they send the caller to different records. A stale survivor is `customers.version-conflict`, carrying `currentVersion` and an `ETag`. A stale record being folded in is `customers.merged-record-changed`, carrying `mergedCustomerVersion` — the value to resend in that field — and no `ETag`, since an `ETag` would describe the survivor, which is not what changed.
          */
         post: operations["MergeCustomers"];
         delete?: never;
@@ -1302,6 +1306,7 @@ export interface components {
         MergeCustomerRequest: {
             /** Format: uuid */
             mergedCustomerId: string;
+            mergedCustomerVersion: null | string;
             reason: null | string;
         };
         MfaEnrolmentConfirmationPayload: {
@@ -4581,6 +4586,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+                 *       "mergedCustomerVersion": "8241",
                  *       "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
                  *     }
                  */
