@@ -261,11 +261,23 @@ templates and the confirmed, immutable measurement versions the workshop works f
 | `customer_merges` | The irreversible authorised merge decision and its re-pointing record. **Append-only**, enforced by a database trigger that permits exactly one change — clearing `reason`, which is how #57 redacts free text without destroying the evidence that the merge happened |
 | `consent_records` | Versioned consent per purpose with wording version, source, actor and time. **Append-only**, enforced by a database trigger: withdrawing inserts a `Withdrawn` row rather than changing the row that granted ([`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3) |
 | `communication_preferences` | Allowed channels, language, quiet hours. One row per customer, editable in place — a current instruction rather than evidence. Quiet hours are wall-clock times in the branch's timezone (BR-7), and both ends are present or neither |
+| `customer_exports` | Generated subject-access exports: the rendered document, who took it, why, and when the copy stops working. The document column is **emptied** when the export expires or is superseded, and the rest of the row is kept — the same shape `customer_merges` uses for its reason ([`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.2.1): the evidence that a copy was taken is the shop's record of how it answered a request, and the copy itself is the part with a lifetime |
 | `measurement_templates`, `measurement_template_versions`, `measurement_template_fields` | The configurable field sets, draft to published to retired |
 | `measurement_drafts`, `measurement_draft_values` | Branch-shared work in progress, consumed exactly once |
 | `measurement_versions`, `measurement_values` | Confirmed, immutable millimetre values with display unit and provenance |
 
 **Owned object-storage prefix.** None. Measurement diagrams are Media objects referenced by id.
+
+The subject-access export is the one artefact this creates that
+[`../nfr/data-classification.md`](../nfr/data-classification.md) section 9 would place under the `exports/` prefix.
+It is held in the `customers` schema instead, as a row in `customer_exports`, and that is forced rather than
+chosen: `exports/` belongs to Reporting, whose export service arrives with **#44**, and the solution has no
+object-storage abstraction at all yet — the MinIO container runs and the buckets exist, but no .NET code speaks to
+them. A subject-access export is one person's record and measures in kilobytes, and the platform already holds a
+generated response body with an expiry and a purge this way in `platform.idempotency_keys`. Everything section 9 is
+protecting is enforced either way — the export is purpose-bound, marked, audited on generation and on every
+download, expiring, and streamed by a re-authorising endpoint rather than linked. When #44 builds the export
+service this becomes a candidate to move, which is why the document code and version are stored on the row.
 
 **Publishes — integration events.** `customers.customer-created.v1`, `customers.customer-merged.v1`,
 `customers.customer-corrected.v1`, `customers.customer-deactivated.v1`, `customers.consent-recorded.v1`,

@@ -88,8 +88,134 @@ public static class CustomerEndpoints
         MapOpenAtBranch(customers);
         MapDuplicates(customers);
         MapMerge(customers);
+        MapExport(customers);
 
         return customers;
+    }
+
+    /// <summary>
+    /// Generating and downloading the copy of a person's data that answers a subject-access request.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two endpoints rather than one that returns the file. Generating is a state change — a second
+    /// copy of somebody's personal data now exists — and it is audited, reasoned and idempotent.
+    /// Downloading is a read of that copy, audited separately, and repeatable until the copy expires.
+    /// Collapsing them would mean either a state change that cannot be replayed safely, or a download
+    /// that silently makes a new copy every time somebody refreshes.
+    /// </para>
+    /// <para>
+    /// <strong>The document is never given a URL that carries anything but its own identity.</strong>
+    /// <c>docs/nfr/data-classification.md</c> section 9 requires an export to be streamed by a
+    /// re-authorising endpoint and never linked, so there is no signed link and no redirect: the
+    /// download re-checks the permission, the organisation and the expiry on every request. The
+    /// filename is the export's UUIDv7, because personal data is never a filename (CLAUDE.md rule 8).
+    /// </para>
+    /// </remarks>
+    private static void MapExport(RouteGroupBuilder customers)
+    {
+        customers.MapPost("/{customerId:guid}/export", async Task<IResult> (
+                Guid customerId,
+                CustomerReasonRequest? request,
+                HttpContext context,
+                CustomerExportHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.GenerateAsync(
+                    new GenerateCustomerExportCommand(
+                        customerId,
+                        caller.Context.OrganisationId,
+                        request?.Reason,
+                        caller.UserId),
+                    cancellationToken);
+
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.Headers.CacheControl = NoStore;
+
+                return Results.Created(
+                    $"/api/v1/customers/{customerId}/exports/{result.Value.ExportId}",
+                    CustomerExportPayload.From(result.Value));
+            })
+            .Produces<CustomerExportPayload>(StatusCodes.Status201Created)
+            .WithName("ExportCustomer")
+            .WithSummary("Generate the copy of a customer's data that answers a subject-access request.")
+            .WithDescription(
+                "Produces a JSON document holding the customer's profile, their full consent history "
+                + "and their communication preferences. It carries no images, no duplicate scores and "
+                + "no merge reasons, and measurements are absent because the system does not record "
+                + "any yet.\n\n"
+                + "The response is a receipt, not the document: it names the export and says when the "
+                + "download stops working. Fetch the document from the download route, which "
+                + "re-authorises and is audited on every call.\n\n"
+                + "Generating an export destroys any earlier one for the same customer, so at most one "
+                + "copy of a person's record exists outside the record at a time. The copy is emptied "
+                + "when it expires; the record that an export was taken, by whom and why is kept.")
+            .RequirePermission(CustomersPermissions.Export, BranchScope.Organisation)
+            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+            .RequireRateLimiting(RateLimitPolicyNames.ExportHeavy)
+            .Audited(CustomerExportHandler.GeneratedAction, reasonRequired: true)
+            .RequireIdempotency()
+            // Command (30s), not Export (120s), even though this generates an export. The export
+            // timeout is sized for #44's bulk report generation, and it is longer than the 45-second
+            // idempotency claim lease — so a slow request would have its claim taken over while it was
+            // still running and would generate a second copy of somebody's personal data. This is one
+            // person's record and a handful of small reads, which is a command by any measure.
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
+        customers.MapGet("/{customerId:guid}/exports/{exportId:guid}", async Task<IResult> (
+                Guid customerId,
+                Guid exportId,
+                HttpContext context,
+                CustomerExportHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.DownloadAsync(
+                    new ReadCustomerExportQuery(exportId, customerId, caller.Context.OrganisationId),
+                    cancellationToken);
+
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.Headers.CacheControl = NoStore;
+
+                // The filename is the export's identity and nothing else. A name or a customer number
+                // here would put personal data in a header, in a downloads folder and in whatever the
+                // browser tells its history — which is the whole reason rule 8 exists.
+                return Results.File(
+                    result.Value.Document,
+                    result.Value.ContentType,
+                    $"{result.Value.DocumentCode}-{result.Value.ExportId}.json");
+            })
+            .Produces<IResult>(StatusCodes.Status200OK)
+            .WithName("DownloadCustomerExport")
+            .WithSummary("Download a generated subject-access export.")
+            .WithDescription(
+                "Streams the document. The permission, the organisation and the expiry are re-checked "
+                + "on every request, and every call is written to the audit trail against the customer "
+                + "— `docs/nfr/data-classification.md` section 10 lists an export download among the "
+                + "reads that are audited explicitly.\n\n"
+                + "Answers 404 `customers.export-expired` once the copy has gone, which happens when it "
+                + "expires or when a newer export replaces it. The record that the export existed "
+                + "remains; only the copy of the data is destroyed.")
+            .RequirePermission(CustomersPermissions.Export, BranchScope.Organisation)
+            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+            .RequireRateLimiting(RateLimitPolicyNames.ExportHeavy)
+            // Declared although ARCH-008 does not demand it of a GET, and the entry is still written by
+            // the handler rather than by this metadata — nothing reads it at run time. It is here so
+            // that the sensitive read is visible where every other endpoint's audit is: in the route,
+            // in the API document's x-tailor360-audit, and in the authorisation matrix, which
+            // reconciles this cell against the endpoint and would otherwise have to record the
+            // download as unaudited.
+            .Audited(CustomerExportHandler.DownloadedAction)
+            .WithRequestTimeout(RequestTimeoutPolicies.Export);
     }
 
     private static void MapSearch(RouteGroupBuilder customers)

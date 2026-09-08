@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Tailor360.Modules.Customers.Application.Abstractions;
 using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Application.Customers;
+using Tailor360.Modules.Customers.Application.Options;
 using Tailor360.Modules.Customers.Application.Preferences;
 using Tailor360.Modules.Customers.Contracts.Consent;
 using Tailor360.Modules.Customers.Contracts.Customers;
@@ -67,6 +68,20 @@ public static class CustomersModuleServiceCollectionExtensions
         services.TryAddScoped<ConsentHandler>();
         services.TryAddScoped<PreferenceHandler>();
         services.TryAddScoped<IConsentReferenceDataSeeder, ConsentReferenceDataSeeder>();
+        services.TryAddScoped<IExportStore, ExportStore>();
+        services.TryAddScoped<CustomerExportHandler>();
+
+        // Validated at start-up rather than when somebody answers a subject-access request. A
+        // misconfigured lifetime is clamped by the domain and would otherwise never be noticed, which
+        // is exactly the kind of quiet wrong answer a privacy setting must not be allowed to give.
+        services.AddOptions<CustomerExportOptions>()
+            .Bind(configuration.GetSection(CustomerExportOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(
+                options => options.IsLifetimeUsable,
+                "Customers:Export:Lifetime must be between 15 minutes and 30 days, the bounds "
+                + "CustomerExport enforces on a copy of somebody's personal data.")
+            .ValidateOnStart();
 
         // The module's published surface. Registered here rather than in each consuming module so
         // that the only way to reach a customer fact is through the contract the boundary allows

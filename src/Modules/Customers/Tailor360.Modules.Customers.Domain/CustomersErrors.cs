@@ -79,6 +79,24 @@ public static class CustomersErrors
         "customers.concurrent-change",
         "Somebody else changed this customer while you had it open.");
 
+    /// <summary>No export matches that identifier, for that customer, in that organisation.</summary>
+    public static Error ExportNotFound { get; } = Error.NotFound(
+        "customers.export-not-found",
+        "No export matches that identifier.");
+
+    /// <summary>
+    /// The export existed and its copy of the data is gone: it expired, or a newer export replaced it.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately distinct from <see cref="ExportNotFound"/>, and the difference is not a leak. A
+    /// caller holding an export identifier was told that identifier when they generated it, so "this
+    /// one has expired" tells them nothing they did not already know, and telling them instead that it
+    /// never existed would send somebody hunting for a bug in a system behaving exactly as designed.
+    /// </remarks>
+    public static Error ExportExpired { get; } = Error.NotFound(
+        "customers.export-expired",
+        "That export has expired and its copy of the data has been destroyed. Generate a new one.");
+
     /// <summary>The record being folded in by a merge changed between being read and being merged.</summary>
     /// <remarks>
     /// Separate from <see cref="ConcurrentChange"/> because the two send the caller to different records.

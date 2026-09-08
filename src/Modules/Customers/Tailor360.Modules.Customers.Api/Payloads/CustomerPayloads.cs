@@ -363,6 +363,64 @@ public sealed record MergeCustomerRequest(
     }
 }
 
+/// <summary>
+/// The receipt for a generated subject-access export. Not the document.
+/// </summary>
+/// <remarks>
+/// It deliberately carries nothing about the person. Everything here describes the artefact — what it
+/// is, how big, how long it lasts — so that a screen can show the state of an export, and a log or a
+/// support conversation can refer to one, without any of that becoming another place a customer's
+/// details are held.
+/// </remarks>
+/// <param name="ExportId">The export's identity, and the only thing needed to download it.</param>
+/// <param name="CustomerId">The person the document is about.</param>
+/// <param name="DocumentCode">Which document this is, matching the <c>document.code</c> inside it.</param>
+/// <param name="DocumentVersion">The document's shape version.</param>
+/// <param name="Classification">
+/// The highest data class the document carries, which section 9 requires an export to be marked with.
+/// </param>
+/// <param name="ContentType">The media type the download is served as.</param>
+/// <param name="ByteCount">How large the document is.</param>
+/// <param name="GeneratedAt">When it was made.</param>
+/// <param name="ExpiresAt">When the download stops working and the copy is destroyed.</param>
+/// <param name="SupersededCount">
+/// How many earlier copies of this person's data were destroyed to make this one. Almost always zero
+/// or one, and worth returning because it is the visible half of the rule that only one copy exists at
+/// a time.
+/// </param>
+public sealed record CustomerExportPayload(
+    Guid ExportId,
+    Guid CustomerId,
+    string DocumentCode,
+    int DocumentVersion,
+    string Classification,
+    string ContentType,
+    int ByteCount,
+    DateTimeOffset GeneratedAt,
+    DateTimeOffset ExpiresAt,
+    int SupersededCount)
+{
+    /// <summary>Projects a receipt.</summary>
+    /// <param name="receipt">What the handler generated.</param>
+    /// <returns>The payload.</returns>
+    public static CustomerExportPayload From(CustomerExportReceipt receipt)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+
+        return new CustomerExportPayload(
+            receipt.ExportId,
+            receipt.CustomerId,
+            receipt.DocumentCode,
+            receipt.DocumentVersion,
+            receipt.Classification,
+            receipt.ContentType,
+            receipt.ByteCount,
+            receipt.GeneratedAt,
+            receipt.ExpiresAt,
+            receipt.SupersededCount);
+    }
+}
+
 /// <summary>What a merge did.</summary>
 /// <param name="Customer">The surviving record, with the version a later change is made against.</param>
 /// <param name="MergeId">The merge decision, which is what an auditor quotes.</param>

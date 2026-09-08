@@ -45,6 +45,7 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
             "GET /api/v1/customers/{customerId}",
             "GET /api/v1/customers/{customerId}/duplicates",
             "POST /api/v1/customers/{customerId}/merge",
+            "GET /api/v1/customers/{customerId}/exports/{exportId}",
         ];
 
         Fixtures.IdentifierEditing.ShouldNotBeEmpty();

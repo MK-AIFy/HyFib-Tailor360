@@ -184,6 +184,19 @@ identifier-editing:
       The path identifier is resolved first and refuses on the same terms, so a merge never reports
       anything about the second record to a caller who could not reach the first.
 
+  - route: GET /api/v1/customers/{customerId}/exports/{exportId}
+    identifier: >
+      an export generated for a different customer, and one that belongs to no export at all
+    because: >
+      The identifier names a file holding one person's name, telephone number, address and consent
+      history, so guessing at it is worth more here than anywhere else on this surface. The export is
+      resolved by all three of export, customer and organisation together, and both misses answer 404
+      with customers.export-not-found — so pairing a real export identifier with a different customer
+      in the path says nothing, and a caller cannot use the route to learn which exports exist or who
+      has recently been the subject of a request. The expired answer is deliberately distinguishable
+      and is not an oracle: a caller is told an export identifier only when they generate it
+      themselves, so customers.export-expired tells them something they already knew.
+
 # ---------------------------------------------------------------------------------------------------
 # Which fields each role is shown. Not here, and this is the record of why.
 # ---------------------------------------------------------------------------------------------------

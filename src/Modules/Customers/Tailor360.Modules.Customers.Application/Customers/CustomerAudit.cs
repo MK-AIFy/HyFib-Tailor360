@@ -34,6 +34,13 @@ internal static class CustomerAudit
     /// <param name="reason">The actor's reason, where the action demands one.</param>
     /// <param name="before">The snapshot before, where there was one.</param>
     /// <param name="after">The snapshot after.</param>
+    /// <remarks>
+    /// The two snapshots are <see cref="ICustomerAuditState"/> and not <c>object</c>, even though
+    /// <c>AuditEntry</c> would take an <c>object</c>. The trail must never become a copy of the record,
+    /// and the cheapest way to keep that true is to make the compiler refuse anything that has not been
+    /// declared as an audit shape: passing a <c>Customer</c> here does not compile, so nobody can do it
+    /// in a hurry.
+    /// </remarks>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns>A task that completes when the entry is committed.</returns>
     public static async Task RecordAsync(
@@ -42,8 +49,8 @@ internal static class CustomerAudit
         Guid customerId,
         string summary,
         string? reason,
-        CustomerSnapshot? before,
-        CustomerSnapshot? after,
+        ICustomerAuditState? before,
+        ICustomerAuditState? after,
         CancellationToken cancellationToken)
     {
         await audit.WriteAsync(
@@ -74,6 +81,16 @@ internal static class CustomerAudit
 /// follows: the trail says what happened to which records, and a reader who is entitled to know who
 /// they were reads the records.
 /// </param>
+/// <summary>
+/// A shape that may be written into the audit trail as a customer's before or after state.
+/// </summary>
+/// <remarks>
+/// A marker with no members. Its whole job is to be a list of the types that have been looked at and
+/// judged safe to record — shape and counts, never a value — so that adding a new one is a deliberate
+/// act rather than whatever happened to be in scope at the call site.
+/// </remarks>
+internal interface ICustomerAuditState;
+
 internal sealed record CustomerSnapshot(
     string Status,
     string Language,
@@ -83,7 +100,7 @@ internal sealed record CustomerSnapshot(
     int AliasCount,
     int VisibilityBranchCount,
     IReadOnlyList<string>? ChangedFields = null,
-    Guid? MergedWith = null)
+    Guid? MergedWith = null) : ICustomerAuditState
 {
     /// <summary>Takes a snapshot of a customer.</summary>
     /// <param name="customer">The customer.</param>

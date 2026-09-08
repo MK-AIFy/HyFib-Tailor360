@@ -137,4 +137,25 @@ internal static partial class WorkerLog
         Level = LogLevel.Error,
         Message = "Audit partition maintenance failed; the audit partition health check reports the effect.")]
     public static partial void AuditPartitionMaintenanceFailed(ILogger logger, Exception exception);
+
+    // Counts only. How many copies of personal data were destroyed is an operational fact; whose they
+    // were is not, and a log line is the last place it should appear (CLAUDE.md rule 7).
+    [LoggerMessage(
+        EventId = 2030,
+        Level = LogLevel.Information,
+        Message = "Destroyed {Count} expired subject-access export(s).")]
+    public static partial void CustomerExportsPurged(ILogger logger, int count);
+
+    [LoggerMessage(
+        EventId = 2031,
+        Level = LogLevel.Warning,
+        Message = "A subject-access export purge pass was refused with {Code}; the copies remain and "
+            + "the next pass finds them again.")]
+    public static partial void CustomerExportPurgeRefused(ILogger logger, string code);
+
+    [LoggerMessage(
+        EventId = 2032,
+        Level = LogLevel.Error,
+        Message = "A subject-access export purge pass failed; the loop continues.")]
+    public static partial void CustomerExportPurgeFailed(ILogger logger, Exception exception);
 }

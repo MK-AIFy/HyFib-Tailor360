@@ -68,6 +68,9 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
     /// <summary>What people decided about scored duplicate suspicions.</summary>
     public DbSet<DuplicateCandidateDecision> DuplicateCandidates => Set<DuplicateCandidateDecision>();
 
+    /// <summary>Generated subject-access exports, and the emptied rows of the ones that have gone.</summary>
+    public DbSet<CustomerExport> CustomerExports => Set<CustomerExport>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +85,7 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         ConfigurePreferences(modelBuilder);
         ConfigureMerges(modelBuilder);
         ConfigureDuplicateCandidates(modelBuilder);
+        ConfigureExports(modelBuilder);
     }
 
     private static void ConfigureCustomers(ModelBuilder modelBuilder)
@@ -406,6 +410,72 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
             // No concurrency token: the table is append-only and there is nothing to overwrite. The
             // migration adds the trigger that makes that true of the database and not only of the
             // domain type.
+        });
+
+    private static void ConfigureExports(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<CustomerExport>(entity =>
+        {
+            entity.ToTable("customer_exports", table =>
+            {
+                // The document and the two columns describing its absence are one fact in three
+                // places. A row with a document must not claim to have been purged, and a purged row
+                // must have said why — otherwise "is this copy still out there" cannot be answered by
+                // looking.
+                table.HasCheckConstraint(
+                    "ck_customer_exports_purge_is_consistent",
+                    "(purged_at IS NULL) = (purge_reason IS NULL) "
+                    + "AND (purged_at IS NULL OR document IS NULL)");
+
+                // An export that expired before it was generated could never be downloaded, and would
+                // usually mean a clock or a configuration fault rather than an intention.
+                table.HasCheckConstraint(
+                    "ck_customer_exports_expires_after_generated",
+                    "expires_at > generated_at");
+            });
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.DocumentCode).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Classification).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.ContentType).HasMaxLength(128).IsRequired();
+
+            // Nullable for the one reason customer_merges.reason is: so #57 can redact free text a
+            // member of staff typed about a named person without destroying the evidence that somebody
+            // took a copy of that person's data. Every path that writes one supplies it.
+            entity.Property(e => e.Reason).HasMaxLength(CustomerExport.MaximumReasonLength);
+
+            // The copy itself, and the only nullable column that is nullable because it is *meant* to
+            // go away. Everything around it survives the purge.
+            entity.Property(e => e.Document);
+
+            entity.Property(e => e.PurgeReason).HasConversion<string>().HasMaxLength(32);
+
+            // RESTRICT: a customer is never deleted, and losing the record that their data was copied
+            // out would be the wrong thing to lose first.
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(export => export.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // "The live exports for this customer", which is what supersession reads and what the
+            // download re-reads. Partial, because a purged row is never the answer to that question
+            // and the table only ever grows.
+            entity.HasIndex(e => new { e.CustomerId, e.GeneratedAt })
+                .IsDescending(false, true)
+                .HasFilter("purged_at IS NULL")
+                .HasDatabaseName("ix_customer_exports_live_by_customer");
+
+            // "What has expired and still holds a copy", which is the cleanup job's whole query.
+            entity.HasIndex(e => e.ExpiresAt)
+                .HasFilter("purged_at IS NULL")
+                .HasDatabaseName("ix_customer_exports_pending_purge");
+
+            // Unlike the append-only evidence tables in this schema, this one is written twice after
+            // it is created — once when somebody downloads it and once when the copy is destroyed —
+            // and the two writers race by design: a download can arrive while the cleanup job is
+            // emptying the row it names. Without the token the loser would win silently and increment
+            // the download count of an export that no longer exists.
+            UseRowVersion(entity);
         });
 
     private static void ConfigureDuplicateCandidates(ModelBuilder modelBuilder)
