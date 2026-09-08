@@ -29,6 +29,25 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
     private const string FirstBranchCode = "CUST1";
     private const string SecondBranchCode = "CUST2";
 
+    /// <summary>
+    /// One token per run, folded into every name these tests create with the default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// CLAUDE.md section 5 asks for the suite to be run twice, and the database is not dropped in
+    /// between. Every record here is written at the same locality and postcode, so without this the
+    /// second run's "Kavitha cust-register" would resemble the first run's strongly enough to be
+    /// refused — a create answered 409 rather than 201, and a test that only ever passed once.
+    /// </para>
+    /// <para>
+    /// It did pass twice before #26's merge slice, and for the wrong reason: the duplicate query
+    /// projected no address, so "same name, same place" could not reach
+    /// <c>DuplicateConfidence.Medium</c> and nothing ever blocked. Fixing that made the latent
+    /// dependence visible, which is what a defect of this shape is supposed to do.
+    /// </para>
+    /// </remarks>
+    private static readonly string RunToken = AdministrationHarness.UniqueToken(8);
+
     [Fact]
     public async Task RegisteringACustomerAllocatesANumberFromTheBranchAndNeverCachesTheAnswer()
     {
@@ -482,7 +501,7 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
         string? displayName = null,
         string? phone = null)
         => new(
-            displayName ?? $"Kavitha {prefix}",
+            displayName ?? $"Kavitha {prefix} {RunToken}",
             null,
             phone ?? CustomerHarness.UniquePhone(),
             null,

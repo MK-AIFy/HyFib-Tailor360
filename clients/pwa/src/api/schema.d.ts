@@ -857,6 +857,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{customerId}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the records that may be the same person as this one.
+         * @description The screen a merge is decided from. It scores the records as they stand rather than reading back the suspicions raised when either was created, because a correction to either can create a resemblance or remove one, and a merge is too final to take on a score somebody computed months ago. Cards are masked exactly as they are in search, and a record that has already been merged is never offered. Gated on `customers.read` rather than `customers.merge`: reading who might be a duplicate is what Reception does before asking a manager to merge, and demanding the merge permission to look would mean nobody could prepare the decision.
+         */
+        get: operations["GetCustomerDuplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fold one customer record into another. This cannot be undone.
+         * @description The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.
+         */
+        post: operations["MergeCustomers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/{customerId}/open": {
         parameters: {
             query?: never;
@@ -1126,6 +1166,22 @@ export interface components {
         CustomerConsentPayload: {
             purposes: components["schemas"]["ConsentPurposePayload"][];
         };
+        CustomerMergePayload: {
+            /** Format: int32 */
+            aliasesRecorded: number | string;
+            customer: components["schemas"]["CustomerPayload"];
+            /** Format: uuid */
+            mergeId: string;
+            /** Format: date-time */
+            mergedAt: string;
+            /** Format: uuid */
+            mergedCustomerId: string;
+            mergedCustomerNumber: string;
+            /** Format: int32 */
+            recordsRepointed: number | string;
+            /** Format: int32 */
+            visibilityBranchesAdded: number | string;
+        };
         CustomerPagePayload: {
             customers: components["schemas"]["CustomerCardPayload"][];
             nextCursor: null | string;
@@ -1143,6 +1199,10 @@ export interface components {
             email: null | string;
             language: string;
             locality: null | string;
+            /** Format: date-time */
+            mergedAt?: null | string;
+            /** Format: uuid */
+            mergedIntoCustomerId?: null | string;
             nativeName: null | string;
             /** Format: uuid */
             owningBranchId: string;
@@ -1186,6 +1246,14 @@ export interface components {
             description: null | string;
             name: null | string;
             reason: null | string;
+        };
+        DuplicateCandidatePayload: {
+            confidence: string;
+            customer: components["schemas"]["CustomerCardPayload"];
+            reasons: string[];
+        };
+        DuplicateReviewPayload: {
+            candidates: components["schemas"]["DuplicateCandidatePayload"][];
         };
         ExportAuditPayload: {
             action: null | string;
@@ -1231,6 +1299,11 @@ export interface components {
             userName: null | string;
         };
         JsonElement: unknown;
+        MergeCustomerRequest: {
+            /** Format: uuid */
+            mergedCustomerId: string;
+            reason: null | string;
+        };
         MfaEnrolmentConfirmationPayload: {
             code: null | string;
         };
@@ -4418,6 +4491,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCustomerDuplicates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateReviewPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    MergeCustomers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+                 *       "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
+                 *     }
+                 */
+                "application/json": components["schemas"]["MergeCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMergePayload"];
                 };
             };
             /** @description Bad Request */

@@ -47,7 +47,11 @@ public sealed class CustomerSnapshotQuery(CustomersDbContext context) : ICustome
                 mayReadContact ? customer.Email : null,
                 mayReadContact ? customer.AddressLine : null,
                 mayReadContact ? customer.Locality : null,
-                mayReadContact ? customer.Postcode : null))
+                mayReadContact ? customer.Postcode : null,
+                // Never masked. Whether the record a consumer is holding still stands is not personal
+                // data about the person; it is a fact about the record, and a consumer that cannot see
+                // it re-points nothing and shows a customer who no longer exists.
+                customer.MergedIntoCustomerId))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

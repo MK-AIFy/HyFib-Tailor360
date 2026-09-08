@@ -68,6 +68,12 @@ internal static class CustomerAudit
 /// The names of the fields a correction touched, alphabetically. Names only: "phone" says what a
 /// reader of the trail needs and a number would not.
 /// </param>
+/// <param name="MergedWith">
+/// The other record in a merge — the one absorbed, on the survivor's entry; the survivor, on the
+/// absorbed record's. An identifier and not a name, which is the same rule the rest of the snapshot
+/// follows: the trail says what happened to which records, and a reader who is entitled to know who
+/// they were reads the records.
+/// </param>
 internal sealed record CustomerSnapshot(
     string Status,
     string Language,
@@ -76,13 +82,18 @@ internal sealed record CustomerSnapshot(
     bool HasAddress,
     int AliasCount,
     int VisibilityBranchCount,
-    IReadOnlyList<string>? ChangedFields = null)
+    IReadOnlyList<string>? ChangedFields = null,
+    Guid? MergedWith = null)
 {
     /// <summary>Takes a snapshot of a customer.</summary>
     /// <param name="customer">The customer.</param>
     /// <param name="changedFields">The fields a correction touched, where one did.</param>
+    /// <param name="mergedWith">The other record in a merge, where this entry describes one.</param>
     /// <returns>The snapshot.</returns>
-    public static CustomerSnapshot Of(Customer customer, IReadOnlyList<string>? changedFields = null)
+    public static CustomerSnapshot Of(
+        Customer customer,
+        IReadOnlyList<string>? changedFields = null,
+        Guid? mergedWith = null)
     {
         ArgumentNullException.ThrowIfNull(customer);
 
@@ -94,6 +105,7 @@ internal sealed record CustomerSnapshot(
             customer.AddressLine is not null || customer.Locality is not null,
             customer.Aliases.Count,
             customer.Visibility.Count,
-            changedFields);
+            changedFields,
+            mergedWith);
     }
 }

@@ -23,20 +23,32 @@ public interface ICustomerDirectory
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Finds the records a new customer might duplicate.
+    /// Finds the records a customer might duplicate.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Reaches across the whole organisation regardless of branch visibility, on purpose. A record the
     /// creating branch cannot see is exactly the one that produces a duplicate, and
     /// <c>branch-scenarios.md</c> section 3.1 says the search reaches across branches for that reason.
+    /// </para>
+    /// <para>
+    /// A record that has already been merged into another is never a candidate. Offering one would
+    /// send somebody to open a record that no longer stands, and merging into it is refused anyway.
+    /// </para>
     /// </remarks>
     /// <param name="organisationId">The organisation.</param>
-    /// <param name="subject">The record about to be created.</param>
+    /// <param name="subject">The record being created, or the one being examined.</param>
+    /// <param name="exceptCustomerId">
+    /// A record to leave out — the subject itself, when the subject already exists. Every record is a
+    /// perfect match for itself, so asking about an existing customer without this would return it at
+    /// the top of its own duplicate list.
+    /// </param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The candidates worth showing, strongest first.</returns>
     Task<IReadOnlyList<DuplicateCandidate>> FindDuplicatesAsync(
         Guid organisationId,
         DuplicateSubject subject,
+        Guid? exceptCustomerId = null,
         CancellationToken cancellationToken = default);
 }
 

@@ -132,6 +132,14 @@ public sealed class ConsentHandler(
             return Result.Failure<ConsentAnswer>(CustomersErrors.CustomerNotFound);
         }
 
+        // A merged record no longer stands, and an answer recorded against it would be evidence
+        // nobody reads: the survivor's own consent and preferences govern every later message
+        // (docs/prd/exceptions.md EX-01). Whoever is at the counter is looking at the wrong record.
+        if (customer.IsMerged)
+        {
+            return Result.Failure<ConsentAnswer>(CustomersErrors.AlreadyMerged);
+        }
+
         var key = ConsentPurposeKeys.Read(command.PurposeKey, "purposeKey");
 
         if (key.IsFailure)

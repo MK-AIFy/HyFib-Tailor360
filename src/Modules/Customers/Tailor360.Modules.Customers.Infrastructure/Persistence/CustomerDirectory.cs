@@ -102,17 +102,28 @@ public sealed class CustomerDirectory(CustomersDbContext context) : ICustomerDir
     public async Task<IReadOnlyList<DuplicateCandidate>> FindDuplicatesAsync(
         Guid organisationId,
         DuplicateSubject subject,
+        Guid? exceptCustomerId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(subject);
 
-        // Everything that could possibly resemble the new record, fetched once and scored in memory.
-        // The alternative — scoring in SQL — would put the rules somewhere they cannot be unit-tested
-        // and would still have to fetch the same rows to explain itself.
+        // Everything that could possibly resemble the record, fetched once and scored in memory. The
+        // alternative — scoring in SQL — would put the rules somewhere they cannot be unit-tested and
+        // would still have to fetch the same rows to explain itself.
+        //
+        // Every field the scoring reads is projected, including the ones that only ever weaken or
+        // strengthen a match. Leaving the address out and passing null in its place made
+        // DuplicateConfidence.Medium unreachable: "same name, same place" scored as Low, so the
+        // create screen never blocked on it, and EX-01's inline warning was quietly weaker than the
+        // rule it implements.
         var candidates = await context.Customers
             .AsNoTracking()
             .Where(customer =>
                 customer.OrganisationId == organisationId
+                // A record that has already been merged is not offered. Merging into one is refused,
+                // and opening one sends somebody to a record that no longer stands.
+                && customer.MergedIntoCustomerId == null
+                && (exceptCustomerId == null || customer.Id != exceptCustomerId)
                 && (customer.PhoneE164 == subject.PhoneE164
                     || customer.AlternatePhoneE164 == subject.PhoneE164
                     || (subject.AlternatePhoneE164 != null
@@ -122,37 +133,45 @@ public sealed class CustomerDirectory(CustomersDbContext context) : ICustomerDir
                     || (subject.NativeName != null && customer.NativeName == subject.NativeName)))
             .OrderByDescending(customer => customer.UpdatedAt)
             .Take(MaximumCandidates)
-            .Select(customer => new Row(
-                customer.Id,
-                customer.CustomerNumber,
-                customer.DisplayName,
-                customer.NativeName,
-                customer.PhoneE164,
-                customer.OwningBranchId,
-                customer.Status,
-                customer.UpdatedAt,
-                // A candidate is always shown to whoever is about to create a duplicate of it, so
-                // there is no branch to compare against: the whole point is that they cannot see it.
-                false))
+            .Select(customer => new CandidateRow(
+                new Row(
+                    customer.Id,
+                    customer.CustomerNumber,
+                    customer.DisplayName,
+                    customer.NativeName,
+                    customer.PhoneE164,
+                    customer.OwningBranchId,
+                    customer.Status,
+                    customer.UpdatedAt,
+                    // A candidate is always shown to whoever is about to create a duplicate of it, so
+                    // there is no branch to compare against: the whole point is that they cannot see it.
+                    false),
+                customer.NormalisedName,
+                customer.AlternatePhoneE164,
+                customer.Locality,
+                customer.Postcode))
             .ToListAsync(cancellationToken);
 
         var scored = new List<DuplicateCandidate>(candidates.Count);
 
         foreach (var candidate in candidates)
         {
+            // The stored key, not the display name folded again. Two implementations of one rule
+            // disagree the first time the normaliser changes, and they disagree in favour of the copy
+            // nobody indexed.
             var existing = new DuplicateSubject(
-                NormalisedNameOf(candidate.DisplayName),
-                candidate.NativeName,
-                candidate.PhoneE164,
-                null,
-                null,
-                null);
+                candidate.NormalisedName,
+                candidate.Card.NativeName,
+                candidate.Card.PhoneE164,
+                candidate.AlternatePhoneE164,
+                candidate.Locality,
+                candidate.Postcode);
 
             var match = DuplicateScoring.Compare(subject, existing);
 
             if (match.Confidence is not DuplicateConfidence.None)
             {
-                scored.Add(new DuplicateCandidate(ToCard(candidate), match));
+                scored.Add(new DuplicateCandidate(ToCard(candidate.Card), match));
             }
         }
 
@@ -204,9 +223,6 @@ public sealed class CustomerDirectory(CustomersDbContext context) : ICustomerDir
             new string('*', e164.Length - VisibleTailDigits),
             e164.AsSpan(e164.Length - VisibleTailDigits));
     }
-
-    private static string NormalisedNameOf(string displayName)
-        => CustomerNameNormaliser.Normalise(displayName);
 
     private static string? OnlyDigits(string term)
     {
@@ -273,4 +289,18 @@ public sealed class CustomerDirectory(CustomersDbContext context) : ICustomerDir
         CustomerStatus Status,
         DateTimeOffset UpdatedAt,
         bool VisibleToCaller);
+
+    /// <summary>
+    /// A candidate row: the card a counter is shown, and the fields only the scoring reads.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from <see cref="Row"/> so the ordinary search does not fetch four columns it never
+    /// looks at. Search runs on every keystroke; duplicate detection runs twice per customer.
+    /// </remarks>
+    private sealed record CandidateRow(
+        Row Card,
+        string NormalisedName,
+        string? AlternatePhoneE164,
+        string? Locality,
+        string? Postcode);
 }

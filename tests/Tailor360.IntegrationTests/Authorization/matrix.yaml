@@ -165,6 +165,25 @@ identifier-editing:
       customers.customer-not-found, so the route never says which of the two it was. Without that,
       typing identifiers at it would enumerate which customer identifiers exist.
 
+  - route: GET /api/v1/customers/{customerId}/duplicates
+    identifier: a customer record in another organisation, and one that belongs to no record at all
+    because: >
+      The same two answers as reading the record, for the same reason: this route resolves the subject
+      through the same organisation-scoped load, so a distinguishable refusal here would be the
+      enumeration oracle the read closes, reached by a different path.
+
+  - route: POST /api/v1/customers/{customerId}/merge
+    identifier: >
+      a customer record in another organisation, named in the request body rather than the path, and
+      one that belongs to no record at all
+    because: >
+      The only route on this surface whose identifier arrives in the body, and the one where guessing
+      would be worth most: a caller who could tell "no such record" from "a record you may not reach"
+      could enumerate another organisation's customers while holding a permission that looks
+      branch-scoped. Both answer 404 with customers.customer-not-found, the same pair as the read.
+      The path identifier is resolved first and refuses on the same terms, so a merge never reports
+      anything about the second record to a caller who could not reach the first.
+
 # ---------------------------------------------------------------------------------------------------
 # Which fields each role is shown. Not here, and this is the record of why.
 # ---------------------------------------------------------------------------------------------------

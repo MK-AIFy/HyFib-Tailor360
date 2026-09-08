@@ -222,7 +222,7 @@ and an auditor can find the gap. "Owning module" uses the module names of plan S
 | Attribute | Treatment |
 | --- | --- |
 | Class | **Personal** |
-| Examples | `customer_number`, name, native-script name, aliases, phone number, alternative phone, address, guardian-to-child link, branch of first contact, duplicate-candidate scores and merge history |
+| Examples | `customer_number`, name, native-script name, aliases, phone number, alternative phone, address, guardian-to-child link, branch of first contact, duplicate-candidate scores and merge history, and **the free-text reason recorded for a merge** |
 | Purpose | To find the right person at the counter, to reach them about their order, to attach measurements and orders to the correct record, and to avoid the duplicate records the paper register produces |
 | Lawful basis or consent | Necessary to provide the service the customer asked for; **DC-01** confirms the basis. Marketing use requires `marketing_messages` consent and there is no override |
 | Who may access | Reception, Branch Manager, Owner, Cashier and Delivery Staff within their branch scope. The **contact fields are a separate permission** (`customers.read_contact`), so a Tailor sees a name on a job card and never a phone number. Auditor reads without changing. Cross-branch reads are permitted only where the branch-scenario rules allow it ([`../prd/workflows/branch-scenarios.md`](../prd/workflows/branch-scenarios.md)) |
@@ -230,7 +230,21 @@ and an auditor can find the gap. "Owning module" uses the module names of plan S
 | In backups | Yes, inside the encrypted database backup in the object-locked bucket. Present in every backup taken before a deletion, and therefore gone only when those backups expire (section 7) |
 | In logs | The `customer_id` may appear. **The name, native name, phone number and address never appear** in any log, problem detail, health payload, trace attribute or telemetry event |
 | In exports | Only in exports whose purpose names the customer — a delivery list, a data-subject export, a financial document. **Never** in an operational or analytical bulk export, which carries `customer_id` and, where a human must recognise the row, a masked name. Every export is audited, expiring and access-controlled |
-| Deletion and anonymisation | There is no delete endpoint. Deactivation is a flag; retention deletion is **pseudonymisation**: name, native name, phone, address and aliases are replaced with a stable irreversible token, the `customer_id` survives so orders, invoices and the audit chain stay coherent, and the operation is audited per record (#57) |
+| Deletion and anonymisation | There is no delete endpoint. Deactivation is a flag; retention deletion is **pseudonymisation**: name, native name, phone, address and aliases are replaced with a stable irreversible token, the `customer_id` survives so orders, invoices and the audit chain stay coherent, and the operation is audited per record (#57). The merge and duplicate rows are pseudonymised in two different ways, for the reason in section 5.2.1 |
+
+#### 5.2.1 Merge records and duplicate-candidate decisions
+
+Both are evidence for exception EX-01, and both are covered by the row above, but they are erased differently and it
+is worth saying why before #57 has to decide it under time pressure.
+
+| Row | What it asserts | On erasure |
+| --- | --- | --- |
+| `customer_merges` | That the shop decided, on a date, on somebody's authority, that two of *its own records* were one person | **Kept, with the reason cleared.** The decision is the shop's own operating history and an irreversible one; deleting it would leave a survivor carrying an alias for a number nothing explains. The `reason` column is free text a member of staff typed about a named person, so it is the part that goes. The column is nullable for that and for nothing else, and the `customer_merges_no_rewrite` trigger permits clearing it and refuses every other change |
+| `duplicate_candidates` | That two *named people* were once thought to be one, and that somebody judged otherwise | **Deleted.** It is an assertion about the two people rather than about the shop's operations, and there is nothing left to explain once both records are pseudonymised. The table carries no append-only trigger and no uniqueness over the pair, deliberately, so that erasure can remove rows outright |
+
+Neither the reason nor the candidate scores ever leave Customers. `customers.customer-merged.v1` carries identifiers
+only ([`../integration/events/README.md`](../integration/events/README.md) section 3), and a subscriber that needs
+to show a merge asks `ICustomerSnapshotQuery`, which re-authorises the read.
 
 ### 5.3 Consent records and communication preferences
 

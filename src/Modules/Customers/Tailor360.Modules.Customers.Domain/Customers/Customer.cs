@@ -1,3 +1,4 @@
+using Tailor360.Modules.Customers.Domain.Naming;
 using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Customers.Domain.Customers;
@@ -146,6 +147,31 @@ public sealed class Customer
     /// <summary>When it was deactivated, where it has been.</summary>
     public DateTimeOffset? DeactivatedAt { get; private set; }
 
+    /// <summary>
+    /// The record this one was folded into, or null while it stands on its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set once, by <see cref="Absorb"/>, and never cleared: there is no un-merge
+    /// (<c>docs/prd/exceptions.md</c> EX-01). A record carrying it is also
+    /// <see cref="CustomerStatus.Deactivated"/>, so it drops out of ordinary search — but the row
+    /// stays, because an order placed last year still names the person who placed it, and this
+    /// pointer is what lets a later reader follow that name to the record that survived.
+    /// </para>
+    /// <para>
+    /// It is deliberately <em>not</em> a fourth customer status. A status is a lifecycle position and
+    /// every screen switches on it; a merge is a pointer, and adding a value to the enumeration would
+    /// have meant revisiting every place that reads one to decide what it now means.
+    /// </para>
+    /// </remarks>
+    public Guid? MergedIntoCustomerId { get; private set; }
+
+    /// <summary>When this record was folded into another, or null while it stands on its own.</summary>
+    public DateTimeOffset? MergedAt { get; private set; }
+
+    /// <summary>True once this record has been folded into another one.</summary>
+    public bool IsMerged => MergedIntoCustomerId is not null;
+
     /// <summary>Previous names, spellings and merged numbers, kept searchable.</summary>
     public IReadOnlyCollection<CustomerAlias> Aliases => _aliases;
 
@@ -280,6 +306,14 @@ public sealed class Customer
     /// <returns>Success, or the reason it was refused.</returns>
     public Result Reactivate(DateTimeOffset now, Guid? by)
     {
+        // Before the status check, because a merged record is deactivated and would otherwise look
+        // like an ordinary withdrawal to reverse. Reactivating one would put two records for the same
+        // person back in search — the exact state the merge was performed to end.
+        if (IsMerged)
+        {
+            return Result.Failure(CustomersErrors.AlreadyMerged);
+        }
+
         if (Status is CustomerStatus.Active)
         {
             return Result.Failure(CustomersErrors.StatusTransitionNotAllowed(
@@ -316,6 +350,166 @@ public sealed class Customer
         return true;
     }
 
+    /// <summary>
+    /// Folds another record for the same person into this one, which survives.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is the irreversible half of EX-01</strong> and it changes both aggregates: this
+    /// one gains the merged record's number as a searchable alias, its display name as a previous
+    /// name where the two differ, and every branch that could see it; the merged record gains a
+    /// pointer to this one and is withdrawn from ordinary use. Both halves are here rather than in
+    /// the application layer, because a merge that applied one and not the other would leave two
+    /// records for one person with nothing joining them.
+    /// </para>
+    /// <para>
+    /// <strong>The guards are ordered, and the order is the message.</strong> Self-merge first,
+    /// because it is a screen defect and says nothing about either record; then the organisation,
+    /// which is a reachability question; then each record's own merge state, survivor before merged,
+    /// so that a caller holding two stale records hears "the record you chose to survive has itself
+    /// been merged" rather than the vaguer answer about the other one.
+    /// </para>
+    /// <para>
+    /// <strong>What it does not do.</strong> It does not copy the merged record's own aliases, its
+    /// consent or its communication preferences. Consent is evidence belonging to the record it was
+    /// taken against — <c>docs/nfr/data-classification.md</c> section 5.3 keeps it as written — and
+    /// <c>docs/prd/exceptions.md</c> EX-01 says the survivor's own consent and channel preferences
+    /// govern every later message. Nor does it re-point measurements or orders: what Customers owns
+    /// is re-pointed in the application's transaction, and what it does not own follows
+    /// <c>customers.customer-merged.v1</c>.
+    /// </para>
+    /// </remarks>
+    /// <param name="merged">The record being folded in, which this call also changes.</param>
+    /// <param name="numberAliasId">Identifier for the alias holding the merged customer number.</param>
+    /// <param name="nameAliasId">
+    /// Identifier for the alias holding the merged record's display name. Used only when the two
+    /// records are written under different names; supplied unconditionally, because a caller cannot
+    /// know which case it is in without comparing the two records, which is this method's job.
+    /// </param>
+    /// <param name="now">The instant, from <c>IClock</c>.</param>
+    /// <param name="by">The actor.</param>
+    /// <returns>What the merge recorded, or the reason it was refused.</returns>
+    public Result<MergeAbsorption> Absorb(
+        Customer merged,
+        Guid numberAliasId,
+        Guid nameAliasId,
+        DateTimeOffset now,
+        Guid? by)
+    {
+        ArgumentNullException.ThrowIfNull(merged);
+
+        if (merged.Id == Id)
+        {
+            return Result.Failure<MergeAbsorption>(CustomersErrors.CannotMergeIntoItself);
+        }
+
+        if (merged.OrganisationId != OrganisationId)
+        {
+            return Result.Failure<MergeAbsorption>(CustomersErrors.CannotMergeAcrossOrganisations);
+        }
+
+        if (IsMerged)
+        {
+            return Result.Failure<MergeAbsorption>(CustomersErrors.MergeTargetIsMerged);
+        }
+
+        if (merged.IsMerged)
+        {
+            return Result.Failure<MergeAbsorption>(CustomersErrors.AlreadyMerged);
+        }
+
+        // A withdrawn survivor is refused rather than quietly reactivated. Folding a record into one
+        // that has been taken out of use is almost always the two records chosen the wrong way round,
+        // and the remedy — reactivate, then merge — is two deliberate steps rather than one guess.
+        if (Status is not CustomerStatus.Active)
+        {
+            return Result.Failure<MergeAbsorption>(
+                CustomersErrors.StatusTransitionNotAllowed(Status.ToString(), "a surviving record"));
+        }
+
+        if (numberAliasId == Guid.Empty)
+        {
+            return Result.Failure<MergeAbsorption>(CustomersErrors.Required("numberAliasId"));
+        }
+
+        var namesDiffer = !string.Equals(DisplayName, merged.DisplayName, StringComparison.Ordinal);
+
+        if (namesDiffer && nameAliasId == Guid.Empty)
+        {
+            return Result.Failure<MergeAbsorption>(CustomersErrors.Required("nameAliasId"));
+        }
+
+        // The merged number, kept searchable against the record that survived, which is what EX-01
+        // promises somebody reading an old receipt.
+        _aliases.Add(CustomerAlias.Record(
+            numberAliasId,
+            Id,
+            CustomerAliasKind.MergedCustomerNumber,
+            merged.CustomerNumber,
+            CustomerNameNormaliser.Normalise(merged.CustomerNumber),
+            now,
+            by));
+
+        var aliasesRecorded = 1;
+
+        if (namesDiffer)
+        {
+            _aliases.Add(CustomerAlias.Record(
+                nameAliasId,
+                Id,
+                CustomerAliasKind.PreviousName,
+                merged.DisplayName,
+                merged.NormalisedName,
+                now,
+                by));
+
+            aliasesRecorded++;
+        }
+
+        // Every branch that could see the record going away must be able to see the one that
+        // survives, or the merge would take a customer off a branch's screen altogether.
+        var visibilityAdded = 0;
+
+        foreach (var branchId in merged.VisibilityBranchIds.ToList())
+        {
+            if (MakeVisibleTo(branchId, now, by))
+            {
+                visibilityAdded++;
+            }
+        }
+
+        merged.MergeAway(Id, now, by);
+        Touch(now, by);
+
+        return Result.Success(new MergeAbsorption(numberAliasId, aliasesRecorded, visibilityAdded));
+    }
+
+    /// <summary>
+    /// Points this record at the one that absorbed it and withdraws it from ordinary use.
+    /// </summary>
+    /// <remarks>
+    /// Internal, and reachable only through <see cref="Absorb"/>, so the pointer and the alias that
+    /// makes the merged number findable are written together or not at all. Idempotent about the
+    /// status: a record already withdrawn keeps the date it was withdrawn on, because that is when it
+    /// stopped being offered and the merge did not change it.
+    /// </remarks>
+    /// <param name="survivorCustomerId">The record that survives.</param>
+    /// <param name="now">The instant, from <c>IClock</c>.</param>
+    /// <param name="by">The actor.</param>
+    internal void MergeAway(Guid survivorCustomerId, DateTimeOffset now, Guid? by)
+    {
+        MergedIntoCustomerId = survivorCustomerId;
+        MergedAt = now;
+
+        if (Status is not CustomerStatus.Deactivated)
+        {
+            Status = CustomerStatus.Deactivated;
+            DeactivatedAt = now;
+        }
+
+        Touch(now, by);
+    }
+
     /// <summary>Whether a branch sees this record in ordinary search results.</summary>
     /// <param name="branchId">The branch.</param>
     /// <returns>True when it does.</returns>
@@ -344,3 +538,26 @@ public sealed class Customer
         UpdatedBy = by;
     }
 }
+
+/// <summary>
+/// What one merge recorded on the surviving record.
+/// </summary>
+/// <remarks>
+/// Returned by <see cref="Customer.Absorb"/> so that the merge record can say what actually happened
+/// rather than what was asked for. The two counts are the difference: two records written under the
+/// same name record one alias and not two, and two records already visible to the same branches add
+/// no visibility at all. A reader comparing a merge record against the aggregate a year later needs
+/// to know which of those it was.
+/// </remarks>
+/// <param name="NumberAliasId">The alias now holding the merged customer number.</param>
+/// <param name="AliasesRecorded">
+/// How many aliases the survivor gained: one for the merged number, and a second for the merged
+/// record's display name where the two records were written under different names.
+/// </param>
+/// <param name="VisibilityBranchesAdded">
+/// How many branches gained sight of the survivor because they could see the merged record.
+/// </param>
+public sealed record MergeAbsorption(
+    Guid NumberAliasId,
+    int AliasesRecorded,
+    int VisibilityBranchesAdded);

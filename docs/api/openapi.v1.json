@@ -824,6 +824,63 @@
         ],
         "type": "object"
       },
+      "CustomerMergePayload": {
+        "properties": {
+          "aliasesRecorded": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerPayload"
+          },
+          "mergeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mergedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mergedCustomerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mergedCustomerNumber": {
+            "type": "string"
+          },
+          "recordsRepointed": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "visibilityBranchesAdded": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customer",
+          "mergeId",
+          "mergedCustomerId",
+          "mergedCustomerNumber",
+          "aliasesRecorded",
+          "visibilityBranchesAdded",
+          "recordsRepointed",
+          "mergedAt"
+        ],
+        "type": "object"
+      },
       "CustomerPagePayload": {
         "properties": {
           "customers": {
@@ -889,6 +946,20 @@
             "type": "string"
           },
           "locality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mergedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mergedIntoCustomerId": {
+            "format": "uuid",
             "type": [
               "null",
               "string"
@@ -1110,6 +1181,42 @@
         ],
         "type": "object"
       },
+      "DuplicateCandidatePayload": {
+        "properties": {
+          "confidence": {
+            "type": "string"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerCardPayload"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "customer",
+          "confidence",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "DuplicateReviewPayload": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateCandidatePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "type": "object"
+      },
       "ExportAuditPayload": {
         "properties": {
           "action": {
@@ -1307,6 +1414,25 @@
         "type": "object"
       },
       "JsonElement": {},
+      "MergeCustomerRequest": {
+        "properties": {
+          "mergedCustomerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "mergedCustomerId",
+          "reason"
+        ],
+        "type": "object"
+      },
       "MfaEnrolmentConfirmationPayload": {
         "properties": {
           "code": {
@@ -7339,6 +7465,184 @@
         ],
         "x-tailor360-audit": "customers.customer.deactivated",
         "x-tailor360-authorisation": "permission:customers.deactivate",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/duplicates": {
+      "get": {
+        "description": "The screen a merge is decided from. It scores the records as they stand rather than reading back the suspicions raised when either was created, because a correction to either can create a resemblance or remove one, and a merge is too final to take on a score somebody computed months ago. Cards are masked exactly as they are in search, and a record that has already been merged is never offered. Gated on `customers.read` rather than `customers.merge`: reading who might be a duplicate is what Reception does before asking a manager to merge, and demanding the merge permission to look would mean nobody could prepare the decision.",
+        "operationId": "GetCustomerDuplicates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateReviewPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the records that may be the same person as this one.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/{customerId}/merge": {
+      "post": {
+        "description": "The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.",
+        "operationId": "MergeCustomers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+                "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/MergeCustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerMergePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Fold one customer record into another. This cannot be undone.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.merged",
+        "x-tailor360-authorisation": "permission:customers.merge",
         "x-tailor360-rate-limit": "write"
       }
     },

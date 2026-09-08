@@ -86,6 +86,8 @@ public static class CustomerEndpoints
         MapCorrect(customers);
         MapStatusCommands(customers);
         MapOpenAtBranch(customers);
+        MapDuplicates(customers);
+        MapMerge(customers);
 
         return customers;
     }
@@ -383,6 +385,127 @@ public static class CustomerEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CustomerHandler.OpenedAtBranchAction)
             .RequireIdempotency()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+    }
+
+    private static void MapDuplicates(RouteGroupBuilder customers)
+    {
+        customers.MapGet("/{customerId:guid}/duplicates", async Task<IResult> (
+                Guid customerId,
+                HttpContext context,
+                CustomerHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.DuplicatesAsync(
+                    customerId, caller.Context.OrganisationId, cancellationToken);
+
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.Headers.CacheControl = NoStore;
+
+                return Results.Ok(DuplicateReviewPayload.From(result.Value));
+            })
+            .Produces<DuplicateReviewPayload>(StatusCodes.Status200OK)
+            .WithName("GetCustomerDuplicates")
+            .WithSummary("List the records that may be the same person as this one.")
+            .WithDescription(
+                "The screen a merge is decided from. It scores the records as they stand rather than "
+                + "reading back the suspicions raised when either was created, because a correction to "
+                + "either can create a resemblance or remove one, and a merge is too final to take on "
+                + "a score somebody computed months ago. Cards are masked exactly as they are in "
+                + "search, and a record that has already been merged is never offered. Gated on "
+                + "`customers.read` rather than `customers.merge`: reading who might be a duplicate is "
+                + "what Reception does before asking a manager to merge, and demanding the merge "
+                + "permission to look would mean nobody could prepare the decision.")
+            .RequirePermission(CustomersPermissions.Read, BranchScope.AssignedBranches)
+            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+    }
+
+    private static void MapMerge(RouteGroupBuilder customers)
+    {
+        customers.MapPost("/{customerId:guid}/merge", async Task<IResult> (
+                Guid customerId,
+                MergeCustomerRequest request,
+                HttpContext context,
+                CustomerHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                // Read the survivor first: a caller who cannot reach it hears "not found" before
+                // anything is locked, and the If-Match has a version to be compared against. The
+                // handler checks the precondition a second time inside the lock, against the row the
+                // merge will actually change.
+                var current = await handler.ReadAsync(
+                    customerId, caller.Context.OrganisationId, cancellationToken);
+
+                if (current.IsFailure)
+                {
+                    return Problems.From(current.Error, context);
+                }
+
+                var precondition = ConcurrencyResults.CheckIfMatch(
+                    context,
+                    current.Value.Version,
+                    CustomerRequests.VersionConflict,
+                    CustomerRequests.VersionConflictDetail);
+
+                if (precondition is not null)
+                {
+                    return precondition;
+                }
+
+                var result = await handler.MergeAsync(
+                    new MergeCustomersCommand(
+                        customerId,
+                        request?.MergedCustomerId ?? Guid.Empty,
+                        caller.Context.OrganisationId,
+                        caller.Context.BranchId,
+                        current.Value.Version,
+                        request?.Reason,
+                        caller.UserId),
+                    cancellationToken);
+
+                if (result.IsFailure)
+                {
+                    return result.Error == CustomersErrors.ConcurrentChange
+                        ? ConcurrencyResults.VersionConflict(
+                            context,
+                            CustomerRequests.VersionConflict,
+                            CustomerRequests.VersionConflictDetail,
+                            current.Value.Version)
+                        : Problems.From(result.Error, context);
+                }
+
+                context.Response.SetEntityTag(result.Value.Survivor.Version);
+                context.Response.Headers.CacheControl = NoStore;
+
+                return Results.Ok(CustomerMergePayload.From(
+                    result.Value, caller.HasPermission(CustomersPermissions.ReadContact)));
+            })
+            .Produces<CustomerMergePayload>(StatusCodes.Status200OK)
+            .WithName("MergeCustomers")
+            .WithSummary("Fold one customer record into another. This cannot be undone.")
+            .WithDescription(
+                "The remedy for exception EX-01, and the only irreversible operation on a customer "
+                + "record. The record in the path survives; the one in the body is folded into it, "
+                + "keeps its number searchable as an alias on the survivor, and is withdrawn from "
+                + "ordinary use. Every branch that could see it can now see the survivor. Measurements "
+                + "and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already "
+                + "frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh "
+                + "re-authentication, and there is no un-merge.")
+            .RequirePermission(CustomersPermissions.Merge, BranchScope.AssignedBranches)
+            .RequireStepUp()
+            .TouchesNoBranchOwnedResource(NoBranchResource, Review)
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(CustomerHandler.MergedAction, reasonRequired: true)
+            .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
     }
 

@@ -74,4 +74,126 @@ public sealed class CustomerStore(CustomersDbContext context, ISequenceAllocator
         return string.Create(
             CultureInfo.InvariantCulture, $"C-{branchCode.ToUpperInvariant()}-{next:000000}");
     }
+
+    /// <inheritdoc />
+    public async Task<Result<TOutcome>> InMergeTransactionAsync<TOutcome>(
+        Guid survivorCustomerId,
+        Guid mergedCustomerId,
+        Func<Customer, Customer, CancellationToken, Task<Result<TOutcome>>> merge,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(merge);
+
+        // The connection retries on a transient failure, and a retry replays this whole delegate. An
+        // explicit transaction outside the strategy would be rejected by EF for exactly that reason.
+        var strategy = context.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
+        {
+            // Anything read before the lock was read from an unlocked row, and the change tracker
+            // would hand that copy back to the reads below rather than going to the database. The
+            // merge transaction is the unit of work and it starts from nothing.
+            context.ChangeTracker.Clear();
+
+            await using var transaction =
+                await context.Database.BeginTransactionAsync(cancellationToken);
+
+            // Both rows locked before either is read, in ascending PostgreSQL uuid order, so that two
+            // merges naming the same pair the opposite way round queue instead of deadlocking
+            // (docs/architecture/invariants.md, the Customers concurrency row).
+            var (first, second) = InPostgresOrder(survivorCustomerId, mergedCustomerId);
+
+            await LockAsync(first, cancellationToken);
+            await LockAsync(second, cancellationToken);
+
+            var survivor = await FindAsync(survivorCustomerId, cancellationToken);
+            var merged = await FindAsync(mergedCustomerId, cancellationToken);
+
+            if (survivor is null || merged is null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+
+                return Result.Failure<TOutcome>(CustomersErrors.CustomerNotFound);
+            }
+
+            Result<TOutcome> outcome;
+
+            try
+            {
+                outcome = await merge(survivor, merged, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // The callback saves inside this transaction, and its own store call already turns
+                // this into a result. Caught here as well because a merge writes more than the
+                // aggregate, and a raw exception escaping would be a 500 for two people editing at
+                // once.
+                await transaction.RollbackAsync(cancellationToken);
+
+                return Result.Failure<TOutcome>(CustomersErrors.ConcurrentChange);
+            }
+
+            if (outcome.IsFailure)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+
+                return outcome;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return outcome;
+        });
+    }
+
+    /// <inheritdoc />
+    public Task<int> FlattenMergePointersAsync(
+        Guid fromCustomerId,
+        Guid toCustomerId,
+        DateTimeOffset now,
+        Guid? by,
+        CancellationToken cancellationToken = default)
+        => context.Customers
+            .Where(customer => customer.MergedIntoCustomerId == fromCustomerId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(customer => customer.MergedIntoCustomerId, toCustomerId)
+                    .SetProperty(customer => customer.UpdatedAt, now)
+                    .SetProperty(customer => customer.UpdatedBy, by),
+                cancellationToken);
+
+    /// <summary>
+    /// Takes a row lock on one customer for the length of the ambient transaction.
+    /// </summary>
+    /// <remarks>
+    /// A statement rather than a query with <c>FOR UPDATE</c> appended: PostgreSQL refuses
+    /// <c>FOR UPDATE</c> inside the sub-query EF composes when a <c>FromSql</c> is combined with
+    /// <c>Include</c> or <c>AsSplitQuery</c>, which is how the aggregate is loaded. Taking the lock
+    /// first and reading afterwards, in the same transaction, gets both without either fighting the
+    /// other. A row that does not exist locks nothing and is not an error; the caller reads null and
+    /// answers "not found".
+    /// </remarks>
+    /// <param name="customerId">The record to lock.</param>
+    /// <param name="cancellationToken">Cancels the statement.</param>
+    /// <returns>The rows the statement reports, which nothing reads.</returns>
+    private Task<int> LockAsync(Guid customerId, CancellationToken cancellationToken)
+        => context.Database.ExecuteSqlAsync(
+            $"SELECT id FROM customers.customers WHERE id = {customerId} FOR UPDATE",
+            cancellationToken);
+
+    /// <summary>
+    /// The two identifiers in the order PostgreSQL compares them.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL orders a <c>uuid</c> by its sixteen bytes as they are written; .NET's
+    /// <see cref="Guid.CompareTo(Guid)"/> walks the structure's fields, and for the first three of
+    /// them the byte order is reversed. The two disagree, so ordering with the wrong one would give
+    /// two requests different opinions about which row to lock first — which is the deadlock this
+    /// exists to prevent.
+    /// </remarks>
+    private static (Guid First, Guid Second) InPostgresOrder(Guid left, Guid right)
+        => left.ToByteArray(bigEndian: true).AsSpan()
+                .SequenceCompareTo(right.ToByteArray(bigEndian: true)) <= 0
+            ? (left, right)
+            : (right, left);
 }

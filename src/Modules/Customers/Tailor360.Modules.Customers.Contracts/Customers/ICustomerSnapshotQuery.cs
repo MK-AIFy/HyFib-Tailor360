@@ -65,6 +65,20 @@ public interface ICustomerSnapshotQuery
 /// <param name="AddressLine">The street line, or null when masked or absent.</param>
 /// <param name="Locality">The area or town, or null when masked or absent.</param>
 /// <param name="Postcode">The postal code, or null when masked or absent.</param>
+/// <param name="MergedIntoCustomerId">
+/// The record this one was folded into, or null while it stands on its own.
+/// <para>
+/// A consumer holding a customer identifier can be holding one that has since been merged — an order
+/// placed last year names the record that took it — and this is how the answer says so without the
+/// consumer having to have heard <c>customers.customer-merged.v1</c>. What to do with it depends on
+/// what the consumer is showing: a snapshot frozen onto an invoice keeps naming the record it named
+/// (INV-CUS-04), while a screen offering to start something new should follow the pointer.
+/// </para>
+/// <para>
+/// Added within v1 as an optional trailing parameter, so every existing caller compiles and every
+/// existing construction still means what it did.
+/// </para>
+/// </param>
 public sealed record CustomerSnapshot(
     Guid CustomerId,
     string CustomerNumber,
@@ -78,7 +92,8 @@ public sealed record CustomerSnapshot(
     string? Email,
     string? AddressLine,
     string? Locality,
-    string? Postcode)
+    string? Postcode,
+    Guid? MergedIntoCustomerId = null)
 {
     /// <summary>
     /// The permission a caller must hold for the contact fields to be populated.

@@ -60,6 +60,7 @@ public static class CustomersModuleServiceCollectionExtensions
 
         services.TryAddScoped<ICustomerStore, CustomerStore>();
         services.TryAddScoped<ICustomerDirectory, CustomerDirectory>();
+        services.TryAddScoped<IMergeStore, MergeStore>();
         services.TryAddScoped<CustomerHandler>();
         services.TryAddScoped<IConsentStore, ConsentStore>();
         services.TryAddScoped<IPreferenceStore, PreferenceStore>();

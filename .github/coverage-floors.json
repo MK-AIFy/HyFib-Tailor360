@@ -70,22 +70,22 @@
     },
     "Tailor360.Modules.Customers.Domain": {
       "floor": 92.0,
-      "measured": 95.7,
+      "measured": 96.9,
       "note": "The customer aggregate, the name and telephone normalisers, the duplicate score and the consent and preference types of #26, covered by the Unit tier."
     },
     "Tailor360.Modules.Customers.Application": {
       "floor": 92.0,
-      "measured": 96.1,
+      "measured": 96.6,
       "note": "The customer, consent and preference handlers and their audit projections, covered by the Integration tier through the endpoints."
     },
     "Tailor360.Modules.Customers.Infrastructure": {
       "floor": 94.0,
-      "measured": 97.3,
+      "measured": 97.2,
       "note": "The DbContext, the stores, the counter search, the three published queries and the module's own event publisher. The figure depends on the migrations being applied during the run, which is what covers the roughly 1,070 lines of the two migrations and their designers; CI's service container is empty on every run, so it is. A developer re-running the Integration tier against a database that already carries the schema measures about 46% for this project and should not read that as a regression: the whole difference is migration code that had nothing left to do."
     },
     "Tailor360.Modules.Customers.Api": {
       "floor": 92.0,
-      "measured": 95.2,
+      "measured": 96.0,
       "note": "The eleven customer, consent and communication-preference endpoints and their payloads, covered by the Contract and Integration tiers."
     },
     "Tailor360.Cli": {
