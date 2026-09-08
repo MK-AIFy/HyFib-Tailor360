@@ -111,6 +111,20 @@ public static class CustomersErrors
         "One or more existing customers look like this person. Read them, then either open one or "
         + "confirm that this is somebody new.");
 
+    /// <summary>A consent purpose key held a character that would not survive a URL or a log line.</summary>
+    /// <param name="field">The field carrying the key.</param>
+    public static Error ConsentPurposeKeyNotAllowed(string field) => Error.Validation(
+        "customers.consent-purpose-key-not-allowed",
+        "A consent purpose key is lower-case letters, digits and underscores.",
+        field);
+
+    /// <summary>The purpose is retired, so it is not asked about and its wording does not change.</summary>
+    /// <param name="key">The purpose key.</param>
+    public static Error ConsentPurposeRetired(string key) => Error.Conflict(
+        "customers.consent-purpose-retired",
+        $"The consent purpose '{key}' is retired. What customers already said about it stands; it is "
+        + "no longer asked about, and its wording is not changed.");
+
     /// <summary>The caller is assigned to no branch, so there is no branch to create the record in.</summary>
     public static Error NoBranchInContext { get; } = Error.Forbidden(
         "customers.no-branch-in-context",
