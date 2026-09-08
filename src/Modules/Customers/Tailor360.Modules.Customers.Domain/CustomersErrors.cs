@@ -137,6 +137,28 @@ public static class CustomersErrors
         $"The consent purpose '{key}' is retired. What customers already said about it stands; it is "
         + "no longer asked about, and its wording is not changed.");
 
+    /// <summary>A communication channel was a value that is none of the ones the shop can send on.</summary>
+    /// <param name="field">The field carrying the channels.</param>
+    public static Error CommunicationChannelNotUnderstood(string field) => Error.Validation(
+        "customers.communication-channel-not-understood",
+        "A communication channel is one the shop can actually send on.",
+        field);
+
+    /// <summary>One end of a quiet-hours window was given without the other.</summary>
+    /// <param name="field">The end that is missing.</param>
+    public static Error QuietHoursIncomplete(string field) => Error.Validation(
+        "customers.quiet-hours-incomplete",
+        "Quiet hours need both a start and an end, or neither.",
+        field);
+
+    /// <summary>A quiet-hours window opened and closed at the same time, so it covers nothing.</summary>
+    /// <param name="field">The field carrying the start.</param>
+    public static Error QuietHoursEmpty(string field) => Error.Validation(
+        "customers.quiet-hours-empty",
+        "A quiet-hours window that starts and ends at the same time covers no time at all. To stop "
+        + "messages altogether, allow no channel.",
+        field);
+
     /// <summary>The caller is assigned to no branch, so there is no branch to create the record in.</summary>
     public static Error NoBranchInContext { get; } = Error.Forbidden(
         "customers.no-branch-in-context",
