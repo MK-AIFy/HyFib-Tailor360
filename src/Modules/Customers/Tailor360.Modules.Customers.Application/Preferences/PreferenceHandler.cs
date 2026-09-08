@@ -90,6 +90,14 @@ public sealed class PreferenceHandler(
             return Result.Failure<AdministeredPreferences>(CustomersErrors.CustomerNotFound);
         }
 
+        // A merged record no longer stands, and an answer recorded against it would be evidence
+        // nobody reads: the survivor's own consent and preferences govern every later message
+        // (docs/prd/exceptions.md EX-01). Whoever is at the counter is looking at the wrong record.
+        if (customer.IsMerged)
+        {
+            return Result.Failure<AdministeredPreferences>(CustomersErrors.AlreadyMerged);
+        }
+
         var quiet = QuietHours.TryRead(command.QuietHoursStart, command.QuietHoursEnd);
 
         if (quiet.IsFailure)

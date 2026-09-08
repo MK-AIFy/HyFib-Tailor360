@@ -1,0 +1,11 @@
+{
+  "eventId": "019bd11e-4a30-7c58-9b71-2f3e4d5c6b7a",
+  "occurredAt": "2026-09-08T11:41:07.4820000+00:00",
+  "aggregateId": "019bcf80-11a2-7c3d-8e45-0f9a1b2c3d4e",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+  "mergeId": "019bd11e-4a2f-7a13-8d60-1c2b3a4958f7",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "eventType": "customers.customer-merged.v1",
+  "schemaVersion": 1
+}

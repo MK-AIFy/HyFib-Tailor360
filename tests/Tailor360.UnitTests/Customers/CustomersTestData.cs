@@ -67,14 +67,26 @@ internal static class CustomersTestData
     /// <summary>A registered, active customer.</summary>
     /// <param name="displayName">The name.</param>
     /// <param name="phone">The primary number.</param>
+    /// <param name="number">The display number, which a merge keeps searchable as an alias.</param>
+    /// <param name="organisationId">The organisation, for the cross-organisation guards.</param>
+    /// <param name="owningBranchId">The creating branch.</param>
+    /// <param name="locality">The area or town.</param>
+    /// <param name="postcode">The postal code.</param>
     /// <returns>The customer.</returns>
-    public static Customer Registered(string displayName = "Kavitha Raman", string phone = "90000 21174")
+    public static Customer Registered(
+        string displayName = "Kavitha Raman",
+        string phone = "90000 21174",
+        string number = "C-CBE01-004182",
+        Guid? organisationId = null,
+        Guid? owningBranchId = null,
+        string? locality = "RS Puram",
+        string? postcode = "641002")
         => Customer.Register(
-            Id(displayName),
-            Organisation,
-            "C-CBE01-004182",
-            Branch,
-            Details(displayName, phone),
+            Id(displayName + number),
+            organisationId ?? Organisation,
+            number,
+            owningBranchId ?? Branch,
+            Details(displayName, phone, locality: locality, postcode: postcode),
             Now,
             Actor).Value;
 

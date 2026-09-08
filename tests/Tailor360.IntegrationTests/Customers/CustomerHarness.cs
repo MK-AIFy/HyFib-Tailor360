@@ -1,5 +1,7 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OtpNet;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
 using Tailor360.Modules.Customers.Application.Consent;
@@ -56,6 +58,17 @@ internal static class CustomerHarness
         CustomersPermissions.Update,
         CustomersPermissions.Deactivate,
     ];
+
+    /// <summary>
+    /// What a Branch Manager holds: everything Reception does, plus the merge.
+    /// </summary>
+    /// <remarks>
+    /// <c>docs/prd/raci.md</c> note (1): "the plan's proposal is that the Branch Manager holds it, so
+    /// Reception is consulted-then-blocked rather than free to merge". A client built with these
+    /// permissions still cannot merge unless it was opened through <see cref="ManagerAsync"/>, because
+    /// <c>customers.merge</c> also demands a second factor and a fresh re-authentication.
+    /// </remarks>
+    public static string[] BranchManager { get; } = [.. Reception, CustomersPermissions.Merge];
 
     /// <summary>Opens a branch if this run has not opened it yet.</summary>
     /// <param name="fixture">The hosted application.</param>
@@ -231,6 +244,42 @@ internal static class CustomerHarness
     /// The language on the record, which is what an unrecorded preference falls back to.
     /// </param>
     /// <returns>The identifier of the record.</returns>
+    /// <summary>
+    /// A signed-in Branch Manager whose session is fresh enough for a step-up endpoint.
+    /// </summary>
+    /// <param name="fixture">The host.</param>
+    /// <param name="prefix">A short prefix, which becomes part of the account and role names.</param>
+    /// <param name="clientAddress">The client address, so rate limits do not bleed between tests.</param>
+    /// <param name="branchId">The branch the manager is assigned to.</param>
+    /// <param name="permissions">What the role grants.</param>
+    /// <returns>The client, signed in with a second factor enrolled.</returns>
+    public static async Task<AuthenticationClient> ManagerAsync(
+        WebApplicationFixture fixture,
+        string prefix,
+        string clientAddress,
+        Guid branchId,
+        params string[] permissions)
+    {
+        var client = await CounterAsync(fixture, prefix, clientAddress, branchId, permissions);
+
+        // Real TOTP, not a stub. customers.merge is declared RequiresMfa and RequiresStepUp, and a
+        // session that reached step-up freshness by any other route would not be the session the
+        // endpoint actually sees — which is the whole point of testing it through the host.
+        var started = await client.PostAsync("/api/v1/auth/mfa/enrol");
+        started.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var enrolment = (await AuthenticationClient.ReadAsync<Enrolment>(started)).ShouldNotBeNull();
+
+        var secret = Base32Encoding.ToBytes(
+            enrolment.ManualEntryKey.Replace(" ", string.Empty, StringComparison.Ordinal));
+        var code = new Totp(secret, enrolment.PeriodSeconds, totpSize: enrolment.Digits).ComputeTotp();
+
+        (await client.PostAsync("/api/v1/auth/mfa/enrol/confirm", new { code }))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        return client;
+    }
+
     public static async Task<Guid> CustomerAsync(
         WebApplicationFixture fixture,
         Guid owningBranchId,
@@ -451,4 +500,6 @@ internal static class CustomerHarness
         context.CommunicationPreferences.Add(preference.Value);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
+
+    private sealed record Enrolment(string ManualEntryKey, int PeriodSeconds, int Digits);
 }

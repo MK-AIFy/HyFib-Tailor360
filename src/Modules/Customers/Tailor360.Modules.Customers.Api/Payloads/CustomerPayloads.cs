@@ -40,6 +40,12 @@ namespace Tailor360.Modules.Customers.Api.Payloads;
 /// <param name="CreatedAt">When the record was created.</param>
 /// <param name="UpdatedAt">When it was last changed.</param>
 /// <param name="Version">The concurrency token an edit must be made against.</param>
+/// <param name="MergedIntoCustomerId">
+/// The record this one was folded into, or null while it stands on its own. Never masked: whether the
+/// record still stands is a fact about the record rather than about the person, and a screen that
+/// cannot see it offers actions against a customer who no longer exists.
+/// </param>
+/// <param name="MergedAt">When it was folded in, or null while it stands on its own.</param>
 public sealed record CustomerPayload(
     Guid CustomerId,
     string CustomerNumber,
@@ -58,7 +64,9 @@ public sealed record CustomerPayload(
     IReadOnlyList<CustomerAliasPayload> Aliases,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    string Version)
+    string Version,
+    Guid? MergedIntoCustomerId = null,
+    DateTimeOffset? MergedAt = null)
 {
     /// <summary>Projects a record onto the wire, withholding contact fields where they are not held.</summary>
     /// <param name="customer">The record.</param>
@@ -86,7 +94,12 @@ public sealed record CustomerPayload(
             [.. customer.Aliases.Select(CustomerAliasPayload.From)],
             customer.CreatedAt,
             customer.UpdatedAt,
-            customer.Version.Version);
+            customer.Version.Version,
+            // Never masked by customers.read_contact. Whether the record still stands is a fact about
+            // the record rather than about the person, and a client that cannot see it shows somebody
+            // who has been merged away as though she were current.
+            customer.MergedIntoCustomerId,
+            customer.MergedAt);
     }
 }
 
@@ -204,9 +217,20 @@ public sealed record DuplicateCandidatePayload(
     }
 }
 
-/// <summary>What the caller must read before creating a record that resembles one already held.</summary>
+/// <summary>The records that resemble one already held: read before creating, and before merging.</summary>
 /// <param name="Candidates">The records to read, strongest resemblance first.</param>
-public sealed record DuplicateReviewPayload(IReadOnlyList<DuplicateCandidatePayload> Candidates);
+public sealed record DuplicateReviewPayload(IReadOnlyList<DuplicateCandidatePayload> Candidates)
+{
+    /// <summary>Wraps a scored list.</summary>
+    /// <param name="candidates">The candidates, strongest first.</param>
+    /// <returns>The payload.</returns>
+    public static DuplicateReviewPayload From(IReadOnlyList<DuplicateCandidate> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        return new DuplicateReviewPayload([.. candidates.Select(DuplicateCandidatePayload.From)]);
+    }
+}
 
 /// <summary>What to create.</summary>
 /// <remarks>Every member is nullable: validation is the server's and answers in this module's codes.</remarks>
@@ -261,6 +285,70 @@ public sealed record CorrectCustomerRequest(
 /// <summary>A command whose whole content is the reason for it.</summary>
 /// <param name="Reason">Why. Required.</param>
 public sealed record CustomerReasonRequest(string? Reason);
+
+/// <summary>
+/// The decision that the record named in the path and the one named here are the same person.
+/// </summary>
+/// <remarks>
+/// The survivor is the path and not the body, deliberately: the record that carries on is the one
+/// whose version the caller sent in <c>If-Match</c>, and putting it in the body would make it possible
+/// to send a precondition for one record and a merge for another.
+/// </remarks>
+/// <param name="MergedCustomerId">The record to fold in. It will not survive.</param>
+/// <param name="Reason">
+/// Why they are one person. Required, and kept: a merge cannot be undone, and why it was done is the
+/// only part of it a reader can still question afterwards.
+/// </param>
+public sealed record MergeCustomerRequest(Guid MergedCustomerId, string? Reason);
+
+/// <summary>What a merge did.</summary>
+/// <param name="Customer">The surviving record, with the version a later change is made against.</param>
+/// <param name="MergeId">The merge decision, which is what an auditor quotes.</param>
+/// <param name="MergedCustomerId">The record that was folded in.</param>
+/// <param name="MergedCustomerNumber">
+/// The display number that went away. It is now searchable as an alias against the survivor, so
+/// somebody holding an old receipt still finds the right person.
+/// </param>
+/// <param name="AliasesRecorded">
+/// One for the merged number, and a second where the two records were written under different names.
+/// </param>
+/// <param name="VisibilityBranchesAdded">
+/// How many branches gained sight of the survivor because they could see the record folded in.
+/// </param>
+/// <param name="RecordsRepointed">
+/// How many records that had already been merged into the folded-in record now name the survivor
+/// instead. Usually none.
+/// </param>
+/// <param name="MergedAt">When the decision was recorded, in UTC.</param>
+public sealed record CustomerMergePayload(
+    CustomerPayload Customer,
+    Guid MergeId,
+    Guid MergedCustomerId,
+    string MergedCustomerNumber,
+    int AliasesRecorded,
+    int VisibilityBranchesAdded,
+    int RecordsRepointed,
+    DateTimeOffset MergedAt)
+{
+    /// <summary>Projects an outcome, masking the contact fields unless the caller may read them.</summary>
+    /// <param name="outcome">What the merge did.</param>
+    /// <param name="mayReadContact">Whether the caller holds <c>customers.read_contact</c>.</param>
+    /// <returns>The payload.</returns>
+    public static CustomerMergePayload From(CustomerMergeOutcome outcome, bool mayReadContact)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+
+        return new CustomerMergePayload(
+            CustomerPayload.From(outcome.Survivor, mayReadContact),
+            outcome.MergeId,
+            outcome.MergedCustomerId,
+            outcome.MergedCustomerNumber,
+            outcome.AliasesRecorded,
+            outcome.VisibilityBranchesAdded,
+            outcome.RecordsRepointed,
+            outcome.MergedAt);
+    }
+}
 
 /// <summary>The bounds and codes the customer endpoints answer with.</summary>
 public static class CustomerRequests

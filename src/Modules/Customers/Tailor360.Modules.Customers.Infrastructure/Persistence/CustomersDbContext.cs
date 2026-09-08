@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Customers;
+using Tailor360.Modules.Customers.Domain.Deduplication;
 using Tailor360.Modules.Customers.Domain.Naming;
 using Tailor360.Modules.Customers.Domain.Preferences;
 using Tailor360.Platform.Persistence.Conventions;
@@ -61,6 +62,12 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
     /// <summary>How each customer wants to be reached.</summary>
     public DbSet<CommunicationPreferences> CommunicationPreferences => Set<CommunicationPreferences>();
 
+    /// <summary>The irreversible merge decisions. Append-only.</summary>
+    public DbSet<CustomerMerge> CustomerMerges => Set<CustomerMerge>();
+
+    /// <summary>What people decided about scored duplicate suspicions.</summary>
+    public DbSet<DuplicateCandidateDecision> DuplicateCandidates => Set<DuplicateCandidateDecision>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +80,8 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         ConfigureConsentPurposes(modelBuilder);
         ConfigureConsentRecords(modelBuilder);
         ConfigurePreferences(modelBuilder);
+        ConfigureMerges(modelBuilder);
+        ConfigureDuplicateCandidates(modelBuilder);
     }
 
     private static void ConfigureCustomers(ModelBuilder modelBuilder)
@@ -93,6 +102,24 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
                 table.HasCheckConstraint(
                     "ck_customers_deactivated_at_matches_status",
                     "(status = 'Deactivated') = (deactivated_at IS NOT NULL)");
+
+                // The pointer and its date are one fact stored in two columns, so a constraint is the
+                // only thing keeping them agreeing.
+                table.HasCheckConstraint(
+                    "ck_customers_merged_into_is_consistent",
+                    "(merged_into_customer_id IS NULL) = (merged_at IS NULL)");
+
+                // A record merged into itself would be a cycle of length one, and every reader
+                // following the pointer would loop.
+                table.HasCheckConstraint(
+                    "ck_customers_merged_into_is_not_self",
+                    "merged_into_customer_id IS NULL OR merged_into_customer_id <> id");
+
+                // A merged record is out of ordinary use, which is what takes it off the search. The
+                // domain sets both together; this is what holds when somebody reaches the table.
+                table.HasCheckConstraint(
+                    "ck_customers_merged_into_is_deactivated",
+                    "merged_into_customer_id IS NULL OR status = 'Deactivated'");
             });
 
             entity.HasKey(e => e.Id);
@@ -145,6 +172,24 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
             entity.HasIndex(e => new { e.OrganisationId, e.NativeName })
                 .HasDatabaseName("ix_customers_native_name")
                 .HasFilter("native_name IS NOT NULL");
+
+            // "Which records were merged into this one" — asked when a merge is followed by a second
+            // merge and the earlier pointers have to be flattened. Filtered, because almost every row
+            // in the table has no pointer at all.
+            entity.HasIndex(e => e.MergedIntoCustomerId)
+                .HasDatabaseName("ix_customers_merged_into")
+                .HasFilter("merged_into_customer_id IS NOT NULL");
+
+            // Self-referencing, and RESTRICT rather than the cascade the child tables use: a customer
+            // is never deleted, and if one ever were, silently taking the records merged into it as
+            // well is the last thing anybody would want.
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(customer => customer.MergedIntoCustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Derived from the pointer; there is nothing to store.
+            entity.Ignore(e => e.IsMerged);
 
             UseRowVersion(entity);
         });
@@ -318,5 +363,98 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
 
             // Editable: a customer changes her mind, and two counters saving at once is the race.
             UseRowVersion(entity);
+        });
+
+    private static void ConfigureMerges(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<CustomerMerge>(entity =>
+        {
+            entity.ToTable("customer_merges");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.MergedCustomerNumber)
+                .HasMaxLength(Customer.MaximumCustomerNumberLength).IsRequired();
+
+            // Nullable only so that the erasure workflow (#57) can redact free text a member of staff
+            // typed about a person, without deleting the evidence that the merge happened. Every path
+            // that writes one supplies it.
+            entity.Property(e => e.Reason).HasMaxLength(CustomerMerge.MaximumReasonLength);
+
+            // RESTRICT on both sides. A customer is never deleted; if one somehow were, losing the
+            // record of why two people became one is not an acceptable consequence.
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(merge => merge.SurvivorCustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(merge => merge.MergedCustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // A record is folded in exactly once, and the database says so rather than the code
+            // hoping so. It is also the last line of defence behind the row lock: two merges racing
+            // for the same victim end with one conflict rather than two merge records.
+            entity.HasIndex(e => e.MergedCustomerId)
+                .IsUnique()
+                .HasDatabaseName("ux_customer_merges_merged_customer");
+
+            // "What has been merged into this record", which is the survivor's own history.
+            entity.HasIndex(e => new { e.SurvivorCustomerId, e.MergedAt })
+                .IsDescending(false, true)
+                .HasDatabaseName("ix_customer_merges_survivor_merged_at");
+
+            // No concurrency token: the table is append-only and there is nothing to overwrite. The
+            // migration adds the trigger that makes that true of the database and not only of the
+            // domain type.
+        });
+
+    private static void ConfigureDuplicateCandidates(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DuplicateCandidateDecision>(entity =>
+        {
+            entity.ToTable("duplicate_candidates");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Confidence).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Decision).HasConversion<string>().HasMaxLength(30).IsRequired();
+
+            // Stored as the reason names rather than their ordinals, so that adding a reason to the
+            // enumeration or reordering it cannot silently re-explain a decision somebody already
+            // took. The same choice the communication preferences made for channels.
+            entity.PrimitiveCollection(e => e.Reasons)
+                .HasColumnName("reasons")
+                .ElementType(element => element.HasConversion<string>().HasMaxLength(40))
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .IsRequired();
+
+            // Cascade, unlike the merge record: this row says that two named people were once thought
+            // to be one, which is an assertion about them rather than about the shop's own operations,
+            // and #57 has to be able to remove it. Nothing deletes a customer today, so nothing
+            // cascades today either.
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(decision => decision.SubjectCustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(decision => decision.CandidateCustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<CustomerMerge>()
+                .WithMany()
+                .HasForeignKey(decision => decision.MergeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // "What was decided about this record", newest first.
+            entity.HasIndex(e => new { e.SubjectCustomerId, e.DecidedAt })
+                .IsDescending(false, true)
+                .HasDatabaseName("ix_duplicate_candidates_subject_decided_at");
+
+            // Deliberately no uniqueness over the pair. The same two records can be raised, judged
+            // different people, raised again after a correction, and finally merged — four decisions
+            // by four people on four days, each of which is evidence in its own right.
+            //
+            // No concurrency token either, and no append-only trigger: unlike a merge, these rows must
+            // be removable outright by the erasure workflow.
         });
 }

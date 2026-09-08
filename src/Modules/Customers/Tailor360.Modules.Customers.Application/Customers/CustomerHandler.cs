@@ -1,9 +1,11 @@
 using Tailor360.Modules.Customers.Application.Abstractions;
+using Tailor360.Modules.Customers.Contracts.Events;
 using Tailor360.Modules.Customers.Domain;
 using Tailor360.Modules.Customers.Domain.Customers;
 using Tailor360.Modules.Customers.Domain.Deduplication;
 using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
+using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Abstractions.Time;
@@ -29,14 +31,18 @@ namespace Tailor360.Modules.Customers.Application.Customers;
 /// </remarks>
 /// <param name="customers">The record store.</param>
 /// <param name="directory">The search and duplicate queries.</param>
+/// <param name="merges">Where duplicate decisions and merge records are written.</param>
 /// <param name="branches">Identity's published branch contract, for the branch code.</param>
+/// <param name="events">This module's outbox publisher.</param>
 /// <param name="audit">The platform's audit writer.</param>
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
 public sealed class CustomerHandler(
     ICustomerStore customers,
     ICustomerDirectory directory,
+    IMergeStore merges,
     IBranchDirectory branches,
+    ICustomersEventPublisher events,
     IAuditWriter audit,
     IClock clock,
     IIdGenerator ids)
@@ -55,6 +61,19 @@ public sealed class CustomerHandler(
 
     /// <summary>A branch other than the owning one began serving the customer.</summary>
     public const string OpenedAtBranchAction = "customers.customer.opened-at-branch";
+
+    /// <summary>A customer record absorbed another and survived.</summary>
+    public const string MergedAction = "customers.customer.merged";
+
+    /// <summary>
+    /// A customer record was folded into another and no longer stands.
+    /// </summary>
+    /// <remarks>
+    /// A second entry, against the record that went away, rather than one entry naming both. The trail
+    /// is read by entity — "what happened to this record" — and a merge is the one change where the
+    /// interesting answer for one of the two records is only ever written against the other.
+    /// </remarks>
+    public const string MergedAwayAction = "customers.customer.merged-away";
 
     /// <summary>The shortest reason the trail accepts.</summary>
     public const int MinimumReasonLength = 3;
@@ -94,7 +113,7 @@ public sealed class CustomerHandler(
 
         var subject = Subject(command.Details);
         var candidates = await directory.FindDuplicatesAsync(
-            command.OrganisationId, subject, cancellationToken);
+            command.OrganisationId, subject, exceptCustomerId: null, cancellationToken);
 
         // Only a candidate somebody would want to read stops the create. A weak resemblance is shown
         // on the screen beside the form and never blocks: a warning that fires on every common name
@@ -126,6 +145,29 @@ public sealed class CustomerHandler(
 
         var customer = registered.Value;
         customers.Add(customer);
+
+        // Somebody read the candidates and judged this to be a different person. That judgement is the
+        // evidence docs/prd/exceptions.md EX-01 asks for, and it is written in the same save as the
+        // record it justifies — evidence for a create that rolled back would be worse than none.
+        foreach (var candidate in worthReading)
+        {
+            var decision = DuplicateCandidateDecision.CreatedNewAnyway(
+                ids.NewId(),
+                command.OrganisationId,
+                customer.Id,
+                candidate.Card.CustomerId,
+                candidate.Match,
+                command.BranchId,
+                clock.UtcNow,
+                command.By);
+
+            if (decision.IsFailure)
+            {
+                return Result.Failure<CustomerRegistration>(decision.Error);
+            }
+
+            merges.Add(decision.Value);
+        }
 
         var saved = await customers.TrySaveChangesAsync(cancellationToken);
         if (saved.IsFailure)
@@ -287,6 +329,14 @@ public sealed class CustomerHandler(
         }
 
         var customer = found.Value;
+
+        // A merged record is not opened at a second branch. Adding visibility to it would put a record
+        // that no longer stands back in front of a counter, which is the state the merge ended.
+        if (customer.IsMerged)
+        {
+            return Result.Failure<AdministeredCustomer>(CustomersErrors.AlreadyMerged);
+        }
+
         var before = CustomerSnapshot.Of(customer);
 
         if (!customer.MakeVisibleTo(branchId, clock.UtcNow, by))
@@ -331,6 +381,265 @@ public sealed class CustomerHandler(
 
         return Result.Success(await directory.SearchAsync(bounded, cancellationToken));
     }
+
+    /// <summary>
+    /// Lists the records that look like they may be the same person as an existing customer.
+    /// </summary>
+    /// <remarks>
+    /// The screen a merge is decided from. It scores the current records rather than reading back the
+    /// suspicions raised when either was created, because a resemblance is a fact about the two
+    /// records as they stand now — a correction to either can create one or remove it, and a merge is
+    /// too final to take on a score somebody computed months ago.
+    /// </remarks>
+    /// <param name="customerId">The record being examined.</param>
+    /// <param name="organisationId">The caller's organisation.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The candidates, strongest first, or the reason the record could not be read.</returns>
+    public async Task<Result<IReadOnlyList<DuplicateCandidate>>> DuplicatesAsync(
+        Guid customerId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        var found = await LoadAsync(customerId, organisationId, cancellationToken);
+
+        if (found.IsFailure)
+        {
+            return Result.Failure<IReadOnlyList<DuplicateCandidate>>(found.Error);
+        }
+
+        var customer = found.Value;
+
+        // A merged record can neither absorb another nor be absorbed again, so every candidate offered
+        // for it would be one nobody could act on. An empty list is the honest answer; where the reader
+        // should go instead is the record's own merge pointer, which the read endpoint returns.
+        if (customer.IsMerged)
+        {
+            return Result.Success<IReadOnlyList<DuplicateCandidate>>([]);
+        }
+
+        return Result.Success(await directory.FindDuplicatesAsync(
+            organisationId, SubjectOf(customer), customer.Id, cancellationToken));
+    }
+
+    /// <summary>
+    /// Folds one customer record into another, irreversibly.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The remedy for exception EX-01 and the one customer operation that cannot be undone. It is one
+    /// transaction over both records, the merge decision, the duplicate decision it settles, any
+    /// pointer that named the record going away, and the integration event that tells every other
+    /// module to re-point what it holds. Both customer rows are locked for its duration; see
+    /// <see cref="ICustomerStore.InMergeTransactionAsync{TOutcome}"/> for why that is a callback.
+    /// </para>
+    /// <para>
+    /// The two audit entries are written afterwards, in the house order — save the change, then record
+    /// it — and so is nothing else. There is no compensating path: by the time the entries are
+    /// written, the merge has happened.
+    /// </para>
+    /// </remarks>
+    /// <param name="command">Which record survives, which is folded in, and why.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>What the merge did, or the reason it was refused.</returns>
+    public async Task<Result<CustomerMergeOutcome>> MergeAsync(
+        MergeCustomersCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var reason = ReadReason(command.Reason);
+
+        if (reason.IsFailure)
+        {
+            return Result.Failure<CustomerMergeOutcome>(reason.Error);
+        }
+
+        // A body that named no record at all. Answered as the missing field it is, rather than opening a
+        // transaction, locking the survivor and reporting that the empty identifier was not found.
+        if (command.MergedCustomerId == Guid.Empty)
+        {
+            return Result.Failure<CustomerMergeOutcome>(CustomersErrors.Required("mergedCustomerId"));
+        }
+
+        // Refused before a transaction is opened as well, so a screen that sent one record as both
+        // sides never takes a row lock and never enters the lock ordering at all.
+        if (command.SurvivorCustomerId == command.MergedCustomerId)
+        {
+            return Result.Failure<CustomerMergeOutcome>(CustomersErrors.CannotMergeIntoItself);
+        }
+
+        var committed = await customers.InMergeTransactionAsync(
+            command.SurvivorCustomerId,
+            command.MergedCustomerId,
+            (survivor, merged, token) => ApplyMergeAsync(command, reason.Value, survivor, merged, token),
+            cancellationToken);
+
+        if (committed.IsFailure)
+        {
+            return Result.Failure<CustomerMergeOutcome>(committed.Error);
+        }
+
+        var commit = committed.Value;
+        var outcome = commit.Outcome;
+
+        await CustomerAudit.RecordAsync(
+            audit,
+            MergedAction,
+            outcome.Survivor.CustomerId,
+            $"Absorbed customer record {outcome.MergedCustomerNumber}. "
+            + $"Aliases recorded: {outcome.AliasesRecorded}. "
+            + $"Branches that gained sight of this record: {outcome.VisibilityBranchesAdded}. "
+            + $"Earlier merges re-pointed here: {outcome.RecordsRepointed}.",
+            reason.Value,
+            commit.SurvivorBefore,
+            commit.SurvivorAfter,
+            cancellationToken);
+
+        await CustomerAudit.RecordAsync(
+            audit,
+            MergedAwayAction,
+            outcome.MergedCustomerId,
+            "Folded into another customer record and withdrawn from ordinary use. The number stays "
+            + "searchable against the record that survived, and there is no un-merge.",
+            reason.Value,
+            commit.MergedBefore,
+            commit.MergedAfter,
+            cancellationToken);
+
+        return Result.Success(outcome);
+    }
+
+    private async Task<Result<MergeCommit>> ApplyMergeAsync(
+        MergeCustomersCommand command,
+        string reason,
+        Customer survivor,
+        Customer merged,
+        CancellationToken cancellationToken)
+    {
+        // "Not there" and "not yours" are one answer here as everywhere else in this handler.
+        if (survivor.OrganisationId != command.OrganisationId
+            || merged.OrganisationId != command.OrganisationId)
+        {
+            return Result.Failure<MergeCommit>(CustomersErrors.CustomerNotFound);
+        }
+
+        // The caller's If-Match was checked against a read taken before the row was locked. Checking it
+        // again here, against the row this transaction will actually change, is what makes the
+        // precondition mean anything: in between, somebody could have corrected the record the caller
+        // read and approved.
+        if (!command.ExpectedVersion.Matches(customers.EntityTagOf(survivor)))
+        {
+            return Result.Failure<MergeCommit>(CustomersErrors.ConcurrentChange);
+        }
+
+        // Scored before the absorption, so the stored decision explains the pair a person was looking
+        // at rather than the single record left afterwards.
+        var match = DuplicateScoring.Compare(SubjectOf(survivor), SubjectOf(merged));
+
+        var survivorBefore = CustomerSnapshot.Of(survivor);
+        var mergedBefore = CustomerSnapshot.Of(merged);
+
+        var now = clock.UtcNow;
+        var absorbed = survivor.Absorb(merged, ids.NewId(), ids.NewId(), now, command.By);
+
+        if (absorbed.IsFailure)
+        {
+            return Result.Failure<MergeCommit>(absorbed.Error);
+        }
+
+        var mergeId = ids.NewId();
+        var eventId = ids.NewId();
+
+        var record = CustomerMerge.Record(
+            mergeId,
+            command.OrganisationId,
+            survivor,
+            merged,
+            reason,
+            command.BranchId,
+            absorbed.Value,
+            eventId,
+            now,
+            command.By);
+
+        if (record.IsFailure)
+        {
+            return Result.Failure<MergeCommit>(record.Error);
+        }
+
+        merges.Add(record.Value);
+
+        var decision = DuplicateCandidateDecision.Merged(
+            ids.NewId(),
+            command.OrganisationId,
+            survivor.Id,
+            merged.Id,
+            match,
+            mergeId,
+            command.BranchId,
+            now,
+            command.By);
+
+        if (decision.IsFailure)
+        {
+            return Result.Failure<MergeCommit>(decision.Error);
+        }
+
+        merges.Add(decision.Value);
+
+        var repointed = await customers.FlattenMergePointersAsync(
+            merged.Id, survivor.Id, now, command.By, cancellationToken);
+
+        // Published before the save, so the message and the merge are one transaction on one
+        // connection (#77). A merge committed without the message would leave every other module
+        // pointing at a record that no longer stands, with nothing to tell it so.
+        events.Publish(new CustomerMerged(
+            eventId,
+            now,
+            survivor.Id,
+            command.OrganisationId,
+            merged.Id,
+            mergeId,
+            command.BranchId));
+
+        var saved = await customers.TrySaveChangesAsync(cancellationToken);
+
+        if (saved.IsFailure)
+        {
+            return Result.Failure<MergeCommit>(saved.Error);
+        }
+
+        return Result.Success(new MergeCommit(
+            new CustomerMergeOutcome(
+                AdministeredCustomer.From(survivor, customers.EntityTagOf(survivor)),
+                mergeId,
+                merged.Id,
+                record.Value.MergedCustomerNumber,
+                absorbed.Value.AliasesRecorded,
+                absorbed.Value.VisibilityBranchesAdded,
+                repointed,
+                now),
+            survivorBefore,
+            CustomerSnapshot.Of(survivor, mergedWith: merged.Id),
+            mergedBefore,
+            CustomerSnapshot.Of(merged, mergedWith: survivor.Id)));
+    }
+
+    /// <summary>
+    /// Everything one merge produced, held together until the trail can be written.
+    /// </summary>
+    /// <remarks>
+    /// The four snapshots have to be taken inside the merge transaction, while both aggregates are
+    /// loaded and locked, but the entries themselves are written afterwards — the audit writer has its
+    /// own context, and the house order is to save the change first and record it second. This carries
+    /// them across that boundary.
+    /// </remarks>
+    private sealed record MergeCommit(
+        CustomerMergeOutcome Outcome,
+        CustomerSnapshot SurvivorBefore,
+        CustomerSnapshot SurvivorAfter,
+        CustomerSnapshot MergedBefore,
+        CustomerSnapshot MergedAfter);
 
     private async Task<Result<Customer>> LoadAsync(
         Guid customerId,
@@ -427,6 +736,23 @@ public sealed class CustomerHandler(
         details.Postcode);
 
     /// <summary>
+    /// The same subject, read off a record that already exists.
+    /// </summary>
+    /// <remarks>
+    /// It takes the <em>stored</em> normalised name rather than folding the display name again, so a
+    /// score is computed against the key the index is built on. Re-folding here would be a second
+    /// implementation of the same rule, and the two would disagree the first time the normaliser
+    /// changed — silently, and in favour of the copy nobody indexed.
+    /// </remarks>
+    private static DuplicateSubject SubjectOf(Customer customer) => new(
+        customer.NormalisedName,
+        customer.NativeName,
+        customer.PhoneE164,
+        customer.AlternatePhoneE164,
+        customer.Locality,
+        customer.Postcode);
+
+    /// <summary>
     /// Which fields a correction touches, by name. Names only — the trail says what changed and never
     /// what it changed to.
     /// </summary>
@@ -495,3 +821,56 @@ public sealed record CorrectCustomerCommand(
 public sealed record CustomerRegistration(
     AdministeredCustomer? Customer,
     IReadOnlyList<DuplicateCandidate> Candidates);
+
+/// <summary>
+/// The decision that two customer records are one person.
+/// </summary>
+/// <remarks>
+/// <see cref="ExpectedVersion"/> is carried in the command rather than checked only at the edge, so
+/// that the precondition is re-tested against the row the merge locks. An <c>If-Match</c> compared
+/// against a read taken before the lock proves the caller saw <em>a</em> version, not the version
+/// about to change.
+/// </remarks>
+/// <param name="SurvivorCustomerId">The record that is to survive.</param>
+/// <param name="MergedCustomerId">The record that is to be folded in.</param>
+/// <param name="OrganisationId">The caller's organisation. Both records must belong to it.</param>
+/// <param name="BranchId">The branch the decision is being taken at, where there is one.</param>
+/// <param name="ExpectedVersion">The version of the surviving record the caller read.</param>
+/// <param name="Reason">Why they are one person. Required; a merge cannot be undone.</param>
+/// <param name="By">The actor.</param>
+public sealed record MergeCustomersCommand(
+    Guid SurvivorCustomerId,
+    Guid MergedCustomerId,
+    Guid OrganisationId,
+    Guid? BranchId,
+    EntityTag ExpectedVersion,
+    string? Reason,
+    Guid? By);
+
+/// <summary>What one merge did.</summary>
+/// <param name="Survivor">The surviving record, with the version any later change is made against.</param>
+/// <param name="MergeId">The merge decision, which is what an auditor quotes.</param>
+/// <param name="MergedCustomerId">The record that was folded in.</param>
+/// <param name="MergedCustomerNumber">
+/// The display number that went away, which is now searchable as an alias on the survivor.
+/// </param>
+/// <param name="AliasesRecorded">
+/// One for the merged number, and a second where the two records were written under different names.
+/// </param>
+/// <param name="VisibilityBranchesAdded">
+/// How many branches gained sight of the survivor because they could see the record folded in.
+/// </param>
+/// <param name="RecordsRepointed">
+/// How many records that had already been merged into the folded-in record now name the survivor
+/// instead. Usually none; it is not none when a merge is being corrected by a second merge.
+/// </param>
+/// <param name="MergedAt">When the decision was recorded, in UTC.</param>
+public sealed record CustomerMergeOutcome(
+    AdministeredCustomer Survivor,
+    Guid MergeId,
+    Guid MergedCustomerId,
+    string MergedCustomerNumber,
+    int AliasesRecorded,
+    int VisibilityBranchesAdded,
+    int RecordsRepointed,
+    DateTimeOffset MergedAt);

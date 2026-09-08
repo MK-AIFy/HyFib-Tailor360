@@ -31,6 +31,11 @@ namespace Tailor360.Modules.Customers.Application.Customers;
 /// <param name="CreatedAt">When the record was created.</param>
 /// <param name="UpdatedAt">When it was last changed.</param>
 /// <param name="Version">The concurrency token.</param>
+/// <param name="MergedIntoCustomerId">
+/// The record this one was folded into, or null while it stands on its own. A screen showing a merged
+/// record offers no action against it and sends the reader to the record that survived.
+/// </param>
+/// <param name="MergedAt">When it was folded in, or null while it stands on its own.</param>
 public sealed record AdministeredCustomer(
     Guid CustomerId,
     string CustomerNumber,
@@ -49,7 +54,9 @@ public sealed record AdministeredCustomer(
     IReadOnlyList<CustomerAliasView> Aliases,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    EntityTag Version)
+    EntityTag Version,
+    Guid? MergedIntoCustomerId = null,
+    DateTimeOffset? MergedAt = null)
 {
     /// <summary>Projects a loaded aggregate.</summary>
     /// <param name="customer">The customer.</param>
@@ -77,7 +84,9 @@ public sealed record AdministeredCustomer(
             [.. customer.Aliases.Select(CustomerAliasView.From)],
             customer.CreatedAt,
             customer.UpdatedAt,
-            version);
+            version,
+            customer.MergedIntoCustomerId,
+            customer.MergedAt);
     }
 }
 

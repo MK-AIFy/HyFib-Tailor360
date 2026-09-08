@@ -43,6 +43,8 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
             "DELETE /api/v1/sessions/{sessionId}",
             "DELETE /api/v1/auth/passkeys/{passkeyId}",
             "GET /api/v1/customers/{customerId}",
+            "GET /api/v1/customers/{customerId}/duplicates",
+            "POST /api/v1/customers/{customerId}/merge",
         ];
 
         Fixtures.IdentifierEditing.ShouldNotBeEmpty();
@@ -187,6 +189,111 @@ public sealed class IdentifierEditingTests(WebApplicationFixture fixture)
         (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
         (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
     }
+
+    /// <summary>
+    /// The duplicate screen resolves its subject through the same organisation-scoped load as the
+    /// read, and refuses on the same terms.
+    /// </summary>
+    /// <remarks>
+    /// A separate route needs its own case, because "it uses the same handler method" is a fact about
+    /// today's code and this file is about what the wire says. A later change that gave this route its
+    /// own load would break the test rather than the guarantee.
+    /// </remarks>
+    [Fact]
+    public async Task TheDuplicateScreenAnswersAnotherOrganisationsRecordAsOneThatDoesNotExist()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, IdorFirstBranchId, "IDOR1");
+
+        using var caller = await CustomerHarness.CounterAsync(
+            fixture, "idor-dup", "203.0.113.76", IdorFirstBranchId, CustomerHarness.Reception);
+
+        var elsewhere = await CustomerHarness.CustomerOfAnotherOrganisationAsync(
+            fixture, IdorFirstBranchId);
+
+        var foreign = await caller.GetAsync($"/api/v1/customers/{elsewhere}/duplicates");
+        var invented = await caller.GetAsync($"/api/v1/customers/{Guid.CreateVersion7()}/duplicates");
+
+        foreign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreign.StatusCode.ShouldBe(invented.StatusCode);
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe("customers.customer-not-found");
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
+        (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
+    }
+
+    /// <summary>
+    /// The merge is the only route on this surface whose identifier arrives in the <em>body</em>, and
+    /// the one where guessing would be worth most.
+    /// </summary>
+    /// <remarks>
+    /// A caller who could tell "no such record" from "a record you may not reach" could enumerate
+    /// another organisation's customers while holding a permission that looks branch-scoped — and
+    /// would learn it from a request that changes nothing, because both attempts are refused. The
+    /// merge is irreversible, so the survivor is read back afterwards to show that neither attempt
+    /// did anything to it.
+    /// </remarks>
+    [Fact]
+    public async Task AMergeNamingAnotherOrganisationsRecordIsAnsweredAsOneThatDoesNotExist()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, IdorFirstBranchId, "IDOR1");
+
+        using var manager = await CustomerHarness.ManagerAsync(
+            fixture, "idor-merge", "203.0.113.77", IdorFirstBranchId, CustomerHarness.BranchManager);
+
+        var created = await manager.PostAsync(
+            "/api/v1/customers/",
+            new
+            {
+                displayName = $"Kavitha idor merge {AdministrationHarness.UniqueToken(6)}",
+                phone = CustomerHarness.UniquePhone(),
+                email = "idor.merge.demo@example.invalid",
+                locality = "Peelamedu",
+                postcode = "641004",
+                language = "ta-IN",
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var survivor = JsonDocument
+            .Parse(await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .RootElement;
+
+        var survivorId = survivor.GetProperty("customerId").GetGuid();
+        var version = survivor.GetProperty("version").GetString();
+
+        var elsewhere = await CustomerHarness.CustomerOfAnotherOrganisationAsync(
+            fixture, IdorFirstBranchId);
+
+        var foreign = await MergeAttemptAsync(manager, survivorId, elsewhere, version);
+        var invented = await MergeAttemptAsync(manager, survivorId, Guid.CreateVersion7(), version);
+
+        foreign.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreign.StatusCode.ShouldBe(invented.StatusCode);
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe("customers.customer-not-found");
+        (await AuthenticationClient.CodeAsync(foreign)).ShouldBe(await AuthenticationClient.CodeAsync(invented));
+        (await TellingPartOf(foreign)).ShouldBe(await TellingPartOf(invented));
+
+        var after = await manager.GetAsync($"/api/v1/customers/{survivorId}");
+        after.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        JsonDocument.Parse(await after.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .RootElement.GetProperty("aliases").GetArrayLength().ShouldBe(0);
+    }
+
+    private static Task<HttpResponseMessage> MergeAttemptAsync(
+        AuthenticationClient client,
+        Guid survivorId,
+        Guid mergedCustomerId,
+        string? version)
+        => client.PostAsync(
+            $"/api/v1/customers/{survivorId}/merge",
+            new { mergedCustomerId, reason = "Checking that a refusal says nothing about which it was." },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()),
+            ("If-Match", $"\"{version}\""));
 
     /// <summary>
     /// Signs in and satisfies a second factor, so that a request reaches a handler behind

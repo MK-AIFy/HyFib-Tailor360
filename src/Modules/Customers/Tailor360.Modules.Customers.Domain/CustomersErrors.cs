@@ -189,4 +189,46 @@ public static class CustomersErrors
     public static Error NoBranchInContext { get; } = Error.Forbidden(
         "customers.no-branch-in-context",
         "This action happens at a branch, and your session is not working in one.");
+
+    /// <summary>A merge named the same record on both sides.</summary>
+    /// <remarks>
+    /// Almost always a screen that sent the record it was showing as both the survivor and the
+    /// duplicate. It is refused rather than treated as a no-op, because a merge is irreversible and a
+    /// request nobody meant to make is exactly the one not to apply quietly.
+    /// </remarks>
+    public static Error CannotMergeIntoItself { get; } = Error.Validation(
+        "customers.cannot-merge-into-itself",
+        "A customer record cannot be merged into itself. Choose the record that should survive, and "
+        + "separately the record that is the same person.",
+        "mergedCustomerId");
+
+    /// <summary>The record being folded in has already been merged into another.</summary>
+    /// <remarks>
+    /// There is no un-merge (<c>docs/prd/exceptions.md</c> EX-01), so a record that has been merged is
+    /// finished: it is not merged a second time, not returned to ordinary use, and not written to.
+    /// </remarks>
+    public static Error AlreadyMerged { get; } = Error.Conflict(
+        "customers.already-merged",
+        "That customer record has already been merged into another one. Work on the record that "
+        + "survived; a merge cannot be undone or repeated.");
+
+    /// <summary>The record chosen to survive has itself been merged away.</summary>
+    /// <remarks>
+    /// Refused rather than followed to the end of the chain. Following it would fold a record into one
+    /// the person at the screen never chose, and a merge cannot be undone.
+    /// </remarks>
+    public static Error MergeTargetIsMerged { get; } = Error.Conflict(
+        "customers.merge-target-is-merged",
+        "The record you chose to survive has itself been merged into another one. Open the record that "
+        + "survived, and merge into that.");
+
+    /// <summary>The two records named by a merge belong to different organisations.</summary>
+    /// <remarks>
+    /// Unreachable through the endpoints, which resolve both records within the caller's organisation
+    /// and answer <see cref="CustomerNotFound"/> for anything outside it. Asserted in the aggregate as
+    /// well, because the aggregate is what a later caller — a repair tool, a migration — reaches.
+    /// </remarks>
+    public static Error CannotMergeAcrossOrganisations { get; } = Error.Conflict(
+        "customers.cannot-merge-across-organisations",
+        "Two customer records belonging to different organisations are not the same person.");
 }
