@@ -106,7 +106,7 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
         await CustomerHarness.BranchAsync(fixture, FirstBranchId, FirstBranchCode);
         using var counter = await CounterAsync("cust-dupe", "203.0.113.123", FirstBranchId);
 
-        var phone = UniquePhone();
+        var phone = CustomerHarness.UniquePhone();
         (await CreateAsync(counter, Registration("cust-dupe", phone: phone)))
             .StatusCode.ShouldBe(HttpStatusCode.Created);
 
@@ -152,7 +152,7 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
 
         using var first = await CounterAsync("cust-branch-a", "203.0.113.124", FirstBranchId);
 
-        var phone = UniquePhone();
+        var phone = CustomerHarness.UniquePhone();
         var customer = await ReadCustomerAsync(
             await CreateAsync(first, Registration("cust-branch-a", phone: phone)));
 
@@ -285,7 +285,7 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
         await CustomerHarness.BranchAsync(fixture, FirstBranchId, FirstBranchCode);
         using var counter = await CounterAsync("cust-status", "203.0.113.129", FirstBranchId);
 
-        var phone = UniquePhone();
+        var phone = CustomerHarness.UniquePhone();
         var customer = await ReadCustomerAsync(
             await CreateAsync(counter, Registration("cust-status", phone: phone)));
 
@@ -380,7 +380,7 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
         await CustomerHarness.BranchAsync(fixture, FirstBranchId, FirstBranchCode);
         using var counter = await CounterAsync("cust-audit", "203.0.113.133", FirstBranchId);
 
-        var phone = UniquePhone();
+        var phone = CustomerHarness.UniquePhone();
         var name = $"Meena {AdministrationHarness.UniqueToken(6)}";
         var customer = await ReadCustomerAsync(await CreateAsync(
             counter, Registration("cust-audit", displayName: name, phone: phone)));
@@ -477,21 +477,6 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
     private static (string Name, string Value) Key()
         => ("Idempotency-Key", Guid.CreateVersion7().ToString());
 
-    /// <summary>
-    /// A telephone number nothing else in the suite uses.
-    /// </summary>
-    /// <remarks>
-    /// Synthetic and obviously so — <c>+91 9000 …</c> with a tail taken from a version-7 identifier —
-    /// so that no fixture can be reading a number a person really holds, and two tests running in the
-    /// same second cannot collide on the duplicate check the way a fixed number would.
-    /// </remarks>
-    private static string UniquePhone()
-    {
-        var digits = new string([.. Guid.CreateVersion7().ToString("N").Where(char.IsAsciiDigit)]);
-
-        return "+919000" + (digits.Length >= 6 ? digits[^6..] : digits.PadLeft(6, '7'));
-    }
-
     private static RegistrationBody Registration(
         string prefix,
         string? displayName = null,
@@ -499,7 +484,7 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
         => new(
             displayName ?? $"Kavitha {prefix}",
             null,
-            phone ?? UniquePhone(),
+            phone ?? CustomerHarness.UniquePhone(),
             null,
             $"{prefix}@example.invalid",
             "12 Second Street, Demo Nagar",

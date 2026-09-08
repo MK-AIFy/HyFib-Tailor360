@@ -390,11 +390,13 @@ each is left out for a stated reason.
 
 ## 7. What this document does not yet cover
 
-Sections 3, 4 and 5 are declared, seeded, published and tested. What is not yet true is that any of it gates a
-piece of business: **no business endpoint declares a permission**, so every row of section 4 is forward-declared
-and the `Built by` column names the issue that puts each to work. That is a statement about how far the
-application has been built, not about how far it has been checked — the grants in section 4 are exercised as real
-HTTP requests today, by every role, in two branches, against a real database (section 8).
+Sections 3, 4 and 5 are declared, seeded, published and tested. Most of section 4 is still forward-declared: the
+`Built by` column names the issue that puts each permission to work, and #26 is the first to have done so —
+`customers.read`, `customers.create`, `customers.update` and `customers.deactivate` gate the seven customer routes
+in section 5, and `customers.read_contact` decides which fields those routes return. Every other row is a
+declaration waiting for its issue. That is a statement about how far the application has been built, not about how
+far it has been checked — the grants in section 4 are exercised as real HTTP requests today, by every role, in two
+branches, against a real database (section 8).
 
 What is genuinely absent, and where it is owned:
 

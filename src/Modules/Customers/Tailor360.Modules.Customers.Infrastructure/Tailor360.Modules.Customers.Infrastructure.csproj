@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Customers.Application\Tailor360.Modules.Customers.Application.csproj" />
+    <ProjectReference Include="..\Tailor360.Modules.Customers.Contracts\Tailor360.Modules.Customers.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
   </ItemGroup>

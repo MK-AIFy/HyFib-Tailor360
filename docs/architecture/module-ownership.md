@@ -269,7 +269,12 @@ templates and the confirmed, immutable measurement versions the workshop works f
 `customers.consent-withdrawn.v1`, `customers.preferences-changed.v1`, `customers.measurement-version-confirmed.v1`.
 
 **Publishes — read contracts.** `IConsentQuery`, `ICommunicationPreferenceQuery`, `ICustomerSnapshotQuery`, and an
-`ITimelineSource` implementation for the customer timeline.
+`ITimelineSource` implementation for the customer timeline. The first three are built. Each answers rather than
+refuses: consent for a purpose nobody has asked about comes back `NeverAsked` and a customer whose preference
+nobody has recorded comes back unreachable, so a consumer cannot turn "we have no idea" into permission with a
+`?? true`. `ICustomerSnapshotQuery` takes the caller's permissions and populates the contact fields only for one
+holding `customers.read_contact`, masking inside the SQL projection so the columns are not read at all otherwise;
+it is the only one of the three that answers null, because whether a customer exists is the question it is for.
 
 **Consumes.** Identity, through its published contracts only — `IBranchDirectory` for the branch code a customer number is allocated from and for whether the branch is open, and `IUserDirectory` for branch scope; Platform ports.
 
