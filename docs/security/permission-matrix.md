@@ -298,6 +298,13 @@ anonymous, so their `Permission` column is empty and the `Declaration` cell carr
 own routes — the shell fallback, the health probes, the version handshake — are the rest. Every business
 endpoint fills in a row here in the same pull request that maps it.
 
+What a row does **not** say is which columns come back. The six customer routes that answer with a record —
+`POST /customers`, `GET`, `PUT` and `POST .../open` on one customer, the two status commands, and the merge —
+all project their body through the approved response view `customers.record`, and the two that answer with search
+cards project through `customers.search_card`. Which fields each caller is shown is
+[`field-visibility.md`](field-visibility.md)'s decision, not this one; the `GET` row spells it out once because it
+is the route a reader looks at first.
+
 <!-- matrix:endpoints -->
 | Method | Route | Declaration | Permission | Branch scope | Resource | Audited as | What it is for |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -352,7 +359,7 @@ endpoint fills in a row here in the same pull request that maps it.
 | `POST` | `/api/v1/auth/recovery/request` | anonymous | — | — | — | `identity.recovery.requested` | Requests a password recovery. Answers identically whether or not the address is known |
 | `GET` | `/api/v1/customers/` | permission | `customers.read` | assigned-branches | — | — | Finds a customer by name, native name, customer number or the tail of a telephone number. Answers across the organisation: a record one of the caller's branches can see comes back in full, one it cannot comes back as a masked disambiguation card. A term under three characters returns nothing, so a single keystroke cannot page the organisation's whole customer list |
 | `POST` | `/api/v1/customers/` | permission | `customers.create` | assigned-branches | — | `customers.customer.registered` | Creates a customer record and allocates its number from the branch the caller is working in. Refused with 409 and a `candidates` member when an existing record resembles this one strongly enough to be worth reading; the caller then either opens that record or confirms this is somebody new, and the trail records that a person took the decision |
-| `GET` | `/api/v1/customers/{customerId}` | permission | `customers.read` | assigned-branches | — | — | Reads one record with the version a correction must be made against. The six contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they arrive as null, which is the field-level minimisation of [`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.2 rather than an omission |
+| `GET` | `/api/v1/customers/{customerId}` | permission | `customers.read` | assigned-branches | — | — | Reads one record with the version a correction must be made against, projected through the approved response view `customers.record`. The six contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they arrive as null with `contactIncluded` false, which is the field-level minimisation of [`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.2 rather than an omission. What the view carries is approved in [`field-visibility.md`](field-visibility.md) |
 | `PUT` | `/api/v1/customers/{customerId}` | permission | `customers.update` | assigned-branches | — | `customers.customer.corrected` | Corrects what the record says about the person. A changed name is kept as an alias, so somebody who married last year is still found under the name on her old receipts. The trail names the fields that changed and never the values they changed to |
 | `GET` | `/api/v1/customers/{customerId}/communication-preferences` | permission | `customers.read_consent` | assigned-branches | — | — | Reads which channels the customer accepts, the language she is written to in and the hours she would rather not be messaged in. Gated on `customers.read_consent` rather than `customers.read` because [`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3 is one inventory row covering consent records **and** communication preferences, and names Reception, Branch Manager and Auditor as who may see it — which is exactly who holds this permission. `hasBeenRecorded` distinguishes a customer who chose no channel from one nobody has asked, and an unrecorded preference carries no ETag because there is no version of a row that does not exist |
 | `PUT` | `/api/v1/customers/{customerId}/communication-preferences` | permission | `customers.update` | assigned-branches | — | `customers.preferences.changed` | Replaces the whole preference, so the trail reads as a state rather than a difference. An empty `allowedChannels` is how she says do not message her and withdraws consent to nothing. `If-Match` is required once a preference exists and must be omitted before then. No reason is demanded: a reason belongs to a correction, where the trail has to say why somebody changed what the record says about a person, and this records what she asked for |
@@ -400,9 +407,10 @@ each is left out for a stated reason.
 
 Sections 3, 4 and 5 are declared, seeded, published and tested. Most of section 4 is still forward-declared: the
 `Built by` column names the issue that puts each permission to work, and #26 is the first to have done so —
-`customers.read`, `customers.create`, `customers.update`, `customers.deactivate` and `customers.merge` gate the
-nine customer routes in section 5, and `customers.read_contact` decides which fields those routes return. Every other row is a
-declaration waiting for its issue. That is a statement about how far the application has been built, not about how
+`customers.read`, `customers.create`, `customers.update`, `customers.deactivate`, `customers.merge`,
+`customers.read_consent` and `customers.export` gate the fifteen customer routes in section 5, and
+`customers.read_contact` decides which fields the six of them that answer with a record return. Every other row is
+a declaration waiting for its issue. That is a statement about how far the application has been built, not about how
 far it has been checked — the grants in section 4 are exercised as real HTTP requests today, by every role, in two
 branches, against a real database (section 8).
 
@@ -410,7 +418,7 @@ What is genuinely absent, and where it is owned:
 
 | Absent | Where it lands |
 | --- | --- |
-| **Field-level minimisation** — which columns each role sees, rather than which rows | [`field-visibility.md`](field-visibility.md), with [`../nfr/data-classification.md`](../nfr/data-classification.md) as its source. This document decides reach; that one decides detail |
+| **Field-level minimisation** — which columns each role sees, rather than which rows | [`field-visibility.md`](field-visibility.md), with [`../nfr/data-classification.md`](../nfr/data-classification.md) as its source. This document decides reach; that one decides detail. Two of its five views are served today, both by the customer routes below; the other three wait for #28, #32a and #33 |
 | **A branch scope that is not about branches** | An organisation-scoped permission held by a principal with no branch assignments cannot satisfy `BranchScope.Organisation`, which is defined as cross-branch *reading reach*. The one case that exists is the vendor principal and `admin.feature_flags`, recorded in `tests/Tailor360.IntegrationTests/Authorization/matrix.yaml` with the reason and the two ways #25 could settle it. It is a recorded disagreement between this document and the software, and a test fails if a second one appears |
 | **`transfer-pending` branch scope** | #37: a cross-branch transfer grants the destination branch exactly receive, reject and resolve while the transfer is pending. It is a fourth reach, and it has no permission rows here yet |
 | **The foreign key on `users.home_branch_id`** | #25, which builds the screen that can create a user against the branch register. The column is a *default* and not a grant: it is what a new session opens onto, and reach is the branch-assignment rows alone, so removing somebody from a branch removes their reach into it whatever their home branch still says |

@@ -1262,6 +1262,13 @@ acceptance criteria, which remain the contract.
   adds notes; consent history requires `customers.read_consent`. Tailor and Tailor Master receive no contact
   fields (job cards show customer name and job number only). Search results and timeline entries are filtered by
   the same policy and by branch (visibility branches ∩ caller's branch assignments).
+  **Built**, as the declared response views `customers.record` and `customers.search_card` in
+  [`security/field-visibility.md`](security/field-visibility.md) rather than as a type of that name — the
+  platform mechanism of #24 was already the `CustomerViewPolicy` this line asks for, and a second one beside it
+  would have been the per-handler rule that document argues against. Two things named here are deliberately not
+  in it and are recorded in its section 3.1: **notes**, because the module holds none to gate, and **consent
+  history**, which is gated whole by `customers.read_consent` on its endpoint and has no field-level split to
+  approve. The timeline is the next slice and carries the filtering of timeline entries with it.
 - **Timeline**: `Platform.Abstractions.ITimelineSource { For(customerId, branchScope, permissions, cursor) }`
   registered per module; #26 ships the consent, note, correction/merge and (after #28) measurement sources and the
   BFF composition endpoint `GET /api/v1/customers/{id}/timeline` in the web host; #32a, #34, #42, #43, #48 and #49

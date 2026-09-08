@@ -774,7 +774,7 @@ export interface paths {
         };
         /**
          * Read one customer record, with the version a correction must be made against.
-         * @description The contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null, which is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires rather than an omission.
+         * @description The body is projected through the approved response view `customers.record`. The six contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null and `contactIncluded` is false, which is the difference between a number withheld and a customer who has not given one. The split is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires, and the field set is approved in `docs/security/field-visibility.md`.
          */
         get: operations["GetCustomer"];
         /**
@@ -1259,6 +1259,7 @@ export interface components {
             addressLine: null | string;
             aliases: components["schemas"]["CustomerAliasPayload"][];
             alternatePhone: null | string;
+            contactIncluded: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */

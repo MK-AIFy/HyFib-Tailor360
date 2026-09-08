@@ -5,12 +5,12 @@ them. It names every response view the application declares, every field each vi
 behind each field, and — derived from those two things and from the seeded role grants — exactly what each role is
 shown.
 
-> **Read this first: nothing served today is shaped by this document.** No endpoint in the solution projects a
-> response through `IFieldVisibilityPolicy`, because no endpoint returns any of the three declared views yet. What
-> is live is the mechanism and its invariants, which are code and are tested. Everything below is therefore a
-> statement of what a view *will* carry when the issue that publishes it lands — see section 1 — and not a
-> description of a behaviour you could observe. Treating it as the second is the one way this document could
-> mislead somebody.
+> **Read this first: two of the five views below are served, and three are not.** The customer record and the
+> search card are what the Customers endpoints of #26 return, and every row about them describes a body you could
+> go and observe. The measurement sheet, the job card and the work queue are forward declarations waiting for the
+> modules that will serve them, and every row about those is a statement of what the view *will* carry — see
+> section 1. Reading the second kind as the first is the one way this document could mislead somebody, so the
+> status table says which is which.
 
 It is the second half of the authorisation model of issue #24. The first half is
 [`permission-matrix.md`](permission-matrix.md), which the owner approves and an administrator then edits per
@@ -30,18 +30,23 @@ document it cites.
 
 ## 1. Status
 
-> **Not approved, and not yet enforced anywhere.** No endpoint in the solution returns any of these views: the
-> three declared below are forward declarations, named by the issue blueprint and traced to product documents,
-> waiting for the modules that will serve them. What *is* live is the mechanism and its invariants — the
-> catalogue refuses to build a view that carries a class it withholds, and the tests below hold this document
-> equal to the code and to the seeded grants.
+> **Not approved, and enforced on two of the five views.** `customers.record` is returned by six customer
+> endpoints, each of which projects its body through the mask this document approves. `customers.search_card`
+> is returned by the search and the duplicate list; it declares no gated field, so there is nothing for a mask
+> to withhold and the projection consults none — what the view fixes there is the field *set*, asserted against
+> the payload type, and a test fails the build the day somebody gates a card field without teaching the
+> projection to withhold it. The other three views are forward declarations, waiting for the modules that will
+> serve them. The mechanism and its invariants are live for all five: the catalogue refuses to build a view that
+> carries a class its surface forbids, and the tests below hold this document equal to the code and to the
+> seeded grants.
 
 | | |
 | --- | --- |
-| **Delivered by** | Issue #24, the field-level minimisation half |
-| **Approval state** | Open. Section 6 lists the three consequences of the derivation that want an owner's answer |
-| **Enforced today** | The view catalogue, the mask and the payload builder are code and are tested. Nothing is served |
-| **Changes with** | #26 (customer views), #28 (measurement sheet), #32a and #33 (job card, work queue), #45 (workload) |
+| **Delivered by** | Issue #24, the field-level minimisation half. The customer views are #26 |
+| **Approval state** | Open. Section 6 lists the four consequences of the derivation that want an owner's answer |
+| **Served today** | `customers.record` and `customers.search_card`, by the Customers endpoints |
+| **Declared, not served** | `customers.measurement_sheet`, `orders.job_card`, `orders.work_queue` |
+| **Changes with** | #28 (measurement sheet), #32a and #33 (job card, work queue), #45 (workload) |
 
 ---
 
@@ -60,9 +65,14 @@ anybody remembering:
 
 1. **A view cannot carry a class it withholds.** `ResponseView`'s constructor throws. "The job card has no price
    on it" stops being an observation about today's code and becomes something that cannot be written.
-2. **A field nobody declared cannot reach a response.** `MaskedPayload.Set` throws on an undeclared name. A field
-   a caller may not see is dropped in silence, because that is the purpose; a field *nobody has approved* is a
-   different mistake and gets a different answer.
+2. **A field nobody declared cannot reach a response.** Two mechanisms give the same guarantee, and which one
+   applies depends on how the body is built. Where a handler assembles a body field by field, `MaskedPayload.Set`
+   throws on an undeclared name: a field a caller may not see is dropped in silence, because that is the purpose,
+   while a field *nobody has approved* is a different mistake and gets a different answer. Where the response is a
+   published schema — the customer record and the search card, which the client is generated from —
+   [`ResponseViewPayloadTests`](../../tests/Tailor360.ContractTests/ResponseViewPayloadTests.cs) holds the payload
+   type's properties equal to the view's declared fields, so the same field fails the build instead. That one is
+   the stronger of the two: it fires on the pull request rather than on the first request that carries the field.
 3. **What each role sees is computed, not asserted.** Section 5 is derived from section 4 and the role grants in
    `permission-matrix.md`. Nobody writes it, so nobody can write it wrongly.
 
@@ -78,18 +88,34 @@ A view is one named response shape. `Requires` is the permission an endpoint ret
 the view at all. `Withheld` is the classes it may never carry, enforced when the catalogue is built.
 
 <!-- matrix:views -->
-| View | Module | Requires | Withheld | Purpose |
-| --- | --- | --- | --- | --- |
-| `customers.measurement_sheet` | `Customers` | `measurements.read_sheet` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | The figures the garment is cut to, rendered for the workshop and for print. |
-| `orders.job_card` | `Orders` | `orders.read` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | One garment job as the workshop needs it: what to make, from whose measurements, by when. |
-| `orders.work_queue` | `Orders` | `orders.read` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | The branch's jobs as a list, for picking up the next piece of work. |
+| View | Module | Surface | Requires | Withheld | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `customers.measurement_sheet` | `Customers` | `Workshop` | `measurements.read_sheet` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | The figures the garment is cut to, rendered for the workshop and for print. |
+| `customers.record` | `Customers` | `Counter` | `customers.read` | `Measurement`, `Media`, `Pricing`, `PaymentState`, `StaffPerformance` | One customer as the counter opens them: who they are, how to reach them, and whether the record still stands. |
+| `customers.search_card` | `Customers` | `Counter` | `customers.read` | `CustomerNotes`, `Measurement`, `Media`, `Pricing`, `PaymentState`, `StaffPerformance` | One customer as a search result: enough to tell two people apart before a second record is created for one of them. |
+| `orders.job_card` | `Orders` | `Workshop` | `orders.read` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | One garment job as the workshop needs it: what to make, from whose measurements, by when. |
+| `orders.work_queue` | `Orders` | `Workshop` | `orders.read` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | The branch's jobs as a list, for picking up the next piece of work. |
 <!-- /matrix:views -->
 
-All three withhold the same four classes, and the sentence behind that is in
-[`../nfr/data-classification.md`](../nfr/data-classification.md) section 3: *"a job card shows the customer's name
+`Surface` is who reads the view, and it is what decides the withheld set. The three **workshop** surfaces withhold
+the same four classes — contact, notes, pricing and payment state — and the sentence behind that is in
+[`../nfr/data-classification.md`](../nfr/data-classification.md) section 2: *"a job card shows the customer's name
 and job number and never their phone number, **which is why a Tailor can be shown a job card at all**"*.
 Minimisation here is not a restriction bolted onto a screen. It is what makes the screen shareable with the people
 who do the work.
+
+The two **counter** surfaces withhold a different five — measurements, media, pricing, payment state and staff
+performance — and may carry contact details, to the callers permitted them. That is the same sentence applied to
+the screen it was written about rather than a relaxation of it: the argument above is about a card that is printed
+and left on a bench, and ringing a customer to say her blouse is ready is what the counter screen exists for. It is
+recorded as a column because reading the rule as *"no view carries contact details"* is what kept the customer
+record undeclared and hand-masked until #26 — the rule was right and its scope was unwritten, so the scope is now a
+declared property of each view rather than an accident of there being only workshop views.
+
+Neither list is written twice. Both are `SurfaceRules.ForbiddenOn(surface)`, and `ResponseView`'s constructor
+refuses a view that withholds less than its surface forbids, so the `Withheld` column above can be **wider** than
+the surface's minimum and never narrower. `customers.search_card` is the one that is wider: a search result is not
+where free text about a person belongs, so it withholds `CustomerNotes` as well.
 
 ### 3.1 A view is a response shape, and it is not the only place a field is withheld
 
@@ -109,11 +135,26 @@ key the contract repeats from the catalogue under a test that fails if the two e
 second boundary in front of the first: Orders will declare its own view withholding `CustomerContact`, and by then
 a masked caller's contact fields will not have reached Orders to be withheld.
 
-The customer record's own response views — `customers.read` returning name, number, branch and status,
-`customers.read_contact` adding the contact fields, `customers.read_notes` adding notes, and consent history
-behind `customers.read_consent` — are the `CustomerViewPolicy` half of #26 and are **not built yet**. Until they
-are, the customer endpoints mask by hand in their payload projection, which is exactly the arrangement section 2
-argues against and is why it is written down here rather than left to be discovered.
+The customer record's own response views are the `CustomerViewPolicy` half of #26 and are **now built**:
+`customers.record` returns name, number, branch and status to a caller holding `customers.read`, and adds the six
+contact fields for one who also holds `customers.read_contact`; `customers.search_card` is the same decision over a
+search result. Every customer endpoint that returns a record projects it through the mask
+`IFieldVisibilityPolicy` computes from these tables, so the hand-written ternaries section 2 argues against are
+gone from the payload.
+
+Two things the plan named for this half are deliberately **not** views, and saying so here is cheaper than leaving
+somebody to wonder:
+
+- **Notes.** `customers.read_notes` is declared, granted to Owner and Branch Manager, and gates nothing, because
+  the module holds no notes: there is no column, no payload and no endpoint. A view cannot approve a field that
+  does not exist, and inventing one would be inventing a product decision about what staff may write about a
+  person and for how long it is kept. When notes are added they join `customers.record` behind that permission,
+  which is one row here and one property there.
+- **Consent history and communication preferences.** Both are gated whole, by `customers.read_consent` on the
+  endpoint, and neither has a field a caller may hold the endpoint's permission and still not see. A view would
+  add an approved field list and no masking. That is worth having eventually — it is the same "third pull request"
+  argument — but it is a declaration exercise rather than the field-level minimisation this half of #24 is about,
+  and it is left to the issue that next changes those payloads.
 
 ---
 
@@ -141,6 +182,36 @@ What keeps the name safe is not a permission on it — it is that contact detail
 | `customers.measurement_sheet` | `values` | `Measurement` | — | The measured figures, stored in millimetres and rendered in the branch's display unit. The view's own permission is the gate; there is no sheet without them. |
 | `customers.measurement_sheet` | `easeNotes` | `Measurement` | — | Ease and growth-allowance notes, which are read with the figures and classified with them. |
 | `customers.measurement_sheet` | `fieldDiagrams` | `Media` | `media.read` | The template's line drawings, streamed by the authorising endpoint like all media. |
+| `customers.record` | `customerId` | `Operational` | — | The record's identifier, which every other call about this person is made with. |
+| `customers.record` | `customerNumber` | `CustomerIdentity` | — | The number written on the card the customer carries. |
+| `customers.record` | `displayName` | `CustomerIdentity` | — | The name as the customer gave it, which is the whole point of opening the record. |
+| `customers.record` | `nativeName` | `CustomerIdentity` | — | The Tamil-script name, where there is one, so the counter can read it back as written. |
+| `customers.record` | `phone` | `CustomerContact` | `customers.read_contact` | The primary telephone number. Contact is split from identity because docs/nfr/data-classification.md section 5.2 classifies it separately. |
+| `customers.record` | `alternatePhone` | `CustomerContact` | `customers.read_contact` | The second number, tried when the first does not answer. |
+| `customers.record` | `email` | `CustomerContact` | `customers.read_contact` | The email address, under the same permission as the telephone numbers. |
+| `customers.record` | `addressLine` | `CustomerContact` | `customers.read_contact` | The street line, needed to deliver and for nothing else. |
+| `customers.record` | `locality` | `CustomerContact` | `customers.read_contact` | The area or town, under the same permission. |
+| `customers.record` | `postcode` | `CustomerContact` | `customers.read_contact` | The postal code, under the same permission. |
+| `customers.record` | `contactIncluded` | `Operational` | — | Whether the contact fields above were included for this caller, so that a client can tell a withheld number from a customer who never gave one. |
+| `customers.record` | `language` | `Operational` | — | The language the customer is written to in, which decides what a message looks like rather than saying anything about the person. |
+| `customers.record` | `status` | `Operational` | — | Whether the record is in use, so a deactivated one is not offered actions. |
+| `customers.record` | `owningBranchId` | `Operational` | — | The branch that created the record. |
+| `customers.record` | `visibilityBranchIds` | `Operational` | — | The branches that see the record in ordinary search results (docs/prd/workflows/branch-scenarios.md section 3.2). |
+| `customers.record` | `aliases` | `CustomerIdentity` | — | Previous names, spellings and merged customer numbers — identity under another writing, and never a telephone number or an address. |
+| `customers.record` | `createdAt` | `Operational` | — | When the record was created. |
+| `customers.record` | `updatedAt` | `Operational` | — | When it was last changed. |
+| `customers.record` | `version` | `Operational` | — | The concurrency token an edit must be made against. |
+| `customers.record` | `mergedIntoCustomerId` | `Operational` | — | The record this one was folded into, or null while it stands on its own. Never gated: whether the record still stands is a fact about the record rather than about the person, and a screen that cannot see it offers actions against a customer who no longer exists. |
+| `customers.record` | `mergedAt` | `Operational` | — | When it was folded in, or null while it stands on its own. |
+| `customers.search_card` | `customerId` | `Operational` | — | The record the card leads to. |
+| `customers.search_card` | `customerNumber` | `CustomerIdentity` | — | The number, which is what an old bill or a card in a purse carries. |
+| `customers.search_card` | `displayName` | `CustomerIdentity` | — | The name as given, which is what the counter searched for. |
+| `customers.search_card` | `nativeName` | `CustomerIdentity` | — | The Tamil-script name, where there is one. |
+| `customers.search_card` | `maskedPhone` | `CustomerContact` | — | The number with everything but its last four digits replaced. It carries no permission because it is masked for everybody, whatever they hold: enough to confirm a number a customer is reading out, and not enough to be a contact list, which is what makes a search that reaches across branches safe (docs/prd/workflows/branch-scenarios.md section 3.1). |
+| `customers.search_card` | `owningBranchId` | `Operational` | — | The branch that created the record. |
+| `customers.search_card` | `visibleToCaller` | `Operational` | — | False when the record is outside the caller's branches, which is what turns the card into a disambiguation card rather than a result. |
+| `customers.search_card` | `status` | `Operational` | — | Whether the record is in use. |
+| `customers.search_card` | `lastSeenAt` | `Operational` | — | When the record was last changed, which is what the list is ordered by. |
 | `orders.job_card` | `jobNumber` | `Operational` | — | The job's own number, which is how the workshop, the label and the customer all refer to it. |
 | `orders.job_card` | `orderNumber` | `Operational` | — | The order the job belongs to, so a multi-garment order can be kept together. |
 | `orders.job_card` | `categoryLabel` | `Operational` | — | The stitching category, from the catalogue snapshot frozen at confirmation. |
@@ -178,6 +249,15 @@ replacement.
 `Reaches` says whether the role holds the view's own permission. A role that does not reach a view is shown
 nothing of it — not an empty shell, not a redacted skeleton: the request is refused before a body exists.
 
+One case is not a refusal and is worth stating, because the table above does not show it. A **command** that
+answers with the record it just changed — registering a customer, correcting one, deactivating one, merging two —
+demands `customers.create`, `customers.update`, `customers.deactivate` or `customers.merge`, and not
+`customers.read`. Refusing such a caller the record they were just authorised to change would be a refusal of
+their own write, so those endpoints ask for their mask through `IFieldVisibilityPolicy.MaskForReached`, naming the
+permission the route demanded. Every **field** gate in section 4 still applies, which is why a caller who may
+correct a record but not read contact details is answered with the corrected record and no telephone number. The
+permission named must be one the caller actually holds, so a handler cannot assert reach on anybody's behalf.
+
 <!-- matrix:role-fields -->
 | View | Role | Reaches | Visible fields |
 | --- | --- | --- | --- |
@@ -193,6 +273,30 @@ nothing of it — not an empty shell, not a redacted skeleton: the request is re
 | `customers.measurement_sheet` | `delivery_staff` | no | — |
 | `customers.measurement_sheet` | `auditor` | no | — |
 | `customers.measurement_sheet` | `hyfib_super_user` | no | — |
+| `customers.record` | `owner` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `phone`, `alternatePhone`, `email`, `addressLine`, `locality`, `postcode`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `admin` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `branch_manager` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `phone`, `alternatePhone`, `email`, `addressLine`, `locality`, `postcode`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `reception` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `phone`, `alternatePhone`, `email`, `addressLine`, `locality`, `postcode`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `measurement_staff` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `tailor_master` | no | — |
+| `customers.record` | `tailor` | no | — |
+| `customers.record` | `inventory_clerk` | no | — |
+| `customers.record` | `cashier` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `phone`, `alternatePhone`, `email`, `addressLine`, `locality`, `postcode`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `delivery_staff` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `phone`, `alternatePhone`, `email`, `addressLine`, `locality`, `postcode`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `auditor` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `phone`, `alternatePhone`, `email`, `addressLine`, `locality`, `postcode`, `contactIncluded`, `language`, `status`, `owningBranchId`, `visibilityBranchIds`, `aliases`, `createdAt`, `updatedAt`, `version`, `mergedIntoCustomerId`, `mergedAt` |
+| `customers.record` | `hyfib_super_user` | no | — |
+| `customers.search_card` | `owner` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `admin` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `branch_manager` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `reception` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `measurement_staff` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `tailor_master` | no | — |
+| `customers.search_card` | `tailor` | no | — |
+| `customers.search_card` | `inventory_clerk` | no | — |
+| `customers.search_card` | `cashier` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `delivery_staff` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `auditor` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
+| `customers.search_card` | `hyfib_super_user` | no | — |
 | `orders.job_card` | `owner` | yes | `jobNumber`, `orderNumber`, `categoryLabel`, `serviceLabel`, `designSnapshot`, `garmentInstructions`, `dueDate`, `priority`, `currentPhase`, `assignedTo`, `barcodePayload`, `customerName`, `measurements`, `referenceImages` |
 | `orders.job_card` | `admin` | yes | `jobNumber`, `orderNumber`, `categoryLabel`, `serviceLabel`, `designSnapshot`, `garmentInstructions`, `dueDate`, `priority`, `currentPhase`, `assignedTo`, `barcodePayload`, `customerName`, `referenceImages` |
 | `orders.job_card` | `branch_manager` | yes | `jobNumber`, `orderNumber`, `categoryLabel`, `serviceLabel`, `designSnapshot`, `garmentInstructions`, `dueDate`, `priority`, `currentPhase`, `assignedTo`, `barcodePayload`, `customerName`, `measurements`, `referenceImages` |
@@ -223,14 +327,16 @@ nothing of it — not an empty shell, not a redacted skeleton: the request is re
 
 ## 6. What the derivation exposes
 
-Deriving the table rather than writing it surfaces three things a hand-written one would have hidden. None is a
-defect in this mechanism; each is a question about a grant, and each is recorded here rather than quietly decided.
+Deriving the table rather than writing it surfaces four things a hand-written one would have hidden. None is a
+defect in this mechanism. The first three are questions about a grant; the fourth is a question about a value in
+the code. Each is recorded here rather than quietly decided.
 
 | # | What the derivation shows | Why it happens | What would close it |
 | --- | --- | --- | --- |
 | **FV-01** | Cashier, Delivery Staff, Inventory Clerk, Admin and Auditor all reach the job card | They hold `orders.read`, which [`permission-matrix.md`](permission-matrix.md) grants broadly and describes as "the order and its jobs" | Nothing here. Which *endpoints* exist is #32a's decision, and a role that never opens a job-card endpoint never sees one. The field sets above are correct for whoever does reach it |
 | **FV-02** | Admin and Auditor see `assigneeThroughput` on the work queue | It is gated on `reports.read`, and decision **DC-11** names three roles — Tailor Master, Branch Manager, Owner — where `reports.read` is held by five | DC-11's concern is peers: no Tailor sees another Tailor's figures, and that holds. If the owner reads DC-11 strictly, #44 or #45 splits `reports.read` into a workload permission, and only the `Requires` cell of one row changes |
 | **FV-03** | Cashier's job card carries no `referenceImages` | Cashier is the one branch role without `media.read` in the default grants | Nothing, if that is intended. It is listed because it is the kind of asymmetry that looks like a bug in six months and is not |
+| **FV-04** | Admin and Measurement Staff are shown `maskedPhone` on a search card while being shown no contact field at all on the record | The card's number is masked in the projection — everything but its last four digits replaced — for every caller, so it carries no permission of its own. That is what makes a search that reaches across branches safe ([`../prd/workflows/branch-scenarios.md`](../prd/workflows/branch-scenarios.md) section 3.1), and it is the behaviour that shipped with the search; declaring the view is what made it visible here | Nothing, if four digits is the right amount to confirm a number somebody is reading out. If it is not, the fix is the mask, not this row: shortening the tail or gating the field changes what a duplicate check can do, and both are the owner's call rather than a change a reviewer should make in passing |
 
 ---
 
@@ -243,7 +349,13 @@ In one change, or the tests fail — which is the point of them:
 | 1. Declare the field, its class, its permission and its rationale | The view's group in `src/Platform/Tailor360.Platform.Security/FieldVisibility/` |
 | 2. Add its row to section 4 | This document |
 | 3. Re-run the tests and paste the replacement role table the failure prints | This document, section 5 |
-| 4. Set it in the handler through `MaskedPayload.Set` | The endpoint that returns the view |
+| 4a. Set it in the handler through `MaskedPayload.Set` | An endpoint that assembles its body field by field |
+| 4b. Add the property to the payload record, and project it from the mask | An endpoint that returns a published schema — the customer record and the search card |
+| 5. Regenerate the interface description and the client types | `TAILOR360_WRITE_OPENAPI=1 dotnet test --project tests/Tailor360.ContractTests/…`, then `pnpm --dir clients/pwa generate:api` |
+
+A gated field must be one the payload can actually withhold — nullable, so that "withheld" has a value to send.
+There is no way to leave a customer number out of a body that must contain one, so gating a non-nullable field
+would approve an answer the code cannot give, and assertion 11 refuses it.
 
 A field of a class the view withholds cannot be added at all. If it belongs there, the withheld set is what is
 wrong, and changing it is a change to what an owner approved: it goes in the pull request with the reason, and
@@ -256,12 +368,15 @@ wrong, and changing it is a change to what an owner approved: it goes in the pul
 | # | Assertion | The drift it catches |
 | --- | --- | --- |
 | 1 | Section 3 names every declared view and no others | A view added in code and never approved |
-| 2 | Each view's module, permission and withheld classes equal the code | An approval and an implementation saying different things |
+| 2 | Each view's module, surface, permission and withheld classes equal the code | An approval and an implementation saying different things |
 | 3 | Section 4 has exactly one row per declared field, and no row without a field | A field shipped without approval, and an approved field nobody built |
 | 4 | Each field's class and required permission equal the code | The dangerous direction: sensitive data approved as operational, or a permission quietly dropped |
 | 5 | Every permission either document names is in the permission catalogue | A typo, which would hide a field from everybody for ever |
 | 6 | Section 5 equals the derivation from section 4 and the seeded grants | A grant changed in the matrix and not reflected in what a role is shown |
 | 7 | Every role named is a system role | A role invented in prose |
-| 8 | Every view withholds all four workshop-forbidden classes, in the document as well as in the code | The sentence the owner approved becoming true only in the source |
+| 8 | Every **workshop** surface withholds all four workshop-forbidden classes, in the document as well as in the code | The sentence the owner approved becoming true only in the source |
+| 8b | Every **counter** surface withholds measurements, pricing, payment state and staff performance | The other half of the same decision: a screen about a customer quietly acquiring a price or a body measurement |
 | 9 | No role, on any view, is shown a field of a class that view withholds | The invariant checked end to end rather than at construction only |
-| 10 | Every table is non-empty before any "every row…" assertion runs | The vacuous pass: a mangled table satisfying every rule about all of its rows |
+| 10 | Every table is non-empty before any "every row…" assertion runs, and each surface has at least one view | The vacuous pass: a mangled table satisfying every rule about all of its rows, or a rescoped rule that stopped matching anything |
+| 11 | Each payload type registered as a view's published schema carries exactly that view's declared fields, in order, and every gated field among them is nullable | A property added to a response record without an approved row, which `MaskedPayload` cannot catch because such a body is never built through it; and a field approved as gated that the projection has no way to withhold |
+| 12 | Every view is declared on a surface, and withholds at least what that surface forbids | A view added with a quietly shorter withheld list, which the per-surface assertions above would then pass over |

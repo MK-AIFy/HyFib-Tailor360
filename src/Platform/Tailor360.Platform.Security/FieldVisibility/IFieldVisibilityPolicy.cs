@@ -22,4 +22,33 @@ public interface IFieldVisibilityPolicy
     /// </summary>
     /// <exception cref="InvalidOperationException">No such view is declared.</exception>
     FieldMask MaskFor(string viewKey, IReadOnlySet<string> permissions);
+
+    /// <summary>
+    /// The mask for a caller an endpoint has already authorised to reach this view by a permission
+    /// other than the view's own — a command answering with the record it just changed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>POST /customers</c> demands <c>customers.create</c> and <c>PUT /customers/{id}</c> demands
+    /// <c>customers.update</c>; neither demands <c>customers.read</c>, which is what the record view
+    /// requires. Computing an ordinary mask there would answer a successful write with an empty body,
+    /// and answering with the whole record regardless would be the endpoint deciding its own field set,
+    /// which is the arrangement this whole mechanism exists to remove. So the reach is stated, and the
+    /// field gates still apply.
+    /// </para>
+    /// <para>
+    /// It cannot be used to fabricate reach. <paramref name="reachedBy"/> is checked against the
+    /// caller's own permissions, so a call site can only stand in a permission the caller actually
+    /// holds — which is to say, the one the endpoint already demanded of them.
+    /// </para>
+    /// </remarks>
+    /// <param name="viewKey">The view.</param>
+    /// <param name="reachedBy">
+    /// The permission the endpoint demanded, which the caller must hold.
+    /// </param>
+    /// <exception cref="InvalidOperationException">No such view is declared.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The caller does not hold <paramref name="reachedBy"/>.
+    /// </exception>
+    FieldMask MaskForReached(string viewKey, string reachedBy);
 }

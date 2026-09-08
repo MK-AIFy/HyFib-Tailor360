@@ -10,8 +10,9 @@ namespace Tailor360.Modules.Customers.Application.Customers;
 /// <remarks>
 /// Not a payload. The wire shape is declared in the <c>Api</c> project and projected from this
 /// (ARCH-013), because a payload is published and an application type is free to change. It carries
-/// the contact fields; whether a given caller is shown them is the endpoint's decision, taken once,
-/// against <c>customers.read_contact</c>.
+/// the contact fields unconditionally; whether a given caller is shown them is decided a layer later,
+/// by the declared response view <c>customers.record</c> that the payload is projected through
+/// (<c>docs/security/field-visibility.md</c>).
 /// </remarks>
 /// <param name="CustomerId">The record.</param>
 /// <param name="CustomerNumber">The display number.</param>

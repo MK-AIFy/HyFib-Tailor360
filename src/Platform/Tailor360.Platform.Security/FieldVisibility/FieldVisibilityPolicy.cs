@@ -21,4 +21,23 @@ public sealed class FieldVisibilityPolicy(ResponseViewCatalogue catalogue, ICurr
         var view = catalogue.Require(viewKey);
         return new FieldMask(view, view.VisibleTo(permissions));
     }
+
+    /// <inheritdoc />
+    public FieldMask MaskForReached(string viewKey, string reachedBy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reachedBy);
+
+        var view = catalogue.Require(viewKey);
+
+        if (!currentUser.HasPermission(reachedBy))
+        {
+            throw new InvalidOperationException(
+                $"A mask for '{viewKey}' was asked for on the basis of '{reachedBy}', which this caller "
+                + "does not hold. The permission stood in for the view's own must be the one the "
+                + "endpoint demanded, so that reach is never asserted by a handler on a caller's "
+                + "behalf.");
+        }
+
+        return new FieldMask(view, view.FieldsFor(currentUser.Permissions));
+    }
 }

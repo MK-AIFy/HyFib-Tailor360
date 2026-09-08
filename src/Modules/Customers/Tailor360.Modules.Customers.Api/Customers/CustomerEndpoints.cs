@@ -10,6 +10,7 @@ using Tailor360.Platform.Abstractions.Multitenancy;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Security.Authorisation;
 using Tailor360.Platform.Security.Endpoints;
+using Tailor360.Platform.Security.FieldVisibility;
 using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Modules.Customers.Api.Customers;
@@ -41,9 +42,15 @@ namespace Tailor360.Modules.Customers.Api.Customers;
 /// </para>
 /// <para>
 /// <strong>Contact details are a second permission.</strong> Whether the six contact fields are
-/// populated is decided once, in <see cref="CustomerPayload.From"/>, against
-/// <c>customers.read_contact</c> — so a Tailor reading a job card sees a name and never a telephone
-/// number (<c>docs/nfr/data-classification.md</c> section 5.2).
+/// populated is not decided in these handlers and not decided in the payload either: it is declared,
+/// field by field, by the response view <c>customers.record</c> in
+/// <c>docs/security/field-visibility.md</c>, and every handler that answers with a record projects
+/// through the mask <c>IFieldVisibilityPolicy</c> computes from it for the caller. So a Tailor reading
+/// a job card sees a name and never a telephone number (<c>docs/nfr/data-classification.md</c> section
+/// 5.2), and the sentence that says so is approved in one place rather than re-derived per endpoint.
+/// The search and the duplicate list answer with cards instead, whose view declares no gated field:
+/// a card's number is masked before it reaches this layer, for every caller, which is what lets a
+/// search reach across branches at all.
 /// </para>
 /// </remarks>
 public static class CustomerEndpoints
@@ -269,6 +276,7 @@ public static class CustomerEndpoints
                 HttpContext context,
                 CustomerHandler handler,
                 ICurrentUser caller,
+                IFieldVisibilityPolicy views,
                 CancellationToken cancellationToken) =>
             {
                 var details = Details(
@@ -313,7 +321,9 @@ public static class CustomerEndpoints
 
                 return Results.Created(
                     $"{CustomersEndpoints.GroupPrefix}/{created.CustomerId}",
-                    CustomerPayload.From(created, caller.HasPermission(CustomersPermissions.ReadContact)));
+                    CustomerPayload.From(
+                        created,
+                        views.MaskForReached(CustomersResponseViews.Record, CustomersPermissions.Create)));
             })
             .Produces<CustomerPayload>(StatusCodes.Status201Created)
             .WithName("RegisterCustomer")
@@ -337,6 +347,7 @@ public static class CustomerEndpoints
                 HttpContext context,
                 CustomerHandler handler,
                 ICurrentUser caller,
+                IFieldVisibilityPolicy views,
                 CancellationToken cancellationToken) =>
             {
                 var result = await handler.ReadAsync(
@@ -351,15 +362,18 @@ public static class CustomerEndpoints
                 context.Response.Headers.CacheControl = NoStore;
 
                 return Results.Ok(CustomerPayload.From(
-                    result.Value, caller.HasPermission(CustomersPermissions.ReadContact)));
+                    result.Value, views.MaskFor(CustomersResponseViews.Record)));
             })
             .Produces<CustomerPayload>(StatusCodes.Status200OK)
             .WithName("GetCustomer")
             .WithSummary("Read one customer record, with the version a correction must be made against.")
             .WithDescription(
-                "The contact fields are populated only for a caller holding `customers.read_contact`; "
-                + "for everybody else they are null, which is the field-level minimisation "
-                + "`docs/nfr/data-classification.md` section 5.2 requires rather than an omission.")
+                "The body is projected through the approved response view `customers.record`. The six "
+                + "contact fields are populated only for a caller holding `customers.read_contact`; "
+                + "for everybody else they are null and `contactIncluded` is false, which is the "
+                + "difference between a number withheld and a customer who has not given one. The "
+                + "split is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 "
+                + "requires, and the field set is approved in `docs/security/field-visibility.md`.")
             .RequirePermission(CustomersPermissions.Read, BranchScope.AssignedBranches)
             .TouchesNoBranchOwnedResource(NoBranchResource, Review)
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
@@ -374,6 +388,7 @@ public static class CustomerEndpoints
                 HttpContext context,
                 CustomerHandler handler,
                 ICurrentUser caller,
+                IFieldVisibilityPolicy views,
                 CancellationToken cancellationToken) =>
             {
                 var details = Details(
@@ -397,6 +412,8 @@ public static class CustomerEndpoints
                     context,
                     handler,
                     caller,
+                    views,
+                    CustomersPermissions.Update,
                     token => handler.CorrectAsync(
                         new CorrectCustomerCommand(
                             customerId,
@@ -435,12 +452,15 @@ public static class CustomerEndpoints
                     HttpContext context,
                     CustomerHandler handler,
                     ICurrentUser caller,
+                    IFieldVisibilityPolicy views,
                     CancellationToken cancellationToken) =>
                     await ApplyAsync(
                         customerId,
                         context,
                         handler,
                         caller,
+                        views,
+                        CustomersPermissions.Deactivate,
                         token => string.Equals(command, "deactivate", StringComparison.Ordinal)
                             ? handler.DeactivateAsync(
                                 customerId,
@@ -476,6 +496,7 @@ public static class CustomerEndpoints
                 HttpContext context,
                 CustomerHandler handler,
                 ICurrentUser caller,
+                IFieldVisibilityPolicy views,
                 CancellationToken cancellationToken) =>
             {
                 var result = await handler.OpenAtBranchAsync(
@@ -494,7 +515,7 @@ public static class CustomerEndpoints
                 context.Response.Headers.CacheControl = NoStore;
 
                 return Results.Ok(CustomerPayload.From(
-                    result.Value, caller.HasPermission(CustomersPermissions.ReadContact)));
+                    result.Value, views.MaskFor(CustomersResponseViews.Record)));
             })
             .Produces<CustomerPayload>(StatusCodes.Status200OK)
             .WithName("OpenCustomerAtBranch")
@@ -564,6 +585,7 @@ public static class CustomerEndpoints
                 HttpContext context,
                 CustomerHandler handler,
                 ICurrentUser caller,
+                IFieldVisibilityPolicy views,
                 CancellationToken cancellationToken) =>
             {
                 // Read the survivor first: a caller who cannot reach it hears "not found" before
@@ -629,7 +651,8 @@ public static class CustomerEndpoints
                 context.Response.Headers.CacheControl = NoStore;
 
                 return Results.Ok(CustomerMergePayload.From(
-                    result.Value, caller.HasPermission(CustomersPermissions.ReadContact)));
+                    result.Value,
+                    views.MaskForReached(CustomersResponseViews.Record, CustomersPermissions.Merge)));
             })
             .Produces<CustomerMergePayload>(StatusCodes.Status200OK)
             .WithName("MergeCustomers")
@@ -760,11 +783,27 @@ public static class CustomerEndpoints
     /// The second check, on <see cref="CustomersErrors.ConcurrentChange"/>, catches the race that is
     /// left: two requests that both passed the precondition and reached the database together.
     /// </remarks>
+    /// <param name="customerId">The record.</param>
+    /// <param name="context">The request, for the precondition and the response headers.</param>
+    /// <param name="handler">The application service.</param>
+    /// <param name="caller">The caller.</param>
+    /// <param name="views">The field-visibility policy the answer is projected through.</param>
+    /// <param name="reachedBy">
+    /// The permission the route demanded, which is what stands in for the record view's own. A command
+    /// demands <c>customers.update</c> or <c>customers.deactivate</c> rather than
+    /// <c>customers.read</c>, and answering it with an empty body because of that would be refusing
+    /// the caller the change they were just authorised to make.
+    /// </param>
+    /// <param name="apply">The change to attempt once the precondition holds.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The answer.</returns>
     private static async Task<IResult> ApplyAsync(
         Guid customerId,
         HttpContext context,
         CustomerHandler handler,
         ICurrentUser caller,
+        IFieldVisibilityPolicy views,
+        string reachedBy,
         Func<CancellationToken, Task<Result<AdministeredCustomer>>> apply,
         CancellationToken cancellationToken)
     {
@@ -804,7 +843,7 @@ public static class CustomerEndpoints
         context.Response.Headers.CacheControl = NoStore;
 
         return Results.Ok(CustomerPayload.From(
-            result.Value, caller.HasPermission(CustomersPermissions.ReadContact)));
+            result.Value, views.MaskForReached(CustomersResponseViews.Record, reachedBy)));
     }
 
     /// <summary>
