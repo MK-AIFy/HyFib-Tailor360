@@ -51,6 +51,14 @@ and a second round trip on a second connection is how this became two transactio
 
 ## Delivery
 
+**The worker composes every module** (ARCH-006). The dispatcher delivers by walking the module contexts
+the container holds, so a module the worker does not register has an outbox nothing ever claims from:
+its events are written, committed and never delivered, and nothing says so, because an outbox nobody
+reads looks exactly like an outbox with nothing in it. That is a new way to be wrong — with one shared
+table there was one context, and the worker had it — so
+`HostCompositionTests.Arch006_TheWorkerRegistersEveryModuleSoNoOutboxGoesUnread` fails the build rather
+than leaving it to be found by a customer who never got a message.
+
 The worker runs one or more dispatcher instances. Each cycle:
 
 1. **Claim.** A single statement selects eligible messages `FOR UPDATE SKIP LOCKED` and stamps a lease.

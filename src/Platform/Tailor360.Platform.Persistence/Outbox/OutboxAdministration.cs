@@ -26,6 +26,23 @@ namespace Tailor360.Platform.Persistence.Outbox;
 /// they have — an identifier from a log line or from the listing — and the listing names the module
 /// anyway.
 /// </para>
+/// <para>
+/// <strong>The revival is committed first, then the trail entry.</strong> That is a change from what
+/// replay did before #77 and it is worth stating plainly: the message and the audit entry used to be
+/// rows on one context and committed together, and they cannot be now, because the message is in the
+/// module's schema and the trail is in <c>platform</c>. Given two commits, the order is the module's
+/// house rule — <strong>save the change first, then record it</strong> — because the trail may lag
+/// reality and must never lead it. Auditing inside the module's transaction would do exactly the wrong
+/// one: the entry would commit on its own connection first, so a module commit that then failed would
+/// leave an entry claiming a replay that never happened.
+/// </para>
+/// <para>
+/// What that costs is the case the old comment named: a replay whose trail entry fails to write leaves
+/// a message back on the queue with no record of who put it there. It is the lesser loss — the message
+/// is visibly on the queue and the operator knows they acted — and closing it properly means one
+/// transaction across two contexts, which is a shared connection and belongs to the platform rather
+/// than to this class.
+/// </para>
 /// </remarks>
 /// <param name="registry">The registered module contexts, which is also the list of outboxes.</param>
 /// <param name="provider">Resolves each module's context from the current scope.</param>
@@ -97,35 +114,23 @@ public sealed class OutboxAdministration(
 
             var before = Describe(message, module.Schema);
 
-            // The update and its audit entry commit together. Without the transaction the update would
-            // commit on its own, and a failure writing the entry would leave a message back on the
-            // queue with no record of who put it there — which is precisely what the trail exists for.
-            var strategy = context.Database.CreateExecutionStrategy();
+            Revive(message);
+            await context.SaveChangesAsync(cancellationToken);
 
-            await strategy.ExecuteAsync(async () =>
-            {
-                await using var transaction =
-                    await context.Database.BeginTransactionAsync(cancellationToken);
+            await audit.WriteAsync(
+                new AuditEntry(
+                    ReplayedAction,
+                    nameof(OutboxMessage),
+                    message.Id,
+                    $"Replayed a dead-lettered {before.EventType} message from the {module.Schema} "
+                    + $"outbox after {before.AttemptCount} failed attempt(s).",
+                    reason,
+                    before,
+                    Describe(message, module.Schema),
+                    actor),
+                cancellationToken);
 
-                Revive(message);
-
-                await audit.WriteAsync(
-                    new AuditEntry(
-                        ReplayedAction,
-                        nameof(OutboxMessage),
-                        message.Id,
-                        $"Replayed a dead-lettered {before.EventType} message from the {module.Schema} "
-                        + $"outbox after {before.AttemptCount} failed attempt(s).",
-                        reason,
-                        before,
-                        Describe(message, module.Schema),
-                        actor),
-                    cancellationToken);
-
-                await context.SaveChangesAsync(cancellationToken);
-                await audit.SaveAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            });
+            await audit.SaveAsync(cancellationToken);
 
             return Result.Success(before);
         }
@@ -154,38 +159,30 @@ public sealed class OutboxAdministration(
                 continue;
             }
 
-            var strategy = context.Database.CreateExecutionStrategy();
-
-            await strategy.ExecuteAsync(async () =>
+            foreach (var message in messages)
             {
-                await using var transaction =
-                    await context.Database.BeginTransactionAsync(cancellationToken);
+                Revive(message);
+            }
 
-                foreach (var message in messages)
-                {
-                    Revive(message);
-                }
+            await context.SaveChangesAsync(cancellationToken);
 
-                // One entry per module's drain, not one per message: the operator performed a single
-                // act, and a dead letter thousands deep would otherwise bury every other entry of that
-                // hour under it. The per-message detail is still recoverable — the messages name
-                // themselves in the entry.
-                await audit.WriteAsync(
-                    new AuditEntry(
-                        ReplayedAction,
-                        nameof(OutboxMessage),
-                        Guid.Empty,
-                        $"Drained the {module.Schema} dead letter, replaying {messages.Count} message(s).",
-                        reason,
-                        messages.Select(message => message.Id).Order().ToArray(),
-                        null,
-                        actor),
-                    cancellationToken);
+            // One entry per module's drain, not one per message: the operator performed a single act,
+            // and a dead letter thousands deep would otherwise bury every other entry of that hour
+            // under it. The per-message detail is still recoverable — the messages name themselves in
+            // the entry.
+            await audit.WriteAsync(
+                new AuditEntry(
+                    ReplayedAction,
+                    nameof(OutboxMessage),
+                    Guid.Empty,
+                    $"Drained the {module.Schema} dead letter, replaying {messages.Count} message(s).",
+                    reason,
+                    messages.Select(message => message.Id).Order().ToArray(),
+                    null,
+                    actor),
+                cancellationToken);
 
-                await context.SaveChangesAsync(cancellationToken);
-                await audit.SaveAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            });
+            await audit.SaveAsync(cancellationToken);
 
             replayed += messages.Count;
         }
