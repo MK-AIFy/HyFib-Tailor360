@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
+using Tailor360.Platform.Persistence.Entities;
 
 namespace Tailor360.Platform.Persistence.Conventions;
 
@@ -24,6 +25,38 @@ public abstract class ModuleDbContext(DbContextOptions options, string schema) :
     /// <summary>The migration history table name used within the module's own schema.</summary>
     public const string MigrationsHistoryTable = "__ef_migrations_history";
 
+    /// <summary>
+    /// The module's outbox. Every integration event this module publishes is written here, in this
+    /// module's own schema, by the same unit of work that writes the change it describes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Mapped on the base rather than by each module for the reason the rest of this class exists: a
+    /// module cannot then forget it, and a module added next year has it without anybody remembering.
+    /// It is also the whole point of the table being here. A shared outbox on another context is a
+    /// second connection and a second transaction, so publishing beside a module's own write could
+    /// only ever be two commits — either committing work whose event is lost, or announcing work that
+    /// rolled back (<see href="https://github.com/MK-AIFy/HyFib-Tailor360/issues/77">#77</see>).
+    /// </para>
+    /// <para>
+    /// <see href="../../../docs/adr/0008-transactional-outbox-and-workers.md">ADR-0008</see> decided
+    /// this shape and said why in the same paragraph: the transaction and the connection are not
+    /// guaranteed across our per-module contexts.
+    /// </para>
+    /// </remarks>
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    /// <summary>
+    /// The module's inbox: one row per (message, handler) this module has already acted on.
+    /// </summary>
+    /// <remarks>
+    /// Here rather than shared for the same reason, read from the consuming end. Delivery is
+    /// at-least-once, and the row is what turns that into an at-most-once <em>effect</em> — but only if
+    /// it commits with the effect it records, which means it has to be in the schema the handler writes
+    /// to (ADR-0008 section 4.2).
+    /// </remarks>
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +64,7 @@ public abstract class ModuleDbContext(DbContextOptions options, string schema) :
 
         modelBuilder.HasDefaultSchema(Schema);
         base.OnModelCreating(modelBuilder);
+        ConfigureOutbox(modelBuilder);
         ApplyConventions(modelBuilder);
     }
 
@@ -51,6 +85,40 @@ public abstract class ModuleDbContext(DbContextOptions options, string schema) :
         configurationBuilder.Conventions.Add(_ => new ApplicationAssignedKeyConvention());
 
         base.ConfigureConventions(configurationBuilder);
+    }
+
+    /// <summary>
+    /// Maps the module's outbox and inbox. The shape is the platform's, because the dispatcher reads
+    /// every module's table with one statement and a schema that differed would need its own.
+    /// </summary>
+    private static void ConfigureOutbox(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.ToTable("outbox_messages");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EventType).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Payload).HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.CorrelationId).HasMaxLength(64);
+            entity.Property(e => e.LeaseOwner).HasMaxLength(128);
+            entity.Property(e => e.LastError).HasMaxLength(2000);
+
+            // The dispatcher's claim query filters on unprocessed messages that are due; a partial
+            // index keeps that query on a small index even once millions of delivered rows have
+            // accumulated.
+            entity.HasIndex(e => new { e.AvailableAt, e.AggregateId })
+                .HasDatabaseName("ix_outbox_messages_pending")
+                .HasFilter("processed_at IS NULL AND dead_lettered_at IS NULL");
+
+            entity.HasIndex(e => e.ProcessedAt).HasDatabaseName("ix_outbox_messages_processed_at");
+        });
+
+        modelBuilder.Entity<InboxMessage>(entity =>
+        {
+            entity.ToTable("inbox_messages");
+            entity.HasKey(e => new { e.MessageId, e.HandlerName });
+            entity.Property(e => e.HandlerName).HasMaxLength(200);
+        });
     }
 
     private static void ApplyConventions(ModelBuilder modelBuilder)

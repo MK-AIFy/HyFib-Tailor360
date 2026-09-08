@@ -17,11 +17,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     /// <summary>The schema this context owns.</summary>
     public const string SchemaName = "platform";
 
-    /// <summary>Integration events awaiting delivery.</summary>
-    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-
-    /// <summary>Messages already handled, used to make redelivery a no-op.</summary>
-    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+    // The outbox and the inbox are inherited from ModuleDbContext, which maps them into whichever
+    // schema the context owns — `platform` here, `customers` for Customers, and so on. They were
+    // declared here until #77: one shared table on this context is a second connection and a second
+    // transaction for every module that publishes, which is the one thing a transactional outbox
+    // exists to rule out. The physical `platform.outbox_messages` and `platform.inbox_messages` are
+    // unchanged; what changed is that every other module now has its own beside them.
 
     /// <summary>Recorded outcomes of idempotent commands.</summary>
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
@@ -55,31 +56,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         ArgumentNullException.ThrowIfNull(modelBuilder);
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<OutboxMessage>(entity =>
-        {
-            entity.ToTable("outbox_messages");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.EventType).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Payload).HasColumnType("jsonb").IsRequired();
-            entity.Property(e => e.CorrelationId).HasMaxLength(64);
-            entity.Property(e => e.LeaseOwner).HasMaxLength(128);
-            entity.Property(e => e.LastError).HasMaxLength(2000);
-
-            // The dispatcher's claim query filters on unprocessed messages that are due; a partial index
-            // keeps that query on a small index even once millions of delivered rows have accumulated.
-            entity.HasIndex(e => new { e.AvailableAt, e.AggregateId })
-                .HasDatabaseName("ix_outbox_messages_pending")
-                .HasFilter("processed_at IS NULL AND dead_lettered_at IS NULL");
-
-            entity.HasIndex(e => e.ProcessedAt).HasDatabaseName("ix_outbox_messages_processed_at");
-        });
-
-        modelBuilder.Entity<InboxMessage>(entity =>
-        {
-            entity.ToTable("inbox_messages");
-            entity.HasKey(e => new { e.MessageId, e.HandlerName });
-            entity.Property(e => e.HandlerName).HasMaxLength(200);
-        });
+        // The outbox and the inbox are mapped by ModuleDbContext, for every module including this one.
 
         modelBuilder.Entity<IdempotencyRecord>(entity =>
         {

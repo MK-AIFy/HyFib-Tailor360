@@ -89,11 +89,19 @@
     }
   }
 
+  /*
+   * `minmax(0, 1fr)` rather than the implicit `1fr`. A grid track sized `1fr` will not shrink below
+   * its item's own content minimum, so a single wide card — a customer name, an em dash and a
+   * garment, at 40% text growth — makes the whole list wider than the screen. The explicit minimum
+   * of zero is what lets the card wrap instead. It is the same defect the administration detail
+   * grid had, and it is the commonest reflow failure in the whole system.
+   */
   .journey-list {
     margin: 0;
     padding: 0;
     list-style: none;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
   }
 
@@ -171,6 +179,22 @@
     margin: 0;
     color: var(--colour-ink-muted);
     font-size: var(--font-size-100);
+  }
+
+  /* ----------------------------------------------------------------- the pipeline drawing */
+
+  /*
+   * Decoration over the table beneath it, never instead of it. It carries `aria-hidden` in the
+   * markup, its bars are sized by SVG attributes rather than by an inline style (the content
+   * security policy forbids one), and it inherits `currentColor` so the high-contrast sunlight
+   * theme repaints it with everything else rather than leaving a fixed tint that fails 1.4.11.
+   */
+  .journey-chart {
+    inline-size: 100%;
+    max-inline-size: 24rem;
+    block-size: 6rem;
+    fill: currentColor;
+    color: var(--colour-accent);
   }
 
   /* ----------------------------------------------------------------- wizard progress */

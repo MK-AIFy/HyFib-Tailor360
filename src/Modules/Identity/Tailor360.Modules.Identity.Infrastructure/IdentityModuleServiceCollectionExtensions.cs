@@ -255,6 +255,11 @@ public static class IdentityModuleServiceCollectionExtensions
         // so that any host composing Identity can answer "who is this person" — and a host that does
         // not compose Identity gets a resolution failure at start-up rather than a wrong answer.
         services.TryAddScoped<IUserDirectory, UserDirectory>();
+
+        // The branch half of the same contract. Published for issue #26, the first module
+        // outside Identity to need a branch code: every display number in the product carries
+        // one, and a customer number is allocated the moment the record is created.
+        services.TryAddScoped<IBranchDirectory, BranchDirectory>();
         services.TryAddScoped<UserAssignmentHandler>();
     }
 

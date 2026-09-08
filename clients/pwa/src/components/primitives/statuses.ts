@@ -41,6 +41,14 @@ export const STATUS_KINDS = [
   'paid',
   'cancelled',
   'not-synced',
+  // Account states, added with the administration screens (#25). They live in the same closed union
+  // as the job states rather than in a second one, because the two rules above have to hold across
+  // every badge a person sees, not within each family: an account list and a job list appear on the
+  // same desktop, and "suspended" must not borrow the glyph "on hold" already owns.
+  'invited',
+  'active',
+  'suspended',
+  'deactivated',
 ] as const
 
 export type StatusKind = (typeof STATUS_KINDS)[number]
@@ -67,4 +75,8 @@ export const STATUS_PRESENTATION: Record<StatusKind, StatusPresentation> = {
   paid: { tone: 'success', icon: 'check-circle', messageKey: 'primitives.status.paid' },
   cancelled: { tone: 'neutral', icon: 'close', messageKey: 'primitives.status.cancelled' },
   'not-synced': { tone: 'info', icon: 'cloud-off', messageKey: 'primitives.status.notSynced' },
+  invited: { tone: 'info', icon: 'phone', messageKey: 'primitives.status.invited' },
+  active: { tone: 'success', icon: 'check-circle', messageKey: 'primitives.status.active' },
+  suspended: { tone: 'warning', icon: 'alert-circle', messageKey: 'primitives.status.suspended' },
+  deactivated: { tone: 'neutral', icon: 'close', messageKey: 'primitives.status.deactivated' },
 }

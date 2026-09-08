@@ -105,14 +105,30 @@
     flex-wrap: wrap;
   }
 
+  /*
+   * Both of these wrap.
+   *
+   * They used to be single-line flex rows, and a flex item does not shrink below its own content,
+   * so at 360 px — the reference phone — the three utility labels ran 103 px past the edge of the
+   * screen as soon as the text grew. Not a hypothetical: the pseudo-locale story of the reference
+   * journeys is what found it, and Tamil grows the same words by about as much. The label-hiding
+   * query below stops at 359 px, one pixel short of the device it matters on, and widening it would
+   * only move the failure to the next phone.
+   *
+   * Wrapping keeps the words, which are what makes these three reachable at all, and costs a line
+   * of header only in the locales that need it.
+   */
   .app-header__utilities {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--space-2);
   }
 
   .shell-utilities {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
   }

@@ -127,8 +127,11 @@ Notes on the graph:
 | Integration | `integration` | — | `IntegrationDbContext` | #54, #55 |
 | Platform | `platform` | — | `PlatformDbContext` | #21 |
 
-Every business module schema additionally carries its **own** `outbox_messages` table (plan D6); it is listed once
-here rather than repeated in each section below. The table set given per module in section 5 is the set implied by
+Every module schema — the platform's included — additionally carries its **own** `outbox_messages` and
+`inbox_messages` tables (plan D6); they are listed once here rather than repeated in each section below. Both are
+mapped by `ModuleDbContext`, so a module has them by construction and a module added later gets them without
+anybody remembering. That is what lets a module's write and its event commit together, and a handler's effect
+commit with the row recording that it ran (issue #77). The table set given per module in section 5 is the set implied by
 plan Section 4.3 and 4.5; the exact columns and constraints of each table are fixed by the migration in the issue
 that introduces it, and a table may only be added to a schema by its owning module.
 
@@ -252,24 +255,57 @@ templates and the confirmed, immutable measurement versions the workshop works f
 | --- | --- |
 | `customers` | Customer record, `customer_number`, normalised and native name, status |
 | `customer_aliases` | Previous names, spellings and merged customer numbers, kept searchable |
-| `duplicate_candidates` | Scored, explained duplicate suspicions raised at create time |
-| `customer_merges` | The irreversible authorised merge decision and its re-pointing record |
-| `consent_records` | Versioned consent per purpose with wording version, source, actor and time |
-| `communication_preferences` | Allowed channels, language, quiet hours |
+| `customer_branch_visibility` | Which branches see an organisation-wide record in ordinary search results. A row is added when a second branch opens the record, which is the branch-scoped attribute of an organisation-wide record that [`../prd/workflows/branch-scenarios.md`](../prd/workflows/branch-scenarios.md) section 3.2 names |
+| `consent_purposes`, `consent_wordings` | The things a customer is asked to agree to, and the published versions of the words used to ask. Configuration an Owner maintains ([`../prd/configurable-vs-fixed.md`](../prd/configurable-vs-fixed.md) row 75); a purpose is retired, never deleted, because consent records name it for as long as they exist |
+| `duplicate_candidates` | Scored, explained duplicate suspicions and **what a person then decided about each** — created the second record anyway, or merged. No uniqueness over the pair and no append-only trigger, on purpose: the same two records can be judged more than once, and the erasure workflow (#57) must be able to remove the rows outright ([`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.2.1) |
+| `customer_merges` | The irreversible authorised merge decision and its re-pointing record. **Append-only**, enforced by a database trigger that permits exactly one change — clearing `reason`, which is how #57 redacts free text without destroying the evidence that the merge happened |
+| `consent_records` | Versioned consent per purpose with wording version, source, actor and time. **Append-only**, enforced by a database trigger: withdrawing inserts a `Withdrawn` row rather than changing the row that granted ([`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3) |
+| `communication_preferences` | Allowed channels, language, quiet hours. One row per customer, editable in place — a current instruction rather than evidence. Quiet hours are wall-clock times in the branch's timezone (BR-7), and both ends are present or neither |
+| `customer_exports` | Generated subject-access exports: the rendered document, who took it, why, and when the copy stops working. The document column is **emptied** when the export expires or is superseded, and the rest of the row is kept — the same shape `customer_merges` uses for its reason ([`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.2.1): the evidence that a copy was taken is the shop's record of how it answered a request, and the copy itself is the part with a lifetime |
 | `measurement_templates`, `measurement_template_versions`, `measurement_template_fields` | The configurable field sets, draft to published to retired |
 | `measurement_drafts`, `measurement_draft_values` | Branch-shared work in progress, consumed exactly once |
 | `measurement_versions`, `measurement_values` | Confirmed, immutable millimetre values with display unit and provenance |
 
 **Owned object-storage prefix.** None. Measurement diagrams are Media objects referenced by id.
 
+The subject-access export is the one artefact this creates that
+[`../nfr/data-classification.md`](../nfr/data-classification.md) section 9 would place under the `exports/` prefix.
+It is held in the `customers` schema instead, as a row in `customer_exports`, and that is forced rather than
+chosen: `exports/` belongs to Reporting, whose export service arrives with **#44**, and the solution has no
+object-storage abstraction at all yet — the MinIO container runs and the buckets exist, but no .NET code speaks to
+them. A subject-access export is one person's record and measures in kilobytes, and the platform already holds a
+generated response body with an expiry and a purge this way in `platform.idempotency_keys`. Everything section 9 is
+protecting is enforced either way — the export is purpose-bound, marked, audited on generation and on every
+download, expiring, and streamed by a re-authorising endpoint rather than linked. When #44 builds the export
+service this becomes a candidate to move, which is why the document code and version are stored on the row.
+
 **Publishes — integration events.** `customers.customer-created.v1`, `customers.customer-merged.v1`,
 `customers.customer-corrected.v1`, `customers.customer-deactivated.v1`, `customers.consent-recorded.v1`,
 `customers.consent-withdrawn.v1`, `customers.preferences-changed.v1`, `customers.measurement-version-confirmed.v1`.
+The two consent events, the preference event and `customers.customer-merged.v1` are built (#26), each with its
+JSON Schema and example under [`../integration/events/`](../integration/events/README.md). Their payloads are
+deliberately thin: consent records and communication preferences are **Personal** under
+[`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3, whose access row says the consuming
+module "reads it through `IConsentQuery` and never copies it" — and an outbox row is a copy that fans out to every
+registered handler. So the consent events carry the purpose, the outcome and the wording version and not the
+free-text source, and `customers.preferences-changed.v1` carries no preference at all: it says the answer changed,
+and the reader asks `ICommunicationPreferenceQuery` what it now is.
+
+`customers.customer-merged.v1` is the one of the four that asks a consumer to change data it already holds, and it
+carries identifiers only — no customer number, no name, and not the reason a member of staff typed. A consumer
+re-points its live references from `mergedCustomerId` to `aggregateId` and **never rewrites a snapshot** already
+frozen onto an invoice, job card or notification (INV-CUS-04). What it does with a chain, and why the event needs no
+un-merge counterpart, is section 4.2 of the events README.
 
 **Publishes — read contracts.** `IConsentQuery`, `ICommunicationPreferenceQuery`, `ICustomerSnapshotQuery`, and an
-`ITimelineSource` implementation for the customer timeline.
+`ITimelineSource` implementation for the customer timeline. The first three are built. Each answers rather than
+refuses: consent for a purpose nobody has asked about comes back `NeverAsked` and a customer whose preference
+nobody has recorded comes back unreachable, so a consumer cannot turn "we have no idea" into permission with a
+`?? true`. `ICustomerSnapshotQuery` takes the caller's permissions and populates the contact fields only for one
+holding `customers.read_contact`, masking inside the SQL projection so the columns are not read at all otherwise;
+it is the only one of the three that answers null, because whether a customer exists is the question it is for.
 
-**Consumes.** Identity (branch scope, via `IUserDirectory`); Platform ports.
+**Consumes.** Identity, through its published contracts only — `IBranchDirectory` for the branch code a customer number is allocated from and for whether the branch is open, and `IUserDirectory` for branch scope; Platform ports.
 
 **Cross-module access.** No module reads `customers.*`. Notifications must call `IConsentQuery` and
 `ICommunicationPreferenceQuery` before every send; Orders copies measurement values through
@@ -614,7 +650,6 @@ in `Platform.Abstractions`.
 | Table | Holds |
 | --- | --- |
 | `idempotency_keys` | `(principal_id, route template, key)`, request hash, status, stored response, `in_flight_until` |
-| `inbox_messages` | Handler de-duplication for at-least-once delivery |
 | `sequences`, `sequence_values` | Per-branch, per-financial-year number series behind `ISequenceAllocator` |
 | `audit_events` | Append-only, hash-chained (`seq`, `prev_hash`, `row_hash`), month-partitioned, trigger-owned |
 | `configuration` | Runtime configuration records that are data rather than deployment settings |
@@ -624,8 +659,10 @@ in `Platform.Abstractions`.
 | `data_protection_keys` | The ASP.NET Core Data Protection key ring. **Stored unencrypted today:** the ring is persisted to this table and nothing calls `ProtectKeysWith…`, because no key-encryption certificate is provisioned. It wraps every stored TOTP shared secret, so anyone who can read this table can read those secrets — recorded as **W-002** in `docs/process/waivers.md` and as **RR-04** in `docs/security/threat-models/authentication.md`, and closed by #59 |
 | `job_leases`, `worker_heartbeats` | Scheduled-job leases and per-instance liveness |
 
-Per-module `outbox_messages` tables live in each module's own schema; Platform owns the dispatcher, the claim
-semantics and the dead-letter handling, not the rows.
+`outbox_messages` and `inbox_messages` live in each module's own schema, including this one's — Platform owns the
+dispatcher, the claim semantics and the dead-letter handling, not the rows. Its own pair are the platform module's,
+not everybody's: a shared table would be a second connection and a second transaction for every other module, which
+is the one thing a transactional outbox exists to rule out (issue #77).
 
 **Owned object-storage prefix.** None.
 

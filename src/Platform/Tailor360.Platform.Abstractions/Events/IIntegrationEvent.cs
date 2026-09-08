@@ -20,11 +20,25 @@ public interface IIntegrationEvent
     Guid AggregateId { get; }
 
     /// <summary>
-    /// The stable wire name, for example <c>orders.order_confirmed</c>. Renaming a type must not change
-    /// this value; a new shape gets a new <see cref="SchemaVersion"/> or a new name.
+    /// The stable wire name: <c>&lt;module&gt;.&lt;event-name&gt;.v&lt;major&gt;</c>, for example
+    /// <c>customers.consent-withdrawn.v1</c>.
     /// </summary>
+    /// <remarks>
+    /// The shape is fixed by <c>docs/architecture/conventions.md</c> section 5.5 and held to it by
+    /// <c>IntegrationEventTests</c> in the contract tier, which also checks that the <c>.v</c> suffix
+    /// and <see cref="SchemaVersion"/> agree — two ways of saying the same number, and a subscriber
+    /// routing on the name while a producer bumped only the property is how they stop agreeing.
+    /// Renaming the .NET type must not change this value.
+    /// </remarks>
     string EventType { get; }
 
-    /// <summary>The schema version of the payload, starting at 1 and incremented for breaking changes.</summary>
+    /// <summary>
+    /// The schema version of the payload, starting at 1 and incremented for breaking changes.
+    /// </summary>
+    /// <remarks>
+    /// A breaking change publishes the new major <em>alongside</em> the old one for the deprecation
+    /// window rather than replacing it, so a subscriber migrates on its own schedule. Within a major
+    /// version only additive changes are permitted.
+    /// </remarks>
     int SchemaVersion { get; }
 }

@@ -31,6 +31,13 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             "Administering the organisation itself: staff accounts and their standing. Every operation "
             + "here demands a permission, a second factor answered recently, and a written reason, and "
             + "every one of them is recorded in the audit trail with the administrator's name.",
+        ["Customers"] =
+            "The customer record: finding one, creating one, correcting it, withdrawing it from use, "
+            + "and recording that a second branch has begun serving the person. A search answers across "
+            + "the whole organisation and returns a masked disambiguation card for a record the "
+            + "caller's branches cannot see, because a revealed last-four is cheaper than the duplicate "
+            + "record it prevents. Contact details are a separate permission from finding the record at "
+            + "all, so a role without `customers.read_contact` receives those fields as null.",
         ["Platform"] =
             "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the "
             + "anti-forgery token pair and the build description the client shell reads on start-up.",

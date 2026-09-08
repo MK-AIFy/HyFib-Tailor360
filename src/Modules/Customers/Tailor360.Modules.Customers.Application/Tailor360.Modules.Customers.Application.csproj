@@ -7,6 +7,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Customers.Contracts\Tailor360.Modules.Customers.Contracts.csproj" />
+    <!--
+      Identity's published branch contract, for the branch code every customer number carries. A
+      cross-module reference is permitted only to another module's Contracts project (ARCH-003 and
+      ARCH-004), which is what this is.
+    -->
+    <ProjectReference Include="..\..\Identity\Tailor360.Modules.Identity.Contracts\Tailor360.Modules.Identity.Contracts.csproj" />
     <ProjectReference Include="..\Tailor360.Modules.Customers.Domain\Tailor360.Modules.Customers.Domain.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />

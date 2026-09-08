@@ -55,13 +55,36 @@ export const STAFF = {
   manager: 'Saravanan M.',
 } as const
 
-/** The tailors a job can be assigned to, with the categories each is qualified for. */
-export const TAILORS = [
-  { id: 'shanthi', name: 'Shanthi K.', skills: 'Blouse, choli' },
-  { id: 'ramesh', name: 'Ramesh V.', skills: 'Salwar, gown' },
-  { id: 'latha', name: 'Latha M.', skills: "Kids' wear" },
-  { id: 'anbu', name: 'Anbu Aari Works', skills: 'Aari — external unit' },
-] as const
+/**
+ * The tailors a job can be assigned to, with the categories each is qualified for.
+ *
+ * `skills` is the sentence a person reads; `qualifiedFor` is the same fact in the form the workboard
+ * can check, lower-cased against the first word of a garment name. Two fields rather than one
+ * because step 4 of `A11Y-RJ-04` is "attempt an assignment that must be refused, and hear the
+ * reason" — and a refusal can only *name* the qualification if the qualification is data rather
+ * than prose. Whether skills gate assignment at all in the product is a workshop decision and not
+ * one this fixture takes: here it exists so the refusal path has something to refuse.
+ */
+export interface JourneyTailor {
+  readonly id: string
+  readonly name: string
+  /** The qualification as a person reads it. */
+  readonly skills: string
+  /** The same fact the workboard can check: garment categories, lower-cased. */
+  readonly qualifiedFor: readonly string[]
+}
+
+export const TAILORS: readonly JourneyTailor[] = [
+  { id: 'shanthi', name: 'Shanthi K.', skills: 'Blouse, choli', qualifiedFor: ['blouse', 'choli'] },
+  { id: 'ramesh', name: 'Ramesh V.', skills: 'Salwar, gown', qualifiedFor: ['salwar', 'gown'] },
+  { id: 'latha', name: 'Latha M.', skills: "Kids' wear", qualifiedFor: ['kids'] },
+  {
+    id: 'anbu',
+    name: 'Anbu Aari Works',
+    skills: 'Aari — external unit',
+    qualifiedFor: ['blouse', 'lehenga'],
+  },
+]
 
 /** The workflow phases a garment job moves through, in order. */
 export const PHASES = ['Cutting', 'Stitching', 'Finishing', 'QC'] as const

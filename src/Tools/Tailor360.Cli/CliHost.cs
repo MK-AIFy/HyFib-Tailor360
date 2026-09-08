@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tailor360.Modules.Customers.Infrastructure;
 using Tailor360.Modules.Identity.Infrastructure;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Security;
@@ -63,6 +64,7 @@ public static class CliHost
         // schema `migrate` never creates, and the omission would only surface when the application
         // refused to serve.
         builder.Services.AddIdentityModule(builder.Configuration);
+        builder.Services.AddCustomersModule(builder.Configuration);
 
         return builder.Build();
     }

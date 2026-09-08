@@ -39,6 +39,10 @@ export const primitivesEn = {
   'primitives.status.paid': 'Paid',
   'primitives.status.cancelled': 'Cancelled',
   'primitives.status.notSynced': 'Not yet synced',
+  'primitives.status.invited': 'Invited',
+  'primitives.status.active': 'Active',
+  'primitives.status.suspended': 'Suspended',
+  'primitives.status.deactivated': 'Closed',
 
   /* Tables and card collections ----------------------------------------------------------- */
   'primitives.table.empty': 'Nothing to show yet.',
@@ -99,6 +103,14 @@ export const primitivesTa: Record<keyof typeof primitivesEn, string> = {
   'primitives.status.cancelled': 'Cancelled',
   // not translated — awaiting native-speaker review
   'primitives.status.notSynced': 'Not yet synced',
+  // not translated — awaiting native-speaker review
+  'primitives.status.invited': 'Invited',
+  // not translated — awaiting native-speaker review
+  'primitives.status.active': 'Active',
+  // not translated — awaiting native-speaker review
+  'primitives.status.suspended': 'Suspended',
+  // not translated — awaiting native-speaker review
+  'primitives.status.deactivated': 'Closed',
 
   // not translated — awaiting native-speaker review
   'primitives.table.empty': 'Nothing to show yet.',

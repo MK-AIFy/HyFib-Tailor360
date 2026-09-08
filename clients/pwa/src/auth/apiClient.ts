@@ -119,6 +119,12 @@ export const UPGRADE_REQUIRED_CODE = 'client.upgrade-required'
 /** The header a command carries the caller's retry key in. */
 export const IDEMPOTENCY_HEADER = 'Idempotency-Key'
 
+/** The header an edit carries the version it is being made against in. */
+export const IF_MATCH_HEADER = 'If-Match'
+
+/** The header a read carries the version a later edit must present back. */
+export const ETAG_HEADER = 'ETag'
+
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -149,6 +155,15 @@ export interface ApiRequestOptions {
    * an in-place re-authentication, which is exactly what the replay below preserves.
    */
   readonly idempotencyKey?: string
+  /**
+   * The version this edit is being made against, sent as `If-Match`.
+   *
+   * Every administrative edit is gated on one: the server compares it against the version the row
+   * carries now and refuses with 409 when somebody else got there first. The screen holds the value
+   * it was given by the read it rendered, which is what makes the refusal mean "the thing you are
+   * looking at has changed" rather than "try again".
+   */
+  readonly ifMatch?: string
 }
 
 /**
@@ -259,6 +274,10 @@ async function send(path: string, options: ApiRequestOptions): Promise<Response>
     headers.set(IDEMPOTENCY_HEADER, options.idempotencyKey)
   }
 
+  if (options.ifMatch !== undefined) {
+    headers.set(IF_MATCH_HEADER, options.ifMatch)
+  }
+
   if (options.body !== undefined) {
     headers.set('Content-Type', 'application/json')
   }
@@ -286,6 +305,47 @@ async function send(path: string, options: ApiRequestOptions): Promise<Response>
  * for which `status` is undefined and the screen shows the `network` cause.
  */
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  return await readBody<T>(await exchange(path, options))
+}
+
+/**
+ * A body and the version it was read at, for the screens that edit something.
+ *
+ * @typeParam T The response body.
+ */
+export interface VersionedResponse<T> {
+  readonly value: T
+  /**
+   * The `ETag` the server sent, or undefined when it sent none.
+   *
+   * Undefined is a real answer rather than a fault: a flag that has never been configured has no
+   * version to edit against, and the server deliberately omits the header rather than inventing one.
+   * A screen that treats undefined as an error refuses the only request that can create it.
+   */
+  readonly version: string | undefined
+}
+
+/**
+ * Sends a request and returns the body together with its `ETag`.
+ *
+ * The same interceptor, not a second transport: an administrative screen has to hold the version its
+ * next edit will present in `If-Match`, and a bare `apiRequest` throws that header away. Everything
+ * else about the request — the anti-forgery pair, the correlation identifier, the replay on a stale
+ * token and the in-place re-authentication — is identical, because it is the same code path.
+ */
+export async function apiRequestVersioned<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<VersionedResponse<T>> {
+  const response = await exchange(path, options)
+
+  return {
+    value: await readBody<T>(response),
+    version: response.headers.get(ETAG_HEADER) ?? undefined,
+  }
+}
+
+async function exchange(path: string, options: ApiRequestOptions): Promise<Response> {
   let tokenRefreshed = false
   let reauthenticated = false
 
@@ -301,7 +361,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     }
 
     if (response.ok) {
-      return await readBody<T>(response)
+      return response
     }
 
     const problem = await readProblem(response)

@@ -9,6 +9,7 @@ using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Idempotency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Outbox;
+using Tailor360.Platform.Abstractions.Scheduling;
 using Tailor360.Platform.Abstractions.Sequencing;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Auditing;
@@ -66,6 +67,30 @@ public static class PlatformServiceCollectionExtensions
         services.AddSingleton(new ModuleContextRegistration(typeof(TContext), schema, order));
         services.TryAddSingleton(provider =>
             new ModuleContextRegistry(provider.GetServices<ModuleContextRegistration>()));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a module's own event publisher, over its own context and therefore over its own
+    /// outbox.
+    /// </summary>
+    /// <remarks>
+    /// Registered as the concrete <see cref="ModuleEventPublisher{TContext}"/> rather than as
+    /// <c>IEventPublisher</c>, because that interface is shared and the container holds one binding for
+    /// it. The module binds its own port to this type, which is what keeps a module's events in the
+    /// module's own schema (#77).
+    /// </remarks>
+    /// <typeparam name="TContext">The module's context.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection.</returns>
+    public static IServiceCollection AddModuleOutbox<TContext>(this IServiceCollection services)
+        where TContext : ModuleDbContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddScoped<IOutboxCorrelation, NullOutboxCorrelation>();
+        services.TryAddScoped<ModuleEventPublisher<TContext>>();
 
         return services;
     }
@@ -129,6 +154,11 @@ public static class PlatformServiceCollectionExtensions
         services.TryAddScoped<MigrationRunner>();
         services.TryAddScoped<JobLeaseService>();
 
+        // And behind the abstraction, so a job's shell can be executed by a test without a database.
+        // Same instance either way: a job that resolved a second one would take a lease the first did
+        // not know it held.
+        services.TryAddScoped<IJobLease>(provider => provider.GetRequiredService<JobLeaseService>());
+
         services.TryAddScoped<IAuditContext, SystemAuditContext>();
         services.TryAddScoped<IAuditWriter, AuditWriter>();
         services.TryAddScoped<ISequenceAllocator, SequenceAllocator>();
@@ -145,8 +175,13 @@ public static class PlatformServiceCollectionExtensions
         services.TryAddScoped<IOutboxAdministration, OutboxAdministration>();
 
         services.TryAddScoped<IOutboxCorrelation, NullOutboxCorrelation>();
-        services.TryAddScoped<IEventPublisher, OutboxWriter>();
         services.TryAddSingleton<OutboxDispatcher>();
+
+        // There is deliberately no platform-wide IEventPublisher. It is one interface and the web host
+        // composes every module at once, so a single registration would leave whichever module
+        // registered last writing every module's events — into its own schema. A module registers its
+        // own publisher over its own context, behind a port its Application project declares (#77).
+        services.AddModuleOutbox<PlatformDbContext>();
 
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database", tags: [HealthCheckTags.Ready])

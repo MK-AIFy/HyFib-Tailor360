@@ -58,6 +58,7 @@ public interface IOutboxAdministration
 
 /// <summary>One message sitting in the dead letter, as an operator sees it.</summary>
 /// <param name="Id">Identity of the message, and of the event it carries.</param>
+/// <param name="Module">The schema whose outbox holds it, so an operator knows where to look.</param>
 /// <param name="AggregateId">The aggregate the event belongs to.</param>
 /// <param name="EventType">The stable wire name, for example <c>orders.order_confirmed</c>.</param>
 /// <param name="SchemaVersion">The payload schema version.</param>
@@ -71,6 +72,7 @@ public interface IOutboxAdministration
 /// <param name="CorrelationId">The correlation identifier of the request that produced the event.</param>
 public sealed record DeadLetteredMessage(
     Guid Id,
+    string Module,
     Guid AggregateId,
     string EventType,
     int SchemaVersion,

@@ -107,3 +107,29 @@ export const DELIVERY_QUEUE: readonly DeliveryEntry[] = [
     balance: 0,
   },
 ]
+
+/**
+ * Doorstep confirmation, and the reasons a delivery comes back.
+ *
+ * Step 7 of `A11Y-PZ-03` is confirmation by "typed recipient name plus one-time password", which is
+ * two factors of a handover rather than a signature: a signature pad is a drag, and every drag on
+ * this product needs a button alternative (2.5.7). Typing the name of whoever actually took the
+ * garment is the alternative, and it is the better record besides — a scrawl proves nobody was
+ * there.
+ *
+ * The password is six digits and is synthetic. It is quoted here only because the journey has to
+ * show a wrong one being rejected; nothing in the product ever displays a live one on a staff
+ * screen, and no real one would survive being written in a repository.
+ */
+export const DOORSTEP = {
+  passwordLength: 6,
+  /** The value the story accepts. A different six digits is refused, and says why. */
+  correctPassword: '204815',
+} as const
+
+export const DELIVERY_FAILURE_REASONS = [
+  { value: 'absent', label: 'Nobody at the address' },
+  { value: 'refused', label: 'Recipient refused the handover' },
+  { value: 'address', label: 'Address could not be found' },
+  { value: 'unsafe', label: 'Unsafe to hand over' },
+] as const

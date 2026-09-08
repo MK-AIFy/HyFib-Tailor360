@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Contexts;
+using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Persistence.Outbox;
 
@@ -74,29 +76,48 @@ public sealed class MigrationStateHealthCheck(MigrationRunner runner) : IHealthC
 /// <param name="clock">The clock.</param>
 /// <param name="options">Outbox configuration.</param>
 public sealed class OutboxBacklogHealthCheck(
-    PlatformDbContext database,
+    ModuleContextRegistry registry,
+    IServiceProvider provider,
     IClock clock,
     IOptions<OutboxOptions> options)
     : IHealthCheck
 {
     /// <inheritdoc />
+    /// <remarks>
+    /// Every module's outbox, not one. They are separate tables in separate schemas (ADR-0008 section
+    /// 4.1, issue #77), so a check that read a single one would report Healthy while another module's
+    /// backlog grew — which is the exact shape of the invisible failure this check exists to catch.
+    /// </remarks>
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var deadLettered = await database.OutboxMessages
-            .CountAsync(m => m.DeadLetteredAt != null, cancellationToken);
+        DateTimeOffset? oldest = null;
 
-        if (deadLettered > 0)
+        foreach (var module in registry.Registrations)
         {
-            return HealthCheckResult.Degraded("There are dead-lettered outbox messages awaiting replay.");
-        }
+            var database = (ModuleDbContext)provider.GetRequiredService(module.ContextType);
 
-        var oldest = await database.OutboxMessages
-            .Where(m => m.ProcessedAt == null && m.DeadLetteredAt == null)
-            .OrderBy(m => m.OccurredAt)
-            .Select(m => (DateTimeOffset?)m.OccurredAt)
-            .FirstOrDefaultAsync(cancellationToken);
+            var deadLettered = await database.OutboxMessages
+                .CountAsync(m => m.DeadLetteredAt != null, cancellationToken);
+
+            if (deadLettered > 0)
+            {
+                return HealthCheckResult.Degraded(
+                    $"There are dead-lettered outbox messages awaiting replay in {module.Schema}.");
+            }
+
+            var pending = await database.OutboxMessages
+                .Where(m => m.ProcessedAt == null && m.DeadLetteredAt == null)
+                .OrderBy(m => m.OccurredAt)
+                .Select(m => (DateTimeOffset?)m.OccurredAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (pending is not null && (oldest is null || pending < oldest))
+            {
+                oldest = pending;
+            }
+        }
 
         if (oldest is null)
         {

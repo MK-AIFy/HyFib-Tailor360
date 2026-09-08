@@ -258,6 +258,79 @@ public static class PayloadExamples
             }
             """,
 
+        ["RegisterCustomer"] = """
+            {
+              "displayName": "Lakshmi Ramanathan",
+              "nativeName": "\u0BB2\u0B9F\u0BCD\u0B9A\u0BC1\u0BAE\u0BBF",
+              "phone": "+91 90000 00021",
+              "alternatePhone": null,
+              "email": "lakshmi.demo@example.invalid",
+              "addressLine": "12 Second Street, Demo Nagar",
+              "locality": "Peelamedu",
+              "postcode": "641004",
+              "language": "ta-IN",
+              "duplicatesReviewed": false
+            }
+            """,
+
+        ["CorrectCustomer"] = """
+            {
+              "displayName": "Lakshmi Sundaram",
+              "nativeName": "\u0BB2\u0B9F\u0BCD\u0B9A\u0BC1\u0BAE\u0BBF",
+              "phone": "+91 90000 00021",
+              "alternatePhone": "+91 90000 00022",
+              "email": "lakshmi.demo@example.invalid",
+              "addressLine": "12 Second Street, Demo Nagar",
+              "locality": "Peelamedu",
+              "postcode": "641004",
+              "language": "ta-IN",
+              "reason": "Married in August and asked for the new surname on her receipts."
+            }
+            """,
+
+        ["DeactivateCustomer"] = """
+            {
+              "reason": "Moved out of the city and asked us not to contact her about new offers."
+            }
+            """,
+
+        ["ReactivateCustomer"] = """
+            {
+              "reason": "Moved back and came in for a blouse; she asked us to use the old record."
+            }
+            """,
+
+        ["ExportCustomer"] = """
+            {
+              "reason": "Subject-access request received at the Gandhipuram counter on 6 September and verified against the number on file."
+            }
+            """,
+
+        ["MergeCustomers"] = """
+            {
+              "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+              "mergedCustomerVersion": "8241",
+              "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
+            }
+            """,
+
+        ["RecordCustomerConsent"] = """
+            {
+              "purposeKey": "photo_capture",
+              "decision": "Granted",
+              "source": "counter, verbal"
+            }
+            """,
+
+        ["ReplaceCustomerCommunicationPreferences"] = """
+            {
+              "allowedChannels": ["Sms", "WhatsApp"],
+              "language": "ta-IN",
+              "quietHoursStart": "21:30:00",
+              "quietHoursEnd": "08:00:00"
+            }
+            """,
+
         ["RequestPasswordRecovery"] = """
             {
               "email": "counter.demo@example.invalid"

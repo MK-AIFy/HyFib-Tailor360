@@ -256,7 +256,7 @@ and `Platform.*` may be referenced across modules; enforced by architecture test
 | Reporting (`exports/` prefix) | read models/projections, projection checkpoints, metric dictionary, reconciliation runs, report schedules, export jobs, costing assumption versions, GST summary layouts | `ReportReconciliationMismatch`, `ReportFreshnessBreached` | all modules' events and read contracts only |
 | Notifications/Feedback | templates/versions, intents, deliveries, in-app notifications, customer links (estimate/status/feedback purposes), feedback tokens/responses, service-recovery cases and policies | `NotificationDelivered/Failed`, `FeedbackReceived`, `ServiceRecoveryOpened/Closed`, timeline source | Customers (consent), Orders, Billing, Custody, Inventory events |
 | Integration | integration event relay copy, webhook subscriptions/deliveries, provider configurations, payment intents/callbacks, accounting export batches, print-bridge adapters | `WebhookDelivered/DeadLettered`, `PaymentCallbackReconciled` | outbox events from all modules (relay), ports |
-| Platform | outbox/inbox, idempotency keys, sequences, audit events (append-only, trigger-protected), configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit), retention policies, print jobs (`IPrintQueue`), Data Protection key ring, job leases, worker heartbeats, correlation | `FeatureFlagChanged`, `PrintJobQueued`; `IAuditWriter`, `IIdempotencyStore`, `ISequenceAllocator`, `IPrintQueue`, `IOutboundHttp` | — |
+| Platform | its own outbox/inbox (every module has a pair; Platform owns the dispatcher, not the rows), idempotency keys, sequences, audit events (append-only, trigger-protected), configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit), retention policies, print jobs (`IPrintQueue`), Data Protection key ring, job leases, worker heartbeats, correlation | `FeatureFlagChanged`, `PrintJobQueued`; `IAuditWriter`, `IIdempotencyStore`, `ISequenceAllocator`, `IPrintQueue`, `IOutboundHttp` | — |
 
 Object-storage ownership: Media owns the material/reference/diagram/QC-evidence/delivery-evidence prefixes,
 Billing owns `documents/` (invoice, estimate, receipt and credit-note PDFs referenced by `document_artifacts`),
@@ -1201,7 +1201,16 @@ acceptance criteria, which remain the contract.
   (deactivate); safe search/filter/pagination; export restricted to Auditor/Owner.
 - **Tests**: authorisation for every admin action, concurrent role/flag updates (optimistic concurrency),
   suspension revokes sessions immediately, historical references stable after deactivation; UAT script for
-  onboarding, transfer, suspension, emergency revocation.
+  onboarding, transfer, suspension, emergency revocation — written as
+  [`docs/process/uat-administration.md`](process/uat-administration.md), and **not yet run**: it needs a business
+  owner at a keyboard, which is the point of it.
+- **Delivered 2026-09-07, with three things deliberately not built.** The **working calendar** is deferred to #33,
+  the issue that first computes a promise date, because its semantics have no consumer to source them from until
+  then (OD-06). The **tailor-skills attribute** on `IUserDirectory` is deferred to #45 for the same reason. And
+  **dual confirmation** — a second administrator approving an Owner-level change — is recorded as **OD-16** rather
+  than invented: step-up, a mandatory reason and before-and-after audit are built and enforced, and the issue's own
+  criterion reads "step-up/confirmation", but who may approve, within what window, and what a single-Owner shop
+  does are product decisions.
 
 ### #26 [E04-F01] Customer profiles, consent, search, deduplication, timeline
 
@@ -1237,6 +1246,17 @@ acceptance criteria, which remain the contract.
   the query server-side before every send; `ICustomerSnapshotQuery.Get(customerId, callerPermissions)` →
   `{ customerNumber, displayName, nativeName, language, branchId, contact fields only with customers.read_contact }`
   used by #32a (order/estimate snapshot) and #42 (invoice customer snapshot). Contract tests in this PR.
+  **The three read contracts and the three integration events are built.** The events were blocked by #77 — #21
+  had built one shared `platform.outbox_messages` where
+  [ADR-0008](adr/0008-transactional-outbox-and-workers.md) decided a table per module schema, so a module's write
+  and its event were on two contexts and two transactions — and #77 moved both the outbox and the inbox into each
+  module's schema. Each is declared in `Customers.Contracts`, published before the save that commits the record,
+  and documented by a JSON Schema and an example under
+  [`integration/events/`](integration/events/README.md). Their payloads are thin on purpose: section 5.3 of
+  [`nfr/data-classification.md`](nfr/data-classification.md) classifies consent records and communication
+  preferences **Personal** and says the consuming module "reads it through `IConsentQuery` and never copies it",
+  so the consent events carry purpose, outcome and wording version and not the free-text source, and
+  `preferences-changed` carries no preference at all.
 - **Field-level visibility**: DTOs projected through a `CustomerViewPolicy`: `customers.read` returns name,
   customer number, branch and status; `customers.read_contact` adds phones/email/address; `customers.read_notes`
   adds notes; consent history requires `customers.read_consent`. Tailor and Tailor Master receive no contact

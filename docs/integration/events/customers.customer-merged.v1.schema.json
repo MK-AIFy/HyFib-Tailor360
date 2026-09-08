@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.customer-merged.v1.schema.json",
+  "title": "customers.customer-merged.v1",
+  "description": "Two customer records were judged to be the same person and one of them survived. This is the event other modules must act on: a customer identifier a consumer holds may now name a record that no longer stands, and the consumer re-points its own references to aggregateId. docs/architecture/invariants.md INV-CUS-04 draws the line — references are re-pointed, snapshots frozen onto an invoice, job card or notification are never rewritten. There is no un-merge, and there is no corresponding customer-unmerged event.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "mergedCustomerId",
+    "mergeId",
+    "branchId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it. It is also stored on the merge record, so the decision and the message about it can be matched from either end."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the merge was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer that survived, and answers for the person from now on. The aggregate is the survivor rather than the record that went away, because per-aggregate ordering is only worth having against the record that has further events to come."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation both records belong to. A merge never crosses one."
+    },
+    "mergedCustomerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer that was folded in. A reference a consumer holds to this identifier should now name aggregateId instead — except where it is part of a snapshot already frozen onto settled work."
+    },
+    "mergeId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The merge decision, so a consumer asking on whose authority has something to quote back. Who decided, when and why stays in Customers."
+    },
+    "branchId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "The branch the decision was taken at, or null where the session was working in none."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.customer-merged.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

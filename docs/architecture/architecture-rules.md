@@ -169,11 +169,11 @@ Every arrow that is not drawn is forbidden. In particular there is no arrow from
 
 | | |
 | --- | --- |
-| **Assertion** | The web host calls `Add<Module>Module(` and `Map<Module>Endpoints(` for each of the eleven modules, and neither host references a module project whose layer is other than `Api`, `Infrastructure` or `Contracts`. |
-| **Rationale** | The host's job is composition, not knowledge. If `Tailor360.Web` constructed a module's handlers or wired its `DbContext` directly, moving a type inside the module would break the host, the worker and the web host would drift apart, and a module could no longer be started in isolation in an integration test. One registration method per module also makes the composition auditable at a glance in [`components.md`](components.md). |
+| **Assertion** | The web host calls `Add<Module>Module(` and `Map<Module>Endpoints(` for each of the eleven modules, **the worker calls `Add<Module>Module(` for each of them**, and neither host references a module project whose layer is other than `Api`, `Infrastructure` or `Contracts`. |
+| **Rationale** | The host's job is composition, not knowledge. If `Tailor360.Web` constructed a module's handlers or wired its `DbContext` directly, moving a type inside the module would break the host, the worker and the web host would drift apart, and a module could no longer be started in isolation in an integration test. One registration method per module also makes the composition auditable at a glance in [`components.md`](components.md). The worker half was added by issue #77 and is not symmetry for its own sake: every module owns an `outbox_messages` table in its own schema, and the dispatcher delivers by walking the module contexts the container holds, so a module the worker does not register has an outbox nothing ever claims from. Its events are written, committed and never delivered, and the failure is silent — an outbox nobody reads looks exactly like an outbox with nothing in it. The worker composed no modules at all until then, which the single shared outbox table of #21 hid: there was one table, on a context the worker did have. |
 | **Allowed exceptions** | The hosts' own concerns — the BFF pipeline, session and anti-forgery, health probes, the timeline composition endpoint, the version endpoint and the PWA fallback — are host code and are not module registrations. |
 | **How an exception is registered** | A new host-level entry point is added to the composition table in [`components.md`](components.md) in the same pull request. A module requiring bespoke host wiring instead extends its own registration extension. |
-| **Test** | `HostCompositionTests.Arch006_HostsComposeModulesOnlyThroughRegistrationExtensions` and `HostCompositionTests.Arch006_HostsDoNotReferenceModuleInternals` in `tests/Tailor360.ArchitectureTests/HostCompositionTests.cs`; `HostCompositionTests.EveryModuleIsRegisteredByTheWebHost` additionally fails when a module is built but never registered. |
+| **Test** | `HostCompositionTests.Arch006_HostsComposeModulesOnlyThroughRegistrationExtensions`, `HostCompositionTests.Arch006_TheWorkerRegistersEveryModuleSoNoOutboxGoesUnread` and `HostCompositionTests.Arch006_HostsDoNotReferenceModuleInternals` in `tests/Tailor360.ArchitectureTests/HostCompositionTests.cs`; `HostCompositionTests.EveryModuleIsRegisteredByTheWebHost` additionally fails when a module is built but never registered. |
 
 ### ARCH-007 — Every endpoint declares a policy or a justified anonymous exposure
 
@@ -382,8 +382,15 @@ a rule today.
 | --- | --- | --- |
 | No `float` or `double` appears in a money or tax type | The convention is stated in [`conventions.md`](conventions.md) and enforced centrally by the EF decimal facets; a source-scan rule needs a way to distinguish money from a legitimate ratio such as a wastage percentage | #42 |
 | Every append-only table has a trigger rejecting `UPDATE` and `DELETE` from the application role | This is a database fact, not a project or source fact; it belongs to a migration-inspection integration test | #21 |
-| Every integration event class has a JSON Schema and an example under `docs/integration/events/` | No integration event exists yet | #21, extended by #54 |
 | Every module writes only to its own object-storage prefix | Enforced by per-module storage credentials or a bucket policy and asserted by an integration test against MinIO, not by a static rule | #31 |
+
+**Adopted since this list was written.** "Every integration event class has a JSON Schema and an example under
+`docs/integration/events/`" was a candidate only because no integration event existed to hold to it. The first three
+arrived with #26, and `IntegrationEventTests` in the contract tier now enforces it and four things beside it: the
+wire name's shape, that the name's major version and `SchemaVersion` agree, that the schema describes exactly the
+properties the event serialises, and that no payload carries a field named like personal data. It lives in the
+contract tier rather than here for the reason ARCH-007 and ARCH-008 do: it reads what a type actually puts on the
+wire, which no `.csproj` records.
 
 ---
 

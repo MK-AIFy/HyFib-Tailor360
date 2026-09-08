@@ -11,6 +11,18 @@ import type {
   SignInResult,
   SignOutEverywhereResult,
 } from '../auth/types'
+import type {
+  AssignedAccess,
+  AuditPage,
+  Branch,
+  DeadLetteredMessage,
+  FeatureFlag,
+  Permission,
+  Role,
+  StaffSummary,
+  StaffUser,
+  StaffUserPage,
+} from '../admin/types'
 
 /**
  * The published API contract, in TypeScript.
@@ -114,4 +126,47 @@ export type PasskeySummaryConforms = Conforms<
 export type PasskeyChallengeConforms = Conforms<
   PasskeyChallenge,
   Immutable<Response200<'BeginPasskeyAssertion'>>
+>
+
+/*
+ * The administration surface (#25).
+ *
+ * Same direction as the assertions above — the hand-written type must be assignable to the generated
+ * one — so a payload member that is renamed, retyped or removed on the server fails here rather than
+ * on an administrator's screen. The enum-like members (`status`, `reach`, `scope`, `mfaEnrolment`)
+ * stay `string` on both sides: the client offers its own narrowed constants for the values it
+ * branches on, but a server that gained a value would otherwise fail to type rather than fail to
+ * render, and the screen's job is to show an unfamiliar status, not to refuse it.
+ */
+
+export type StaffSummaryConforms = Conforms<
+  StaffSummary,
+  Immutable<components['schemas']['StaffSummaryPayload']>
+>
+
+export type StaffUserConforms = Conforms<StaffUser, Immutable<Response200<'GetStaffUser'>>>
+
+export type StaffPageConforms = Conforms<StaffUserPage, Immutable<Response200<'ListStaffUsers'>>>
+
+export type AssignedAccessConforms = Conforms<
+  AssignedAccess,
+  Immutable<Response200<'GetStaffUserAccess'>>
+>
+
+export type BranchConforms = Conforms<Branch, Immutable<Response200<'GetBranch'>>>
+
+export type RoleConforms = Conforms<Role, Immutable<Response200<'GetRole'>>>
+
+export type PermissionConforms = Conforms<
+  Permission,
+  Immutable<components['schemas']['PermissionPayload']>
+>
+
+export type FeatureFlagConforms = Conforms<FeatureFlag, Immutable<Response200<'GetFeatureFlag'>>>
+
+export type AuditPageConforms = Conforms<AuditPage, Immutable<Response200<'ReadAuditTrail'>>>
+
+export type DeadLetterConforms = Conforms<
+  DeadLetteredMessage,
+  Immutable<components['schemas']['DeadLetteredMessagePayload']>
 >

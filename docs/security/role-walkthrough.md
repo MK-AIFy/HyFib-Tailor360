@@ -15,17 +15,19 @@ Read it with [`permission-matrix.md`](permission-matrix.md) for the grants being
 
 ## 1. Status
 
-> **Section 3.1 is run and recorded. Sections 3.2 and 4 to 6 are not, and cannot be yet.** They need endpoints
-> that enforce a permission and an administration surface that can create staff accounts, and neither exists:
-> `docs/security/permission-matrix.md` section 5 shows that no published route demands a permission, and accounts
-> are created by the screens of #25. This is the script for those sections and a record for the one that ran.
+> **Section 3.1 is run and recorded. Sections 3.2 and 4 to 6 are not.** One of the two things blocking them has
+> since landed: #25 shipped the administration surface, so the twenty-four users of section 3.2 can now be created
+> through the screens rather than needing a database client. What is still missing is the other half — endpoints
+> that enforce a permission on business resources, which arrive with #32a — so sections 4 to 6 have almost nothing
+> to exercise yet. The administrative rows are the exception and can be run today; they are also covered by
+> [`../process/uat-administration.md`](../process/uat-administration.md), which is #25's own acceptance script.
 
 | | |
 | --- | --- |
 | **Written by** | Issue #24, on 2026-09-06 |
 | **Last run** | 2026-09-06 — section 3.1 only, on PostgreSQL 16, `Development`, a freshly created database |
 | **Run by** | The #24 review pass, transcript in the pull request |
-| **Blocked on** | Section 3.2 and sections 4 to 6: endpoints that enforce a permission (#32a) and users that can be created (#25). Both issues carry them in their blueprints |
+| **Blocked on** | Sections 4 to 6: endpoints that enforce a permission on business resources (#32a). Section 3.2 is unblocked — #25 shipped the administration screens on 2026-09-07 |
 | **Evidence expected** | For each step, either a screenshot or the RFC 9457 problem-details body, with the correlation identifier. Personal data is edited out before the evidence is attached — see section 7 |
 
 ---

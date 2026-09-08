@@ -32,6 +32,44 @@ public sealed class HostCompositionTests
     }
 
     /// <summary>
+    /// ARCH-006: the worker registers every module too.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Not symmetry for its own sake. Every module owns an <c>outbox_messages</c> table in its own
+    /// schema, and the dispatcher delivers by walking the module contexts the container holds — so a
+    /// module the worker does not register has an outbox nothing ever claims from. Its events are
+    /// written, committed and never delivered, and the failure is silent, because an outbox nobody
+    /// reads looks exactly like an outbox with nothing in it.
+    /// </para>
+    /// <para>
+    /// The worker composed no modules at all until this rule was written, which the single shared
+    /// outbox table of issue #21 hid: there was one table, on a context the worker did have. A module
+    /// added next year needs one line here and one in the worker, and the alternative is finding out
+    /// from a customer who never got a message.
+    /// </para>
+    /// <para>
+    /// The worker deliberately maps no endpoints, so only the registration half is asserted.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void Arch006_TheWorkerRegistersEveryModuleSoNoOutboxGoesUnread()
+    {
+        var worker = RepositoryLayout.Projects.Single(p => p.Name == "Tailor360.Worker");
+        var source = string.Join('\n', worker.SourceFiles.Select(File.ReadAllText));
+
+        foreach (var module in RepositoryLayout.ModuleNames)
+        {
+            source.ShouldContain(
+                $"Add{module}Module(",
+                Case.Sensitive,
+                $"ARCH-006: the worker must register the {module} module through Add{module}Module, or "
+                + "the dispatcher never claims from that module's outbox and its events are written, "
+                + "committed and silently never delivered.");
+        }
+    }
+
+    /// <summary>
     /// ARCH-006: the host's imports name only a module's registration entry points, never a module's
     /// internal namespaces such as its Domain or Application layers.
     /// </summary>

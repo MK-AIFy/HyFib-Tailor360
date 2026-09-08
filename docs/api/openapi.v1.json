@@ -442,6 +442,245 @@
         ],
         "type": "object"
       },
+      "CommunicationPreferencePayload": {
+        "properties": {
+          "allowedChannels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "hasBeenRecorded": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string"
+          },
+          "quietHoursEnd": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quietHoursStart": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerId",
+          "hasBeenRecorded",
+          "allowedChannels",
+          "language",
+          "quietHoursStart",
+          "quietHoursEnd",
+          "updatedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ConsentAnswerPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "decision": {
+            "type": "string"
+          },
+          "purposeKey": {
+            "type": "string"
+          },
+          "recordId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "wordingVersion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "recordId",
+          "purposeKey",
+          "decision",
+          "wordingVersion",
+          "recordedAt",
+          "source",
+          "recordedBy",
+          "branchId"
+        ],
+        "type": "object"
+      },
+      "ConsentPurposePayload": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentAnswerPayload"
+            },
+            "type": "array"
+          },
+          "canBeAnswered": {
+            "type": "boolean"
+          },
+          "currentWordingVersion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isRetired": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "isRetired",
+          "currentWordingVersion",
+          "canBeAnswered",
+          "status",
+          "answers"
+        ],
+        "type": "object"
+      },
+      "CorrectCustomerRequest": {
+        "properties": {
+          "addressLine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alternatePhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nativeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postcode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "displayName",
+          "nativeName",
+          "phone",
+          "alternatePhone",
+          "email",
+          "addressLine",
+          "locality",
+          "postcode",
+          "language",
+          "reason"
+        ],
+        "type": "object"
+      },
       "CurrentUserResponse": {
         "properties": {
           "branchId": {
@@ -502,6 +741,372 @@
         ],
         "type": "object"
       },
+      "CustomerAliasPayload": {
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "recordedAt"
+        ],
+        "type": "object"
+      },
+      "CustomerCardPayload": {
+        "properties": {
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "customerNumber": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "maskedPhone": {
+            "type": "string"
+          },
+          "nativeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owningBranchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "visibleToCaller": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customerId",
+          "customerNumber",
+          "displayName",
+          "nativeName",
+          "maskedPhone",
+          "owningBranchId",
+          "visibleToCaller",
+          "status",
+          "lastSeenAt"
+        ],
+        "type": "object"
+      },
+      "CustomerConsentPayload": {
+        "properties": {
+          "purposes": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentPurposePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "purposes"
+        ],
+        "type": "object"
+      },
+      "CustomerExportPayload": {
+        "properties": {
+          "byteCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "classification": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "documentCode": {
+            "type": "string"
+          },
+          "documentVersion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "exportId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "supersededCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "exportId",
+          "customerId",
+          "documentCode",
+          "documentVersion",
+          "classification",
+          "contentType",
+          "byteCount",
+          "generatedAt",
+          "expiresAt",
+          "supersededCount"
+        ],
+        "type": "object"
+      },
+      "CustomerMergePayload": {
+        "properties": {
+          "aliasesRecorded": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerPayload"
+          },
+          "mergeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mergedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mergedCustomerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mergedCustomerNumber": {
+            "type": "string"
+          },
+          "recordsRepointed": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "visibilityBranchesAdded": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customer",
+          "mergeId",
+          "mergedCustomerId",
+          "mergedCustomerNumber",
+          "aliasesRecorded",
+          "visibilityBranchesAdded",
+          "recordsRepointed",
+          "mergedAt"
+        ],
+        "type": "object"
+      },
+      "CustomerPagePayload": {
+        "properties": {
+          "customers": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerCardPayload"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customers",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "CustomerPayload": {
+        "properties": {
+          "addressLine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aliases": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerAliasPayload"
+            },
+            "type": "array"
+          },
+          "alternatePhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "customerNumber": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "language": {
+            "type": "string"
+          },
+          "locality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mergedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mergedIntoCustomerId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nativeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "owningBranchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postcode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "visibilityBranchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "customerId",
+          "customerNumber",
+          "displayName",
+          "nativeName",
+          "phone",
+          "alternatePhone",
+          "email",
+          "addressLine",
+          "locality",
+          "postcode",
+          "language",
+          "status",
+          "owningBranchId",
+          "visibilityBranchIds",
+          "aliases",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "CustomerReasonRequest": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "DeadLetteredMessagePayload": {
         "properties": {
           "aggregateId": {
@@ -542,6 +1147,9 @@
               "string"
             ]
           },
+          "module": {
+            "type": "string"
+          },
           "occurredAt": {
             "format": "date-time",
             "type": "string"
@@ -557,6 +1165,7 @@
         },
         "required": [
           "id",
+          "module",
           "aggregateId",
           "eventType",
           "schemaVersion",
@@ -635,6 +1244,42 @@
           "name",
           "description",
           "reason"
+        ],
+        "type": "object"
+      },
+      "DuplicateCandidatePayload": {
+        "properties": {
+          "confidence": {
+            "type": "string"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerCardPayload"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "customer",
+          "confidence",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "DuplicateReviewPayload": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateCandidatePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidates"
         ],
         "type": "object"
       },
@@ -791,6 +1436,9 @@
         ],
         "type": "object"
       },
+      "IResult": {
+        "type": "object"
+      },
       "InviteStaffMemberPayload": {
         "properties": {
           "displayName": {
@@ -835,6 +1483,32 @@
         "type": "object"
       },
       "JsonElement": {},
+      "MergeCustomerRequest": {
+        "properties": {
+          "mergedCustomerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mergedCustomerVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "mergedCustomerId",
+          "mergedCustomerVersion",
+          "reason"
+        ],
+        "type": "object"
+      },
       "MfaEnrolmentConfirmationPayload": {
         "properties": {
           "code": {
@@ -1380,6 +2054,34 @@
         ],
         "type": "object"
       },
+      "RecordConsentRequest": {
+        "properties": {
+          "decision": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purposeKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "purposeKey",
+          "decision",
+          "source"
+        ],
+        "type": "object"
+      },
       "RecoveryAcceptedPayload": {
         "properties": {
           "message": {
@@ -1464,6 +2166,80 @@
         ],
         "type": "object"
       },
+      "RegisterCustomerRequest": {
+        "properties": {
+          "addressLine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alternatePhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "duplicatesReviewed": {
+            "default": false,
+            "type": "boolean"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nativeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postcode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "displayName",
+          "nativeName",
+          "phone",
+          "alternatePhone",
+          "email",
+          "addressLine",
+          "locality",
+          "postcode",
+          "language"
+        ],
+        "type": "object"
+      },
       "ReplaceBranchesPayload": {
         "properties": {
           "branches": {
@@ -1485,6 +2261,46 @@
         "required": [
           "branches",
           "reason"
+        ],
+        "type": "object"
+      },
+      "ReplacePreferencesRequest": {
+        "properties": {
+          "allowedChannels": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "language": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quietHoursEnd": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quietHoursStart": {
+            "format": "time",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "allowedChannels",
+          "language",
+          "quietHoursStart",
+          "quietHoursEnd"
         ],
         "type": "object"
       },
@@ -5907,6 +6723,1395 @@
         "x-tailor360-rate-limit": "recovery-anon"
       }
     },
+    "/api/v1/customers": {
+      "get": {
+        "description": "Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters returns nothing rather than the whole customer list.",
+        "operationId": "SearchCustomers",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "term",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeDeactivated",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPagePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Find a customer by name, native name, customer number or telephone number.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "Refused with 409 and a `candidates` member when an existing record resembles this one strongly enough to be worth reading — a shared telephone number, or a matching name in the same place. Read them, then either open one or send the request again with `duplicatesReviewed` set, which records that a person took the decision.",
+        "operationId": "RegisterCustomer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "addressLine": "12 Second Street, Demo Nagar",
+                "alternatePhone": null,
+                "displayName": "Lakshmi Ramanathan",
+                "duplicatesReviewed": false,
+                "email": "lakshmi.demo@example.invalid",
+                "language": "ta-IN",
+                "locality": "Peelamedu",
+                "nativeName": "லட்சுமி",
+                "phone": "+91 90000 00021",
+                "postcode": "641004"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Create a customer record at the branch the caller is working in.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.registered",
+        "x-tailor360-authorisation": "permission:customers.create",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}": {
+      "get": {
+        "description": "The contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null, which is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires rather than an omission.",
+        "operationId": "GetCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one customer record, with the version a correction must be made against.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "A changed name is kept as an alias, so a customer who married last year is still found under the name on her old receipts. The trail records which fields changed and never what they changed to.",
+        "operationId": "CorrectCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "addressLine": "12 Second Street, Demo Nagar",
+                "alternatePhone": "+91 90000 00022",
+                "displayName": "Lakshmi Sundaram",
+                "email": "lakshmi.demo@example.invalid",
+                "language": "ta-IN",
+                "locality": "Peelamedu",
+                "nativeName": "லட்சுமி",
+                "phone": "+91 90000 00021",
+                "postcode": "641004",
+                "reason": "Married in August and asked for the new surname on her receipts."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CorrectCustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Correct what a customer record says about the person.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.corrected",
+        "x-tailor360-authorisation": "permission:customers.update",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/communication-preferences": {
+      "get": {
+        "description": "`hasBeenRecorded` is false when nobody has asked her, and the response then carries no ETag — there is no version of a row that does not exist, which is why the first write is the one change that needs no `If-Match`. An empty `allowedChannels` on a recorded preference is an answer and not a gap: it means do not message her, and it withdraws consent to nothing.",
+        "operationId": "GetCustomerCommunicationPreferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationPreferencePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read how a customer wants to be reached.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read_consent",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "The whole preference is replaced rather than patched, so that the trail reads as a state and \"which channels does she accept\" has one answer. An empty `allowedChannels` is how she says do not message me, and it withdraws consent to nothing. Quiet hours are wall-clock times at the branch and may run backwards over midnight, which is the ordinary case; send both ends or neither. `If-Match` is required once a preference exists and must be omitted before then, because there is no version of a row that does not exist.",
+        "operationId": "ReplaceCustomerCommunicationPreferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "allowedChannels": [
+                  "Sms",
+                  "WhatsApp"
+                ],
+                "language": "ta-IN",
+                "quietHoursEnd": "08:00:00",
+                "quietHoursStart": "21:30:00"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ReplacePreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationPreferencePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record how a customer wants to be reached, replacing what was there.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.preferences.changed",
+        "x-tailor360-authorisation": "permission:customers.update",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/consent": {
+      "get": {
+        "description": "The whole register comes back, including purposes she has never been asked about — which is how the counter knows to ask — and purposes that have been retired, because what she said about one still stands. Answers are newest first, so the first of them is the one that stands; `canBeAnswered` says whether a new answer may be recorded now.",
+        "operationId": "GetCustomerConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerConsentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read what a customer has agreed to, purpose by purpose.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read_consent",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "Appends an answer; it never edits one. Withdrawing is a `Withdrawn` answer and agreeing again is another `Granted` one, so the evidence that she once withdrew survives her changing her mind. The wording version is read from the register here rather than sent, because a client that could name a version could record an answer against words she was never read; a purpose with no published wording is refused for the same reason. A withdrawal is written to the trail as `customers.consent.withdrawn` rather than as the action this route declares, because a withdrawal is what somebody reviewing the trail is looking for.",
+        "operationId": "RecordCustomerConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "decision": "Granted",
+                "purposeKey": "photo_capture",
+                "source": "counter, verbal"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RecordConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentAnswerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record what a customer said about one purpose.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.consent.recorded",
+        "x-tailor360-authorisation": "permission:customers.update",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/deactivate": {
+      "post": {
+        "description": "The record stays readable and its history stays resolvable — this is not a deletion, and an order placed last year still names the person who placed it. What changes is that a search no longer offers the record when somebody starts a new order.",
+        "operationId": "DeactivateCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Moved out of the city and asked us not to contact her about new offers."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CustomerReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Withdraw a customer record from ordinary use.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.deactivated",
+        "x-tailor360-authorisation": "permission:customers.deactivate",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/duplicates": {
+      "get": {
+        "description": "The screen a merge is decided from. It scores the records as they stand rather than reading back the suspicions raised when either was created, because a correction to either can create a resemblance or remove one, and a merge is too final to take on a score somebody computed months ago. Cards are masked exactly as they are in search, and a record that has already been merged is never offered. Gated on `customers.read` rather than `customers.merge`: reading who might be a duplicate is what Reception does before asking a manager to merge, and demanding the merge permission to look would mean nobody could prepare the decision.",
+        "operationId": "GetCustomerDuplicates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateReviewPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the records that may be the same person as this one.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/{customerId}/export": {
+      "post": {
+        "description": "Produces a JSON document holding the customer's profile, their full consent history and their communication preferences. It carries no images, no duplicate scores and no merge reasons, and measurements are absent because the system does not record any yet.\n\nThe response is a receipt, not the document: it names the export and says when the download stops working. Fetch the document from the download route, which re-authorises and is audited on every call.\n\nGenerating an export destroys any earlier one for the same customer, so at most one copy of a person's record exists outside the record at a time. The copy is emptied when it expires; the record that an export was taken, by whom and why is kept.",
+        "operationId": "ExportCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Subject-access request received at the Gandhipuram counter on 6 September and verified against the number on file."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CustomerReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerExportPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Generate the copy of a customer's data that answers a subject-access request.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.exported",
+        "x-tailor360-authorisation": "permission:customers.export",
+        "x-tailor360-rate-limit": "export-heavy"
+      }
+    },
+    "/api/v1/customers/{customerId}/exports/{exportId}": {
+      "get": {
+        "description": "Streams the document. The permission, the organisation and the expiry are re-checked on every request, and every call is written to the audit trail against the customer — `docs/nfr/data-classification.md` section 10 lists an export download among the reads that are audited explicitly.\n\nAnswers 404 `customers.export-expired` once the copy has gone, which happens when it expires or when a newer export replaces it. The record that the export existed remains; only the copy of the data is destroyed.",
+        "operationId": "DownloadCustomerExport",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "exportId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Download a generated subject-access export.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.export-downloaded",
+        "x-tailor360-authorisation": "permission:customers.export",
+        "x-tailor360-rate-limit": "export-heavy"
+      }
+    },
+    "/api/v1/customers/{customerId}/merge": {
+      "post": {
+        "description": "The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.\n\nBoth records are preconditions. `If-Match` carries the survivor's version and `mergedCustomerVersion` carries the folded record's, because what a manager approves is a *pair*: if either has been corrected since they were read, the pair being merged is not the pair that was approved, and the answer is 409 rather than an irreversible merge of something nobody looked at. `mergedCustomerVersion` is a concrete version and never an `If-Match` value: `*` is refused, because there is no such thing as \"any version\" of a record somebody approved destroying.\n\nThe two halves refuse differently, because they send the caller to different records. A stale survivor is `customers.version-conflict`, carrying `currentVersion` and an `ETag`. A stale record being folded in is `customers.merged-record-changed`, carrying `mergedCustomerVersion` — the value to resend in that field — and no `ETag`, since an `ETag` would describe the survivor, which is not what changed.",
+        "operationId": "MergeCustomers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+                "mergedCustomerVersion": "8241",
+                "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/MergeCustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerMergePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Fold one customer record into another. This cannot be undone.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.merged",
+        "x-tailor360-authorisation": "permission:customers.merge",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/open": {
+      "post": {
+        "description": "Adds the caller's branch to the record's visibility, so the record appears in that branch's ordinary search results from now on, and writes the cross-branch entry `branch-scenarios.md` section 3.1 requires — actor, branch and correlation. Opening a record the branch already sees changes nothing and writes no entry. There is no `If-Match`: Reception opens from a search card, which carries no version because it is not the record.",
+        "operationId": "OpenCustomerAtBranch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record that the caller's branch has begun serving this customer.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.opened-at-branch",
+        "x-tailor360-authorisation": "permission:customers.read",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/reactivate": {
+      "post": {
+        "description": "The record appears in ordinary search results again. Gated on the same permission as withdrawing it, so a record cannot be put beyond the reach of everybody present.",
+        "operationId": "ReactivateCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Moved back and came in for a blouse; she asked us to use the old record."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CustomerReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Return a withdrawn customer record to ordinary use.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.reactivated",
+        "x-tailor360-authorisation": "permission:customers.deactivate",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "GetCurrentUser",
@@ -6106,6 +8311,10 @@
     {
       "description": "Signing in, second factors, passkeys and account recovery. These are the only operations that can be reached before a session exists, and every one of them still requires the anti-forgery token.",
       "name": "Authentication"
+    },
+    {
+      "description": "The customer record: finding one, creating one, correcting it, withdrawing it from use, and recording that a second branch has begun serving the person. A search answers across the whole organisation and returns a masked disambiguation card for a record the caller's branches cannot see, because a revealed last-four is cheaper than the duplicate record it prevents. Contact details are a separate permission from finding the record at all, so a role without `customers.read_contact` receives those fields as null.",
+      "name": "Customers"
     },
     {
       "description": "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the anti-forgery token pair and the build description the client shell reads on start-up.",

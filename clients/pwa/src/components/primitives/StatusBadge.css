@@ -23,9 +23,18 @@
     font-size: var(--font-size-100);
     font-weight: var(--font-weight-medium);
     line-height: var(--line-height-tight);
-    /* The word and its qualifier stay on one line together; the badge wraps as a whole instead of
-       breaking "On hold" across two lines in the pseudo-locale. */
-    white-space: nowrap;
+    /*
+     * The badge wraps and stays inside whatever contains it.
+     *
+     * `white-space: nowrap` used to sit here so that "On hold" could not be split across two lines.
+     * It kept that promise and made a worse one: the qualifier beside the word is whatever the
+     * caller passed — "nothing outstanding", an amount, a date — so a badge that can never wrap is
+     * as wide as that sentence, and at 40% text growth it ran 71 px past the edge of a 320 px
+     * screen. 1.4.10 Reflow is the rule with a number on it. The pseudo-locale story of the
+     * reference journeys is what found it.
+     */
+    flex-wrap: wrap;
+    max-inline-size: 100%;
 
     --status-surface: var(--colour-surface-sunken);
     --status-ink: var(--colour-ink);
@@ -63,7 +72,18 @@
     --status-border: var(--colour-danger-border);
   }
 
+  /*
+   * The word stays whole while it fits, and breaks only when it cannot fit at all — which in English
+   * is never, and in the pseudo-locale at 320 px is the case the story exists to show. Without this
+   * a single grown status word overflowed the screen by 16 px on its own.
+   */
+  .status-badge__label {
+    overflow-wrap: anywhere;
+  }
+
   .status-badge__detail {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
     font-weight: var(--font-weight-regular);
   }
 

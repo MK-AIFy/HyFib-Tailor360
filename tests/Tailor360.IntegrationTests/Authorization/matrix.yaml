@@ -152,6 +152,51 @@ identifier-editing:
       The same shape, on the credential a person signs in with. A distinguishable answer would say
       whether an account has passkeys and which, which is a map of who to attack and how.
 
+  - route: GET /api/v1/customers/{customerId}
+    identifier: a customer record created at a branch the caller is not assigned to, and one that
+      belongs to no record at all
+    because: >
+      This route is here for both halves of the rule, because on a customer they point opposite ways.
+      Reaching a record created at another branch is approved rather than closed: a customer record is
+      organisation-wide (docs/prd/workflows/branch-scenarios.md section 3.2), and refusing the second
+      branch is what makes Reception there create a duplicate, whose remedy is an irreversible
+      step-up merge. What must stay indistinguishable is the refusal: an identifier matching no record
+      and one matching a record in another organisation are the same 404 carrying
+      customers.customer-not-found, so the route never says which of the two it was. Without that,
+      typing identifiers at it would enumerate which customer identifiers exist.
+
+  - route: GET /api/v1/customers/{customerId}/duplicates
+    identifier: a customer record in another organisation, and one that belongs to no record at all
+    because: >
+      The same two answers as reading the record, for the same reason: this route resolves the subject
+      through the same organisation-scoped load, so a distinguishable refusal here would be the
+      enumeration oracle the read closes, reached by a different path.
+
+  - route: POST /api/v1/customers/{customerId}/merge
+    identifier: >
+      a customer record in another organisation, named in the request body rather than the path, and
+      one that belongs to no record at all
+    because: >
+      The only route on this surface whose identifier arrives in the body, and the one where guessing
+      would be worth most: a caller who could tell "no such record" from "a record you may not reach"
+      could enumerate another organisation's customers while holding a permission that looks
+      branch-scoped. Both answer 404 with customers.customer-not-found, the same pair as the read.
+      The path identifier is resolved first and refuses on the same terms, so a merge never reports
+      anything about the second record to a caller who could not reach the first.
+
+  - route: GET /api/v1/customers/{customerId}/exports/{exportId}
+    identifier: >
+      an export generated for a different customer, and one that belongs to no export at all
+    because: >
+      The identifier names a file holding one person's name, telephone number, address and consent
+      history, so guessing at it is worth more here than anywhere else on this surface. The export is
+      resolved by all three of export, customer and organisation together, and both misses answer 404
+      with customers.export-not-found — so pairing a real export identifier with a different customer
+      in the path says nothing, and a caller cannot use the route to learn which exports exist or who
+      has recently been the subject of a request. The expired answer is deliberately distinguishable
+      and is not an oracle: a caller is told an export identifier only when they generate it
+      themselves, so customers.export-expired tells them something they already knew.
+
 # ---------------------------------------------------------------------------------------------------
 # Which fields each role is shown. Not here, and this is the record of why.
 # ---------------------------------------------------------------------------------------------------

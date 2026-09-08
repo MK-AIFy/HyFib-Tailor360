@@ -122,13 +122,20 @@ soft-deleted; deactivate, retire or cancel instead.
 Publishing an integration event writes a row in the same transaction as the change:
 
 ```csharp
-await publisher.PublishAsync(new OrderConfirmed(…), cancellationToken);
+events.Publish(new OrderConfirmed(…));               // the module's own publisher
 await context.SaveChangesAsync(cancellationToken);   // the event commits with the order
 ```
 
-`IEventPublisher` writes to `platform.outbox_messages` and sends nothing; the worker delivers.
-`IAuditWriter` enlists in the caller's transaction, so an audit entry is committed and rolled back with the change
-it describes. See [`../../docs/platform/outbox.md`](../../docs/platform/outbox.md) and
+`ModuleDbContext` maps `outbox_messages` and `inbox_messages` into the module's own schema, so the
+event is tracked by the same change tracker as the aggregate and goes out on the same save. A module
+injects **its own** publisher — a port its `Application` project declares, such as
+`ICustomersEventPublisher` — because `IEventPublisher` is one interface and the host composes every
+module at once. Publishing is synchronous on purpose: a second round trip on a second connection is
+what made this two transactions before issue #77.
+
+`IAuditWriter` is a two-context split and is a different case: it is a recorded trade-off with a fixed
+ordering — **save the change first, then record it** — because the trail may lag reality and must never
+lead it. See [`../../docs/platform/outbox.md`](../../docs/platform/outbox.md) and
 [`../../docs/platform/database.md`](../../docs/platform/database.md).
 
 ## 6. Migrations
