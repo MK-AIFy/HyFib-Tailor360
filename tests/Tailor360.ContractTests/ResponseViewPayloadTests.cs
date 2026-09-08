@@ -2,7 +2,9 @@ using System.Reflection;
 using System.Text.Json;
 using Shouldly;
 using Tailor360.Modules.Customers.Api.Payloads;
+using Tailor360.Modules.Customers.Domain;
 using Tailor360.Platform.Security.FieldVisibility;
+using Tailor360.Web.Timeline;
 
 namespace Tailor360.ContractTests;
 
@@ -40,6 +42,7 @@ public sealed class ResponseViewPayloadTests
     {
         { CustomersResponseViews.Record, typeof(CustomerPayload) },
         { CustomersResponseViews.SearchCard, typeof(CustomerCardPayload) },
+        { CustomersResponseViews.Timeline, typeof(CustomerTimelineEntryPayload) },
     };
 
     [Theory]
@@ -99,6 +102,17 @@ public sealed class ResponseViewPayloadTests
         ungatable.ShouldBeEmpty(
             "a gated field must be nullable on the payload, or there is no value the projection can "
             + "send when it is withheld:\n" + string.Join('\n', ungatable));
+    }
+
+    [Fact]
+    public void TheHostAndTheModuleAnswerOneCodeForACustomerThatIsNotThere()
+    {
+        // The host cannot reference the module's Domain (ARCH-006), so the code it answers a missing
+        // customer with is retyped. Two codes for one condition would be worse than the retyping, and
+        // this is what stops it happening quietly.
+        CustomerTimelinePayload.CustomerNotFound.ShouldBe(
+            CustomersErrors.CustomerNotFound.Code,
+            "the timeline endpoint and the customer endpoints must answer one code for one condition");
     }
 
     [Fact]

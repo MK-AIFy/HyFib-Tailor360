@@ -93,6 +93,51 @@ public sealed class AuditReader(PlatformDbContext context) : IAuditReader
                 : null);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AuditTrailEntry>> ReadEntityTrailAsync(
+        AuditTrailQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query.EntityType);
+
+        var limit = Math.Clamp(query.Limit, 1, AuditQuery.MaximumLimit);
+
+        var entries = context.AuditEvents
+            .AsNoTracking()
+            .Where(entry => entry.EntityType == query.EntityType && entry.EntityId == query.EntityId);
+
+        if (query.Before is { } before)
+        {
+            // The pair compared in order, written as one predicate so PostgreSQL can use the index
+            // rather than filtering after the fact.
+            entries = entries.Where(entry =>
+                entry.OccurredAt < before.OccurredAt
+                || (entry.OccurredAt == before.OccurredAt && entry.Id.CompareTo(before.EntryId) < 0));
+        }
+
+        // The trail is partitioned by month and indexed by (entity_type, entity_id), so the first page
+        // of one entity touches every partition that entity has an entry in. For one customer that is
+        // a handful of rows across a handful of months. If a subject ever accumulates enough entries
+        // for that to matter, the index to add is (entity_type, entity_id, occurred_at DESC, id DESC);
+        // it is not added now because a speculative index on a partitioned table costs storage on every
+        // partition, and this access pattern has no measurement behind it yet.
+        return await entries
+            .OrderByDescending(entry => entry.OccurredAt)
+            .ThenByDescending(entry => entry.Id)
+            .Take(limit)
+            .Select(entry => new AuditTrailEntry(
+                entry.Id,
+                entry.OccurredAt,
+                entry.Action,
+                entry.ActorId,
+                entry.ActorDisplayName,
+                entry.BranchId,
+                entry.Reason,
+                entry.Summary))
+            .ToListAsync(cancellationToken);
+    }
+
     private static long? Decode(string? cursor)
         => long.TryParse(cursor, NumberStyles.None, CultureInfo.InvariantCulture, out var sequence)
             ? sequence

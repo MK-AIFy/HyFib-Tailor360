@@ -30,23 +30,24 @@ document it cites.
 
 ## 1. Status
 
-> **Not approved, and enforced on two of the five views.** `customers.record` is returned by six customer
-> endpoints, each of which projects its body through the mask this document approves. `customers.search_card`
-> is returned by the search and the duplicate list; it declares no gated field, so there is nothing for a mask
-> to withhold and the projection consults none — what the view fixes there is the field *set*, asserted against
-> the payload type, and a test fails the build the day somebody gates a card field without teaching the
-> projection to withhold it. The other three views are forward declarations, waiting for the modules that will
-> serve them. The mechanism and its invariants are live for all five: the catalogue refuses to build a view that
-> carries a class its surface forbids, and the tests below hold this document equal to the code and to the
-> seeded grants.
+> **Not approved, and enforced on three of the six views.** `customers.record` is returned by six customer
+> endpoints, each of which projects its body through the mask this document approves. `customers.timeline` is
+> returned by the host's composition endpoint and gates one field, `reason`, on `customers.read_notes` — the
+> first thing in the application to gate on that permission. `customers.search_card` is returned by the search
+> and the duplicate list; it declares no gated field, so there is nothing for a mask to withhold and the
+> projection consults none — what the view fixes there is the field *set*, asserted against the payload type,
+> and a test fails the build the day somebody gates a card field without teaching the projection to withhold it.
+> The other three views are forward declarations, waiting for the modules that will serve them. The mechanism
+> and its invariants are live for all six: the catalogue refuses to build a view that carries a class its
+> surface forbids, and the tests below hold this document equal to the code and to the seeded grants.
 
 | | |
 | --- | --- |
 | **Delivered by** | Issue #24, the field-level minimisation half. The customer views are #26 |
 | **Approval state** | Open. Section 6 lists the four consequences of the derivation that want an owner's answer |
-| **Served today** | `customers.record` and `customers.search_card`, by the Customers endpoints |
+| **Served today** | `customers.record` and `customers.search_card`, by the Customers endpoints; `customers.timeline`, by the host |
 | **Declared, not served** | `customers.measurement_sheet`, `orders.job_card`, `orders.work_queue` |
-| **Changes with** | #28 (measurement sheet), #32a and #33 (job card, work queue), #45 (workload) |
+| **Changes with** | #28 (measurement sheet), #32a and #33 (job card, work queue), #45 (workload). Every module that registers an `ITimelineSource` widens what `customers.timeline` carries without changing its field set |
 
 ---
 
@@ -93,6 +94,7 @@ the view at all. `Withheld` is the classes it may never carry, enforced when the
 | `customers.measurement_sheet` | `Customers` | `Workshop` | `measurements.read_sheet` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | The figures the garment is cut to, rendered for the workshop and for print. |
 | `customers.record` | `Customers` | `Counter` | `customers.read` | `Measurement`, `Media`, `Pricing`, `PaymentState`, `StaffPerformance` | One customer as the counter opens them: who they are, how to reach them, and whether the record still stands. |
 | `customers.search_card` | `Customers` | `Counter` | `customers.read` | `CustomerNotes`, `Measurement`, `Media`, `Pricing`, `PaymentState`, `StaffPerformance` | One customer as a search result: enough to tell two people apart before a second record is created for one of them. |
+| `customers.timeline` | `Customers` | `Counter` | `customers.read` | `Measurement`, `Media`, `Pricing`, `PaymentState`, `StaffPerformance` | What has happened to one customer, merged from every module that holds part of it. |
 | `orders.job_card` | `Orders` | `Workshop` | `orders.read` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | One garment job as the workshop needs it: what to make, from whose measurements, by when. |
 | `orders.work_queue` | `Orders` | `Workshop` | `orders.read` | `CustomerContact`, `CustomerNotes`, `Pricing`, `PaymentState` | The branch's jobs as a list, for picking up the next piece of work. |
 <!-- /matrix:views -->
@@ -145,16 +147,20 @@ gone from the payload.
 Two things the plan named for this half are deliberately **not** views, and saying so here is cheaper than leaving
 somebody to wonder:
 
-- **Notes.** `customers.read_notes` is declared, granted to Owner and Branch Manager, and gates nothing, because
-  the module holds no notes: there is no column, no payload and no endpoint. A view cannot approve a field that
-  does not exist, and inventing one would be inventing a product decision about what staff may write about a
-  person and for how long it is kept. When notes are added they join `customers.record` behind that permission,
-  which is one row here and one property there.
+- **Notes.** The module still holds no notes *field*: there is no column, no payload and no note somebody typed
+  as a note. What it does hold, and what the timeline surfaced, is the **reason** an actor gave for a change —
+  "she asked us to close the record" — which is free text a member of staff typed about a named person and is
+  therefore the same class. So `customers.read_notes` is no longer a permission that gates nothing: it gates
+  `customers.timeline.reason`. A note field proper, when one is added, joins `customers.record` behind the same
+  permission, which is one row here and one property there.
 - **Consent history and communication preferences.** Both are gated whole, by `customers.read_consent` on the
   endpoint, and neither has a field a caller may hold the endpoint's permission and still not see. A view would
   add an approved field list and no masking. That is worth having eventually — it is the same "third pull request"
   argument — but it is a declaration exercise rather than the field-level minimisation this half of #24 is about,
-  and it is left to the issue that next changes those payloads.
+  and it is left to the issue that next changes those payloads. The timeline is where the split does bite: an
+  entry saying consent was withdrawn is withheld **whole** from a caller without `customers.read_consent`,
+  because its title alone discloses what that permission exists to gate. That withholding is the contributing
+  module's, not this document's — a view masks fields, and there is no field whose absence would hide an entry.
 
 ---
 
@@ -212,6 +218,19 @@ What keeps the name safe is not a permission on it — it is that contact detail
 | `customers.search_card` | `visibleToCaller` | `Operational` | — | False when the record is outside the caller's branches, which is what turns the card into a disambiguation card rather than a result. |
 | `customers.search_card` | `status` | `Operational` | — | Whether the record is in use. |
 | `customers.search_card` | `lastSeenAt` | `Operational` | — | When the record was last changed, which is what the list is ordered by. |
+| `customers.timeline` | `entryId` | `Operational` | — | The entry, which is half of the position the next page resumes from. |
+| `customers.timeline` | `occurredAt` | `Operational` | — | When it happened, by the server's clock — the client's clock is evidence and is never what a history is ordered by (docs/architecture/conventions.md 2.4). |
+| `customers.timeline` | `source` | `Operational` | — | Which module contributed it, so a screen can say where a fact came from and a missing source can be named. |
+| `customers.timeline` | `kind` | `Operational` | — | The stable dotted kind, which is the module's own audit action and is what a screen turns into an icon and a label. |
+| `customers.timeline` | `title` | `Operational` | — | What happened, in the shop's words. |
+| `customers.timeline` | `detail` | `Operational` | — | The longer description the recording module wrote. Operational prose about the record, never the customer's own data and never anything typed freehand. |
+| `customers.timeline` | `reason` | `CustomerNotes` | `customers.read_notes` | The reason the actor gave. Free text a member of staff typed about a named person, which data-classification.md classifies as customer notes — so it is gated separately from the entry that carries it, and this is the first field in the application to gate on customers.read_notes. |
+| `customers.timeline` | `reasonPermission` | `Operational` | — | What would have shown the reason, set whenever one was given. It is what lets a screen distinguish 'no reason was given' from 'a reason was given that you may not read', and it names a permission rather than repeating any of the text. |
+| `customers.timeline` | `referenceType` | `Operational` | — | The kind of thing the entry links to, where it links to one. |
+| `customers.timeline` | `referenceId` | `Operational` | — | What it links to. A UUIDv7, like every identifier that crosses the wire. |
+| `customers.timeline` | `expandPermission` | `Operational` | — | What a caller must hold to open the reference. The entry is on the timeline either way: what it links to is a different question from whether it happened. |
+| `customers.timeline` | `branchId` | `Operational` | — | The branch the entry belongs to, where it belongs to one. |
+| `customers.timeline` | `actorDisplayName` | `Operational` | — | Who did it, as their name was at the time. A member of staff's name is not the customer's data and is not a measure of that member of staff, which is why it is operational and not StaffPerformance. |
 | `orders.job_card` | `jobNumber` | `Operational` | — | The job's own number, which is how the workshop, the label and the customer all refer to it. |
 | `orders.job_card` | `orderNumber` | `Operational` | — | The order the job belongs to, so a multi-garment order can be kept together. |
 | `orders.job_card` | `categoryLabel` | `Operational` | — | The stitching category, from the catalogue snapshot frozen at confirmation. |
@@ -297,6 +316,18 @@ permission named must be one the caller actually holds, so a handler cannot asse
 | `customers.search_card` | `delivery_staff` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
 | `customers.search_card` | `auditor` | yes | `customerId`, `customerNumber`, `displayName`, `nativeName`, `maskedPhone`, `owningBranchId`, `visibleToCaller`, `status`, `lastSeenAt` |
 | `customers.search_card` | `hyfib_super_user` | no | — |
+| `customers.timeline` | `owner` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reason`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `admin` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `branch_manager` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reason`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `reception` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `measurement_staff` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `tailor_master` | no | — |
+| `customers.timeline` | `tailor` | no | — |
+| `customers.timeline` | `inventory_clerk` | no | — |
+| `customers.timeline` | `cashier` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `delivery_staff` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `auditor` | yes | `entryId`, `occurredAt`, `source`, `kind`, `title`, `detail`, `reasonPermission`, `referenceType`, `referenceId`, `expandPermission`, `branchId`, `actorDisplayName` |
+| `customers.timeline` | `hyfib_super_user` | no | — |
 | `orders.job_card` | `owner` | yes | `jobNumber`, `orderNumber`, `categoryLabel`, `serviceLabel`, `designSnapshot`, `garmentInstructions`, `dueDate`, `priority`, `currentPhase`, `assignedTo`, `barcodePayload`, `customerName`, `measurements`, `referenceImages` |
 | `orders.job_card` | `admin` | yes | `jobNumber`, `orderNumber`, `categoryLabel`, `serviceLabel`, `designSnapshot`, `garmentInstructions`, `dueDate`, `priority`, `currentPhase`, `assignedTo`, `barcodePayload`, `customerName`, `referenceImages` |
 | `orders.job_card` | `branch_manager` | yes | `jobNumber`, `orderNumber`, `categoryLabel`, `serviceLabel`, `designSnapshot`, `garmentInstructions`, `dueDate`, `priority`, `currentPhase`, `assignedTo`, `barcodePayload`, `customerName`, `measurements`, `referenceImages` |

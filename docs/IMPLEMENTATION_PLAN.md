@@ -1269,11 +1269,21 @@ acceptance criteria, which remain the contract.
   in it and are recorded in its section 3.1: **notes**, because the module holds none to gate, and **consent
   history**, which is gated whole by `customers.read_consent` on its endpoint and has no field-level split to
   approve. The timeline is the next slice and carries the filtering of timeline entries with it.
-- **Timeline**: `Platform.Abstractions.ITimelineSource { For(customerId, branchScope, permissions, cursor) }`
-  registered per module; #26 ships the consent, note, correction/merge and (after #28) measurement sources and the
-  BFF composition endpoint `GET /api/v1/customers/{id}/timeline` in the web host; #32a, #34, #42, #43, #48 and #49
-  register their sources in their own PRs. Ordering by server event time with stable tie-break; entries carry the
-  permission required to expand them.
+- **Timeline**: **Built.** `Platform.Abstractions.ITimelineSource`
+  registered per module; #26 ships the Customers source and the BFF composition endpoint
+  `GET /api/v1/customers/{id}/timeline` in the web host; #32a, #34, #42, #43, #48 and #49 register their sources in
+  their own PRs. Ordering by server event time with a stable tie-break on the entry's UUIDv7; entries carry the
+  permission required to expand them, and the permission that would have shown a withheld reason.
+
+  Two things the line above assumed turned out otherwise, and both are recorded where they are enforced. The port
+  was scaffolded by #20 with a `(from, to)` window and no cursor, no permissions and no entry identifier, so it was
+  rewritten to the shape a merge actually needs rather than wrapped. And the Customers source reads the **audit
+  trail** rather than the module's own tables: a record deactivated and then reactivated leaves `deactivated_at`
+  null and `updated_at` holding only the second change, a correction to a telephone number writes no row at all,
+  and a communication preference is one row edited in place — so a timeline built from the tables would not be a
+  harder version of this one, it would be a different and untrue answer. The consent, correction and merge
+  "sources" the line names are therefore one source over thirteen audited actions. There is no note source because
+  the module holds no notes; what `customers.read_notes` gates instead is the reason an actor gave.
 - **Screens**: search-first "Find or create customer" (phone keypad on mobile), create/edit with concurrency
   handling, detail with timeline tabs (tablet master-detail).
 - **Tests**: normalisation/validation/duplicate scoring unit tests; merge, correction, deactivation, export,

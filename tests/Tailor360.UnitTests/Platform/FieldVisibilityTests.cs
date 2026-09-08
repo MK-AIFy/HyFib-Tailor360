@@ -18,13 +18,14 @@ public sealed class FieldVisibilityTests
     private static readonly ResponseViewCatalogue Catalogue = new([new ApplicationResponseViews()]);
 
     [Fact]
-    public void DeclaresTheFiveSurfacesTheApplicationServes()
+    public void DeclaresTheSixSurfacesTheApplicationServes()
     {
         Catalogue.All.Select(view => view.Key).ShouldBe(
             [
                 CustomersResponseViews.MeasurementSheet,
                 CustomersResponseViews.Record,
                 CustomersResponseViews.SearchCard,
+                CustomersResponseViews.Timeline,
                 OrdersResponseViews.JobCard,
                 OrdersResponseViews.WorkQueue,
             ],
@@ -39,7 +40,13 @@ public sealed class FieldVisibilityTests
         Catalogue.All
             .Where(view => view.Surface is ViewSurface.Counter)
             .Select(view => view.Key)
-            .ShouldBe([CustomersResponseViews.Record, CustomersResponseViews.SearchCard], ignoreOrder: true);
+            .ShouldBe(
+                [
+                    CustomersResponseViews.Record,
+                    CustomersResponseViews.SearchCard,
+                    CustomersResponseViews.Timeline,
+                ],
+                ignoreOrder: true);
     }
 
     [Fact]

@@ -32,6 +32,9 @@ public static class CustomersResponseViews
     /// <summary>One customer as a search result, which is also how a duplicate is spotted.</summary>
     public const string SearchCard = "customers.search_card";
 
+    /// <summary>One customer's merged history, composed by the host from every module that holds part of it.</summary>
+    public const string Timeline = "customers.timeline";
+
     /// <summary>
     /// The classes a counter surface may never carry, whoever is reading it.
     /// </summary>
@@ -171,6 +174,54 @@ public static class CustomersResponseViews
                     "Whether the record is in use."),
                 new ViewField("lastSeenAt", FieldClassification.Operational, null,
                     "When the record was last changed, which is what the list is ordered by."),
+            ]),
+
+        new ResponseView(
+            Timeline,
+            PermissionModules.Customers,
+            ViewSurface.Counter,
+            "What has happened to one customer, merged from every module that holds part of it.",
+            CustomersPermissions.Read,
+            WithheldFromACustomerScreen,
+            [
+                new ViewField("entryId", FieldClassification.Operational, null,
+                    "The entry, which is half of the position the next page resumes from."),
+                new ViewField("occurredAt", FieldClassification.Operational, null,
+                    "When it happened, by the server's clock — the client's clock is evidence and is "
+                    + "never what a history is ordered by (docs/architecture/conventions.md 2.4)."),
+                new ViewField("source", FieldClassification.Operational, null,
+                    "Which module contributed it, so a screen can say where a fact came from and a "
+                    + "missing source can be named."),
+                new ViewField("kind", FieldClassification.Operational, null,
+                    "The stable dotted kind, which is the module's own audit action and is what a "
+                    + "screen turns into an icon and a label."),
+                new ViewField("title", FieldClassification.Operational, null,
+                    "What happened, in the shop's words."),
+                new ViewField("detail", FieldClassification.Operational, null,
+                    "The longer description the recording module wrote. Operational prose about the "
+                    + "record, never the customer's own data and never anything typed freehand."),
+                new ViewField("reason", FieldClassification.CustomerNotes, CustomersPermissions.ReadNotes,
+                    "The reason the actor gave. Free text a member of staff typed about a named "
+                    + "person, which data-classification.md classifies as customer notes — so it is "
+                    + "gated separately from the entry that carries it, and this is the first field "
+                    + "in the application to gate on customers.read_notes."),
+                new ViewField("reasonPermission", FieldClassification.Operational, null,
+                    "What would have shown the reason, set whenever one was given. It is what lets a "
+                    + "screen distinguish 'no reason was given' from 'a reason was given that you may "
+                    + "not read', and it names a permission rather than repeating any of the text."),
+                new ViewField("referenceType", FieldClassification.Operational, null,
+                    "The kind of thing the entry links to, where it links to one."),
+                new ViewField("referenceId", FieldClassification.Operational, null,
+                    "What it links to. A UUIDv7, like every identifier that crosses the wire."),
+                new ViewField("expandPermission", FieldClassification.Operational, null,
+                    "What a caller must hold to open the reference. The entry is on the timeline "
+                    + "either way: what it links to is a different question from whether it happened."),
+                new ViewField("branchId", FieldClassification.Operational, null,
+                    "The branch the entry belongs to, where it belongs to one."),
+                new ViewField("actorDisplayName", FieldClassification.Operational, null,
+                    "Who did it, as their name was at the time. A member of staff's name is not the "
+                    + "customer's data and is not a measure of that member of staff, which is why it "
+                    + "is operational and not StaffPerformance."),
             ]),
     ];
 }

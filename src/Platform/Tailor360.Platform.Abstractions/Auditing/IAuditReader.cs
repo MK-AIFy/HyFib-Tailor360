@@ -15,7 +15,76 @@ public interface IAuditReader
     /// <param name="query">What to look for.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<AuditPage> SearchAsync(AuditQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads what happened to one thing, newest first, keyed on when rather than on where in the chain.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="SearchAsync"/> pages on the chain sequence, which is the right key for an
+    /// investigation: it is monotonic, unique and needs no tie-break. It is the wrong key for anything
+    /// a customer-facing screen pages through, because the sequence counts every write the installation
+    /// has ever made, and
+    /// <c>docs/architecture/conventions.md</c> section 3.1 says a sequential identifier is never
+    /// exposed. A cursor built from it would leak that count to anybody who decoded one.
+    /// </para>
+    /// <para>
+    /// So this reads the same rows on a different key — <c>(occurredAt, id)</c>, both of which are
+    /// already public on every entry, with the identifier a UUIDv7 whose time-ordered prefix makes the
+    /// pair a total order. It exists for the customer timeline of #26, which composes one page across
+    /// several modules and needs a position each of them can resume from.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">Which entity, and where to resume.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>At most <see cref="AuditTrailQuery.Limit"/> entries, newest first.</returns>
+    Task<IReadOnlyList<AuditTrailEntry>> ReadEntityTrailAsync(
+        AuditTrailQuery query,
+        CancellationToken cancellationToken = default);
 }
+
+/// <summary>One entity's trail, and where in it to resume.</summary>
+/// <param name="EntityType">The kind of thing, for example <c>customers.customer</c>.</param>
+/// <param name="EntityId">Which one.</param>
+/// <param name="Before">
+/// Return only entries strictly older than this position, or null for the newest page. "Older" is the
+/// pair compared in order: an earlier instant, or the same instant and a lower identifier.
+/// </param>
+/// <param name="Limit">How many entries to return, clamped to <see cref="AuditQuery.MaximumLimit"/>.</param>
+public sealed record AuditTrailQuery(
+    string EntityType,
+    Guid EntityId,
+    AuditTrailPosition? Before = null,
+    int Limit = AuditQuery.DefaultLimit);
+
+/// <summary>A position in one entity's trail.</summary>
+/// <param name="OccurredAt">The instant of the entry the page stopped at.</param>
+/// <param name="EntryId">Its identifier, which breaks a tie between two entries at one instant.</param>
+public readonly record struct AuditTrailPosition(DateTimeOffset OccurredAt, Guid EntryId);
+
+/// <summary>One entry of an entity's trail.</summary>
+/// <remarks>
+/// Deliberately not <see cref="AuditRecord"/>. That carries the chain sequence, which is the one field
+/// a customer-facing surface may not be handed, and it carries no identifier, which is the one field a
+/// position needs.
+/// </remarks>
+/// <param name="Id">The entry, which is a UUIDv7 and is half of a position.</param>
+/// <param name="OccurredAt">When it happened, in UTC.</param>
+/// <param name="Action">The stable dotted action name.</param>
+/// <param name="ActorId">Who acted, or null for the system.</param>
+/// <param name="ActorDisplayName">Their name, as it was at the time.</param>
+/// <param name="BranchId">The branch the action was taken in, where there was one.</param>
+/// <param name="Reason">The reason the actor gave, where the action demanded one.</param>
+/// <param name="Summary">What happened, in words.</param>
+public sealed record AuditTrailEntry(
+    Guid Id,
+    DateTimeOffset OccurredAt,
+    string Action,
+    Guid? ActorId,
+    string ActorDisplayName,
+    Guid? BranchId,
+    string? Reason,
+    string Summary);
 
 /// <summary>What an auditor is looking for.</summary>
 /// <remarks>

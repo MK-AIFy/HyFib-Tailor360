@@ -336,7 +336,15 @@ public sealed class PublishedContractTests(WebApplicationFixture fixture)
         snapshot.OwningBranchId.ShouldBe(BranchId);
 
         snapshot.ContactIncluded.ShouldBeTrue();
-        snapshot.PhoneE164.ShouldStartWith("+919000");
+
+        // A well-formed Indian number, rather than the prefix the harness's generator happens to use.
+        // Pinning the prefix made this test an assertion about test data: it broke the day the
+        // generator was widened to stop colliding, and it had never been checking anything the
+        // contract promises.
+        snapshot.PhoneE164.ShouldNotBeNull();
+        snapshot.PhoneE164.ShouldStartWith("+91");
+        snapshot.PhoneE164!.Length.ShouldBe(13);
+        snapshot.PhoneE164[3..].ShouldAllBe(digit => char.IsAsciiDigit(digit));
         snapshot.Email.ShouldNotBeNullOrWhiteSpace();
         snapshot.AddressLine.ShouldBe("12 Trichy Road");
         snapshot.Locality.ShouldBe("Ramanathapuram");
