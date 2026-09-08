@@ -1169,6 +1169,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             lastError: null | string;
+            module: string;
             /** Format: date-time */
             occurredAt: string;
             /** Format: int32 */

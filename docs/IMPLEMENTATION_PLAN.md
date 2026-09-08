@@ -256,7 +256,7 @@ and `Platform.*` may be referenced across modules; enforced by architecture test
 | Reporting (`exports/` prefix) | read models/projections, projection checkpoints, metric dictionary, reconciliation runs, report schedules, export jobs, costing assumption versions, GST summary layouts | `ReportReconciliationMismatch`, `ReportFreshnessBreached` | all modules' events and read contracts only |
 | Notifications/Feedback | templates/versions, intents, deliveries, in-app notifications, customer links (estimate/status/feedback purposes), feedback tokens/responses, service-recovery cases and policies | `NotificationDelivered/Failed`, `FeedbackReceived`, `ServiceRecoveryOpened/Closed`, timeline source | Customers (consent), Orders, Billing, Custody, Inventory events |
 | Integration | integration event relay copy, webhook subscriptions/deliveries, provider configurations, payment intents/callbacks, accounting export batches, print-bridge adapters | `WebhookDelivered/DeadLettered`, `PaymentCallbackReconciled` | outbox events from all modules (relay), ports |
-| Platform | outbox/inbox, idempotency keys, sequences, audit events (append-only, trigger-protected), configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit), retention policies, print jobs (`IPrintQueue`), Data Protection key ring, job leases, worker heartbeats, correlation | `FeatureFlagChanged`, `PrintJobQueued`; `IAuditWriter`, `IIdempotencyStore`, `ISequenceAllocator`, `IPrintQueue`, `IOutboundHttp` | — |
+| Platform | its own outbox/inbox (every module has a pair; Platform owns the dispatcher, not the rows), idempotency keys, sequences, audit events (append-only, trigger-protected), configuration, feature flags (`platform.feature_flags`: store, evaluation, evaluation audit), retention policies, print jobs (`IPrintQueue`), Data Protection key ring, job leases, worker heartbeats, correlation | `FeatureFlagChanged`, `PrintJobQueued`; `IAuditWriter`, `IIdempotencyStore`, `ISequenceAllocator`, `IPrintQueue`, `IOutboundHttp` | — |
 
 Object-storage ownership: Media owns the material/reference/diagram/QC-evidence/delivery-evidence prefixes,
 Billing owns `documents/` (invoice, estimate, receipt and credit-note PDFs referenced by `document_artifacts`),
@@ -1246,11 +1246,11 @@ acceptance criteria, which remain the contract.
   the query server-side before every send; `ICustomerSnapshotQuery.Get(customerId, callerPermissions)` →
   `{ customerNumber, displayName, nativeName, language, branchId, contact fields only with customers.read_contact }`
   used by #32a (order/estimate snapshot) and #42 (invoice customer snapshot). Contract tests in this PR.
-  **The three read contracts are built; the three integration events wait on #77.** #21 built one shared
-  `platform.outbox_messages` where [ADR-0008](adr/0008-transactional-outbox-and-workers.md) decided a table per
-  module schema, so a module's write and its event are on two contexts and two transactions and cannot commit
-  together. Every consumer named above pulls, so nothing here is blocked by the wait; publishing a withdrawal
-  event that a crash can lose, to a module that deletes photographs on it, would be.
+  **The three read contracts are built. The three integration events were blocked by #77** — #21 had built one
+  shared `platform.outbox_messages` where [ADR-0008](adr/0008-transactional-outbox-and-workers.md) decided a table
+  per module schema, so a module's write and its event were on two contexts and two transactions — and #77 has
+  since moved both the outbox and the inbox into each module's schema. The events are unblocked and land with the
+  merge slice.
 - **Field-level visibility**: DTOs projected through a `CustomerViewPolicy`: `customers.read` returns name,
   customer number, branch and status; `customers.read_contact` adds phones/email/address; `customers.read_notes`
   adds notes; consent history requires `customers.read_consent`. Tailor and Tailor Master receive no contact

@@ -40,8 +40,8 @@
   "projects": {
     "Tailor360.Platform.Persistence": {
       "floor": 92.0,
-      "measured": 94.2,
-      "note": "The persistence platform of #21. Exercised by all four tiers."
+      "measured": 95.2,
+      "note": "The persistence platform of #21, with the per-module outbox and inbox of #77. Exercised by all four tiers."
     },
     "Tailor360.Platform.Observability": {
       "floor": 94.0,
@@ -79,9 +79,9 @@
       "note": "The customer, consent and preference handlers and their audit projections, covered by the Integration tier through the endpoints."
     },
     "Tailor360.Modules.Customers.Infrastructure": {
-      "floor": 92.0,
-      "measured": 96.7,
-      "note": "The DbContext, the stores, the counter search and the three published queries. The figure depends on the migrations being applied during the run, which is what covers the roughly 1,070 lines of the two migrations and their designers; CI's service container is empty on every run, so it is. A developer re-running the Integration tier against a database that already carries the schema measures about 46% for this project and should not read that as a regression: the whole difference is migration code that had nothing left to do."
+      "floor": 94.0,
+      "measured": 97.3,
+      "note": "The DbContext, the stores, the counter search, the three published queries and the module's own event publisher. The figure depends on the migrations being applied during the run, which is what covers the roughly 1,070 lines of the two migrations and their designers; CI's service container is empty on every run, so it is. A developer re-running the Integration tier against a database that already carries the schema measures about 46% for this project and should not read that as a regression: the whole difference is migration code that had nothing left to do."
     },
     "Tailor360.Modules.Customers.Api": {
       "floor": 92.0,

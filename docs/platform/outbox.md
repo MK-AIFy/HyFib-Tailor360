@@ -21,26 +21,33 @@ await context.SaveChangesAsync(cancellationToken);   // the event commits with t
 
 `IEventPublisher` writes to `platform.outbox_messages`. It never sends anything.
 
-### A module cannot do this yet — issue #77
+### One outbox per module, and why
 
-The snippet above holds only where `context` is `PlatformDbContext`, and that is not where a module's
-change lives. [ADR-0008](../adr/0008-transactional-outbox-and-workers.md) decided an `outbox_messages`
-table **in each module's own schema**, so that the module's own context writes both the aggregate and
-the event and one `SaveChangesAsync` commits them together. What issue #21 built is a single shared
-`platform.outbox_messages` on the platform context.
+`context` above is the **module's own** context, and `outbox_messages` is a table in the module's own
+schema. That is the arrangement
+[ADR-0008](../adr/0008-transactional-outbox-and-workers.md) section 4.1 decided, and the reason is in
+the same document: the transaction and the connection are not guaranteed across our per-module
+contexts. A single shared table on another context is a second connection and a second transaction, so
+publishing beside a module's write could only ever be two commits — one ordering committing work whose
+event is lost, with nothing recording that one was owed, and the other announcing work that rolled
+back.
 
-The mechanism below — claims, leases, per-aggregate ordering, retries, dead-lettering, replay — is
-built and tested and is not what is wrong. What is missing is the atomicity, and it is missing exactly
-for the callers the pattern exists for: a module publishing beside its own write has two contexts, two
-connections and two transactions, so saving the change first can commit work whose event is lost, and
-saving the event first can announce work that rolled back. `OutboxTests` publishes and rolls back on
-the platform context alone, which is why the suite is green.
+Issue #21 built the shared table; **issue #77** moved both tables into `ModuleDbContext`, which maps
+them into whichever schema the context owns. Every module therefore has them by construction, nobody
+has to remember, and a module added next year gets them free. The platform's own
+`platform.outbox_messages` and `platform.inbox_messages` are unchanged and are now the platform
+module's own pair rather than everybody's.
 
-Until #77 closes, **do not publish an integration event alongside a module's own write**. A read
-contract is the alternative that works today: a consumer that pulls asks the owner at the moment it
-needs the answer, and nothing is lost in between. That is why the Customers module publishes
-`IConsentQuery`, `ICommunicationPreferenceQuery` and `ICustomerSnapshotQuery` and publishes none of its
-three integration events yet.
+A module resolves **its own** publisher, through a port its `Application` project declares —
+`ICustomersEventPublisher` and its equivalents — bound to a `ModuleEventPublisher<TContext>` over that
+module's context. `IEventPublisher` is one interface and the web host composes every module into one
+container, so a single registration of it would leave whichever module registered last writing
+everybody's events into its own schema. Binding per module also bounds what a module can reach: a
+publisher over `CustomersDbContext` can write to `customers.outbox_messages` and to nothing else, so
+publishing cannot become the cross-schema write ARCH-005 forbids.
+
+`Publish` is deliberately **not** asynchronous. An asynchronous publish invites a second round trip,
+and a second round trip on a second connection is how this became two transactions in the first place.
 
 ## Delivery
 
@@ -49,7 +56,10 @@ The worker runs one or more dispatcher instances. Each cycle:
 1. **Claim.** A single statement selects eligible messages `FOR UPDATE SKIP LOCKED` and stamps a lease.
    Skipping locked rows is what lets two instances work at once without blocking each other.
 2. **Handle.** Each registered `IOutboxMessageHandler` for the event type runs, and an inbox row is
-   written with the handler's name in the same transaction as the handler's own writes.
+   written with the handler's name in the same transaction as the handler's own writes — in the
+   **consuming** module's schema, on the consuming module's context, which is what makes "the same
+   transaction" true. A handler therefore stages its writes and does not save them; the dispatcher
+   opens the transaction, calls the handler, adds the inbox row and commits both.
 3. **Complete.** The message is marked processed and its lease cleared.
 
 ### Ordering within an aggregate
