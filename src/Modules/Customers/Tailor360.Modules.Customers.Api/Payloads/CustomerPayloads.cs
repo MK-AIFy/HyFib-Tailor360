@@ -1,6 +1,7 @@
 using Tailor360.Modules.Customers.Application.Abstractions;
 using Tailor360.Modules.Customers.Application.Customers;
 using Tailor360.Modules.Customers.Domain.Deduplication;
+using Tailor360.Platform.Abstractions.Concurrency;
 
 namespace Tailor360.Modules.Customers.Api.Payloads;
 
@@ -295,11 +296,130 @@ public sealed record CustomerReasonRequest(string? Reason);
 /// to send a precondition for one record and a merge for another.
 /// </remarks>
 /// <param name="MergedCustomerId">The record to fold in. It will not survive.</param>
+/// <param name="MergedCustomerVersion">
+/// The <c>version</c> of that record as the caller read it, from its own <c>GET</c>. Required, and
+/// checked inside the row lock alongside the <c>If-Match</c> on the survivor.
+/// <para>
+/// A merge approves a <em>pair</em>: these two records, as they read on the screen, are one person.
+/// An <c>If-Match</c> alone protects one half of that — and the half it leaves open is the record
+/// about to stop existing, so a correction to its name, number or address would otherwise be merged
+/// away with no undo. It costs the client a read of the record it is about to fold in, which is not
+/// much to ask before an irreversible decision about it.
+/// </para>
+/// </param>
 /// <param name="Reason">
 /// Why they are one person. Required, and kept: a merge cannot be undone, and why it was done is the
 /// only part of it a reader can still question afterwards.
 /// </param>
-public sealed record MergeCustomerRequest(Guid MergedCustomerId, string? Reason);
+public sealed record MergeCustomerRequest(
+    Guid MergedCustomerId,
+    string? MergedCustomerVersion,
+    string? Reason)
+{
+    /// <summary>
+    /// Reads the folded record's version as the concrete version it is.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Deliberately not <c>EntityTag.TryParse</c>.</strong> That parser exists for an
+    /// <c>If-Match</c> header, where <c>*</c> is the RFC 9110 wildcard meaning "any current
+    /// representation" and honouring it is correct. This field carries the version a manager read off
+    /// a screen, and there is no such thing as "any version" of the record they approved destroying.
+    /// </para>
+    /// <para>
+    /// Routing it through the header parser was a real hole rather than a theoretical one: the value
+    /// had to be wrapped in quotes to look like a tag, which pushed <c>*</c> past the wildcard branch
+    /// and into the quoted-tag branch, where the quotes were stripped again and the result was an
+    /// <see cref="EntityTag"/> whose <c>IsAny</c> was true. <c>Matches</c> short-circuits on that, so
+    /// a caller could have merged past the precondition by sending one character.
+    /// </para>
+    /// </remarks>
+    /// <param name="version">The parsed version, when the field carries one.</param>
+    /// <returns>True when the field is a usable concrete version.</returns>
+    public bool TryReadMergedCustomerVersion(out EntityTag version)
+    {
+        version = default;
+
+        var value = MergedCustomerVersion?.Trim();
+
+        // Empty is the missing field, and a quoted value is somebody sending a header where a version
+        // was asked for — the mistake this shape invites, since the value they hold is an ETag.
+        if (string.IsNullOrEmpty(value) || value.Contains('"', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var read = new EntityTag(value);
+
+        // And the refusal this method exists for. Neither of the two above would have stopped "*".
+        if (read.IsAny)
+        {
+            return false;
+        }
+
+        version = read;
+
+        return true;
+    }
+}
+
+/// <summary>
+/// The receipt for a generated subject-access export. Not the document.
+/// </summary>
+/// <remarks>
+/// It deliberately carries nothing about the person. Everything here describes the artefact — what it
+/// is, how big, how long it lasts — so that a screen can show the state of an export, and a log or a
+/// support conversation can refer to one, without any of that becoming another place a customer's
+/// details are held.
+/// </remarks>
+/// <param name="ExportId">The export's identity, and the only thing needed to download it.</param>
+/// <param name="CustomerId">The person the document is about.</param>
+/// <param name="DocumentCode">Which document this is, matching the <c>document.code</c> inside it.</param>
+/// <param name="DocumentVersion">The document's shape version.</param>
+/// <param name="Classification">
+/// The highest data class the document carries, which section 9 requires an export to be marked with.
+/// </param>
+/// <param name="ContentType">The media type the download is served as.</param>
+/// <param name="ByteCount">How large the document is.</param>
+/// <param name="GeneratedAt">When it was made.</param>
+/// <param name="ExpiresAt">When the download stops working and the copy is destroyed.</param>
+/// <param name="SupersededCount">
+/// How many earlier copies of this person's data were destroyed to make this one. Almost always zero
+/// or one, and worth returning because it is the visible half of the rule that only one copy exists at
+/// a time.
+/// </param>
+public sealed record CustomerExportPayload(
+    Guid ExportId,
+    Guid CustomerId,
+    string DocumentCode,
+    int DocumentVersion,
+    string Classification,
+    string ContentType,
+    int ByteCount,
+    DateTimeOffset GeneratedAt,
+    DateTimeOffset ExpiresAt,
+    int SupersededCount)
+{
+    /// <summary>Projects a receipt.</summary>
+    /// <param name="receipt">What the handler generated.</param>
+    /// <returns>The payload.</returns>
+    public static CustomerExportPayload From(CustomerExportReceipt receipt)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+
+        return new CustomerExportPayload(
+            receipt.ExportId,
+            receipt.CustomerId,
+            receipt.DocumentCode,
+            receipt.DocumentVersion,
+            receipt.Classification,
+            receipt.ContentType,
+            receipt.ByteCount,
+            receipt.GeneratedAt,
+            receipt.ExpiresAt,
+            receipt.SupersededCount);
+    }
+}
 
 /// <summary>What a merge did.</summary>
 /// <param name="Customer">The surviving record, with the version a later change is made against.</param>

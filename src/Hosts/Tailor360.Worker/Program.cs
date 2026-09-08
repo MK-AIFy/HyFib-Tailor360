@@ -76,6 +76,7 @@ builder.Services.AddScoped<IAuditContext, WorkerAuditContext>();
 builder.Services.AddSingleton<HeartbeatService>();
 builder.Services.AddHostedService<OutboxDispatcherService>();
 builder.Services.AddHostedService<AuditPartitionMaintenanceService>();
+builder.Services.AddHostedService<CustomerExportPurgeService>();
 builder.Services.AddSingleton<IHeartbeatMonitor>(sp => sp.GetRequiredService<HeartbeatService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HeartbeatService>());
 

@@ -642,7 +642,7 @@ somebody's phone. Four rules apply to every generated file.
 | Rule | Detail |
 | --- | --- |
 | **Purpose-bound** | An export exists for a stated purpose and carries only the columns that purpose needs. A bulk export never carries measurements, images, message bodies or tokens |
-| **Audited and expiring** | Generation and every download are audited; artefacts live under the `exports/` prefix, expire (**proposed** 7 days) and are streamed by the re-authorising endpoint, never linked |
+| **Audited and expiring** | Generation and every download are audited; artefacts live under the `exports/` prefix, expire (**proposed** 7 days) and are streamed by the re-authorising endpoint, never linked. **One exception today, for want of anywhere to put it:** the #26 subject-access export is held as a row in the `customers` schema, because `exports/` belongs to Reporting (#44, not built) and the solution has no object-storage client at all yet. It is audited, marked, expiring and streamed exactly as this row requires — see [`../architecture/module-ownership.md`](../architecture/module-ownership.md) section 5.2 |
 | **Marked** | Every export header carries the highest class of its content, the branch scope, the generating user, the generation time and the report code from the metric dictionary, so a file found later can be classified without guesswork |
 | **Safe by construction** | Cells beginning `=`, `+`, `-`, `@`, tab or carriage return are prefixed and quoted; UTF-8 with byte-order mark; rows capped; an injection corpus test covers every export path (plan Section 5.2) |
 

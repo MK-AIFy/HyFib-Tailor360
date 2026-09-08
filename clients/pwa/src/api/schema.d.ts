@@ -877,6 +877,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{customerId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate the copy of a customer's data that answers a subject-access request.
+         * @description Produces a JSON document holding the customer's profile, their full consent history and their communication preferences. It carries no images, no duplicate scores and no merge reasons, and measurements are absent because the system does not record any yet.
+         *
+         *     The response is a receipt, not the document: it names the export and says when the download stops working. Fetch the document from the download route, which re-authorises and is audited on every call.
+         *
+         *     Generating an export destroys any earlier one for the same customer, so at most one copy of a person's record exists outside the record at a time. The copy is emptied when it expires; the record that an export was taken, by whom and why is kept.
+         */
+        post: operations["ExportCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/exports/{exportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a generated subject-access export.
+         * @description Streams the document. The permission, the organisation and the expiry are re-checked on every request, and every call is written to the audit trail against the customer — `docs/nfr/data-classification.md` section 10 lists an export download among the reads that are audited explicitly.
+         *
+         *     Answers 404 `customers.export-expired` once the copy has gone, which happens when it expires or when a newer export replaces it. The record that the export existed remains; only the copy of the data is destroyed.
+         */
+        get: operations["DownloadCustomerExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/{customerId}/merge": {
         parameters: {
             query?: never;
@@ -889,6 +935,10 @@ export interface paths {
         /**
          * Fold one customer record into another. This cannot be undone.
          * @description The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.
+         *
+         *     Both records are preconditions. `If-Match` carries the survivor's version and `mergedCustomerVersion` carries the folded record's, because what a manager approves is a *pair*: if either has been corrected since they were read, the pair being merged is not the pair that was approved, and the answer is 409 rather than an irreversible merge of something nobody looked at. `mergedCustomerVersion` is a concrete version and never an `If-Match` value: `*` is refused, because there is no such thing as "any version" of a record somebody approved destroying.
+         *
+         *     The two halves refuse differently, because they send the caller to different records. A stale survivor is `customers.version-conflict`, carrying `currentVersion` and an `ETag`. A stale record being folded in is `customers.merged-record-changed`, carrying `mergedCustomerVersion` — the value to resend in that field — and no `ETag`, since an `ETag` would describe the survivor, which is not what changed.
          */
         post: operations["MergeCustomers"];
         delete?: never;
@@ -1166,6 +1216,25 @@ export interface components {
         CustomerConsentPayload: {
             purposes: components["schemas"]["ConsentPurposePayload"][];
         };
+        CustomerExportPayload: {
+            /** Format: int32 */
+            byteCount: number | string;
+            classification: string;
+            contentType: string;
+            /** Format: uuid */
+            customerId: string;
+            documentCode: string;
+            /** Format: int32 */
+            documentVersion: number | string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            exportId: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: int32 */
+            supersededCount: number | string;
+        };
         CustomerMergePayload: {
             /** Format: int32 */
             aliasesRecorded: number | string;
@@ -1290,6 +1359,7 @@ export interface components {
             updatedBy: null | string;
             version: string;
         };
+        IResult: Record<string, never>;
         InviteStaffMemberPayload: {
             displayName: null | string;
             email: null | string;
@@ -1302,6 +1372,7 @@ export interface components {
         MergeCustomerRequest: {
             /** Format: uuid */
             mergedCustomerId: string;
+            mergedCustomerVersion: null | string;
             reason: null | string;
         };
         MfaEnrolmentConfirmationPayload: {
@@ -4567,6 +4638,101 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    ExportCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Subject-access request received at the Gandhipuram counter on 6 September and verified against the number on file."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CustomerReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerExportPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DownloadCustomerExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customerId: string;
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     MergeCustomers: {
         parameters: {
             query?: never;
@@ -4581,6 +4747,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+                 *       "mergedCustomerVersion": "8241",
                  *       "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
                  *     }
                  */

@@ -824,6 +824,72 @@
         ],
         "type": "object"
       },
+      "CustomerExportPayload": {
+        "properties": {
+          "byteCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "classification": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "documentCode": {
+            "type": "string"
+          },
+          "documentVersion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "exportId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "supersededCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "exportId",
+          "customerId",
+          "documentCode",
+          "documentVersion",
+          "classification",
+          "contentType",
+          "byteCount",
+          "generatedAt",
+          "expiresAt",
+          "supersededCount"
+        ],
+        "type": "object"
+      },
       "CustomerMergePayload": {
         "properties": {
           "aliasesRecorded": {
@@ -1370,6 +1436,9 @@
         ],
         "type": "object"
       },
+      "IResult": {
+        "type": "object"
+      },
       "InviteStaffMemberPayload": {
         "properties": {
           "displayName": {
@@ -1420,6 +1489,12 @@
             "format": "uuid",
             "type": "string"
           },
+          "mergedCustomerVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "reason": {
             "type": [
               "null",
@@ -1429,6 +1504,7 @@
         },
         "required": [
           "mergedCustomerId",
+          "mergedCustomerVersion",
           "reason"
         ],
         "type": "object"
@@ -7529,9 +7605,192 @@
         "x-tailor360-rate-limit": "default-user"
       }
     },
+    "/api/v1/customers/{customerId}/export": {
+      "post": {
+        "description": "Produces a JSON document holding the customer's profile, their full consent history and their communication preferences. It carries no images, no duplicate scores and no merge reasons, and measurements are absent because the system does not record any yet.\n\nThe response is a receipt, not the document: it names the export and says when the download stops working. Fetch the document from the download route, which re-authorises and is audited on every call.\n\nGenerating an export destroys any earlier one for the same customer, so at most one copy of a person's record exists outside the record at a time. The copy is emptied when it expires; the record that an export was taken, by whom and why is kept.",
+        "operationId": "ExportCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Subject-access request received at the Gandhipuram counter on 6 September and verified against the number on file."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CustomerReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerExportPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Generate the copy of a customer's data that answers a subject-access request.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.exported",
+        "x-tailor360-authorisation": "permission:customers.export",
+        "x-tailor360-rate-limit": "export-heavy"
+      }
+    },
+    "/api/v1/customers/{customerId}/exports/{exportId}": {
+      "get": {
+        "description": "Streams the document. The permission, the organisation and the expiry are re-checked on every request, and every call is written to the audit trail against the customer — `docs/nfr/data-classification.md` section 10 lists an export download among the reads that are audited explicitly.\n\nAnswers 404 `customers.export-expired` once the copy has gone, which happens when it expires or when a newer export replaces it. The record that the export existed remains; only the copy of the data is destroyed.",
+        "operationId": "DownloadCustomerExport",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "exportId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Download a generated subject-access export.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.customer.export-downloaded",
+        "x-tailor360-authorisation": "permission:customers.export",
+        "x-tailor360-rate-limit": "export-heavy"
+      }
+    },
     "/api/v1/customers/{customerId}/merge": {
       "post": {
-        "description": "The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.",
+        "description": "The remedy for exception EX-01, and the only irreversible operation on a customer record. The record in the path survives; the one in the body is folded into it, keeps its number searchable as an alias on the survivor, and is withdrawn from ordinary use. Every branch that could see it can now see the survivor. Measurements and orders are re-pointed by `customers.customer-merged.v1`; a snapshot already frozen onto an invoice or a job card is never rewritten. Needs a reason and a fresh re-authentication, and there is no un-merge.\n\nBoth records are preconditions. `If-Match` carries the survivor's version and `mergedCustomerVersion` carries the folded record's, because what a manager approves is a *pair*: if either has been corrected since they were read, the pair being merged is not the pair that was approved, and the answer is 409 rather than an irreversible merge of something nobody looked at. `mergedCustomerVersion` is a concrete version and never an `If-Match` value: `*` is refused, because there is no such thing as \"any version\" of a record somebody approved destroying.\n\nThe two halves refuse differently, because they send the caller to different records. A stale survivor is `customers.version-conflict`, carrying `currentVersion` and an `ETag`. A stale record being folded in is `customers.merged-record-changed`, carrying `mergedCustomerVersion` — the value to resend in that field — and no `ETag`, since an `ETag` would describe the survivor, which is not what changed.",
         "operationId": "MergeCustomers",
         "parameters": [
           {
@@ -7549,6 +7808,7 @@
             "application/json": {
               "example": {
                 "mergedCustomerId": "019bcfa3-6c81-7e94-b025-3a4b5c6d7e8f",
+                "mergedCustomerVersion": "8241",
                 "reason": "Same phone number, same address and she confirmed at the counter that the second record was created when the Gandhipuram branch could not see the first."
               },
               "schema": {

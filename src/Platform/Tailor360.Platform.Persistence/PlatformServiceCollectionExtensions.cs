@@ -9,6 +9,7 @@ using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Idempotency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Outbox;
+using Tailor360.Platform.Abstractions.Scheduling;
 using Tailor360.Platform.Abstractions.Sequencing;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Auditing;
@@ -152,6 +153,11 @@ public static class PlatformServiceCollectionExtensions
 
         services.TryAddScoped<MigrationRunner>();
         services.TryAddScoped<JobLeaseService>();
+
+        // And behind the abstraction, so a job's shell can be executed by a test without a database.
+        // Same instance either way: a job that resolved a second one would take a lease the first did
+        // not know it held.
+        services.TryAddScoped<IJobLease>(provider => provider.GetRequiredService<JobLeaseService>());
 
         services.TryAddScoped<IAuditContext, SystemAuditContext>();
         services.TryAddScoped<IAuditWriter, AuditWriter>();

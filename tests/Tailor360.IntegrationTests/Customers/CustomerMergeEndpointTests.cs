@@ -380,7 +380,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
 
         var elsewhere = await CustomerHarness.CustomerOfAnotherOrganisationAsync(fixture, FirstBranchId);
 
-        var refused = await MergeAsync(manager, survivor, elsewhere);
+        var refused = await MergeAsync(manager, survivor, elsewhere, mergedCustomerVersion: "1");
 
         // "Not there" and "not yours" are one answer; telling them apart would be an oracle for
         // enumerating another organisation's records.
@@ -414,7 +414,12 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
 
         var refused = await manager.PostAsync(
             $"/api/v1/customers/{survivor.CustomerId}/merge",
-            new { mergedCustomerId = duplicate.CustomerId, reason = Reason },
+            new
+            {
+                mergedCustomerId = duplicate.CustomerId,
+                mergedCustomerVersion = duplicate.Version,
+                reason = Reason,
+            },
             Key());
 
         refused.StatusCode.ShouldBe(HttpStatusCode.PreconditionRequired);
@@ -440,6 +445,98 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         var refused = await MergeAsync(manager, survivor, duplicate);
 
         refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        await NotMergedAsync(manager, duplicate.CustomerId);
+    }
+
+    /// <summary>
+    /// A correction to the record about to be destroyed also invalidates the decision.
+    /// </summary>
+    /// <remarks>
+    /// A manager approves a <em>pair</em>: these two records, as they read on the screen, are one
+    /// person. An <c>If-Match</c> on the survivor alone protects half of that, and the half it leaves
+    /// open is the one that cannot be undone — the record whose name, number or address just changed
+    /// is the record about to stop existing.
+    /// </remarks>
+    [Fact]
+    public async Task AMergeIsRefusedWhenTheRecordBeingFoldedInHasChangedSinceItWasRead()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var manager = await ManagerAsync("mrg-pair", "203.0.113.201");
+        var (survivor, duplicate) = await PairAsync(manager, "mrg-pair");
+
+        var corrected = await manager.PutAsync(
+            $"/api/v1/customers/{duplicate.CustomerId}",
+            Correction(duplicate, locality: "Gandhipuram"),
+            [Key(), ("If-Match", $"\"{duplicate.Version}\"")]);
+
+        corrected.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var correctedBody = await ReadAsync<CustomerBody>(corrected);
+
+        // The survivor is untouched, so its If-Match still holds; only the other half is stale.
+        var refused = await MergeAsync(manager, survivor, duplicate);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        await NotMergedAsync(manager, duplicate.CustomerId);
+
+        // Its own code, and the version of the record that actually changed. Answering with the
+        // survivor's would send the client to re-read a record whose version it already holds.
+        var problem = await ReadAsync<MergedRecordChangedBody>(refused);
+
+        problem.Code.ShouldBe("customers.merged-record-changed");
+        problem.MergedCustomerVersion.ShouldBe(correctedBody.Version);
+        problem.CurrentVersion.ShouldBeNull();
+
+        // And no ETag, because an ETag would describe the survivor, which is not what changed.
+        refused.Headers.ETag.ShouldBeNull();
+
+        // Re-read it, and the same decision goes through.
+        var reread = await ReadCustomerAsync(
+            await manager.GetAsync($"/api/v1/customers/{duplicate.CustomerId}"));
+
+        reread.Version.ShouldBe(correctedBody.Version);
+
+        (await MergeAsync(manager, survivor, reread)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    /// <summary>
+    /// The folded record's version is a version, and never an <c>If-Match</c> wildcard.
+    /// </summary>
+    /// <remarks>
+    /// This is a regression test for a hole the first version of the precondition had. The value was
+    /// wrapped in quotes and handed to <c>EntityTag.TryParse</c>, which exists for a header where
+    /// <c>*</c> means "any current representation". The quotes pushed <c>*</c> past that parser's
+    /// wildcard branch and into its quoted-tag branch, which stripped them again — producing an
+    /// entity tag whose <c>IsAny</c> was true, so the comparison matched any row version at all. A
+    /// caller could have merged past the precondition by sending one character, and the endpoint
+    /// would have accepted it silently.
+    /// </remarks>
+    [Theory]
+    [InlineData(1, "*")]
+    [InlineData(2, " * ")]
+    [InlineData(3, "\"8241\"")]
+    [InlineData(4, "")]
+    [InlineData(5, "   ")]
+    [InlineData(6, null)]
+    public async Task AWildcardOrAQuotedTagIsNotAVersionOfTheRecordBeingFoldedIn(int row, string? sent)
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // A prefix and a sign-in address of its own per row. The pair below deliberately shares a phone
+        // number, so six rows building six pairs under one prefix would be six records that the
+        // duplicate check refuses to create — a red theory about the wrong thing entirely.
+        var prefix = $"mrg-wc{row}";
+
+        using var manager = await ManagerAsync(prefix, $"203.0.113.{205 + row}");
+        var (survivor, duplicate) = await PairAsync(manager, prefix);
+
+        var refused = await MergeAsync(
+            manager, survivor, duplicate.CustomerId, mergedCustomerVersion: sent);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.value-required");
+
         await NotMergedAsync(manager, duplicate.CustomerId);
     }
 
@@ -524,7 +621,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var manager = await ManagerAsync("mrg-empty", "203.0.113.200");
         var (survivor, _) = await PairAsync(manager, "mrg-empty");
 
-        var refused = await MergeAsync(manager, survivor, Guid.Empty);
+        var refused = await MergeAsync(manager, survivor, Guid.Empty, mergedCustomerVersion: "1");
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.value-required");
@@ -784,21 +881,31 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         return (survivor, duplicate);
     }
 
+    /// <summary>
+    /// Sends a merge, with both halves of the pair as preconditions.
+    /// </summary>
+    /// <remarks>
+    /// The survivor's version goes in <c>If-Match</c> and the folded record's in the body, because a
+    /// manager approves a pair and <c>If-Match</c> is defined over the resource the request is
+    /// addressed to. Both are supplied from records the test actually read, which is what a client
+    /// has to do too.
+    /// </remarks>
     private static Task<HttpResponseMessage> MergeAsync(
         AuthenticationClient client,
         CustomerBody survivor,
         CustomerBody merged,
         string? reason = Reason)
-        => MergeAsync(client, survivor, merged.CustomerId, reason);
+        => MergeAsync(client, survivor, merged.CustomerId, merged.Version, reason);
 
     private static Task<HttpResponseMessage> MergeAsync(
         AuthenticationClient client,
         CustomerBody survivor,
         Guid mergedCustomerId,
+        string? mergedCustomerVersion,
         string? reason = Reason)
         => client.PostAsync(
             $"/api/v1/customers/{survivor.CustomerId}/merge",
-            new { mergedCustomerId, reason },
+            new { mergedCustomerId, mergedCustomerVersion, reason },
             Key(),
             ("If-Match", $"\"{survivor.Version}\""));
 
@@ -1004,6 +1111,11 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         int VisibilityBranchesAdded,
         int RecordsRepointed,
         DateTimeOffset MergedAt);
+
+    private sealed record MergedRecordChangedBody(
+        string Code,
+        string? CurrentVersion,
+        string? MergedCustomerVersion);
 
     private sealed record DuplicatesBody(IReadOnlyList<CandidateBody> Candidates);
 
