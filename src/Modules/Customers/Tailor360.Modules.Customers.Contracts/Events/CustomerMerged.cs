@@ -35,6 +35,16 @@ namespace Tailor360.Modules.Customers.Contracts.Events;
 /// does nothing. Delivery is at least once, so re-pointing must be written to be safe on a second
 /// delivery — pointing a reference at a record it already names is the ordinary case, not an error.
 /// </para>
+/// <para>
+/// <strong>Re-point to what <see cref="AggregateId"/> resolves to, not to
+/// <see cref="AggregateId"/> itself.</strong> A merged into B and B later merged into C are two
+/// events with two different aggregates, so per-aggregate ordering does not order them against each
+/// other and a consumer can see the second before the first. Applying them literally in that order
+/// leaves the A references naming B, which no longer stands. Ask
+/// <c>ICustomerSnapshotQuery</c> and follow <c>MergedIntoCustomerId</c> once — a merge flattens every
+/// pointer that named the record it folded in, so one hop always lands on a record that stands.
+/// Section 4.2 of <c>docs/integration/events/README.md</c> is the worked version.
+/// </para>
 /// </remarks>
 /// <param name="EventId">Identity of this occurrence. Consumers de-duplicate on it.</param>
 /// <param name="OccurredAt">When the merge was recorded, in UTC.</param>

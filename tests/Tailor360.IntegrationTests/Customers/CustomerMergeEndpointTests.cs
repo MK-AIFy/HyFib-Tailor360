@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Modules.Customers.Contracts.Consent;
+using Tailor360.Modules.Customers.Contracts.Preferences;
+using Tailor360.Modules.Customers.Domain.Preferences;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Security.Permissions;
@@ -79,7 +82,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var manager = await ManagerAsync("mrg-happy", "203.0.113.180");
         var (survivor, duplicate) = await PairAsync(manager, "mrg-happy");
 
-        var merged = await MergeAsync(manager, survivor, duplicate.CustomerId);
+        var merged = await MergeAsync(manager, survivor, duplicate);
 
         merged.StatusCode.ShouldBe(HttpStatusCode.OK);
         merged.Headers.ETag.ShouldNotBeNull();
@@ -139,7 +142,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         duplicate.VisibilityBranchIds.ShouldBe([SecondBranchId]);
 
         var outcome = await ReadAsync<MergeBody>(
-            await MergeAsync(manager, survivor, duplicate.CustomerId));
+            await MergeAsync(manager, survivor, duplicate));
 
         outcome.VisibilityBranchesAdded.ShouldBe(1);
         outcome.Customer.VisibilityBranchIds.ShouldBe(
@@ -163,12 +166,12 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         var c = await ReadCustomerAsync(
             await CreateAsync(manager, Registration("mrg-chain-c", phone: phone, reviewed: true)));
 
-        await MergeAsync(manager, b, a.CustomerId);
+        await MergeAsync(manager, b, a);
 
         var reloadedB = await ReadCustomerAsync(
             await manager.GetAsync($"/api/v1/customers/{b.CustomerId}"));
 
-        var second = await ReadAsync<MergeBody>(await MergeAsync(manager, c, reloadedB.CustomerId));
+        var second = await ReadAsync<MergeBody>(await MergeAsync(manager, c, reloadedB));
 
         second.RecordsRepointed.ShouldBe(1);
 
@@ -189,7 +192,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         var (survivor, duplicate) = await PairAsync(manager, "mrg-event");
 
         var outcome = await ReadAsync<MergeBody>(
-            await MergeAsync(manager, survivor, duplicate.CustomerId));
+            await MergeAsync(manager, survivor, duplicate));
 
         var message = (await OutboxAsync(survivor.CustomerId))
             .SingleOrDefault(row => row.EventType == "customers.customer-merged.v1")
@@ -222,7 +225,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var manager = await ManagerAsync("mrg-audit", "203.0.113.185");
         var (survivor, duplicate) = await PairAsync(manager, "mrg-audit");
 
-        await MergeAsync(manager, survivor, duplicate.CustomerId);
+        await MergeAsync(manager, survivor, duplicate);
 
         var onSurvivor = (await AuditEntriesAsync(survivor.CustomerId))
             .SingleOrDefault(entry => entry.Action == "customers.customer.merged")
@@ -255,7 +258,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         var (survivor, duplicate) = await PairAsync(manager, "mrg-evidence");
 
         var outcome = await ReadAsync<MergeBody>(
-            await MergeAsync(manager, survivor, duplicate.CustomerId));
+            await MergeAsync(manager, survivor, duplicate));
 
         using var scope = fixture.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<CustomersDbContext>();
@@ -343,7 +346,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         candidates.Candidates.ShouldContain(
             candidate => candidate.Customer.CustomerId == duplicate.CustomerId);
 
-        var refused = await MergeAsync(reception, survivor, duplicate.CustomerId);
+        var refused = await MergeAsync(reception, survivor, duplicate);
         refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
@@ -362,7 +365,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var unenrolled = await CustomerHarness.CounterAsync(
             fixture, "mrg-stepup", "203.0.113.191", FirstBranchId, CustomerHarness.BranchManager);
 
-        var refused = await MergeAsync(unenrolled, survivor, duplicate.CustomerId);
+        var refused = await MergeAsync(unenrolled, survivor, duplicate);
 
         refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
@@ -394,7 +397,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var manager = await ManagerAsync("mrg-reason", "203.0.113.193");
         var (survivor, duplicate) = await PairAsync(manager, "mrg-reason");
 
-        var refused = await MergeAsync(manager, survivor, duplicate.CustomerId, reason: "  ");
+        var refused = await MergeAsync(manager, survivor, duplicate, reason: "  ");
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.reason-required");
@@ -434,7 +437,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
 
         corrected.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var refused = await MergeAsync(manager, survivor, duplicate.CustomerId);
+        var refused = await MergeAsync(manager, survivor, duplicate);
 
         refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         await NotMergedAsync(manager, duplicate.CustomerId);
@@ -448,7 +451,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var manager = await ManagerAsync("mrg-self", "203.0.113.196");
         var (survivor, _) = await PairAsync(manager, "mrg-self");
 
-        var refused = await MergeAsync(manager, survivor, survivor.CustomerId);
+        var refused = await MergeAsync(manager, survivor, survivor);
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.cannot-merge-into-itself");
@@ -465,7 +468,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         using var manager = await ManagerAsync("mrg-final", "203.0.113.197");
         var (survivor, duplicate) = await PairAsync(manager, "mrg-final");
 
-        await MergeAsync(manager, survivor, duplicate.CustomerId);
+        await MergeAsync(manager, survivor, duplicate);
 
         var folded = await ReadCustomerAsync(
             await manager.GetAsync($"/api/v1/customers/{duplicate.CustomerId}"));
@@ -477,7 +480,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         // also a 409, and a test that accepted either would pass against a merge that had changed
         // nothing but the ETag.
         await RefusedAsMergedAsync(
-            MergeAsync(manager, third, folded.CustomerId), "customers.already-merged");
+            MergeAsync(manager, third, folded), "customers.already-merged");
 
         await RefusedAsMergedAsync(
             manager.PostAsync(
@@ -527,6 +530,90 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.value-required");
     }
 
+    [Fact]
+    public async Task TheFirstMergedNumberStaysSearchableAfterTheSecondMerge()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // A merged into B, then B merged into C. A's number is an alias on B, and the search only
+        // matches aliases on records it can see — B is now deactivated. Unless the survivor takes the
+        // aliases over, EX-01's promise about an old receipt holds for one merge and not for two.
+        using var manager = await ManagerAsync("mrg-carry", "203.0.113.202");
+        var phone = SharedPhone("carry");
+
+        var b = await ReadCustomerAsync(
+            await CreateAsync(manager, Registration("mrg-carry-b", phone: phone)));
+        var a = await ReadCustomerAsync(
+            await CreateAsync(manager, Registration("mrg-carry-a", phone: phone, reviewed: true)));
+        var c = await ReadCustomerAsync(
+            await CreateAsync(manager, Registration("mrg-carry-c", phone: phone, reviewed: true)));
+
+        await MergeAsync(manager, b, a);
+
+        var reloadedB = await ReadCustomerAsync(
+            await manager.GetAsync($"/api/v1/customers/{b.CustomerId}"));
+
+        (await SearchAsync(manager, a.CustomerNumber)).Customers
+            .ShouldContain(card => card.CustomerId == b.CustomerId);
+
+        await MergeAsync(manager, c, reloadedB);
+
+        // Both numbers now find C, which is the only record that still stands.
+        foreach (var number in new[] { a.CustomerNumber, b.CustomerNumber })
+        {
+            (await SearchAsync(manager, number)).Customers
+                .ShouldContain(
+                    card => card.CustomerId == c.CustomerId,
+                    $"{number} no longer finds the record that survived.");
+        }
+    }
+
+    /// <summary>
+    /// The send-time queries answer for the record that survived, not the one that was folded in.
+    /// </summary>
+    /// <remarks>
+    /// EX-01: "After a merge the survivor's consent and channel preferences govern every later
+    /// message." A notification queued before the merge is still holding the old identifier, and it
+    /// evaluates consent at send time — so if these queries answered from the folded record, a
+    /// withdrawal recorded on the survivor would be ignored and a message would go out that the
+    /// person had said no to. The write path refusing a merged record is not enough on its own.
+    /// </remarks>
+    [Fact]
+    public async Task ConsentAndPreferencesAnswerForTheSurvivorWhenAskedByTheOldIdentifier()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var manager = await ManagerAsync("mrg-consent", "203.0.113.203");
+        var (survivor, duplicate) = await PairAsync(manager, "mrg-consent");
+        var purpose = await CustomerHarness.PurposeAsync(fixture);
+
+        // She agreed at one counter and withdrew at the other; the records were then found to be one
+        // person, and the survivor's answer is the one that stands.
+        await RecordConsentAsync(manager, duplicate.CustomerId, purpose, "Granted");
+        await RecordConsentAsync(manager, survivor.CustomerId, purpose, "Withdrawn");
+
+        await CustomerHarness.PreferenceAsync(
+            fixture, duplicate.CustomerId, [CommunicationChannel.Sms]);
+        await CustomerHarness.PreferenceAsync(fixture, survivor.CustomerId, []);
+
+        await MergeAsync(manager, survivor, duplicate);
+
+        using var scope = fixture.Services.CreateScope();
+
+        var consent = await scope.ServiceProvider.GetRequiredService<IConsentQuery>()
+            .GetAsync(duplicate.CustomerId, purpose, TestContext.Current.CancellationToken);
+
+        consent.Status.ShouldBe(ConsentStatus.Withdrawn);
+        consent.CustomerId.ShouldBe(survivor.CustomerId);
+
+        var preference = await scope.ServiceProvider
+            .GetRequiredService<ICommunicationPreferenceQuery>()
+            .GetAsync(duplicate.CustomerId, TestContext.Current.CancellationToken);
+
+        preference.CustomerId.ShouldBe(survivor.CustomerId);
+        preference.AllowedChannels.ShouldBeEmpty();
+    }
+
     /* The duplicate screen ---------------------------------------------------------------------- */
 
     [Fact]
@@ -543,7 +630,7 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         before.Candidates.ShouldContain(
             candidate => candidate.Customer.CustomerId == duplicate.CustomerId);
 
-        await MergeAsync(manager, survivor, duplicate.CustomerId);
+        await MergeAsync(manager, survivor, duplicate);
 
         // Offering it would send somebody to open a record that no longer stands, and merging into it
         // is refused anyway.
@@ -553,6 +640,63 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
 
         // And a merged record has no candidates of its own, because nothing could be done with them.
         (await DuplicatesAsync(manager, duplicate.CustomerId)).Candidates.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// A candidate card says whether the caller can already see the record.
+    /// </summary>
+    /// <remarks>
+    /// The same question the search answers, answered the same way. A card that always said "not
+    /// yours" would have a client offering to open a record that is already on the screen, and would
+    /// misdescribe the one case a merge screen exists to resolve — the same person, twice, once here.
+    /// </remarks>
+    [Fact]
+    public async Task ACandidateCardSaysWhetherTheCallerCanAlreadySeeIt()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var manager = await ManagerAsync("mrg-cards", "203.0.113.204");
+        var (survivor, duplicate) = await PairAsync(manager, "mrg-cards");
+
+        CandidateFor(await DuplicatesAsync(manager, survivor.CustomerId), duplicate, "the owning branch")
+            .Customer.VisibleToCaller.ShouldBeTrue();
+
+        // The same pair read from a branch that has never served either of them.
+        await CustomerHarness.BranchAsync(fixture, SecondBranchId, SecondBranchCode);
+
+        using var elsewhere = await CustomerHarness.CounterAsync(
+            fixture, "mrg-cards2", "203.0.113.205", SecondBranchId, CustomerHarness.Reception);
+
+        CandidateFor(await DuplicatesAsync(elsewhere, survivor.CustomerId), duplicate, "another branch")
+            .Customer.VisibleToCaller.ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// Picks one candidate out of a screen, saying what the screen held when it is not there.
+    /// </summary>
+    /// <remarks>
+    /// <c>Single</c> on its own answers "sequence contains no matching element", which says nothing
+    /// about what the caller actually saw. This list is assembled from a scored query over shared
+    /// state, so when it surprises somebody the useful evidence is the list itself.
+    /// </remarks>
+    private static CandidateBody CandidateFor(
+        DuplicatesBody screen,
+        CustomerBody wanted,
+        string readAs)
+    {
+        var found = screen.Candidates
+            .SingleOrDefault(candidate => candidate.Customer.CustomerId == wanted.CustomerId);
+
+        return found.ShouldNotBeNull(
+            $"The duplicate {wanted.CustomerNumber} ({wanted.CustomerId}) was not offered when the "
+            + $"screen was read from {readAs}. It held "
+            + (screen.Candidates.Count == 0
+                ? "nothing at all."
+                : string.Join(
+                    ", ",
+                    screen.Candidates.Select(candidate =>
+                        $"{candidate.Customer.CustomerNumber}/{candidate.Confidence}"
+                        + $"/visible={candidate.Customer.VisibleToCaller}"))));
     }
 
     /// <summary>
@@ -643,6 +787,13 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
     private static Task<HttpResponseMessage> MergeAsync(
         AuthenticationClient client,
         CustomerBody survivor,
+        CustomerBody merged,
+        string? reason = Reason)
+        => MergeAsync(client, survivor, merged.CustomerId, reason);
+
+    private static Task<HttpResponseMessage> MergeAsync(
+        AuthenticationClient client,
+        CustomerBody survivor,
         Guid mergedCustomerId,
         string? reason = Reason)
         => client.PostAsync(
@@ -657,7 +808,12 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
     {
         var response = await client.GetAsync($"/api/v1/customers/{customerId}/duplicates");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        // The body on a refusal, not only the status: a 403 and a 429 are the same number of
+        // characters to read and completely different problems to chase.
+        response.StatusCode.ShouldBe(
+            HttpStatusCode.OK,
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
         response.Headers.CacheControl?.NoStore.ShouldBeTrue();
 
         return await ReadAsync<DuplicatesBody>(response);
@@ -685,6 +841,17 @@ public sealed class CustomerMergeEndpointTests(WebApplicationFixture fixture)
         AuthenticationClient client,
         RegistrationBody registration)
         => client.PostAsync("/api/v1/customers/", registration, Key());
+
+    private static async Task RecordConsentAsync(
+        AuthenticationClient client,
+        Guid customerId,
+        string purposeKey,
+        string decision)
+        => (await client.PostAsync(
+                $"/api/v1/customers/{customerId}/consent",
+                new { purposeKey, decision, source = "counter, verbal" },
+                Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
 
     private static async Task<PageBody> SearchAsync(AuthenticationClient client, string term)
     {

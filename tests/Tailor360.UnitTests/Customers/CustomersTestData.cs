@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Tailor360.Modules.Customers.Domain.Customers;
 using Tailor360.Modules.Customers.Domain.Deduplication;
+using Tailor360.Platform.Abstractions.Identifiers;
 
 namespace Tailor360.UnitTests.Customers;
 
@@ -101,4 +102,28 @@ internal static class CustomersTestData
             customer.AlternatePhoneE164,
             customer.Locality,
             customer.Postcode);
+}
+
+/// <summary>
+/// Identifiers that are unique, ordered and reproducible, so a failure names the same value twice.
+/// </summary>
+/// <remarks>
+/// <see cref="Customer.Absorb"/> takes the generator rather than a fixed set of identifiers, because
+/// how many aliases a merge records depends on the two records. A counter is enough for a test: what
+/// the assertions care about is that the identifiers are distinct and that the same test run twice
+/// produces the same ones.
+/// </remarks>
+internal sealed class CountingIds : IIdGenerator
+{
+    private int _issued;
+
+    /// <summary>How many identifiers have been handed out.</summary>
+    public int Issued => _issued;
+
+    /// <inheritdoc />
+    public Guid NewId()
+    {
+        _issued++;
+        return CustomersTestData.Id($"generated-{_issued}");
+    }
 }

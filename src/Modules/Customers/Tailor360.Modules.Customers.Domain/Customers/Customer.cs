@@ -1,4 +1,5 @@
 using Tailor360.Modules.Customers.Domain.Naming;
+using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Customers.Domain.Customers;
@@ -370,33 +371,36 @@ public sealed class Customer
     /// been merged" rather than the vaguer answer about the other one.
     /// </para>
     /// <para>
-    /// <strong>What it does not do.</strong> It does not copy the merged record's own aliases, its
-    /// consent or its communication preferences. Consent is evidence belonging to the record it was
-    /// taken against — <c>docs/nfr/data-classification.md</c> section 5.3 keeps it as written — and
-    /// <c>docs/prd/exceptions.md</c> EX-01 says the survivor's own consent and channel preferences
-    /// govern every later message. Nor does it re-point measurements or orders: what Customers owns
-    /// is re-pointed in the application's transaction, and what it does not own follows
+    /// <strong>Aliases travel; consent and preferences do not.</strong> The survivor takes over every
+    /// alias the folded record was carrying, because a search only matches aliases on records it can
+    /// still see and the folded record is about to stop being one — without that, the second merge in
+    /// a chain would silently take the first merge's number out of search. Consent and communication
+    /// preferences stay where they are: consent is evidence belonging to the record it was taken
+    /// against (<c>docs/nfr/data-classification.md</c> section 5.3 keeps it as written), and
+    /// <c>docs/prd/exceptions.md</c> EX-01 says the survivor's own answers govern every later message.
+    /// Nor does this re-point measurements or orders: what Customers owns is re-pointed in the
+    /// application's transaction, and what it does not own follows
     /// <c>customers.customer-merged.v1</c>.
     /// </para>
     /// </remarks>
     /// <param name="merged">The record being folded in, which this call also changes.</param>
-    /// <param name="numberAliasId">Identifier for the alias holding the merged customer number.</param>
-    /// <param name="nameAliasId">
-    /// Identifier for the alias holding the merged record's display name. Used only when the two
-    /// records are written under different names; supplied unconditionally, because a caller cannot
-    /// know which case it is in without comparing the two records, which is this method's job.
+    /// <param name="ids">
+    /// The identifier generator. Passed rather than a fixed set of identifiers because how many
+    /// aliases a merge records is a fact about the two records — one, or two, or two plus everything
+    /// the folded record was itself carrying — and a caller cannot know it without doing the
+    /// comparison that is this method's job.
     /// </param>
     /// <param name="now">The instant, from <c>IClock</c>.</param>
     /// <param name="by">The actor.</param>
     /// <returns>What the merge recorded, or the reason it was refused.</returns>
     public Result<MergeAbsorption> Absorb(
         Customer merged,
-        Guid numberAliasId,
-        Guid nameAliasId,
+        IIdGenerator ids,
         DateTimeOffset now,
         Guid? by)
     {
         ArgumentNullException.ThrowIfNull(merged);
+        ArgumentNullException.ThrowIfNull(ids);
 
         if (merged.Id == Id)
         {
@@ -427,20 +431,14 @@ public sealed class Customer
                 CustomersErrors.StatusTransitionNotAllowed(Status.ToString(), "a surviving record"));
         }
 
-        if (numberAliasId == Guid.Empty)
-        {
-            return Result.Failure<MergeAbsorption>(CustomersErrors.Required("numberAliasId"));
-        }
-
-        var namesDiffer = !string.Equals(DisplayName, merged.DisplayName, StringComparison.Ordinal);
-
-        if (namesDiffer && nameAliasId == Guid.Empty)
-        {
-            return Result.Failure<MergeAbsorption>(CustomersErrors.Required("nameAliasId"));
-        }
+        var aliasesRecorded = 0;
 
         // The merged number, kept searchable against the record that survived, which is what EX-01
-        // promises somebody reading an old receipt.
+        // promises somebody reading an old receipt. Recorded unconditionally: a record is folded in
+        // exactly once — the unique index on the merge table says so — and the merge record has to be
+        // able to name the alias that carries its number.
+        var numberAliasId = ids.NewId();
+
         _aliases.Add(CustomerAlias.Record(
             numberAliasId,
             Id,
@@ -450,19 +448,39 @@ public sealed class Customer
             now,
             by));
 
-        var aliasesRecorded = 1;
+        aliasesRecorded++;
 
-        if (namesDiffer)
+        // The name the folded record was written under, where it differs from this one's.
+        if (!string.Equals(DisplayName, merged.DisplayName, StringComparison.Ordinal))
         {
-            _aliases.Add(CustomerAlias.Record(
-                nameAliasId,
-                Id,
-                CustomerAliasKind.PreviousName,
-                merged.DisplayName,
-                merged.NormalisedName,
-                now,
-                by));
+            Keep(CustomerAliasKind.PreviousName, merged.DisplayName, merged.NormalisedName);
+        }
 
+        // And everything the folded record was itself carrying. A record that has already absorbed
+        // one is holding that record's number and old names, and a search only ever matches aliases
+        // on records it can see — a merged record is deactivated, so it is not one of them. Without
+        // this, the second merge in a chain would quietly take the first merge's number out of
+        // search, and the promise EX-01 makes about an old receipt would hold for one merge and not
+        // for two.
+        foreach (var carried in merged.Aliases)
+        {
+            Keep(carried.Kind, carried.Value, carried.NormalisedValue);
+        }
+
+        void Keep(CustomerAliasKind kind, string value, string normalisedValue)
+        {
+            // Two records can arrive at the same previous name — she was written under it at both
+            // counters — and a second row saying so would only make the record's history harder to
+            // read. Compared on the folded key rather than the value as written, because the key is
+            // what a search matches: two aliases that fold to one key are one alias to every reader.
+            if (_aliases.Exists(held =>
+                    held.Kind == kind
+                    && string.Equals(held.NormalisedValue, normalisedValue, StringComparison.Ordinal)))
+            {
+                return;
+            }
+
+            _aliases.Add(CustomerAlias.Record(ids.NewId(), Id, kind, value, normalisedValue, now, by));
             aliasesRecorded++;
         }
 
@@ -545,14 +563,16 @@ public sealed class Customer
 /// <remarks>
 /// Returned by <see cref="Customer.Absorb"/> so that the merge record can say what actually happened
 /// rather than what was asked for. The two counts are the difference: two records written under the
-/// same name record one alias and not two, and two records already visible to the same branches add
-/// no visibility at all. A reader comparing a merge record against the aggregate a year later needs
-/// to know which of those it was.
+/// same name record one alias and not two, a record that had already absorbed another brings its
+/// aliases with it, and two records already visible to the same branches add no visibility at all. A
+/// reader comparing a merge record against the aggregate a year later needs to know which of those it
+/// was, and cannot re-derive it once a later correction has moved the aggregate on.
 /// </remarks>
 /// <param name="NumberAliasId">The alias now holding the merged customer number.</param>
 /// <param name="AliasesRecorded">
-/// How many aliases the survivor gained: one for the merged number, and a second for the merged
-/// record's display name where the two records were written under different names.
+/// How many aliases the survivor gained: one for the merged number, a second for the folded record's
+/// display name where the two were written under different names, and one more for each alias the
+/// folded record was itself carrying that the survivor did not already hold.
 /// </param>
 /// <param name="VisibilityBranchesAdded">
 /// How many branches gained sight of the survivor because they could see the merged record.

@@ -121,11 +121,28 @@ what "re-point" means and what it does not.
 | Nothing about either record | Nothing. A consumer that has never heard of either identifier does not have to care |
 
 Delivery is at least once, so re-pointing has to be safe on a second delivery: pointing a reference at a record it
-already names is the ordinary case, not an error. And there is no un-merge and no `customer-unmerged` event, so a
-consumer never needs a compensating path — but it may see a **chain**: A was merged into B, and B is later merged
-into C. Customers flattens its own pointers so a record's `mergedIntoCustomerId` is always one hop from a record
-that stands; a consumer that applies each event as it arrives ends in the same place, because re-pointing A→B and
-then B→C leaves A naming C.
+already names is the ordinary case, not an error. There is no un-merge and no `customer-unmerged` event, so a
+consumer never needs a compensating path.
+
+**A chain does not resolve itself, and this is the part to get right.** A is merged into B, and B is later merged
+into C. Those are two events with two *different* aggregates — B and C — so the per-aggregate ordering in section
+4.1 does not order them against each other at all, and with concurrent dispatchers the B→C event can be handled
+first. A consumer that only applied each event as it arrived would then re-point its B references to C, and
+afterwards re-point its A references to B: a live reference to a record that no longer stands, arrived at by
+following the contract exactly.
+
+So the last step of handling this event is not "re-point to `aggregateId`" but **"re-point to whichever record
+`aggregateId` resolves to now"**:
+
+```
+snapshot = ICustomerSnapshotQuery.GetAsync(aggregateId)
+target   = snapshot.mergedIntoCustomerId ?? aggregateId
+```
+
+One lookup is always enough. A merge flattens every pointer that named the record it is folding in, inside the same
+transaction, so a stored `mergedIntoCustomerId` never names a record that has itself been merged. This is the same
+rule section 4.1 already states in general — the read contract is the authority on current state, not the order
+events arrived in — and the merge is simply the case where ignoring it costs the most.
 
 ## 5. Adding an event
 

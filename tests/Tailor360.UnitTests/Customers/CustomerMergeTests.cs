@@ -17,8 +17,6 @@ namespace Tailor360.UnitTests.Customers;
 [Trait("Category", "Unit")]
 public sealed class CustomerMergeTests
 {
-    private static readonly Guid NumberAlias = CustomersTestData.Id("alias-number");
-    private static readonly Guid NameAlias = CustomersTestData.Id("alias-name");
     private static readonly Guid MergeId = CustomersTestData.Id("merge");
     private static readonly Guid EventId = CustomersTestData.Id("event");
 
@@ -29,7 +27,7 @@ public sealed class CustomerMergeTests
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
         var later = CustomersTestData.Now.AddDays(3);
 
-        var absorbed = survivor.Absorb(merged, NumberAlias, NameAlias, later, CustomersTestData.Actor);
+        var absorbed = survivor.Absorb(merged, new CountingIds(), later, CustomersTestData.Actor);
 
         absorbed.IsSuccess.ShouldBeTrue();
 
@@ -56,12 +54,11 @@ public sealed class CustomerMergeTests
         var survivor = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
 
-        survivor.Absorb(merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor)
+        survivor.Absorb(merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
             .IsSuccess.ShouldBeTrue();
 
         var alias = survivor.Aliases.ShouldHaveSingleItem();
 
-        alias.Id.ShouldBe(NumberAlias);
         alias.Kind.ShouldBe(CustomerAliasKind.MergedCustomerNumber);
         alias.Value.ShouldBe("C-MDU01-000917");
         alias.NormalisedValue.ShouldBe(CustomerNameNormaliser.Normalise("C-MDU01-000917"));
@@ -76,13 +73,12 @@ public sealed class CustomerMergeTests
         var merged = CustomersTestData.Registered("Kavitha Ramanathan", "90000 21174", "C-MDU01-000917");
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.Value.AliasesRecorded.ShouldBe(2);
 
         var name = survivor.Aliases.Single(alias => alias.Kind is CustomerAliasKind.PreviousName);
 
-        name.Id.ShouldBe(NameAlias);
         name.Value.ShouldBe("Kavitha Ramanathan");
         name.NormalisedValue.ShouldBe(merged.NormalisedName);
     }
@@ -94,7 +90,7 @@ public sealed class CustomerMergeTests
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.Value.AliasesRecorded.ShouldBe(1);
         survivor.Aliases.ShouldAllBe(alias => alias.Kind == CustomerAliasKind.MergedCustomerNumber);
@@ -111,7 +107,7 @@ public sealed class CustomerMergeTests
             owningBranchId: CustomersTestData.OtherBranch);
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.Value.VisibilityBranchesAdded.ShouldBe(1);
         survivor.IsVisibleTo(CustomersTestData.OtherBranch).ShouldBeTrue();
@@ -125,7 +121,7 @@ public sealed class CustomerMergeTests
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000002");
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.Value.VisibilityBranchesAdded.ShouldBe(0);
         survivor.Visibility.Count.ShouldBe(1);
@@ -137,7 +133,7 @@ public sealed class CustomerMergeTests
         var customer = CustomersTestData.Registered();
 
         var absorbed = customer.Absorb(
-            customer, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            customer, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.IsFailure.ShouldBeTrue();
         absorbed.Error.Code.ShouldBe("customers.cannot-merge-into-itself");
@@ -152,7 +148,7 @@ public sealed class CustomerMergeTests
             organisationId: CustomersTestData.Id("another-organisation"));
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.IsFailure.ShouldBeTrue();
         absorbed.Error.Code.ShouldBe("customers.cannot-merge-across-organisations");
@@ -167,11 +163,11 @@ public sealed class CustomerMergeTests
         var second = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
         var third = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-TRY01-000004");
 
-        first.Absorb(second, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor)
+        first.Absorb(second, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
             .IsSuccess.ShouldBeTrue();
 
         var absorbed = second.Absorb(
-            third, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            third, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.IsFailure.ShouldBeTrue();
         absorbed.Error.Code.ShouldBe("customers.merge-target-is-merged");
@@ -184,11 +180,11 @@ public sealed class CustomerMergeTests
         var second = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
         var third = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-TRY01-000004");
 
-        first.Absorb(second, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor)
+        first.Absorb(second, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
             .IsSuccess.ShouldBeTrue();
 
         var absorbed = third.Absorb(
-            second, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            second, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.IsFailure.ShouldBeTrue();
         absorbed.Error.Code.ShouldBe("customers.already-merged");
@@ -205,49 +201,71 @@ public sealed class CustomerMergeTests
         survivor.Deactivate(CustomersTestData.Now, CustomersTestData.Actor).IsSuccess.ShouldBeTrue();
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.IsFailure.ShouldBeTrue();
         absorbed.Error.Code.ShouldBe("customers.status-transition-not-allowed");
     }
 
     [Fact]
-    public void AMergeWithoutAnIdentifierForTheNumberAliasIsRefused()
+    public void TheSurvivorTakesOverEveryAliasTheFoldedRecordWasCarrying()
     {
-        var survivor = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
-        var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
+        // A merged into B, then B merged into C. A's number lives on B as an alias, and a search only
+        // matches aliases on records it can see — B is deactivated, so it is not one of them. Without
+        // carrying them over, the second merge would silently take A's number out of search and the
+        // promise EX-01 makes about an old receipt would hold for one merge and not for two.
+        var a = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
+        var b = CustomersTestData.Registered("Kavitha Ramanathan", "90000 21174", "C-MDU01-000917");
+        var c = CustomersTestData.Registered("Kavitha R", "90000 21174", "C-TRY01-000004");
 
-        var absorbed = survivor.Absorb(
-            merged, Guid.Empty, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+        b.Absorb(a, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
+            .IsSuccess.ShouldBeTrue();
 
-        absorbed.IsFailure.ShouldBeTrue();
-        absorbed.Error.Code.ShouldBe("customers.value-required");
-        merged.IsMerged.ShouldBeFalse();
+        var second = c.Absorb(b, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
+
+        second.IsSuccess.ShouldBeTrue();
+
+        var numbers = c.Aliases
+            .Where(alias => alias.Kind is CustomerAliasKind.MergedCustomerNumber)
+            .Select(alias => alias.Value)
+            .ToList();
+
+        numbers.ShouldBe(["C-MDU01-000917", "C-CBE01-000001"], ignoreOrder: true);
+
+        // Both names too: B's own, and A's, which B was holding.
+        c.Aliases
+            .Where(alias => alias.Kind is CustomerAliasKind.PreviousName)
+            .Select(alias => alias.Value)
+            .ShouldBe(["Kavitha Ramanathan", "Kavitha Raman"], ignoreOrder: true);
+
+        // Two of its own plus two carried.
+        second.Value.AliasesRecorded.ShouldBe(4);
     }
 
     [Fact]
-    public void AMergeOfTwoDifferentlyNamedRecordsNeedsAnIdentifierForTheNameAlias()
+    public void AnAliasTheSurvivorAlreadyHoldsIsNotRecordedTwice()
     {
-        var survivor = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
-        var merged = CustomersTestData.Registered("Kavitha Ramanathan", "90000 21174", "C-MDU01-000917");
+        // Two records can arrive at the same previous name — she was written under it at both
+        // counters — and a second row saying so would only make the record's history harder to read.
+        var survivor = CustomersTestData.Registered("Kavitha Sundaram", "90000 21174", "C-CBE01-000001");
+        var first = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
+        var second = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-TRY01-000004");
+
+        survivor.Absorb(first, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
+            .IsSuccess.ShouldBeTrue();
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, Guid.Empty, CustomersTestData.Now, CustomersTestData.Actor);
-
-        absorbed.IsFailure.ShouldBeTrue();
-        absorbed.Error.Code.ShouldBe("customers.value-required");
-    }
-
-    [Fact]
-    public void AMergeOfTwoIdenticallyNamedRecordsDoesNotNeedOne()
-    {
-        var survivor = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
-        var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
-
-        var absorbed = survivor.Absorb(
-            merged, NumberAlias, Guid.Empty, CustomersTestData.Now, CustomersTestData.Actor);
+            second, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         absorbed.IsSuccess.ShouldBeTrue();
+
+        survivor.Aliases
+            .Count(alias => alias.Kind is CustomerAliasKind.PreviousName
+                && alias.Value == "Kavitha Raman")
+            .ShouldBe(1);
+
+        // Only the second record's number: its previous name was one the survivor already held.
+        absorbed.Value.AliasesRecorded.ShouldBe(1);
     }
 
     [Fact]
@@ -258,7 +276,7 @@ public sealed class CustomerMergeTests
         var survivor = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
 
-        survivor.Absorb(merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor)
+        survivor.Absorb(merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
             .IsSuccess.ShouldBeTrue();
 
         var reactivated = merged.Reactivate(CustomersTestData.Now, CustomersTestData.Actor);
@@ -274,7 +292,7 @@ public sealed class CustomerMergeTests
         var survivor = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-CBE01-000001");
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
 
-        survivor.Absorb(merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor)
+        survivor.Absorb(merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor)
             .IsSuccess.ShouldBeTrue();
 
         var corrected = merged.Correct(
@@ -299,7 +317,7 @@ public sealed class CustomerMergeTests
 
         merged.Deactivate(withdrawn, CustomersTestData.Actor).IsSuccess.ShouldBeTrue();
 
-        survivor.Absorb(merged, NumberAlias, NameAlias, mergedAt, CustomersTestData.Actor)
+        survivor.Absorb(merged, new CountingIds(), mergedAt, CustomersTestData.Actor)
             .IsSuccess.ShouldBeTrue();
 
         merged.DeactivatedAt.ShouldBe(withdrawn);
@@ -315,7 +333,7 @@ public sealed class CustomerMergeTests
             owningBranchId: CustomersTestData.OtherBranch);
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         var record = CustomerMerge.Record(
             MergeId,
@@ -333,7 +351,8 @@ public sealed class CustomerMergeTests
         record.Value.SurvivorCustomerId.ShouldBe(survivor.Id);
         record.Value.MergedCustomerId.ShouldBe(merged.Id);
         record.Value.MergedCustomerNumber.ShouldBe("C-MDU01-000917");
-        record.Value.NumberAliasId.ShouldBe(NumberAlias);
+        record.Value.NumberAliasId.ShouldBe(
+            survivor.Aliases.Single(alias => alias.Kind is CustomerAliasKind.MergedCustomerNumber).Id);
         record.Value.AliasesRecorded.ShouldBe(2);
         record.Value.VisibilityBranchesAdded.ShouldBe(1);
         record.Value.EventId.ShouldBe(EventId);
@@ -443,7 +462,7 @@ public sealed class CustomerMergeTests
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         Record(Guid.Empty, CustomersTestData.Organisation).Error.Code.ShouldBe("customers.value-required");
         Record(MergeId, Guid.Empty).Error.Code.ShouldBe("customers.value-required");
@@ -493,7 +512,7 @@ public sealed class CustomerMergeTests
         var merged = CustomersTestData.Registered("Kavitha Raman", "90000 21174", "C-MDU01-000917");
 
         var absorbed = survivor.Absorb(
-            merged, NumberAlias, NameAlias, CustomersTestData.Now, CustomersTestData.Actor);
+            merged, new CountingIds(), CustomersTestData.Now, CustomersTestData.Actor);
 
         return CustomerMerge.Record(
             MergeId,
