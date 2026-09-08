@@ -32,6 +32,20 @@ re-typed one. A breaking change publishes the new major **alongside** the old on
 subscribers migrate within it. Two majors of the same event are two entries in the table above, two schemas and two
 records.
 
+Two schema rules follow from that, and the contract tier enforces both:
+
+- **`additionalProperties` is `true`.** A closed schema would make every additive change breaking — a subscriber
+  validating against the copy it fetched before the field existed would reject the first payload carrying it. The
+  robustness a version policy assumes has to be written into the schema, not just into the policy.
+- **`required` lists the fields present when the major was published**, and a field added within it is optional
+  **forever**. A dead-lettered message replayed months later (`OutboxAdministration.ReplayAsync`) carries the
+  payload as it was written, so requiring a field added after that would reject a message this system really does
+  emit.
+
+The test can prove the first rule and half of the second — it refuses a schema that requires a property the event
+does not publish, and one that requires nothing at all — but it cannot know which fields existed a year ago. That
+half is a reviewer reading the diff against this section.
+
 ## 3. What a payload may carry
 
 Section 5.5 of `conventions.md` admits **identifiers, codes, statuses, timestamps, amounts and branch codes only**,
@@ -60,10 +74,34 @@ A subscriber that genuinely needs content the payload withholds is a change to *
 | Property | What holds |
 | --- | --- |
 | Atomicity | The event and the change that produced it are one save on one connection, in the module's own schema (issue #77). A consumer never sees an event for work that rolled back |
-| Ordering | Preserved **per aggregate**. The three events here use the **customer** as the aggregate, so a grant cannot reach a consumer after the withdrawal that revoked it |
+| Ordering | Preserved **per aggregate**, over messages already committed — see section 4.1, which is the limit |
 | Delivery | At least once. A consumer de-duplicates on `eventId`, and the dispatcher's inbox row makes the *effect* at most once for a handler that stages its writes |
 | Encoding | `camelCase` property names; an enumeration goes out as its **name**, not its ordinal (`OutboxPayload.SerializerOptions`) |
 | Instants | `date-time`, always UTC |
+
+### 4.1 What per-aggregate ordering does and does not promise
+
+**It promises** that no number of dispatchers reorders one aggregate's committed messages. The claim excludes any
+message whose aggregate has an older unprocessed one, so at most one is ever in flight per aggregate and they go
+out in `occurredAt`, then `id` order.
+
+**It does not serialise the producers**, and that is the part to know before relying on it. Each writer stamps
+`occurredAt` before it saves, and nothing locks the aggregate in between, so two counters answering for the same
+customer at once can commit in the opposite order to their timestamps. The dispatcher then delivers the one that
+committed first — it cannot rank a row it cannot yet see — and the earlier-stamped message follows it. The window
+is the length of the slower transaction.
+
+So a consumer:
+
+- **de-duplicates on `eventId`**, because delivery is at least once anyway;
+- **treats the read contract as the authority on current state** rather than reconstructing it from the order
+  events arrived in. `data-classification.md` section 5.3 already requires this of the consumer that matters
+  ("Notifications reads it through `IConsentQuery` and never copies it"), and it is the same reason these payloads
+  are thin.
+
+Closing the gap means serialising the writers per aggregate — taking a row lock on the customer for the length of
+the write — which is a change to a module's concurrency model, not to an event. It is worth doing for an aggregate
+whose consumers must apply events in order; none of the three here is one.
 
 ## 5. Adding an event
 
@@ -73,5 +111,6 @@ A subscriber that genuinely needs content the payload withholds is a change to *
    (`ICustomersEventPublisher` and its equivalents) — never `IEventPublisher` directly, which is shared.
 3. Add `<name>.schema.json` and `<name>.example.json` here, and a row to the table in section 1.
 4. Run the contract tier. `IntegrationEventTests` checks the name's shape, that the name and `schemaVersion` agree,
-   that the schema's properties match the record's serialised properties exactly, that the example matches the
-   schema, and that no field name in the payload looks like personal data.
+   that the schema's properties match the record's serialised properties exactly, that the schema stays open and
+   requires only fields the event publishes, that the example matches the schema, and that no field name in the
+   payload looks like personal data.

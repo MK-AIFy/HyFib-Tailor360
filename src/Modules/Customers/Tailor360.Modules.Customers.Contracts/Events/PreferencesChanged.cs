@@ -28,6 +28,14 @@ namespace Tailor360.Modules.Customers.Contracts.Events;
 /// same fact to a consumer — what she accepts is now different from what the consumer last read — and
 /// splitting them would only invite a consumer to handle one.
 /// </para>
+/// <para>
+/// Ordering carries the same limit as the consent events, described on <see cref="ConsentRecorded"/>:
+/// the dispatcher never reorders committed messages for one aggregate, but nothing serialises two
+/// counters replacing the same customer's preference at once, so the later-stamped change can be
+/// delivered first. It costs this event nothing — it carries no state to apply in order, and a
+/// consumer re-reads <see cref="ICommunicationPreferenceQuery"/> either way — which is a second reason
+/// the payload is a notification rather than a copy.
+/// </para>
 /// </remarks>
 /// <param name="EventId">Identity of this occurrence.</param>
 /// <param name="OccurredAt">When the preference was recorded or replaced, in UTC.</param>

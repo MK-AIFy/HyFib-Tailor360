@@ -31,10 +31,27 @@ namespace Tailor360.Modules.Customers.Contracts.Events;
 /// for the same reason, that <c>ConsentHandler</c> already makes between its two audit actions.
 /// </para>
 /// <para>
-/// <strong>The aggregate is the customer</strong>, not the consent record, because the dispatcher
-/// preserves publication order per aggregate and the order that matters is hers: a grant followed by a
-/// withdrawal must never reach a consumer the other way round. Per-record ordering would guarantee
-/// nothing, every record being its own aggregate of exactly one event.
+/// <strong>The aggregate is the customer</strong>, not the consent record. The dispatcher preserves
+/// publication order per aggregate, and the order that matters is hers; per-record ordering would
+/// guarantee nothing, every record being its own aggregate of exactly one event.
+/// </para>
+/// <para>
+/// <strong>That ordering has a limit worth knowing before you rely on it.</strong> It holds over
+/// messages that are already committed: the claim excludes any message whose aggregate has an older
+/// unprocessed one, so no number of dispatchers can reorder them. It does <em>not</em> serialise the
+/// writers. Two counters answering for the same customer at once each stamp <c>OccurredAt</c> before
+/// they save, so the one that stamps later can commit first, be delivered, and be followed by the
+/// earlier-stamped one — the dispatcher cannot rank a row it cannot yet see. Nothing in this module
+/// locks a customer while an answer is recorded.
+/// </para>
+/// <para>
+/// So a consumer de-duplicates on <see cref="IIntegrationEvent.EventId"/> and treats
+/// <see cref="IConsentQuery"/> as the authority on where she stands, rather than reconstructing it
+/// from the order events arrived in. That is what <c>docs/nfr/data-classification.md</c> section 5.3
+/// already requires of the consumer that matters — "Notifications reads it through
+/// <c>IConsentQuery</c> and never copies it" — and it is the same reason these payloads are thin.
+/// Closing the gap properly means serialising the writers per customer, which is a change to the
+/// module's concurrency model rather than to these types.
 /// </para>
 /// </remarks>
 /// <param name="EventId">Identity of this occurrence.</param>

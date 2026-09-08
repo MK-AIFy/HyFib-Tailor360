@@ -152,20 +152,40 @@ public sealed class IntegrationEventTests
 
     /// <summary>
     /// The schema describes exactly the properties the event serialises — no more and no fewer — and
-    /// requires all of them.
+    /// stays compatible with the additive changes a major version is allowed.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the link that keeps the documentation honest. A field added to the record fails until
-    /// the schema describes it; a schema written for a field nobody publishes fails just as loudly.
-    /// The property names come from the real encoder rather than from a convention restated here, so
-    /// changing the encoder fails this test rather than silently invalidating every schema.
+    /// The exact-set match is the link that keeps the documentation honest. A field added to the
+    /// record fails until the schema describes it; a schema written for a field nobody publishes fails
+    /// just as loudly. The property names come from the real encoder rather than from a convention
+    /// restated here, so changing the encoder fails this test rather than silently invalidating every
+    /// schema.
     /// </para>
     /// <para>
-    /// Every property is required because within a major version only additive changes are permitted
-    /// and a producer always writes the whole record: an optional field in the schema would describe a
-    /// payload this system cannot emit, and would let a consumer's absent-field branch go untested
-    /// until a version bump it was never told about.
+    /// <strong><c>additionalProperties</c> must be <c>true</c>, and the reason is
+    /// <c>conventions.md</c> section 5.5:</strong> within a major version only additive changes are
+    /// permitted, which is a promise that adding an optional field does <em>not</em> break a
+    /// subscriber. A published schema that closed the object would break exactly that — every
+    /// subscriber validating against the schema it fetched last year would reject the first payload
+    /// carrying a new field, and the additive path the convention grants would be unusable. Closing
+    /// the object also buys this suite nothing: the exact-set match above is what catches a field
+    /// added to the record without being documented.
+    /// </para>
+    /// <para>
+    /// <strong><c>required</c> is a subset, not the whole set</strong>, for the mirror of the same
+    /// reason. A dead-lettered message replayed months later (<c>OutboxAdministration.ReplayAsync</c>)
+    /// carries the payload as it was written, so a schema that required a field added after it was
+    /// written would reject a message this system really does emit. What belongs in <c>required</c> is
+    /// the set of fields present when the major version was published; a field added within it is
+    /// optional forever.
+    /// </para>
+    /// <para>
+    /// This test cannot check that last rule, because a type says nothing about which of its fields
+    /// existed a year ago. What it does check is the case that is always wrong — requiring a field the
+    /// event does not publish — and that something is required, so a schema cannot quietly become a
+    /// shape that accepts an empty object. The rest is a reviewer reading the diff, and
+    /// <c>docs/integration/events/README.md</c> section 2 states the rule they are reading against.
     /// </para>
     /// </remarks>
     [Fact]
@@ -189,23 +209,25 @@ public sealed class IntegrationEventTests
             schema.TryGetProperty("required", out var required).ShouldBeTrue(
                 $"{published.EventType}.schema.json declares no 'required'.");
 
-            required.EnumerateArray()
-                .Select(element => element.GetString()!)
-                .OrderBy(name => name, StringComparer.Ordinal)
-                .ShouldBe(
-                    published.SerialisedProperties.OrderBy(name => name, StringComparer.Ordinal),
-                    $"{published.EventType}.schema.json makes some properties optional. A producer "
-                    + "writes the whole record, so an optional field describes a payload this system "
-                    + "cannot emit.");
+            var mandated = required.EnumerateArray().Select(element => element.GetString()!).ToList();
+
+            mandated.ShouldNotBeEmpty(
+                $"{published.EventType}.schema.json requires nothing, so it would accept an empty "
+                + "object as a valid event.");
+
+            mandated.Except(published.SerialisedProperties, StringComparer.Ordinal).ShouldBeEmpty(
+                $"{published.EventType}.schema.json requires a property {published.Type.Name} does "
+                + "not publish, so no payload this system emits can satisfy it.");
 
             schema.TryGetProperty("additionalProperties", out var additional).ShouldBeTrue(
                 $"{published.EventType}.schema.json does not say whether extra properties are "
                 + "allowed.");
 
-            additional.GetBoolean().ShouldBeFalse(
-                $"{published.EventType}.schema.json permits additional properties, so it would "
-                + "accept a payload carrying anything at all — including a field somebody added "
-                + "without adding it here.");
+            additional.GetBoolean().ShouldBeTrue(
+                $"{published.EventType}.schema.json closes the object. conventions.md section 5.5 "
+                + "permits additive changes within a major version, and a closed schema makes every "
+                + "one of them breaking: a subscriber validating against the schema it fetched before "
+                + "the field was added would reject the first payload that carries it.");
         }
     }
 

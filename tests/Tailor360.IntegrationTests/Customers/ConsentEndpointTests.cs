@@ -490,6 +490,8 @@ public sealed class ConsentEndpointTests(WebApplicationFixture fixture)
             ["customers.consent-recorded.v1", "customers.consent-withdrawn.v1"],
             "The grant and the withdrawal are two events, in the order she gave them.");
 
+        messages.Select(row => row.SchemaVersion).ShouldAllBe(version => version == 1);
+
         var withdrawal = JsonDocument
             .Parse(messages[1].Payload)
             .RootElement;
@@ -498,8 +500,10 @@ public sealed class ConsentEndpointTests(WebApplicationFixture fixture)
         withdrawal.TryGetProperty("status", out _).ShouldBeFalse();
         withdrawal.GetProperty("purposeKey").GetString().ShouldBe(purpose);
 
-        // Both are the customer's, so the dispatcher cannot deliver the grant after the withdrawal
-        // that revoked it.
+        // Both are the customer's, which is what makes the dispatcher rank them against each other at
+        // all — it claims only the oldest undelivered message of an aggregate. That ordering holds
+        // over committed rows and does not serialise two counters answering at once; the limit is in
+        // docs/integration/events/README.md section 4.1, and these two answers are sequential.
         messages.Select(row => row.AggregateId).Distinct().ShouldHaveSingleItem().ShouldBe(customerId);
     }
 

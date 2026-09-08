@@ -4,7 +4,8 @@
   "title": "customers.preferences-changed.v1",
   "description": "A customer's communication preference was recorded or replaced. The payload carries no preference — channels, language and quiet hours are Personal under data-classification.md section 5.3, whose consumer 'reads it through IConsentQuery and never copies it', and an outbox row is a copy. The event says the answer changed; the reader asks ICommunicationPreferenceQuery what it now is.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
   "required": [
     "eventId",
     "occurredAt",
@@ -28,7 +29,7 @@
     "aggregateId": {
       "type": "string",
       "format": "uuid",
-      "description": "The customer. Ordering is preserved per aggregate, so two changes cannot be seen out of order."
+      "description": "The customer. The dispatcher never reorders this customer's committed messages, but it cannot serialise two counters changing the preference at once. This event carries no state to apply in order, so it costs nothing here."
     },
     "organisationId": {
       "type": "string",

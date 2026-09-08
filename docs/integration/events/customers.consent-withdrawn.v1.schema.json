@@ -4,7 +4,8 @@
   "title": "customers.consent-withdrawn.v1",
   "description": "A customer withdrew consent she had given. Separate from customers.consent-recorded.v1 because this is the one a consumer must act on: data-classification.md section 5.3 says the record exists to honour a withdrawal immediately. There is no status field — the event type is the status.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
   "required": [
     "eventId",
     "occurredAt",
@@ -31,7 +32,7 @@
     "aggregateId": {
       "type": "string",
       "format": "uuid",
-      "description": "The customer. Ordering is preserved per aggregate, so this cannot arrive before the grant it revokes."
+      "description": "The customer. The dispatcher never reorders this customer's committed messages, but it cannot serialise two counters answering at once: see the ordering row in docs/integration/events/README.md before relying on the order two events arrived in."
     },
     "organisationId": {
       "type": "string",
