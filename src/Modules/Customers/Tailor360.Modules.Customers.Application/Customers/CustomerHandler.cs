@@ -112,8 +112,12 @@ public sealed class CustomerHandler(
         }
 
         var subject = Subject(command.Details);
+
+        // The branch the record is being created in. It is the branch the answer is about: "is this
+        // record already on my screen?" is what decides whether the counter opens it or creates a
+        // second one, and a card that always said no was the reason EX-01 exists.
         var candidates = await directory.FindDuplicatesAsync(
-            command.OrganisationId, subject, exceptCustomerId: null, cancellationToken);
+            command.OrganisationId, subject, [command.BranchId], exceptCustomerId: null, cancellationToken);
 
         // Only a candidate somebody would want to read stops the create. A weak resemblance is shown
         // on the screen beside the form and never blocks: a warning that fires on every common name
@@ -393,13 +397,20 @@ public sealed class CustomerHandler(
     /// </remarks>
     /// <param name="customerId">The record being examined.</param>
     /// <param name="organisationId">The caller's organisation.</param>
+    /// <param name="callerBranchIds">
+    /// The branches the caller is assigned to, so a candidate they can already see is not offered as
+    /// though it were somebody else's record.
+    /// </param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The candidates, strongest first, or the reason the record could not be read.</returns>
     public async Task<Result<IReadOnlyList<DuplicateCandidate>>> DuplicatesAsync(
         Guid customerId,
         Guid organisationId,
+        IReadOnlyCollection<Guid> callerBranchIds,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(callerBranchIds);
+
         var found = await LoadAsync(customerId, organisationId, cancellationToken);
 
         if (found.IsFailure)
@@ -418,7 +429,7 @@ public sealed class CustomerHandler(
         }
 
         return Result.Success(await directory.FindDuplicatesAsync(
-            organisationId, SubjectOf(customer), customer.Id, cancellationToken));
+            organisationId, SubjectOf(customer), callerBranchIds, customer.Id, cancellationToken));
     }
 
     /// <summary>
@@ -540,7 +551,7 @@ public sealed class CustomerHandler(
         var mergedBefore = CustomerSnapshot.Of(merged);
 
         var now = clock.UtcNow;
-        var absorbed = survivor.Absorb(merged, ids.NewId(), ids.NewId(), now, command.By);
+        var absorbed = survivor.Absorb(merged, ids, now, command.By);
 
         if (absorbed.IsFailure)
         {

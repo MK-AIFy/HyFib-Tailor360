@@ -102,10 +102,14 @@ public sealed class CustomerDirectory(CustomersDbContext context) : ICustomerDir
     public async Task<IReadOnlyList<DuplicateCandidate>> FindDuplicatesAsync(
         Guid organisationId,
         DuplicateSubject subject,
+        IReadOnlyCollection<Guid> callerBranchIds,
         Guid? exceptCustomerId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(subject);
+        ArgumentNullException.ThrowIfNull(callerBranchIds);
+
+        var callerBranches = callerBranchIds.ToHashSet();
 
         // Everything that could possibly resemble the record, fetched once and scored in memory. The
         // alternative — scoring in SQL — would put the rules somewhere they cannot be unit-tested and
@@ -143,9 +147,12 @@ public sealed class CustomerDirectory(CustomersDbContext context) : ICustomerDir
                     customer.OwningBranchId,
                     customer.Status,
                     customer.UpdatedAt,
-                    // A candidate is always shown to whoever is about to create a duplicate of it, so
-                    // there is no branch to compare against: the whole point is that they cannot see it.
-                    false),
+                    // Answered the same way the search answers it. A candidate the caller can already
+                    // see is one they can open; saying "not yours" about every candidate would have a
+                    // client offer to open a record that is already in front of them, and would
+                    // misdescribe the very case — a record visible here — that a merge screen exists
+                    // to resolve.
+                    customer.Visibility.Any(visibility => callerBranches.Contains(visibility.BranchId))),
                 customer.NormalisedName,
                 customer.AlternatePhoneE164,
                 customer.Locality,

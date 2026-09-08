@@ -38,6 +38,12 @@ public interface ICustomerDirectory
     /// </remarks>
     /// <param name="organisationId">The organisation.</param>
     /// <param name="subject">The record being created, or the one being examined.</param>
+    /// <param name="callerBranchIds">
+    /// The branches whose sight of a candidate the card should report. A candidate the caller can
+    /// already see is a record they can open; one they cannot is a masked disambiguation card. The
+    /// search endpoint answers the same question the same way, and a card that always said "not
+    /// yours" would have a client offering to open a record that is already on the screen.
+    /// </param>
     /// <param name="exceptCustomerId">
     /// A record to leave out — the subject itself, when the subject already exists. Every record is a
     /// perfect match for itself, so asking about an existing customer without this would return it at
@@ -48,6 +54,7 @@ public interface ICustomerDirectory
     Task<IReadOnlyList<DuplicateCandidate>> FindDuplicatesAsync(
         Guid organisationId,
         DuplicateSubject subject,
+        IReadOnlyCollection<Guid> callerBranchIds,
         Guid? exceptCustomerId = null,
         CancellationToken cancellationToken = default);
 }

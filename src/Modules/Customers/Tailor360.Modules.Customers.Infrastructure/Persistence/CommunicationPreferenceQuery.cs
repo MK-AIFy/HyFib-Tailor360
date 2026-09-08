@@ -33,25 +33,30 @@ public sealed class CommunicationPreferenceQuery(CustomersDbContext context)
         Guid customerId,
         CancellationToken cancellationToken = default)
     {
+        // The instruction is the surviving record's, and it is reported under the surviving record's
+        // identifier: a preference evaluated at send time is the only one that is current, and after a
+        // merge the current one belongs to the record that survived.
+        var subject = await SurvivorOfAsync(customerId, cancellationToken);
+
         var preference = await context.CommunicationPreferences
             .AsNoTracking()
-            .FirstOrDefaultAsync(entry => entry.CustomerId == customerId, cancellationToken);
+            .FirstOrDefaultAsync(entry => entry.CustomerId == subject, cancellationToken);
 
         if (preference is null)
         {
             var language = await context.Customers
                 .AsNoTracking()
-                .Where(customer => customer.Id == customerId)
+                .Where(customer => customer.Id == subject)
                 .Select(customer => customer.Language)
                 .FirstOrDefaultAsync(cancellationToken);
 
             return CommunicationPreference.NotRecorded(
-                customerId,
+                subject,
                 string.IsNullOrEmpty(language) ? CustomerDetails.DefaultLanguage : language);
         }
 
         return new CommunicationPreference(
-            customerId,
+            subject,
             HasBeenRecorded: true,
             [.. preference.AllowedChannels.Select(ChannelOf).OfType<MessageChannel>()],
             preference.Language,
@@ -69,6 +74,39 @@ public sealed class CommunicationPreferenceQuery(CustomersDbContext context)
     /// the two enumerations carry the same members, and the domain refuses an undefined one — and a
     /// channel nothing can name is not one a message should be sent on.
     /// </remarks>
+    /// <summary>
+    /// The record that answers for this customer today.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A caller can be holding an identifier from before a merge — a queued notification, an order
+    /// taken last year — and <c>docs/prd/exceptions.md</c> EX-01 is explicit that after a merge "the
+    /// survivor's consent and channel preferences govern every later message". Reading the folded
+    /// record's answer would honour a grant the person has since withdrawn on the record that
+    /// survived, which is the one failure this whole area exists to prevent, and it would do so
+    /// before any merge handler had a chance to re-point anything.
+    /// </para>
+    /// <para>
+    /// One hop is always enough. A merge flattens every pointer that named the record it is folding
+    /// in, so a stored pointer always names a record that stands.
+    /// </para>
+    /// </remarks>
+    /// <param name="customerId">The identifier the caller supplied.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The surviving record, or the identifier as supplied when it stands on its own.</returns>
+    private async Task<Guid> SurvivorOfAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        var mergedInto = await context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.Id == customerId)
+            .Select(customer => customer.MergedIntoCustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Null for a record that stands and for one that does not exist, and the caller's own
+        // identifier is the right answer to both.
+        return mergedInto ?? customerId;
+    }
+
     private static MessageChannel? ChannelOf(CommunicationChannel channel) => channel switch
     {
         CommunicationChannel.Sms => MessageChannel.Sms,

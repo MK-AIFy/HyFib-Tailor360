@@ -48,9 +48,14 @@ public sealed class ConsentQuery(CustomersDbContext context) : IConsentQuery
             return ConsentState.NeverAsked(customerId, key);
         }
 
+        // The answer is the surviving record's, and it is reported under the surviving record's
+        // identifier, so a consumer that de-duplicates on it cannot end up holding two answers for
+        // one person.
+        var subject = await SurvivorOfAsync(customerId, cancellationToken);
+
         var latest = await context.ConsentRecords
             .AsNoTracking()
-            .Where(record => record.CustomerId == customerId && record.PurposeKey == key)
+            .Where(record => record.CustomerId == subject && record.PurposeKey == key)
             .OrderByDescending(record => record.RecordedAt)
             .ThenByDescending(record => record.Id)
             .Select(record => new
@@ -64,9 +69,9 @@ public sealed class ConsentQuery(CustomersDbContext context) : IConsentQuery
             .FirstOrDefaultAsync(cancellationToken);
 
         return latest is null
-            ? ConsentState.NeverAsked(customerId, key)
+            ? ConsentState.NeverAsked(subject, key)
             : new ConsentState(
-                customerId,
+                subject,
                 key,
                 StatusOf(latest.Decision),
                 latest.WordingVersion,
@@ -86,6 +91,39 @@ public sealed class ConsentQuery(CustomersDbContext context) : IConsentQuery
     /// unreachable; it answers <see cref="ConsentStatus.NeverAsked"/> anyway, because a value nobody
     /// can interpret must not be the one that permits something.
     /// </remarks>
+    /// <summary>
+    /// The record that answers for this customer today.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A caller can be holding an identifier from before a merge — a queued notification, an order
+    /// taken last year — and <c>docs/prd/exceptions.md</c> EX-01 is explicit that after a merge "the
+    /// survivor's consent and channel preferences govern every later message". Reading the folded
+    /// record's answer would honour a grant the person has since withdrawn on the record that
+    /// survived, which is the one failure this whole area exists to prevent, and it would do so
+    /// before any merge handler had a chance to re-point anything.
+    /// </para>
+    /// <para>
+    /// One hop is always enough. A merge flattens every pointer that named the record it is folding
+    /// in, so a stored pointer always names a record that stands.
+    /// </para>
+    /// </remarks>
+    /// <param name="customerId">The identifier the caller supplied.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The surviving record, or the identifier as supplied when it stands on its own.</returns>
+    private async Task<Guid> SurvivorOfAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        var mergedInto = await context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.Id == customerId)
+            .Select(customer => customer.MergedIntoCustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Null for a record that stands and for one that does not exist, and the caller's own
+        // identifier is the right answer to both.
+        return mergedInto ?? customerId;
+    }
+
     private static ConsentStatus StatusOf(ConsentDecision decision) => decision switch
     {
         ConsentDecision.Granted => ConsentStatus.Granted,

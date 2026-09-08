@@ -398,7 +398,10 @@ public static class CustomerEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var result = await handler.DuplicatesAsync(
-                    customerId, caller.Context.OrganisationId, cancellationToken);
+                    customerId,
+                    caller.Context.OrganisationId,
+                    caller.AssignedBranches,
+                    cancellationToken);
 
                 if (result.IsFailure)
                 {
