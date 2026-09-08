@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Tailor360.Platform.Abstractions.Scheduling;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Contexts;
 
@@ -11,7 +12,7 @@ namespace Tailor360.Platform.Persistence.Scheduling;
 /// </summary>
 /// <param name="context">The platform context.</param>
 /// <param name="clock">The clock.</param>
-public sealed class JobLeaseService(PlatformDbContext context, IClock clock)
+public sealed class JobLeaseService(PlatformDbContext context, IClock clock) : IJobLease
 {
     /// <summary>
     /// Attempts to take the lease. Returns true when this instance may run the job. A lease that has

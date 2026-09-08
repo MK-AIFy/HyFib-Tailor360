@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Customers.Application.Customers;
 using Tailor360.Modules.Customers.Application.Options;
-using Tailor360.Platform.Persistence.Scheduling;
+using Tailor360.Platform.Abstractions.Scheduling;
 using Tailor360.Platform.Security.Background;
 
 namespace Tailor360.Worker.Jobs;
@@ -31,6 +31,12 @@ namespace Tailor360.Worker.Jobs;
 /// Under a lease, so that only one worker instance does the work when several are running, and bounded
 /// by <see cref="CustomerExportOptions.PurgeBatchSize"/>, so a long outage drains over several passes
 /// rather than one transaction over the whole backlog.
+/// </para>
+/// <para>
+/// The lease is taken through <see cref="IJobLease"/> rather than the concrete service, so this shell
+/// can be executed by a test. It matters more here than on a job that only moves rows: this one
+/// destroys copies of people's personal data, and "the loop kept running after a failed pass" and "the
+/// lease was released even when the work threw" are promises worth asserting rather than reading.
 /// </para>
 /// </remarks>
 /// <param name="scopeFactory">Opens the job's scope per run.</param>
@@ -78,7 +84,7 @@ public sealed class CustomerExportPurgeService(
         try
         {
             using var scope = scopeFactory.CreateSystemScope(typeof(CustomerExportPurgeService));
-            var leases = scope.Services.GetRequiredService<JobLeaseService>();
+            var leases = scope.Services.GetRequiredService<IJobLease>();
             var owner = options.Value.InstanceName;
 
             if (!await leases.TryAcquireAsync(JobName, owner, LeaseDuration, cancellationToken))
