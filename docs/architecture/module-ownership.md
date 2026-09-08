@@ -270,6 +270,14 @@ templates and the confirmed, immutable measurement versions the workshop works f
 **Publishes — integration events.** `customers.customer-created.v1`, `customers.customer-merged.v1`,
 `customers.customer-corrected.v1`, `customers.customer-deactivated.v1`, `customers.consent-recorded.v1`,
 `customers.consent-withdrawn.v1`, `customers.preferences-changed.v1`, `customers.measurement-version-confirmed.v1`.
+The three consent and preference events are built (#26), each with its JSON Schema and example under
+[`../integration/events/`](../integration/events/README.md). Their payloads are deliberately thin: consent records
+and communication preferences are **Personal** under
+[`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3, whose access row says the consuming
+module "reads it through `IConsentQuery` and never copies it" — and an outbox row is a copy that fans out to every
+registered handler. So the consent events carry the purpose, the outcome and the wording version and not the
+free-text source, and `customers.preferences-changed.v1` carries no preference at all: it says the answer changed,
+and the reader asks `ICommunicationPreferenceQuery` what it now is.
 
 **Publishes — read contracts.** `IConsentQuery`, `ICommunicationPreferenceQuery`, `ICustomerSnapshotQuery`, and an
 `ITimelineSource` implementation for the customer timeline. The first three are built. Each answers rather than

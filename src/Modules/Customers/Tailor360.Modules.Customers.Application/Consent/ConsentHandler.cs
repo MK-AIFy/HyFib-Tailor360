@@ -1,7 +1,10 @@
 using Tailor360.Modules.Customers.Application.Abstractions;
+using Tailor360.Modules.Customers.Contracts.Consent;
+using Tailor360.Modules.Customers.Contracts.Events;
 using Tailor360.Modules.Customers.Domain;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Platform.Abstractions.Auditing;
+using Tailor360.Platform.Abstractions.Events;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Abstractions.Time;
@@ -29,12 +32,14 @@ namespace Tailor360.Modules.Customers.Application.Consent;
 /// </remarks>
 /// <param name="consent">The consent register and record store.</param>
 /// <param name="customers">The record store, for the customer this is about.</param>
+/// <param name="events">This module's event publisher, over this module's outbox.</param>
 /// <param name="audit">The platform's audit writer.</param>
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
 public sealed class ConsentHandler(
     IConsentStore consent,
     ICustomerStore customers,
+    ICustomersEventPublisher events,
     IAuditWriter audit,
     IClock clock,
     IIdGenerator ids)
@@ -177,6 +182,12 @@ public sealed class ConsentHandler(
 
         consent.Add(recorded.Value);
 
+        // Published before the save, never after, and that is the whole point of #77: the publisher
+        // and the store share this module's context, so the outbox row and the consent record are one
+        // save on one connection. Publishing afterwards would be a second transaction, and a crash
+        // between them would commit an answer nobody was ever told about.
+        events.Publish(EventFor(recorded.Value));
+
         var saved = await consent.SaveChangesAsync(cancellationToken);
 
         if (saved.IsFailure)
@@ -198,6 +209,48 @@ public sealed class ConsentHandler(
 
         return Result.Success(answer);
     }
+
+    /// <summary>
+    /// The event one recorded answer publishes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A withdrawal gets <see cref="ConsentWithdrawn"/> and everything else gets
+    /// <see cref="ConsentRecorded"/>, so a consumer that must honour a withdrawal immediately
+    /// subscribes to exactly the fact it has to react to rather than to every answer with a filter it
+    /// can forget.
+    /// </para>
+    /// <para>
+    /// The aggregate is the customer, not the record: the dispatcher preserves order per aggregate,
+    /// and the order that matters is hers, so a grant cannot reach a consumer after the withdrawal
+    /// that revoked it.
+    /// </para>
+    /// </remarks>
+    /// <param name="record">The record just added to the unit of work.</param>
+    /// <returns>The event to publish beside it.</returns>
+    private IIntegrationEvent EventFor(ConsentRecord record)
+        => record.Decision is ConsentDecision.Withdrawn
+            ? new ConsentWithdrawn(
+                ids.NewId(),
+                record.RecordedAt,
+                record.CustomerId,
+                record.OrganisationId,
+                record.Id,
+                record.PurposeKey,
+                record.WordingVersion,
+                record.BranchId)
+            : new ConsentRecorded(
+                ids.NewId(),
+                record.RecordedAt,
+                record.CustomerId,
+                record.OrganisationId,
+                record.Id,
+                record.PurposeKey,
+                record.Decision is ConsentDecision.Granted
+                    ? ConsentStatus.Granted
+                    : ConsentStatus.Declined,
+                record.WordingVersion,
+                record.BranchId);
 
     private async Task<ConsentAnswer?> StandingAnswerAsync(
         Guid customerId,

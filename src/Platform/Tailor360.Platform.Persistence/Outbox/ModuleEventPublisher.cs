@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Tailor360.Platform.Abstractions.Events;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Persistence.Conventions;
@@ -67,9 +68,22 @@ public class ModuleEventPublisher<TContext>(
 /// How an integration event is written to and read from an outbox row.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Non-generic and shared, so that every module's publisher and the dispatcher that reads them all
 /// agree on one encoding. A payload written one way and read another would fail at the consumer, in
 /// the worker, long after the request that produced it.
+/// </para>
+/// <para>
+/// <strong>An enumeration goes out as its name, not its number.</strong>
+/// <c>docs/architecture/conventions.md</c> section 5.5 admits "identifiers, codes, statuses…" to a
+/// payload, and <c>"status": 1</c> is an ordinal rather than a status: it tells an operator reading a
+/// dead-lettered row nothing, and it silently re-points every stored payload the day somebody inserts
+/// a member. Names cost a few bytes and survive that. The converter is set here, once, rather than
+/// per module, because two modules encoding the same enumeration differently is the failure this class
+/// exists to prevent — and it is set now because the first events (issue #26) are the first payloads
+/// there are. Changing it later is a breaking wire change for every subscriber; changing it while
+/// every outbox is empty costs nothing.
+/// </para>
 /// </remarks>
 public static class OutboxPayload
 {
@@ -77,6 +91,7 @@ public static class OutboxPayload
     public static JsonSerializerOptions SerializerOptions { get; } = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false,
+        Converters = { new JsonStringEnumConverter() },
     };
 }
 
