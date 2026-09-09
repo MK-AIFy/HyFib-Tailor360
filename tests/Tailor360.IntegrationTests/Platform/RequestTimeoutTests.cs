@@ -60,12 +60,13 @@ public sealed class RequestTimeoutTests(CommandSafetyApplication application)
         // and so does the database round-trip each poll makes, which is the part that is easy to forget.
         // The margin is asserted rather than assumed: a future change to either number should fail here,
         // naming the reason, instead of surfacing as a 504 on a loaded machine that reads like a flake.
-        // Fifty milliseconds against two seconds is the same shape as five seconds against thirty.
+        // Fifty milliseconds against the two seconds this endpoint is given is the same shape as the
+        // five-second default against thirty.
         application.RequestOptions.DuplicateWaitBudget = TimeSpan.FromMilliseconds(50);
         application.RequestOptions.DuplicatePollInterval = TimeSpan.FromMilliseconds(25);
 
         application.RequestOptions.DuplicateWaitBudget
-            .ShouldBeLessThan(CommandSafetyApplication.FastTimeout / 4);
+            .ShouldBeLessThan(CommandSafetyApplication.SlowCommandTimeout / 4);
 
         try
         {
