@@ -72,6 +72,43 @@ describe('MeasurementField', () => {
     expect(onValueChange).toHaveBeenCalledWith(805)
   })
 
+  it('renders a centimetre field at the precision it declares, and steps by a whole one at nought', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    renderWithProviders(
+      <MeasurementField
+        centimetreDecimals={0}
+        displayUnit="cm"
+        label="Waist"
+        name="waist"
+        onValueChange={onValueChange}
+        value={800}
+      />,
+    )
+
+    // A half-centimetre step cannot be expressed at nought decimals, so this field steps by one.
+    expect(screen.getByLabelText('Waist')).toHaveValue('80')
+    await user.click(screen.getByRole('button', { name: 'Increase Waist' }))
+    expect(onValueChange).toHaveBeenCalledWith(810)
+  })
+
+  it('offers the coarser inch steps a field may declare', () => {
+    renderWithProviders(
+      <MeasurementField
+        displayUnit="in"
+        fractionStep={4}
+        label="Waist"
+        name="waist"
+        onValueChange={() => undefined}
+        value={374.65}
+      />,
+    )
+
+    // Quarters, which the client's types rejected until #100.
+    expect(screen.getByRole('radio', { name: '3/4' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '3/8' })).not.toBeInTheDocument()
+  })
+
   it('states the expected range in the unit on screen, before it is broken', () => {
     const centimetres = renderWithProviders(<Harness initial={800} unit="cm" />)
     expect(screen.getByLabelText('Waist')).toHaveAccessibleDescription(
