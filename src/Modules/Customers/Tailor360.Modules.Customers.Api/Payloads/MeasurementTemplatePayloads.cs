@@ -30,7 +30,7 @@ public sealed record TemplateReasonRequest(string? Reason);
 /// <param name="Name">The field key, or the design option-group code.</param>
 /// <param name="Operator">How it is compared: <c>IsAnyOf</c> or <c>Excludes</c>.</param>
 /// <param name="Values">The codes compared against.</param>
-public sealed record TemplateRuleClauseRequest(
+public sealed record TemplateRuleClause(
     string Scope,
     string Name,
     string Operator,
@@ -39,14 +39,14 @@ public sealed record TemplateRuleClauseRequest(
 /// <summary>When a field is shown.</summary>
 /// <param name="Effect">Whether matching hides or shows: <c>HiddenWhen</c> or <c>ShownWhen</c>.</param>
 /// <param name="AnyOf">The clauses, combined with <em>or</em>.</param>
-public sealed record TemplateRuleRequest(string Effect, IReadOnlyList<TemplateRuleClauseRequest> AnyOf);
+public sealed record TemplateRule(string Effect, IReadOnlyList<TemplateRuleClause> AnyOf);
 
 /// <summary>One choice a non-numeric field offers.</summary>
 /// <param name="Code">The stored value.</param>
 /// <param name="Label">What staff read.</param>
 /// <param name="LabelTamil">The Tamil label, or null.</param>
 /// <param name="DisplayOrder">Where it sits in the list.</param>
-public sealed record TemplateChoiceOptionRequest(
+public sealed record TemplateChoiceOption(
     string Code,
     string Label,
     string? LabelTamil,
@@ -90,8 +90,8 @@ public sealed record TemplateFieldRequest(
     string? DiagramKey,
     Guid? DiagramMediaId,
     string? DiagramAlt,
-    TemplateRuleRequest? Rule,
-    IReadOnlyList<TemplateChoiceOptionRequest>? Options)
+    TemplateRule? Rule,
+    IReadOnlyList<TemplateChoiceOption>? Options)
 {
     /// <summary>Reads the request into the domain's definition, or says which value could not be read.</summary>
     /// <returns>The definition, or the reason it was refused.</returns>
@@ -103,7 +103,7 @@ public sealed record TemplateFieldRequest(
     /// </remarks>
     public Result<TemplateFieldDefinition> ToDefinition()
     {
-        if (!Enum.TryParse<CanonicalUnit>(CanonicalUnit, ignoreCase: true, out var unit))
+        if (!EnumText.TryRead<CanonicalUnit>(CanonicalUnit, out var unit))
         {
             return Result.Failure<TemplateFieldDefinition>(
                 MeasurementApiErrors.NotAValidValue("canonicalUnit", CanonicalUnit));
@@ -147,7 +147,7 @@ public sealed record TemplateFieldRequest(
             return Result.Success<ConditionalRule?>(null);
         }
 
-        if (!Enum.TryParse<RuleEffect>(Rule.Effect, ignoreCase: true, out var effect))
+        if (!EnumText.TryRead<RuleEffect>(Rule.Effect, out var effect))
         {
             return Result.Failure<ConditionalRule?>(
                 MeasurementApiErrors.NotAValidValue("rule.effect", Rule.Effect));
@@ -157,13 +157,13 @@ public sealed record TemplateFieldRequest(
 
         foreach (var clause in Rule.AnyOf)
         {
-            if (!Enum.TryParse<RuleScope>(clause.Scope, ignoreCase: true, out var scope))
+            if (!EnumText.TryRead<RuleScope>(clause.Scope, out var scope))
             {
                 return Result.Failure<ConditionalRule?>(
                     MeasurementApiErrors.NotAValidValue("rule.anyOf.scope", clause.Scope));
             }
 
-            if (!Enum.TryParse<RuleOperator>(clause.Operator, ignoreCase: true, out var comparison))
+            if (!EnumText.TryRead<RuleOperator>(clause.Operator, out var comparison))
             {
                 return Result.Failure<ConditionalRule?>(
                     MeasurementApiErrors.NotAValidValue("rule.anyOf.operator", clause.Operator));
@@ -283,10 +283,20 @@ public sealed record TemplateVersionPayload(
 /// <param name="WarnBelowMillimetres">Below this the value needs an acknowledgement.</param>
 /// <param name="WarnAboveMillimetres">Above this the value needs an acknowledgement.</param>
 /// <param name="HelpText">Where the tape starts and ends.</param>
-/// <param name="DiagramReference">The sheet and callout.</param>
+/// <remarks>
+/// Everything an administration screen has to send back travels in the same shape it arrived in, so that a
+/// field can be read, edited and replaced without the client having to reconstruct anything. That is why
+/// <see cref="Rule"/> and <see cref="Options"/> are the very types the update accepts rather than a rendered
+/// sentence and a list of codes: a screen that had to rebuild a rule from prose, or invent labels for the
+/// options it just read, would silently drop configuration on every save.
+/// </remarks>
+/// <param name="DiagramReference">The sheet and callout, as <c>&lt;diagram_key&gt;#&lt;field_key&gt;</c>.</param>
 /// <param name="DiagramAlt">The measuring path in words.</param>
-/// <param name="Rule">The visibility rule, written out as a sentence, or null.</param>
-/// <param name="OptionCodes">The choices, for a choice field.</param>
+/// <param name="DiagramKey">The bundled sheet as it must be sent back, or null.</param>
+/// <param name="DiagramMediaId">The uploaded diagram as it must be sent back, or null.</param>
+/// <param name="Rule">When the field is shown, as the update accepts it, or null when it always is.</param>
+/// <param name="RuleDescription">The same rule written out as a sentence, for a screen to show.</param>
+/// <param name="Options">The choices, as the update accepts them.</param>
 public sealed record TemplateFieldPayload(
     Guid TemplateFieldId,
     string Key,
@@ -306,8 +316,11 @@ public sealed record TemplateFieldPayload(
     string HelpText,
     string? DiagramReference,
     string? DiagramAlt,
-    string? Rule,
-    IReadOnlyList<string> OptionCodes)
+    string? DiagramKey,
+    Guid? DiagramMediaId,
+    TemplateRule? Rule,
+    string? RuleDescription,
+    IReadOnlyList<TemplateChoiceOption> Options)
 {
     /// <summary>Projects a field.</summary>
     /// <param name="field">The field.</param>
@@ -335,9 +348,31 @@ public sealed record TemplateFieldPayload(
             field.HelpText,
             field.DiagramReference,
             field.DiagramAlt,
+            field.DiagramKey,
+            field.DiagramMediaId,
+            Describe(field.Rule),
             TemplateFieldSnapshot.Describe(field.Rule),
-            [.. field.Options.Select(option => option.Code)]);
+            [
+                .. field.Options
+                    .OrderBy(option => option.DisplayOrder)
+                    .ThenBy(option => option.Code, StringComparer.Ordinal)
+                    .Select(option => new TemplateChoiceOption(
+                        option.Code, option.Label, option.LabelTamil, option.DisplayOrder)),
+            ]);
     }
+
+    private static TemplateRule? Describe(ConditionalRule? rule)
+        => rule is null
+            ? null
+            : new TemplateRule(
+                rule.Effect.ToString(),
+                [
+                    .. rule.AnyOf.Select(clause => new TemplateRuleClause(
+                        clause.Scope.ToString(),
+                        clause.Name,
+                        clause.Operator.ToString(),
+                        [.. clause.Values])),
+                ]);
 }
 
 /// <summary>What publish validation found.</summary>

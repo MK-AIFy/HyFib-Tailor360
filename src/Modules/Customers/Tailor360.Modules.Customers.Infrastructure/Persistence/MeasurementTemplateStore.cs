@@ -72,8 +72,21 @@ public sealed class MeasurementTemplateStore(CustomersDbContext context) : IMeas
     public EntityTag EntityTagOf(MeasurementTemplate template) => context.EntityTagOf(template);
 
     /// <inheritdoc />
-    public async Task<int> SaveAsync(CancellationToken cancellationToken = default)
-        => await context.SaveChangesAsync(cancellationToken);
+    public async Task<Result> SaveAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The row moved between the precondition being checked and this commit. Same answer as a failed
+            // If-Match, because it is the same situation arriving a moment later.
+            return Result.Failure(MeasurementErrors.VersionChanged);
+        }
+    }
 
     /// <inheritdoc />
     public async Task<Result> SaveNewAsync(CancellationToken cancellationToken = default)

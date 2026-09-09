@@ -3789,7 +3789,7 @@
         ],
         "type": "object"
       },
-      "TemplateChoiceOptionRequest": {
+      "TemplateChoiceOption": {
         "properties": {
           "code": {
             "type": "string"
@@ -3834,6 +3834,19 @@
             ]
           },
           "diagramAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "diagramKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "diagramMediaId": {
+            "format": "uuid",
             "type": [
               "null",
               "string"
@@ -3904,13 +3917,23 @@
               "string"
             ]
           },
-          "optionCodes": {
+          "options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/TemplateChoiceOption"
             },
             "type": "array"
           },
           "rule": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TemplateRule"
+              }
+            ]
+          },
+          "ruleDescription": {
             "type": [
               "null",
               "string"
@@ -3958,8 +3981,11 @@
           "helpText",
           "diagramReference",
           "diagramAlt",
+          "diagramKey",
+          "diagramMediaId",
           "rule",
-          "optionCodes"
+          "ruleDescription",
+          "options"
         ],
         "type": "object"
       },
@@ -4050,7 +4076,7 @@
           },
           "options": {
             "items": {
-              "$ref": "#/components/schemas/TemplateChoiceOptionRequest"
+              "$ref": "#/components/schemas/TemplateChoiceOption"
             },
             "type": [
               "null",
@@ -4063,7 +4089,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/TemplateRuleRequest"
+                "$ref": "#/components/schemas/TemplateRule"
               }
             ]
           },
@@ -4146,7 +4172,25 @@
         ],
         "type": "object"
       },
-      "TemplateRuleClauseRequest": {
+      "TemplateRule": {
+        "properties": {
+          "anyOf": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateRuleClause"
+            },
+            "type": "array"
+          },
+          "effect": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "effect",
+          "anyOf"
+        ],
+        "type": "object"
+      },
+      "TemplateRuleClause": {
         "properties": {
           "name": {
             "type": "string"
@@ -4169,24 +4213,6 @@
           "name",
           "operator",
           "values"
-        ],
-        "type": "object"
-      },
-      "TemplateRuleRequest": {
-        "properties": {
-          "anyOf": {
-            "items": {
-              "$ref": "#/components/schemas/TemplateRuleClauseRequest"
-            },
-            "type": "array"
-          },
-          "effect": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "effect",
-          "anyOf"
         ],
         "type": "object"
       },
@@ -10388,6 +10414,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -10520,6 +10556,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -10675,6 +10721,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -10805,6 +10861,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -10925,6 +10991,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -11047,6 +11123,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -11168,6 +11254,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -11288,6 +11384,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

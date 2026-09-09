@@ -119,5 +119,25 @@ public sealed class MeasurementTemplateQuery(CustomersDbContext context) : IMeas
             field.HelpText,
             field.DiagramReference,
             field.DiagramAlt,
-            [.. field.Options.Select(option => option.Code)]);
+            Project(field.Rule),
+            [
+                .. field.Options
+                    .OrderBy(option => option.DisplayOrder)
+                    .ThenBy(option => option.Code, StringComparer.Ordinal)
+                    .Select(option => new MeasurementOptionSnapshot(
+                        option.Code, option.Label, option.LabelTamil, option.DisplayOrder)),
+            ]);
+
+    private static MeasurementRuleSnapshot? Project(ConditionalRule? rule)
+        => rule is null
+            ? null
+            : new MeasurementRuleSnapshot(
+                rule.Effect.ToString(),
+                [
+                    .. rule.AnyOf.Select(clause => new MeasurementRuleClauseSnapshot(
+                        clause.Scope.ToString(),
+                        clause.Name,
+                        clause.Operator.ToString(),
+                        [.. clause.Values])),
+                ]);
 }

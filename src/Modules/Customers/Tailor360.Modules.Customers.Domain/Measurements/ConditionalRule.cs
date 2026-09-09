@@ -165,13 +165,19 @@ public sealed record ConditionalRule(RuleEffect Effect, IReadOnlyList<RuleClause
             matched |= verdict.Value;
         }
 
+        // One clause that matched settles the whole disjunction: the clauses are joined by OR, so no
+        // operand still unread can turn a true disjunction false. A rule is only genuinely undecided
+        // when nothing matched *and* something could not be read — otherwise a capture wizard would
+        // make a field optional that a known, matching clause has conclusively shown.
+        decided |= matched;
+
         // An undecidable rule shows the field: see the remarks above.
-        if (!decided && !matched)
+        if (!decided)
         {
             return new RuleEvaluation(IsShown: true, Decided: false);
         }
 
-        return new RuleEvaluation(Effect == RuleEffect.HiddenWhen ? !matched : matched, decided);
+        return new RuleEvaluation(Effect == RuleEffect.HiddenWhen ? !matched : matched, Decided: true);
     }
 
     private static bool? Match(

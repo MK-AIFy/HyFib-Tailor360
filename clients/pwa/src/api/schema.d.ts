@@ -2435,7 +2435,7 @@ export interface components {
             name: string;
             notes: null | string;
         };
-        TemplateChoiceOptionRequest: {
+        TemplateChoiceOption: {
             code: string;
             /** Format: int32 */
             displayOrder: number | string;
@@ -2447,6 +2447,9 @@ export interface components {
             /** Format: int32 */
             centimetreDecimals: number | string;
             diagramAlt: null | string;
+            diagramKey: null | string;
+            /** Format: uuid */
+            diagramMediaId: null | string;
             diagramReference: null | string;
             /** Format: int32 */
             displayOrder: number | string;
@@ -2463,8 +2466,9 @@ export interface components {
             maximumMillimetres: number | string;
             /** Format: double */
             minimumMillimetres: number | string;
-            optionCodes: string[];
-            rule: null | string;
+            options: components["schemas"]["TemplateChoiceOption"][];
+            rule: null | components["schemas"]["TemplateRule"];
+            ruleDescription: null | string;
             /** Format: uuid */
             templateFieldId: string;
             /** Format: double */
@@ -2494,8 +2498,8 @@ export interface components {
             maximumMillimetres: number | string;
             /** Format: double */
             minimumMillimetres: number | string;
-            options: null | components["schemas"]["TemplateChoiceOptionRequest"][];
-            rule: null | components["schemas"]["TemplateRuleRequest"];
+            options: null | components["schemas"]["TemplateChoiceOption"][];
+            rule: null | components["schemas"]["TemplateRule"];
             /** Format: double */
             warnAboveMillimetres: null | number | string;
             /** Format: double */
@@ -2510,15 +2514,15 @@ export interface components {
         TemplateReasonRequest: {
             reason: null | string;
         };
-        TemplateRuleClauseRequest: {
+        TemplateRule: {
+            anyOf: components["schemas"]["TemplateRuleClause"][];
+            effect: string;
+        };
+        TemplateRuleClause: {
             name: string;
             operator: string;
             scope: string;
             values: string[];
-        };
-        TemplateRuleRequest: {
-            anyOf: components["schemas"]["TemplateRuleClauseRequest"][];
-            effect: string;
         };
         TemplateValidationPayload: {
             findings: components["schemas"]["TemplateFindingPayload"][];
@@ -6249,6 +6253,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6333,6 +6346,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6430,6 +6452,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6497,6 +6528,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6563,6 +6603,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6629,6 +6678,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6695,6 +6753,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -6761,6 +6828,15 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

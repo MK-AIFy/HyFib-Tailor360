@@ -143,12 +143,32 @@ is.
 | INV-MTV-03 | A conditional rule may reference only field keys present in the same version. | Publish-time validator |
 | INV-MTV-04 | Publishing a new version never changes what an existing service type, measurement version or garment job references. Retirement blocks new references and invalidates none. | Version pinning, G-10 |
 | INV-MTV-05 | Values are captured and stored in millimetres; the display unit is presentation only, and inch fractions are converted on entry, not stored as text. | Domain type, `FractionInput` |
+| INV-MTV-06 | A published catalogue version's service type points at a template that has a published version. Both directions are checked before the write: catalogue publication refuses a service type whose template has none, and retirement refuses while a published catalogue still points at the template. | `MeasurementTemplateCatalogValidator`; `ICatalogAvailabilityQuery.ReferencesMeasurementTemplateAsync` |
 
 **Transactional boundary.** The template, the version and all its fields, published in one transaction with the
 publication event.
 
-**Concurrency.** `xmin` on the draft. Publication takes a row lock on the template to serialise version numbers.
-Published rows carry no concurrency token because they are never updated — the trigger is the guard.
+**Concurrency.** `xmin` on every version row whatever state it is in, published ones included — they are updated
+once more, by the retirement that supersedes them, and that write is the one a second administrator can lose.
+Version numbers are serialised by the unique index on `(template_id, version_number)`, and "at most one published
+version" by a unique index filtered on the published status, so two administrators racing get a `409` rather than
+a second published version. The immutability trigger is not a substitute for the row version and does not try to
+be: it restricts a published row to the columns retirement writes — `status`, `retired_at`, `retired_by`,
+`retired_reason`, `updated_at`, `updated_by` — and to the `published → retired` transition. It guards the
+*content* of a published version; the row version guards against overwriting another *writer*.
+
+INV-MTV-06 is the one invariant here that is **not** synchronous, and deliberately so. Its two guards sit in
+different modules, each reading the other through a contract and then writing to its own schema, so a catalogue
+publication and a template retirement that overlap can each observe the other's pre-write state and both commit:
+the catalogue is then published against a template whose only published version has just been retired. Closing
+that window would need the two writes serialised across the module boundary — a distributed lock or a shared
+transaction — which is precisely what **G-6** says this codebase does not do: a cross-module reference is
+validated through the contract at write time, and *continued* validity is reconciled by events rather than
+enforced by a constraint. The guards are therefore best-effort by design, and the reconciliation that G-6 promises
+is not yet built for this pair (issue to follow). Until it is, the residual window leaves a service type a counter
+cannot order, which the counter discovers at capture time rather than silently mis-measuring — the failure is
+visible, not corrupting. Changing this to a synchronous guarantee is an architecture decision record against G-6,
+not a code change.
 
 **Deliberately eventually consistent.** Version-keyed read caches, invalidated by the publication event within the
 documented propagation bound (plan D21); seed exports and printed measurement sheets already produced.

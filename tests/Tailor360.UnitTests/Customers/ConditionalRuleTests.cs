@@ -124,6 +124,63 @@ public sealed class ConditionalRuleTests
         rule.Validate(key).Error.Code.ShouldBe("measurements.clause-has-no-values");
     }
 
+    [Fact]
+    public void AClauseThatMatchesSettlesTheRuleEvenWhileAnotherOperandIsUnreadable()
+    {
+        // Shown when the waist is elastic, or when the design says churidar. At the counter, outside an
+        // order, the design half cannot be read at all — but the field half already said yes, and an OR
+        // whose left side is true is true whatever the right side turns out to be.
+        var rule = new ConditionalRule(
+            RuleEffect.ShownWhen,
+            [
+                new RuleClause(RuleScope.Field, "waist_finish", RuleOperator.IsAnyOf, ["ELASTIC"]),
+                new RuleClause(RuleScope.DesignSelection, "leg_style", RuleOperator.IsAnyOf, ["CHURIDAR"]),
+            ]);
+
+        var evaluation = rule.Evaluate(Values(("waist_finish", "ELASTIC")), NoSelections);
+
+        evaluation.IsShown.ShouldBeTrue();
+        evaluation.Decided.ShouldBeTrue(
+            "a matching clause is conclusive, and reporting it undecided would let the wizard make a "
+            + "required field optional");
+    }
+
+    [Fact]
+    public void AHiddenWhenRuleIsAlsoSettledByTheClauseThatMatched()
+    {
+        // The same argument in the other direction: one matching clause hides the field for certain, so
+        // nothing about the unreadable clause can bring it back.
+        var rule = new ConditionalRule(
+            RuleEffect.HiddenWhen,
+            [
+                new RuleClause(RuleScope.Field, "waist_finish", RuleOperator.IsAnyOf, ["DRAWSTRING"]),
+                new RuleClause(RuleScope.DesignSelection, "leg_style", RuleOperator.IsAnyOf, ["CHURIDAR"]),
+            ]);
+
+        var evaluation = rule.Evaluate(Values(("waist_finish", "DRAWSTRING")), NoSelections);
+
+        evaluation.IsShown.ShouldBeFalse();
+        evaluation.Decided.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ARuleStaysUndecidedWhileNothingHasMatchedAndSomethingIsUnreadable()
+    {
+        // The guard on the two tests above: it is *matching* that settles a disjunction, not merely having
+        // read one clause. A clause that was read and said no leaves the unread one still deciding.
+        var rule = new ConditionalRule(
+            RuleEffect.ShownWhen,
+            [
+                new RuleClause(RuleScope.Field, "waist_finish", RuleOperator.IsAnyOf, ["ELASTIC"]),
+                new RuleClause(RuleScope.DesignSelection, "leg_style", RuleOperator.IsAnyOf, ["CHURIDAR"]),
+            ]);
+
+        var evaluation = rule.Evaluate(Values(("waist_finish", "DRAWSTRING")), NoSelections);
+
+        evaluation.IsShown.ShouldBeTrue("an undecidable rule shows the field");
+        evaluation.Decided.ShouldBeFalse();
+    }
+
     private static RuleEvaluation Evaluate(ConditionalRule rule, params (string Group, string First, string? Second)[] selections)
     {
         var map = new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal);

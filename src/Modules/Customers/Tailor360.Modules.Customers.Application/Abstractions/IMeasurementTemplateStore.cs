@@ -63,9 +63,16 @@ public interface IMeasurementTemplateStore
     EntityTag EntityTagOf(MeasurementTemplate template);
 
     /// <summary>Commits everything left in the context.</summary>
+    /// <remarks>
+    /// Answers the stale write rather than throwing it. Every version row carries <c>xmin</c>, so a caller that
+    /// checked its <c>If-Match</c> and then lost the row to somebody else between the check and the commit gets a
+    /// concurrency exception from the database — and the endpoint contract for that is a <c>409</c> carrying the
+    /// current version, not a five hundred. The window is small but it is exactly the window the precondition
+    /// exists to describe, so it cannot be the one case that escapes as an unhandled fault.
+    /// </remarks>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The number of rows written.</returns>
-    Task<int> SaveAsync(CancellationToken cancellationToken = default);
+    /// <returns>Success, or the version having changed under the caller.</returns>
+    Task<Result> SaveAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Commits a newly started template or draft.</summary>
     /// <remarks>

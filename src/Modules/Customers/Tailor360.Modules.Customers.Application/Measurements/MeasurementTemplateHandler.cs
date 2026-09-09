@@ -192,7 +192,13 @@ public sealed class MeasurementTemplateHandler(
         }
 
         template.Touch(clock.UtcNow, command.By);
-        await store.SaveAsync(cancellationToken);
+
+        var committed = await store.SaveAsync(cancellationToken);
+
+        if (committed.IsFailure)
+        {
+            return Result.Failure<AdministeredTemplate>(committed.Error);
+        }
 
         await MeasurementTemplateAudit.RecordAsync(
             audit,
@@ -219,7 +225,8 @@ public sealed class MeasurementTemplateHandler(
         ArgumentNullException.ThrowIfNull(command);
 
         var located = await LoadVersionAsync(
-            command.TemplateId, command.VersionId, command.OrganisationId, null, cancellationToken);
+            command.TemplateId, command.VersionId, command.OrganisationId, command.ExpectedVersion,
+            cancellationToken);
 
         if (located.IsFailure)
         {
@@ -238,7 +245,13 @@ public sealed class MeasurementTemplateHandler(
         }
 
         template.Touch(clock.UtcNow, command.By);
-        await store.SaveAsync(cancellationToken);
+
+        var committed = await store.SaveAsync(cancellationToken);
+
+        if (committed.IsFailure)
+        {
+            return Result.Failure<AdministeredTemplate>(committed.Error);
+        }
 
         await MeasurementTemplateAudit.RecordAsync(
             audit,
@@ -500,7 +513,13 @@ public sealed class MeasurementTemplateHandler(
         }
 
         template.Touch(clock.UtcNow, command.By);
-        await store.SaveAsync(cancellationToken);
+
+        var committed = await store.SaveAsync(cancellationToken);
+
+        if (committed.IsFailure)
+        {
+            return Result.Failure<AdministeredTemplate>(committed.Error);
+        }
 
         await MeasurementTemplateAudit.RecordAsync(
             audit,

@@ -24,6 +24,8 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 {
     private static readonly string RunToken = AdministrationHarness.UniqueToken(6).ToUpperInvariant();
 
+    private static readonly string[] Sleeveless = ["SLEEVELESS"];
+
     [Fact]
     public async Task AnAdministratorDraftsReviewsAndPublishesATemplateWithoutADeployment()
     {
@@ -36,7 +38,7 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         var version = await DraftAsync(drafter, template, "Version 1");
 
         (await drafter.PostAsync(
-                $"{Root}/{template}/versions/{version}/fields", Field("chest_bust"), Key()))
+                $"{Root}/{template}/versions/{version}/fields", Field("chest_bust"), await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var validation = await drafter.GetAsync($"{Root}/{template}/versions/{version}/validation");
@@ -48,15 +50,17 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
             report.RootElement.GetProperty("isReadyToPublish").GetBoolean().ShouldBeTrue();
         }
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await reviewer.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+        (await reviewer.PostAsync(
+                $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(reviewer, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var published = await reviewer.PostAsync(
             $"{Root}/{template}/versions/{version}/publish",
             new { reason = "Reviewed with the Tailor Master." },
-            Key());
+            await TagAsync(reviewer, template));
 
         published.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -79,24 +83,29 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         var version = await DraftAsync(drafter, template, "Version 1");
         var field = await AddFieldAsync(drafter, template, version, "waist");
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // Submitted is already too late: a reviewer reads a version that cannot change under them.
         var edited = await drafter.PutAsync(
-            $"{Root}/{template}/versions/{version}/fields/{field}", Field("waist"), Key());
+            $"{Root}/{template}/versions/{version}/fields/{field}", Field("waist"),
+            await TagAsync(drafter, template));
 
         edited.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await CodeOfAsync(edited)).ShouldBe("measurements.version-not-editable");
 
-        (await reviewer.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+        (await reviewer.PostAsync(
+                $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(reviewer, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
         (await reviewer.PostAsync(
-                $"{Root}/{template}/versions/{version}/publish", new { reason = "Live." }, Key()))
+                $"{Root}/{template}/versions/{version}/publish", new { reason = "Live." },
+                await TagAsync(reviewer, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var afterPublication = await drafter.PostAsync(
-            $"{Root}/{template}/versions/{version}/fields", Field("hip"), Key());
+            $"{Root}/{template}/versions/{version}/fields", Field("hip"),
+            await TagAsync(drafter, template));
 
         afterPublication.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await CodeOfAsync(afterPublication)).ShouldBe("measurements.version-not-editable");
@@ -119,7 +128,8 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
             Rule = new { effect = "HiddenWhen", anyOf = Array.Empty<object>() },
         };
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/fields", alwaysHidden, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/fields", alwaysHidden, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var validation = await drafter.GetAsync($"{Root}/{template}/versions/{version}/validation");
@@ -132,13 +142,16 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
                     == "required-field-never-shown");
         }
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await reviewer.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+        (await reviewer.PostAsync(
+                $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(reviewer, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var refused = await reviewer.PostAsync(
-            $"{Root}/{template}/versions/{version}/publish", new { reason = "Trying it on." }, Key());
+            $"{Root}/{template}/versions/{version}/publish", new { reason = "Trying it on." },
+            await TagAsync(reviewer, template));
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await CodeOfAsync(refused)).ShouldBe("measurements.publish-validation-failed");
@@ -159,13 +172,16 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 
         await AddFieldAsync(drafter, template, version, "chest_bust");
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await reviewer.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+        (await reviewer.PostAsync(
+                $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(reviewer, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var refused = await reviewer.PostAsync(
-            $"{Root}/{template}/versions/{version}/{verb}", new { reason = "   " }, Key());
+            $"{Root}/{template}/versions/{version}/{verb}", new { reason = "   " },
+            await TagAsync(reviewer, template));
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await CodeOfAsync(refused)).ShouldBe("measurements.value-required");
@@ -189,16 +205,19 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 
         await AddFieldAsync(both, template, version, "chest_bust");
 
-        (await both.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+        (await both.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(both, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var refused = await both.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key());
+        var refused = await both.PostAsync(
+            $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(both, template));
 
         refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         (await CodeOfAsync(refused)).ShouldBe("measurements.submitter-cannot-publish");
 
         // Anybody else holding the permission may.
-        (await other.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+        (await other.PostAsync(
+                $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(other, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -228,7 +247,8 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 
         await AddFieldAsync(drafter, template, version, "chest_bust");
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK, "drafting includes submitting for review");
 
         (await drafter.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
@@ -317,6 +337,43 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 
         await AddFieldAsync(drafter, template, version, "chest_bust");
 
+        // A conditional choice field, because those are the two things a caller cannot recover from anywhere
+        // else: which fields to show, and what to call the choices.
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/fields",
+                Field("closure_style") with
+                {
+                    CanonicalUnit = "None",
+                    InchFraction = 0,
+                    CentimetreDecimals = 0,
+                    MinimumMillimetres = 0,
+                    MaximumMillimetres = 0,
+                    WarnBelowMillimetres = null,
+                    WarnAboveMillimetres = null,
+                    DisplayOrder = 1,
+                    Rule = new
+                    {
+                        effect = "HiddenWhen",
+                        anyOf = new[]
+                        {
+                            new
+                            {
+                                scope = "DesignSelection",
+                                name = "sleeve_style",
+                                @operator = "IsAnyOf",
+                                values = Sleeveless,
+                            },
+                        },
+                    },
+                    Options =
+                    [
+                        new { code = "HOOK", label = "Hook and eye", labelTamil = "கொக்கி", displayOrder = 1 },
+                        new { code = "ZIP", label = "Zip", labelTamil = (string?)null, displayOrder = 0 },
+                    ],
+                },
+                await TagAsync(drafter, template)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
         using var scope = fixture.Services.CreateScope();
         var query = scope.ServiceProvider.GetRequiredService<IMeasurementTemplateQuery>();
         var organisationId = SessionTestData.OrganisationId;
@@ -326,12 +383,15 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         (await query.WithPublishedVersionAsync([template], organisationId, Token))
             .ShouldNotContain(template);
 
-        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
-            .StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await reviewer.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/submit", new { }, await TagAsync(drafter, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
         (await reviewer.PostAsync(
-                $"{Root}/{template}/versions/{version}/publish", new { reason = "Live." }, Key()))
+                $"{Root}/{template}/versions/{version}/approve", new { }, await TagAsync(reviewer, template)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await reviewer.PostAsync(
+                $"{Root}/{template}/versions/{version}/publish", new { reason = "Live." },
+                await TagAsync(reviewer, template)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var published = await query.GetPublishedAsync(template, Token);
@@ -343,7 +403,9 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         published.IsPublished.ShouldBeTrue();
         published.DefaultDisplayUnit.ShouldBe("Inch");
 
-        var field = published.Fields.ShouldHaveSingleItem();
+        published.Fields.Count.ShouldBe(2);
+
+        var field = published.Fields.Single(candidate => candidate.Key == "chest_bust");
 
         field.Key.ShouldBe("chest_bust");
         field.CanonicalUnit.ShouldBe("Millimetre");
@@ -356,6 +418,29 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         field.DiagramReference.ShouldBe("blouse_front_v1#chest_bust", "the sheet key anchored by the field key");
         field.DiagramAlt.ShouldNotBeNullOrWhiteSpace();
 
+        field.Rule.ShouldBeNull("a field with no rule is always shown");
+        field.Options.ShouldBeEmpty();
+
+        // The rule travels as clauses, because the module that has to obey it is not the one that stores it: a
+        // design-selection operand can only be read inside an order, so Orders evaluates it, and prose cannot be
+        // evaluated. Without this, #28 could not decide which fields to show at all.
+        var conditional = published.Fields.Single(candidate => candidate.Key == "closure_style");
+
+        conditional.Rule.ShouldNotBeNull();
+        conditional.Rule.Effect.ShouldBe("HiddenWhen");
+
+        var clause = conditional.Rule.AnyOf.ShouldHaveSingleItem();
+
+        clause.Scope.ShouldBe("DesignSelection");
+        clause.Name.ShouldBe("sleeve_style");
+        clause.Operator.ShouldBe("IsAnyOf");
+        clause.Values.ShouldBe(["SLEEVELESS"]);
+
+        // And the choices keep their labels, which nothing else publishes.
+        conditional.Options.Select(option => option.Code).ShouldBe(["ZIP", "HOOK"]);
+        conditional.Options.Single(option => option.Code == "HOOK").Label.ShouldBe("Hook and eye");
+        conditional.Options.Single(option => option.Code == "ZIP").LabelTamil.ShouldBeNull();
+
         (await query.WithPublishedVersionAsync([template], organisationId, Token)).ShouldContain(template);
 
         // Asked by its own identity, a version answers whatever state it is in — which is how a measurement taken
@@ -367,6 +452,254 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 
         (await query.GetVersionAsync(Guid.CreateVersion7(), Token)).ShouldBeNull();
         (await query.WithPublishedVersionAsync([], organisationId, Token)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RefusesAMutationThatNamesNoVersionItWasMadeAgainst()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // COD-05 in docs/architecture/conventions.md: a command on an editable aggregate must say which version
+        // it was made against, and 428 rather than 400 tells a client that re-reading and resending will work.
+        // Treating a missing header as "no precondition to check" is the whole hole this closes: an administrator
+        // working from a screen somebody else has already changed would overwrite them and never be told.
+        using var drafter = await DrafterAsync("mt-precondition", "203.0.113.228");
+        using var reviewer = await ReviewerAsync("mt-precondition-rev", "203.0.113.241");
+
+        var template = await CreateAsync(drafter, Code("MT_PRECONDITION"));
+        var version = await DraftAsync(drafter, template, "Version 1");
+        var field = await AddFieldAsync(drafter, template, version, "chest_bust");
+
+        // Each route is asked by a caller who holds its permission: authorisation is middleware and answers
+        // before any endpoint filter, so a 403 here would hide the 428 this test is about.
+        var withoutPrecondition = new (string Verb, string Path, object Body, bool Reviewer)[]
+        {
+            ("POST", $"{Root}/{template}/versions/{version}/fields", Field("waist"), false),
+            ("PUT", $"{Root}/{template}/versions/{version}/fields/{field}", Field("chest_bust"), false),
+            ("POST", $"{Root}/{template}/versions/{version}/fields/{field}/delete", new { reason = "No." }, false),
+            ("POST", $"{Root}/{template}/versions/{version}/submit", new { }, false),
+            ("POST", $"{Root}/{template}/versions/{version}/return", new { reason = "Back." }, true),
+            ("POST", $"{Root}/{template}/versions/{version}/approve", new { }, true),
+            ("POST", $"{Root}/{template}/versions/{version}/publish", new { reason = "Live." }, true),
+            ("POST", $"{Root}/{template}/versions/{version}/retire", new { reason = "Done." }, true),
+        };
+
+        foreach (var (verb, path, body, asReviewer) in withoutPrecondition)
+        {
+            var caller = asReviewer ? reviewer : drafter;
+            var response = verb == "PUT"
+                ? await caller.PutAsync(path, body, Key())
+                : await caller.PostAsync(path, body, Key());
+
+            response.StatusCode.ShouldBe(
+                HttpStatusCode.PreconditionRequired, $"{verb} {path} changes a version somebody else may hold");
+            (await CodeOfAsync(response)).ShouldBe("concurrency.if-match-required");
+        }
+
+        // The two routes that create rather than change carry no precondition, because there is nothing yet to
+        // be stale about — a retry is settled by the idempotency key instead (conventions.md section 4.2).
+        (await drafter.PostAsync(Root, new { code = Code("MT_PRECONDITION_2"), name = "Second" }, Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions",
+                new { name = "Version 2", notes = (string?)null, defaultDisplayUnit = "Inch" },
+                Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task RefusesAMutationMadeAgainstAVersionSomebodyElseHasAlreadyChanged()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var drafter = await DrafterAsync("mt-stale", "203.0.113.229");
+
+        var template = await CreateAsync(drafter, Code("MT_STALE"));
+        var version = await DraftAsync(drafter, template, "Version 1");
+
+        // What one administrator read before a second one saved.
+        var stale = await TagAsync(drafter, template);
+
+        await AddFieldAsync(drafter, template, version, "chest_bust");
+
+        var refused = await drafter.PostAsync(
+            $"{Root}/{template}/versions/{version}/fields", Field("waist"), stale);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await CodeOfAsync(refused)).ShouldBe("measurements.version-changed");
+
+        // Re-read and it goes through, which is the whole point of answering with a version rather than a no.
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/fields", Field("waist"),
+                await TagAsync(drafter, template)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task AFieldReadsBackInTheShapeTheUpdateAccepts()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // An administration screen reads a field, changes one thing and sends it back. If the read answered with
+        // a rendered sentence and a list of bare codes, that screen would have to invent the clauses and the
+        // labels it never received, and would drop them on every save. So the read is asserted to be replayable:
+        // what comes out goes straight back in, and the second read equals the first.
+        using var drafter = await DrafterAsync("mt-roundtrip", "203.0.113.238");
+
+        var template = await CreateAsync(drafter, Code("MT_ROUNDTRIP"));
+        var version = await DraftAsync(drafter, template, "Version 1");
+
+        await AddFieldAsync(drafter, template, version, "waist_finish");
+
+        var choice = Field("closure_style") with
+        {
+            CanonicalUnit = "None",
+            InchFraction = 0,
+            CentimetreDecimals = 0,
+            MinimumMillimetres = 0,
+            MaximumMillimetres = 0,
+            WarnBelowMillimetres = null,
+            WarnAboveMillimetres = null,
+            Rule = new
+            {
+                effect = "ShownWhen",
+                anyOf = new[]
+                {
+                    new { scope = "Field", name = "waist_finish", @operator = "IsAnyOf", values = new[] { "ELASTIC" } },
+                    new { scope = "DesignSelection", name = "leg_style", @operator = "Excludes", values = new[] { "CHURIDAR" } },
+                },
+            },
+            Options =
+            [
+                new { code = "HOOK", label = "Hook and eye", labelTamil = "கொக்கி", displayOrder = 1 },
+                new { code = "ZIP", label = "Zip", labelTamil = (string?)null, displayOrder = 0 },
+            ],
+        };
+
+        (await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/fields", choice, await TagAsync(drafter, template)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var read = await drafter.GetAsync($"{Root}/{template}");
+
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var body = JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token));
+
+        var stored = body.RootElement.GetProperty("versions").EnumerateArray().First()
+            .GetProperty("fields").EnumerateArray()
+            .Single(field => field.GetProperty("key").GetString() == "closure_style");
+
+        // The rule comes back as clauses, not prose.
+        var rule = stored.GetProperty("rule");
+
+        rule.GetProperty("effect").GetString().ShouldBe("ShownWhen");
+
+        var clauses = rule.GetProperty("anyOf").EnumerateArray().ToArray();
+
+        clauses.Length.ShouldBe(2);
+        clauses[0].GetProperty("scope").GetString().ShouldBe("Field");
+        clauses[0].GetProperty("name").GetString().ShouldBe("waist_finish");
+        clauses[0].GetProperty("operator").GetString().ShouldBe("IsAnyOf");
+        clauses[0].GetProperty("values").EnumerateArray().Single().GetString().ShouldBe("ELASTIC");
+        clauses[1].GetProperty("scope").GetString().ShouldBe("DesignSelection");
+        clauses[1].GetProperty("operator").GetString().ShouldBe("Excludes");
+
+        // The sentence is still there for a screen to show, beside the clauses rather than instead of them.
+        stored.GetProperty("ruleDescription").GetString().ShouldNotBeNullOrWhiteSpace();
+
+        // Every option keeps its label, its Tamil label and its order.
+        var options = stored.GetProperty("options").EnumerateArray().ToArray();
+
+        options.Length.ShouldBe(2);
+        options[0].GetProperty("code").GetString().ShouldBe("ZIP", "options come back in display order");
+        options[0].GetProperty("label").GetString().ShouldBe("Zip");
+        options[0].GetProperty("labelTamil").ValueKind.ShouldBe(JsonValueKind.Null);
+        options[1].GetProperty("code").GetString().ShouldBe("HOOK");
+        options[1].GetProperty("labelTamil").GetString().ShouldBe("கொக்கி");
+
+        // The diagram comes back in the halves the update accepts, not only as the joined reference.
+        stored.GetProperty("diagramKey").GetString().ShouldBe("blouse_front_v1");
+        stored.GetProperty("diagramReference").GetString().ShouldBe("blouse_front_v1#closure_style");
+
+        // And now the proof: send back exactly what was read, unchanged, and nothing is lost.
+        var fieldId = stored.GetProperty("templateFieldId").GetGuid();
+        var replayed = await drafter.PutAsync(
+            $"{Root}/{template}/versions/{version}/fields/{fieldId}",
+            JsonSerializer.Deserialize<JsonElement>(stored.GetRawText()),
+            await TagAsync(drafter, template));
+
+        replayed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var after = JsonDocument.Parse(await replayed.Content.ReadAsStringAsync(Token));
+
+        var again = after.RootElement.GetProperty("versions").EnumerateArray().First()
+            .GetProperty("fields").EnumerateArray()
+            .Single(field => field.GetProperty("key").GetString() == "closure_style");
+
+        again.GetProperty("rule").GetRawText().ShouldBe(rule.GetRawText());
+        again.GetProperty("options").GetRawText().ShouldBe(stored.GetProperty("options").GetRawText());
+    }
+
+    [Theory]
+    [InlineData(1, "99")]
+    [InlineData(2, "-1")]
+    [InlineData(3, "Millimetre, Count")]
+    [InlineData(4, "")]
+    public async Task RefusesAnEnumerationThatIsNotOneOfItsNames(int number, string value)
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // A number is refused rather than resolved. "99" is not a member at all, and even "0" would mean
+        // something different the day a member is inserted above it — a silent reinterpretation of every field
+        // already stored. The names are the contract.
+        using var drafter = await DrafterAsync($"mt-enum-{number}", "203.0.113.239");
+
+        var template = await CreateAsync(drafter, Code($"MT_ENUM_{number}"));
+        var version = await DraftAsync(drafter, template, "Version 1");
+
+        var refused = await drafter.PostAsync(
+            $"{Root}/{template}/versions/{version}/fields",
+            Field("chest_bust") with { CanonicalUnit = value },
+            await TagAsync(drafter, template));
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await CodeOfAsync(refused)).ShouldBe("measurements.not-a-valid-value");
+    }
+
+    [Fact]
+    public async Task RefusesARuleWhoseEffectScopeOrOperatorIsANumber()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var drafter = await DrafterAsync("mt-enum-rule", "203.0.113.240");
+
+        var template = await CreateAsync(drafter, Code("MT_ENUM_RULE"));
+        var version = await DraftAsync(drafter, template, "Version 1");
+
+        object Rule(string effect, string scope, string comparison) => new
+        {
+            effect,
+            anyOf = new[] { new { scope, name = "waist_finish", @operator = comparison, values = new[] { "ELASTIC" } } },
+        };
+
+        var refusals = new[]
+        {
+            Rule("1", "Field", "IsAnyOf"),
+            Rule("ShownWhen", "0", "IsAnyOf"),
+            Rule("ShownWhen", "Field", "2"),
+        };
+
+        foreach (var rule in refusals)
+        {
+            var refused = await drafter.PostAsync(
+                $"{Root}/{template}/versions/{version}/fields",
+                Field("sleeve_length") with { Rule = rule },
+                await TagAsync(drafter, template));
+
+            refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            (await CodeOfAsync(refused)).ShouldBe("measurements.not-a-valid-value");
+        }
     }
 
     private const string Root = "/api/v1/customers/measurement-templates";
@@ -385,14 +718,24 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
 
     /// <summary>A second administrator, who reviews, approves, publishes and retires.</summary>
     /// <remarks>
+    /// <para>
     /// Separate from the drafter on purpose. "The submitter does not also approve" is the rule under test in
     /// <see cref="TheSubmitterCannotApproveTheirOwnWork"/> and a precondition of every other lifecycle test here;
     /// using one client for both would make them pass or fail depending on how many administrators the shared test
     /// database happened to hold.
+    /// </para>
+    /// <para>
+    /// Separate by <em>identity</em>, though, not by permission: they hold both template permissions, because the
+    /// matrix grants <c>catalog.templates.edit</c> and <c>catalog.templates.publish</c> to <c>owner</c> and
+    /// <c>admin</c> and to nobody else, so a reviewer who cannot also draft is a role this product does not have.
+    /// A reviewer holding only the publish half could not even read the template they were approving, and the
+    /// separation this file exists to prove is enforced on the submitting user's identity, not on what they hold.
+    /// </para>
     /// </remarks>
     private Task<AdministrationHarness.AdministratorClient> ReviewerAsync(string prefix, string address)
         => AdministrationHarness.AdministratorAsync(
-            fixture, prefix, address, CustomersPermissions.PublishTemplates);
+            fixture, prefix, address, CustomersPermissions.EditTemplates,
+            CustomersPermissions.PublishTemplates);
 
     private static async Task<Guid> CreateAsync(
         AdministrationHarness.AdministratorClient client, string code)
@@ -426,7 +769,8 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
     private static async Task<Guid> AddFieldAsync(
         AdministrationHarness.AdministratorClient client, Guid template, Guid version, string key)
     {
-        var response = await client.PostAsync($"{Root}/{template}/versions/{version}/fields", Field(key), Key());
+        var response = await client.PostAsync(
+            $"{Root}/{template}/versions/{version}/fields", Field(key), await TagAsync(client, template));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
@@ -458,6 +802,27 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         "From one point to the other, tape level.",
         null,
         []);
+
+    /// <summary>An idempotency key and the precondition every template mutation now demands.</summary>
+    /// <remarks>
+    /// The tag is the template's, read back the way a real client reads it — from the <c>ETag</c> of a GET.
+    /// Threading it through every mutation is the point: a test that could still write without one would not
+    /// notice the day the route stopped asking.
+    /// </remarks>
+    private static async Task<(string Name, string Value)[]> TagAsync(
+        AdministrationHarness.AdministratorClient client, Guid template)
+    {
+        var read = await client.GetAsync($"{Root}/{template}");
+
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+        read.Headers.ETag.ShouldNotBeNull("a read of an editable aggregate publishes the tag its writes demand");
+
+        return
+        [
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()),
+            ("If-Match", read.Headers.ETag.ToString()),
+        ];
+    }
 
     private static async Task<string?> CodeOfAsync(HttpResponseMessage response)
     {
