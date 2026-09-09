@@ -3917,6 +3917,12 @@
               "string"
             ]
           },
+          "optionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "options": {
             "items": {
               "$ref": "#/components/schemas/TemplateChoiceOption"
@@ -3924,6 +3930,12 @@
             "type": "array"
           },
           "rule": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ruleDefinition": {
             "oneOf": [
               {
                 "type": "null"
@@ -3931,12 +3943,6 @@
               {
                 "$ref": "#/components/schemas/TemplateRule"
               }
-            ]
-          },
-          "ruleDescription": {
-            "type": [
-              "null",
-              "string"
             ]
           },
           "templateFieldId": {
@@ -3984,7 +3990,8 @@
           "diagramKey",
           "diagramMediaId",
           "rule",
-          "ruleDescription",
+          "ruleDefinition",
+          "optionCodes",
           "options"
         ],
         "type": "object"

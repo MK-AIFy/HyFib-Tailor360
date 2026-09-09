@@ -590,8 +590,8 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
             .GetProperty("fields").EnumerateArray()
             .Single(field => field.GetProperty("key").GetString() == "closure_style");
 
-        // The rule comes back as clauses, not prose.
-        var rule = stored.GetProperty("rule");
+        // The rule comes back as clauses, not only as prose.
+        var rule = stored.GetProperty("ruleDefinition");
 
         rule.GetProperty("effect").GetString().ShouldBe("ShownWhen");
 
@@ -606,7 +606,12 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         clauses[1].GetProperty("operator").GetString().ShouldBe("Excludes");
 
         // The sentence is still there for a screen to show, beside the clauses rather than instead of them.
-        stored.GetProperty("ruleDescription").GetString().ShouldNotBeNullOrWhiteSpace();
+        // It keeps its old name because renaming a field breaks every client reading it inside a major version.
+        stored.GetProperty("rule").GetString().ShouldNotBeNullOrWhiteSpace();
+
+        // Likewise the bare codes: superseded by `options`, still served, still correct.
+        stored.GetProperty("optionCodes").EnumerateArray()
+            .Select(code => code.GetString()).ShouldBe(["ZIP", "HOOK"]);
 
         // Every option keeps its label, its Tamil label and its order.
         var options = stored.GetProperty("options").EnumerateArray().ToArray();
@@ -622,11 +627,20 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
         stored.GetProperty("diagramKey").GetString().ShouldBe("blouse_front_v1");
         stored.GetProperty("diagramReference").GetString().ShouldBe("blouse_front_v1#closure_style");
 
-        // And now the proof: send back exactly what was read, unchanged, and nothing is lost.
+        // And now the proof: rebuild the update from what was read — which is the only mapping a client has to
+        // make, `ruleDefinition` into `rule` and `options` into `options` — send it back, and lose nothing.
+        // A byte-identical replay is not possible while the deprecated `rule` string still occupies that name,
+        // and that is the cost of keeping the old shape served rather than breaking every reader of it.
         var fieldId = stored.GetProperty("templateFieldId").GetGuid();
+        var replay = JsonSerializer.Deserialize<JsonElement>(stored.GetRawText());
+        var replayBody = replay.EnumerateObject()
+            .Where(property => property.Name is not ("rule" or "ruleDefinition" or "optionCodes"))
+            .ToDictionary(property => property.Name, property => (object?)property.Value);
+
+        replayBody["rule"] = rule;
+
         var replayed = await drafter.PutAsync(
-            $"{Root}/{template}/versions/{version}/fields/{fieldId}",
-            JsonSerializer.Deserialize<JsonElement>(stored.GetRawText()),
+            $"{Root}/{template}/versions/{version}/fields/{fieldId}", replayBody,
             await TagAsync(drafter, template));
 
         replayed.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -637,8 +651,9 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
             .GetProperty("fields").EnumerateArray()
             .Single(field => field.GetProperty("key").GetString() == "closure_style");
 
-        again.GetProperty("rule").GetRawText().ShouldBe(rule.GetRawText());
+        again.GetProperty("ruleDefinition").GetRawText().ShouldBe(rule.GetRawText());
         again.GetProperty("options").GetRawText().ShouldBe(stored.GetProperty("options").GetRawText());
+        again.GetProperty("optionCodes").GetRawText().ShouldBe(stored.GetProperty("optionCodes").GetRawText());
     }
 
     [Theory]

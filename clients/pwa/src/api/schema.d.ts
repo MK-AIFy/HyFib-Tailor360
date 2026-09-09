@@ -2466,9 +2466,10 @@ export interface components {
             maximumMillimetres: number | string;
             /** Format: double */
             minimumMillimetres: number | string;
+            optionCodes: string[];
             options: components["schemas"]["TemplateChoiceOption"][];
-            rule: null | components["schemas"]["TemplateRule"];
-            ruleDescription: null | string;
+            rule: null | string;
+            ruleDefinition: null | components["schemas"]["TemplateRule"];
             /** Format: uuid */
             templateFieldId: string;
             /** Format: double */

@@ -284,18 +284,32 @@ public sealed record TemplateVersionPayload(
 /// <param name="WarnAboveMillimetres">Above this the value needs an acknowledgement.</param>
 /// <param name="HelpText">Where the tape starts and ends.</param>
 /// <remarks>
-/// Everything an administration screen has to send back travels in the same shape it arrived in, so that a
-/// field can be read, edited and replaced without the client having to reconstruct anything. That is why
-/// <see cref="Rule"/> and <see cref="Options"/> are the very types the update accepts rather than a rendered
-/// sentence and a list of codes: a screen that had to rebuild a rule from prose, or invent labels for the
-/// options it just read, would silently drop configuration on every save.
+/// <para>
+/// Everything an administration screen has to send back is carried here in the shape the update accepts, so
+/// that a field can be read, edited and replaced without the client reconstructing anything. A screen that
+/// had to rebuild a rule from prose, or invent labels for the options it just read, would silently drop
+/// configuration on every save — which is what <see cref="RuleDefinition"/> and <see cref="Options"/> exist
+/// to prevent.
+/// </para>
+/// <para>
+/// <see cref="Rule"/> and <see cref="OptionCodes"/> are the older, lossy renderings of the same two things.
+/// They are kept because removing a field or changing its type inside a major version breaks every client
+/// that reads it (<c>docs/architecture/conventions.md</c> section 5.2), and they are the pair a client
+/// should stop reading: the sentence is for showing a person, and the codes carry no labels. Replaying a
+/// field therefore means sending <see cref="RuleDefinition"/> back as the request's <c>rule</c> and
+/// <see cref="Options"/> back as its <c>options</c>; the two deprecated fields are not sent at all.
+/// </para>
 /// </remarks>
 /// <param name="DiagramReference">The sheet and callout, as <c>&lt;diagram_key&gt;#&lt;field_key&gt;</c>.</param>
 /// <param name="DiagramAlt">The measuring path in words.</param>
 /// <param name="DiagramKey">The bundled sheet as it must be sent back, or null.</param>
 /// <param name="DiagramMediaId">The uploaded diagram as it must be sent back, or null.</param>
-/// <param name="Rule">When the field is shown, as the update accepts it, or null when it always is.</param>
-/// <param name="RuleDescription">The same rule written out as a sentence, for a screen to show.</param>
+/// <param name="Rule">
+/// Deprecated. The visibility rule written out as a sentence, for a screen to show; it cannot be sent back.
+/// Read <see cref="RuleDefinition"/> instead.
+/// </param>
+/// <param name="RuleDefinition">When the field is shown, as the update accepts it, or null when it always is.</param>
+/// <param name="OptionCodes">Deprecated. The choice codes without their labels. Read <see cref="Options"/> instead.</param>
 /// <param name="Options">The choices, as the update accepts them.</param>
 public sealed record TemplateFieldPayload(
     Guid TemplateFieldId,
@@ -318,8 +332,9 @@ public sealed record TemplateFieldPayload(
     string? DiagramAlt,
     string? DiagramKey,
     Guid? DiagramMediaId,
-    TemplateRule? Rule,
-    string? RuleDescription,
+    string? Rule,
+    TemplateRule? RuleDefinition,
+    IReadOnlyList<string> OptionCodes,
     IReadOnlyList<TemplateChoiceOption> Options)
 {
     /// <summary>Projects a field.</summary>
@@ -350,8 +365,9 @@ public sealed record TemplateFieldPayload(
             field.DiagramAlt,
             field.DiagramKey,
             field.DiagramMediaId,
-            Describe(field.Rule),
             TemplateFieldSnapshot.Describe(field.Rule),
+            Describe(field.Rule),
+            [.. field.Options.Select(option => option.Code)],
             [
                 .. field.Options
                     .OrderBy(option => option.DisplayOrder)
