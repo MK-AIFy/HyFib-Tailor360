@@ -3,6 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useParams } from 'react-router'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { ApiError } from '../../auth/apiClient'
+import type { VersionedResponse } from '../../auth/apiClient'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import type { ConfirmOutcome } from '../../components/dialogs/ConfirmDialog'
 import { Alert } from '../../components/primitives/Alert'
@@ -20,8 +21,8 @@ import {
 import type { TemplateLifecycleAction } from '../../admin/templateApi'
 import { ADMIN_PERMISSIONS } from '../../admin/adminPermissions'
 import { useAdminResource } from '../../admin/useAdminResource'
-import { useCurrentUser } from '../../auth/useSession'
-import type { TemplateField, TemplateVersion } from '../../admin/types'
+import { useCurrentUser, useStepUp } from '../../auth/useSession'
+import type { MeasurementTemplate, TemplateField, TemplateVersion } from '../../admin/types'
 import type { MessageKey } from '../../i18n/en-IN'
 
 /**
@@ -65,10 +66,32 @@ import type { MessageKey } from '../../i18n/en-IN'
  * page. When the editor arrives (#94) the version becomes a thing you are working *in* rather than
  * looking *at*, and that is the change that earns a route of its own.
  */
+/** An act the administrator has committed to, and the retry key it will keep until it succeeds. */
+interface PendingCommand {
+  readonly action: TemplateLifecycleAction
+  readonly version: TemplateVersion
+  readonly idempotencyKey: string
+}
+
+/**
+ * The four states this release knows, looked up rather than interpolated into a message key.
+ *
+ * `TemplateVersion.status` is typed `string` on purpose — `admin/types.ts` records why — so a server
+ * that gains a state must make the screen say something honest rather than render `react-intl`'s
+ * fallback, which is the key itself.
+ */
+const STATUS_MESSAGES: Readonly<Record<string, MessageKey>> = {
+  Draft: 'admin.template.status.Draft',
+  InReview: 'admin.template.status.InReview',
+  Published: 'admin.template.status.Published',
+  Retired: 'admin.template.status.Retired',
+}
+
 export function TemplateDetailRoute() {
   const intl = useIntl()
   const { templateId } = useParams()
   const { permissions } = useCurrentUser()
+  const stepUp = useStepUp()
 
   const canPublish = permissions.includes(ADMIN_PERMISSIONS.templatesPublish)
 
@@ -77,14 +100,40 @@ export function TemplateDetailRoute() {
   )
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [pending, setPending] = useState<{
-    readonly action: TemplateLifecycleAction
-    readonly version: TemplateVersion
-    readonly idempotencyKey: string
-  } | null>(null)
+  const [pending, setPending] = useState<PendingCommand | null>(null)
   const [busy, setBusy] = useState(false)
+  const [cloning, setCloning] = useState<string | null>(null)
   const [failure, setFailure] = useState<unknown>(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  /**
+   * The retry key of every command that has been attempted and has not yet succeeded, by the act and
+   * the version it was for.
+   *
+   * `docs/architecture/conventions.md` section 4.3 is explicit: a retry after a conflict reuses the
+   * *same* `Idempotency-Key`. Minting one when the confirmation opens would give a second attempt a
+   * key the server has never seen, so a command whose response was lost rather than refused would
+   * happen twice. The key is forgotten once the command has actually succeeded.
+   */
+  const [keys, setKeys] = useState<Readonly<Record<string, string>>>({})
+
+  /**
+   * The entity tag the last command returned, and the read it superseded.
+   *
+   * `template.reload()` is not awaited, so for one round trip the rendered value still carries the
+   * tag the command has already consumed. Sending that one would answer 409 and blame another
+   * administrator for this screen's own previous command. Holding the read it was taken against —
+   * rather than clearing the tag from an effect — is what makes it expire on its own: the moment a
+   * fresh read lands, `template.value` is a different object and the held tag stops applying.
+   */
+  const [settled, setSettled] = useState<{
+    readonly tag: string
+    readonly against: VersionedResponse<MeasurementTemplate> | null
+  } | null>(null)
+
+  /** The precondition to send: what the last command produced, else what the screen is showing. */
+  const precondition =
+    settled !== null && settled.against === template.value ? settled.tag : template.value?.version
 
   const value = template.value?.value ?? null
 
@@ -120,8 +169,105 @@ export function TemplateDetailRoute() {
   /** True when a version on this screen admits something this administrator is not allowed to do. */
   const withheld = versions.some((version) => admits(version).length > actionsFor(version).length)
 
+  /** The retry key for one act on one version, minted once and held until that act succeeds. */
+  const keyFor = (id: string): string => {
+    const held = keys[id]
+
+    if (held !== undefined) {
+      return held
+    }
+
+    const minted = crypto.randomUUID()
+    setKeys((all) => ({ ...all, [id]: minted }))
+
+    return minted
+  }
+
+  const forget = (id: string) => {
+    setKeys(({ [id]: _spent, ...rest }) => rest)
+  }
+
+  /** Remembers the tag a command returned, against the read it has just superseded. */
+  const hold = (result: VersionedResponse<MeasurementTemplate>) => {
+    setSettled(
+      result.version === undefined ? null : { tag: result.version, against: template.value },
+    )
+  }
+
+  /** Opens the confirmation for an act, carrying the retry key any earlier attempt at it left. */
+  const ask = (action: TemplateLifecycleAction, version: TemplateVersion) => {
+    setPending({
+      action,
+      version,
+      idempotencyKey: keyFor(`${version.templateVersionId}:${action}`),
+    })
+  }
+
+  /**
+   * Sends one lifecycle command, and answers a step-up refusal by asking rather than by failing.
+   *
+   * Returning, approving, publishing and retiring all carry `.RequireStepUp()`, so an administrator
+   * who has been reading a version for longer than the freshness window is refused with
+   * `security.step-up-required` — which is a question, not a refusal. It raises the same
+   * re-authentication dialog the session-expiry path uses, then sends the identical command again:
+   * same retry key, same reason, same precondition. Nothing the person typed is asked for twice.
+   */
+  const send = async (
+    attempt: PendingCommand,
+    reason: string | null,
+    version: string,
+    proving = false,
+  ): Promise<void> => {
+    if (templateId === undefined) {
+      return
+    }
+
+    const id = `${attempt.version.templateVersionId}:${attempt.action}`
+
+    setBusy(true)
+    setFailure(null)
+    setNotice(null)
+
+    try {
+      const result = await commandTemplateVersion({
+        templateId,
+        versionId: attempt.version.templateVersionId,
+        action: attempt.action,
+        reason,
+        version,
+        idempotencyKey: attempt.idempotencyKey,
+      })
+
+      forget(id)
+      hold(result)
+      setPending(null)
+      setNotice(
+        intl.formatMessage(
+          { id: 'admin.template.done' },
+          { number: attempt.version.versionNumber },
+        ),
+      )
+      template.reload()
+    } catch (cause: unknown) {
+      const needsProof =
+        !proving && cause instanceof ApiError && cause.code === 'security.step-up-required'
+
+      if (needsProof && (await stepUp(attempt.action))) {
+        // Once only: a second refusal after a fresh proof is a refusal, and asking again would be a
+        // loop the person cannot leave.
+        await send(attempt, reason, version, true)
+        return
+      }
+
+      setFailure(cause)
+      setPending(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const run = (outcome: ConfirmOutcome) => {
-    if (pending === null || templateId === undefined) {
+    if (pending === null) {
       return
     }
 
@@ -135,7 +281,7 @@ export function TemplateDetailRoute() {
 
     // The entity tag of the read this screen is showing: the precondition is what the administrator
     // reviewed. See the note above on why this is not re-read here.
-    const version = template.value?.version
+    const version = precondition
 
     if (version === undefined) {
       // Fail closed. The read behind this screen always carries a tag, so a missing one means the
@@ -146,33 +292,7 @@ export function TemplateDetailRoute() {
       return
     }
 
-    setBusy(true)
-    setFailure(null)
-
-    void commandTemplateVersion({
-      templateId,
-      versionId: pending.version.templateVersionId,
-      action: pending.action,
-      reason: needsReason ? reason : null,
-      version,
-      idempotencyKey: pending.idempotencyKey,
-    })
-      .then(() => {
-        setNotice(
-          intl.formatMessage(
-            { id: 'admin.template.done' },
-            { number: pending.version.versionNumber },
-          ),
-        )
-        template.reload()
-      })
-      .catch((cause: unknown) => {
-        setFailure(cause)
-      })
-      .finally(() => {
-        setBusy(false)
-        setPending(null)
-      })
+    void send(pending, needsReason ? reason : null, version)
   }
 
   const clone = (from: TemplateVersion) => {
@@ -180,8 +300,12 @@ export function TemplateDetailRoute() {
       return
     }
 
-    setBusy(true)
+    const id = `${from.templateVersionId}:clone`
+    const idempotencyKey = keyFor(id)
+
+    setCloning(from.templateVersionId)
     setFailure(null)
+    setNotice(null)
 
     // The server numbers a new version from the highest that exists, not from the one being copied
     // (`MeasurementTemplate.NextVersionNumber`). Naming it after the source would call the fourth
@@ -196,9 +320,11 @@ export function TemplateDetailRoute() {
       notes: null,
       defaultDisplayUnit: from.defaultDisplayUnit,
       cloneFromVersionId: from.templateVersionId,
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey,
     })
       .then((result) => {
+        forget(id)
+        hold(result)
         template.reload()
         setSelectedId(
           [...result.value.versions].sort(
@@ -210,13 +336,19 @@ export function TemplateDetailRoute() {
         setFailure(cause)
       })
       .finally(() => {
-        setBusy(false)
+        setCloning(null)
       })
   }
 
   const conflict = failure instanceof ApiError && failure.status === 409
   const selfApproval =
     failure instanceof ApiError && failure.code === 'measurements.submitter-cannot-publish'
+
+  // Publication runs the validation first and refuses on any error it finds. The findings themselves
+  // are a screen of their own (#96); until then this says which refusal it was, because the generic
+  // sentence for a 400 is "the reason is not clear" and the reason is entirely clear.
+  const validationRefused =
+    failure instanceof ApiError && failure.code === 'measurements.publish-validation-failed'
 
   if (template.loading) {
     return (
@@ -259,6 +391,10 @@ export function TemplateDetailRoute() {
       {selfApproval ? (
         <Alert tone="warning" live="assertive">
           <FormattedMessage id="admin.template.selfApproval" />
+        </Alert>
+      ) : validationRefused ? (
+        <Alert tone="warning" live="assertive">
+          <FormattedMessage id="admin.template.validationRefused" />
         </Alert>
       ) : conflict ? (
         <Alert
@@ -317,7 +453,9 @@ export function TemplateDetailRoute() {
               id: 'status',
               header: intl.formatMessage({ id: 'admin.template.column.status' }),
               cell: (row: TemplateVersion) =>
-                intl.formatMessage({ id: `admin.template.status.${row.status}` as MessageKey }),
+                intl.formatMessage({
+                  id: STATUS_MESSAGES[row.status] ?? 'admin.template.status.unknown',
+                }),
             },
             {
               id: 'name',
@@ -339,7 +477,6 @@ export function TemplateDetailRoute() {
             <>
               <Button
                 variant="secondary"
-                busy={busy && selected?.templateVersionId === row.templateVersionId}
                 onClick={() => {
                   setSelectedId(row.templateVersionId)
                 }}
@@ -355,7 +492,7 @@ export function TemplateDetailRoute() {
                   variant={action === 'retire' || action === 'return' ? 'danger' : 'primary'}
                   busy={busy && pending?.version.templateVersionId === row.templateVersionId}
                   onClick={() => {
-                    setPending({ action, version: row, idempotencyKey: crypto.randomUUID() })
+                    ask(action, row)
                   }}
                 >
                   {intl.formatMessage({ id: `admin.template.action.${action}` as MessageKey })}
@@ -364,7 +501,7 @@ export function TemplateDetailRoute() {
               {row.status === 'Published' || row.status === 'Retired' ? (
                 <Button
                   variant="secondary"
-                  busy={busy}
+                  busy={cloning === row.templateVersionId}
                   onClick={() => {
                     clone(row)
                   }}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -103,7 +103,13 @@ function renderDetail() {
   )
 }
 
-/** Opens an action's confirmation and answers it, typing a reason when the tier asks for one. */
+/**
+ * Opens an action's confirmation and answers it, typing a reason when the tier asks for one.
+ *
+ * Everything is found by accessible name, including inside the dialog: the row control and the
+ * confirming control share a name on purpose — 2.5.3 Label in Name is what makes "tap Publish" work
+ * on voice control — so the dialog is the scope that tells them apart, not the DOM order.
+ */
 async function confirm(
   user: ReturnType<typeof userEvent.setup>,
   action: string,
@@ -111,16 +117,13 @@ async function confirm(
 ) {
   await user.click(screen.getByRole('button', { name: action }))
 
+  const dialog = await screen.findByRole('dialog')
+
   if (reason !== null) {
-    await user.type(await screen.findByRole('textbox'), reason)
+    await user.type(within(dialog).getByRole('textbox'), reason)
   }
 
-  const dialog = await screen.findByRole('dialog')
-  const confirmButton = Array.from(dialog.querySelectorAll('button')).find(
-    (candidate) => candidate.textContent === action,
-  )
-
-  await user.click(confirmButton as HTMLButtonElement)
+  await user.click(within(dialog).getByRole('button', { name: action }))
 }
 
 /* The list ------------------------------------------------------------------------------------ */
@@ -305,9 +308,7 @@ it('sends one command however many times the confirmation is pressed', async () 
   await user.click(screen.getByRole('button', { name: 'Submit for review' }))
 
   const dialog = await screen.findByRole('dialog')
-  const confirmButton = Array.from(dialog.querySelectorAll('button')).find(
-    (candidate) => candidate.textContent === 'Submit for review',
-  ) as HTMLButtonElement
+  const confirmButton = within(dialog).getByRole('button', { name: 'Submit for review' })
 
   await user.click(confirmButton)
   await user.click(confirmButton)
@@ -429,6 +430,150 @@ it('offers a re-read when somebody else changed the template first', async () =>
   await confirm(user, 'Submit for review', null)
 
   expect(await screen.findByRole('button', { name: 'Reload' })).toBeInTheDocument()
+})
+
+it('asks for a fresh proof of identity when the server demands one, rather than reporting a refusal', async () => {
+  const user = userEvent.setup()
+
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(
+      aMeasurementTemplate({ versions: [{ ...IN_REVIEW, isApproved: true }] }),
+      'W/"1"',
+    ),
+  )
+  transport.route(`POST ${DETAIL}/versions/${IN_REVIEW.templateVersionId}/publish`, () =>
+    problemResponse(403, 'security.step-up-required'),
+  )
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Publish' })
+  await confirm(user, 'Publish', 'Reviewed with the Tailor Master.')
+
+  // The question, not "this did not go through and the reason is not clear".
+  expect(await screen.findByText('Confirm it is you')).toBeInTheDocument()
+})
+
+it('reuses the retry key when a refused command is attempted again', async () => {
+  const user = userEvent.setup()
+
+  transport.route(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`, () =>
+    problemResponse(409, 'measurements.version-changed'),
+  )
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Submit for review' })
+  await confirm(user, 'Submit for review', null)
+  await screen.findByRole('button', { name: 'Reload' })
+  await confirm(user, 'Submit for review', null)
+
+  const sent = transport.callsTo(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`)
+
+  expect(sent).toHaveLength(2)
+  // conventions section 4.3: a retry after a conflict reuses the same key. A fresh one would let a
+  // command whose answer was lost rather than refused happen twice.
+  expect(sent[0]?.headers.get('Idempotency-Key')).toBe(sent[1]?.headers.get('Idempotency-Key'))
+})
+
+it('re-reads and clears the conflict when the administrator presses Reload', async () => {
+  const user = userEvent.setup()
+
+  transport.route(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`, () =>
+    problemResponse(409, 'measurements.version-changed'),
+  )
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Submit for review' })
+  await confirm(user, 'Submit for review', null)
+
+  const reads = transport.callsTo(`GET ${DETAIL}`).length
+
+  await user.click(await screen.findByRole('button', { name: 'Reload' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(`GET ${DETAIL}`).length).toBeGreaterThan(reads)
+  })
+  expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument()
+})
+
+it('acts on the version its own last command produced, not the one already superseded', async () => {
+  const user = userEvent.setup()
+
+  let reads = 0
+  transport.route(`GET ${DETAIL}`, () => {
+    reads += 1
+
+    // The re-read after a command never lands, which is the window the screen has to survive.
+    return reads === 1 ? versionedResponse(LIVE, 'W/"1"') : new Promise<Response>(() => undefined)
+  })
+  transport.route(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`, () =>
+    versionedResponse(LIVE, 'W/"2"'),
+  )
+  transport.route(`POST ${DETAIL}/versions/${PUBLISHED.templateVersionId}/retire`, () =>
+    versionedResponse(LIVE, 'W/"3"'),
+  )
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Submit for review' })
+  await confirm(user, 'Submit for review', null)
+  await screen.findByText('Version 1 — done.')
+
+  await confirm(user, 'Retire', 'Superseded by the new pattern.')
+
+  const sent = transport.callsTo(`POST ${DETAIL}/versions/${PUBLISHED.templateVersionId}/retire`)[0]
+
+  expect(sent?.headers.get('If-Match')).toBe('W/"2"')
+})
+
+it('says which refusal it was when publication fails its checks', async () => {
+  const user = userEvent.setup()
+
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(
+      aMeasurementTemplate({ versions: [{ ...IN_REVIEW, isApproved: true }] }),
+      'W/"1"',
+    ),
+  )
+  transport.route(`POST ${DETAIL}/versions/${IN_REVIEW.templateVersionId}/publish`, () =>
+    problemResponse(400, 'measurements.publish-validation-failed'),
+  )
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Publish' })
+  await confirm(user, 'Publish', 'Reviewed with the Tailor Master.')
+
+  expect(await screen.findByText(/checks that run before publication/)).toBeInTheDocument()
+})
+
+it('says so plainly when a version is in a state this release does not know', async () => {
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(
+      aMeasurementTemplate({ versions: [aTemplateVersion({ status: 'Superseded' })] }),
+      'W/"1"',
+    ),
+  )
+
+  renderDetail()
+
+  expect(
+    await screen.findByText('A state this version of the application does not know'),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/admin\.template\.status/)).not.toBeInTheDocument()
+})
+
+it('explains a read that could not reach the server at all', async () => {
+  transport.route(`GET ${DETAIL}`, () => {
+    throw new TypeError('Failed to fetch')
+  })
+
+  renderDetail()
+
+  expect(await screen.findByRole('alert')).toBeInTheDocument()
+  expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument()
 })
 
 it('has no accessibility violations on one template', async () => {

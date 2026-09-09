@@ -301,6 +301,7 @@ export const adminEn = {
   'admin.template.status.InReview': 'In review',
   'admin.template.status.Published': 'Published',
   'admin.template.status.Retired': 'Retired',
+  'admin.template.status.unknown': 'A state this version of the application does not know',
 
   /* The five lifecycle acts. */
   'admin.template.action.submit': 'Submit for review',
@@ -327,6 +328,8 @@ export const adminEn = {
     'Nothing new is captured against it. Everything already captured still reads through it. This is refused while the published catalogue still points at this template.',
   'admin.template.action.retire.reason': 'Why are you retiring this version?',
   'admin.template.done': 'Version {number} — done.',
+  'admin.template.validationRefused':
+    'This version cannot be published yet: the checks that run before publication found something to fix. Open the version and correct what it reports, then publish again.',
   'admin.template.selfApproval':
     'The administrator who submitted a version does not also approve it, unless they are the only one who could. Ask a second administrator to review it.',
 } as const
@@ -817,6 +820,8 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.template.status.Retired': 'Retired',
   // not translated — awaiting native-speaker review
+  'admin.template.status.unknown': 'A state this version of the application does not know',
+  // not translated — awaiting native-speaker review
   'admin.template.action.submit': 'Submit for review',
   // not translated — awaiting native-speaker review
   'admin.template.action.submit.title': 'Submit this version for review?',
@@ -859,6 +864,9 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   'admin.template.action.retire.reason': 'Why are you retiring this version?',
   // not translated — awaiting native-speaker review
   'admin.template.done': 'Version {number} — done.',
+  // not translated — awaiting native-speaker review
+  'admin.template.validationRefused':
+    'This version cannot be published yet: the checks that run before publication found something to fix. Open the version and correct what it reports, then publish again.',
   // not translated — awaiting native-speaker review
   'admin.template.selfApproval':
     'The administrator who submitted a version does not also approve it, unless they are the only one who could. Ask a second administrator to review it.',
