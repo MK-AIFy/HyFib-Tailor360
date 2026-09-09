@@ -59,6 +59,19 @@ public sealed class CommandSafetyApplication : IAsyncLifetime
     /// <summary>A request-timeout policy short enough for a test to wait out.</summary>
     public const string FastTimeoutPolicy = "probe-fast";
 
+    /// <summary>
+    /// How long <see cref="FastTimeoutPolicy" /> gives a request.
+    /// </summary>
+    /// <remarks>
+    /// It has to cover more than the handler. Everything an endpoint filter does happens inside the
+    /// request, so a duplicate's wait, and the database round-trip each of its polls makes, are spent out
+    /// of this budget too — and a duplicate that runs out of it is answered with a timeout instead of the
+    /// conflict it was waiting to be told about. Two seconds is short enough for a test to wait out and
+    /// long enough that the answer does not depend on how loaded the machine is; a quarter of a second
+    /// was not, and failed in continuous integration while passing on every developer machine.
+    /// </remarks>
+    public static readonly TimeSpan FastTimeout = TimeSpan.FromSeconds(2);
+
     private static readonly DateTimeOffset Start = new(2026, 9, 6, 10, 0, 0, TimeSpan.Zero);
 
     private string? _databaseName;
@@ -253,7 +266,7 @@ public sealed class CommandSafetyApplication : IAsyncLifetime
                     services.AddTailor360RequestTimeouts();
                     services.AddRequestTimeouts(options => options.AddPolicy(
                         FastTimeoutPolicy,
-                        RequestTimeoutPolicies.Create(TimeSpan.FromMilliseconds(250))));
+                        RequestTimeoutPolicies.Create(FastTimeout)));
                 })
                 .Configure(app =>
                 {
