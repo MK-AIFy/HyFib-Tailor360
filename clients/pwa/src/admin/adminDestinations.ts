@@ -20,6 +20,11 @@ export const ADMIN_DESTINATIONS: readonly AdminDestination[] = [
   { path: 'users', messageId: 'admin.nav.users', permission: ADMIN_PERMISSIONS.users },
   { path: 'branches', messageId: 'admin.nav.branches', permission: ADMIN_PERMISSIONS.branches },
   { path: 'roles', messageId: 'admin.nav.roles', permission: ADMIN_PERMISSIONS.roles },
+  {
+    path: 'templates',
+    messageId: 'admin.nav.templates',
+    permission: ADMIN_PERMISSIONS.templatesEdit,
+  },
   { path: 'features', messageId: 'admin.nav.features', permission: ADMIN_PERMISSIONS.featureFlags },
   { path: 'audit', messageId: 'admin.nav.audit', permission: ADMIN_PERMISSIONS.auditRead },
   { path: 'outbox', messageId: 'admin.nav.outbox', permission: ADMIN_PERMISSIONS.outboxReplay },

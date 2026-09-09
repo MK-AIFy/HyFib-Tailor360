@@ -15,6 +15,8 @@ import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
 import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
+import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
+import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
 import { AuthShell } from '../routes/auth/AuthShell'
 import { AuthenticatorEnrolmentRoute } from '../routes/auth/AuthenticatorEnrolmentRoute'
@@ -197,6 +199,25 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.roles}>
                     <RoleDetailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'templates',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.templatesEdit}>
+                    <TemplateListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // Guarded on the drafting permission, not the publishing one. Both are granted to
+                // the same two roles, and a reviewer who could not read the version they are being
+                // asked to approve would be a shape this product does not have.
+                path: 'templates/:templateId',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.templatesEdit}>
+                    <TemplateDetailRoute />
                   </RequirePermission>
                 ),
               },

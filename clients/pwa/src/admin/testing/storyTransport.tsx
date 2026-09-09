@@ -117,6 +117,8 @@ export const STORY_USER = {
     'admin.feature_flags',
     'admin.audit.read',
     'admin.outbox.replay',
+    'catalog.templates.edit',
+    'catalog.templates.publish',
   ],
   security: {
     mfaEnrolment: 'Enrolled',

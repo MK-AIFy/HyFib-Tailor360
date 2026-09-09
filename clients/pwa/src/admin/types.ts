@@ -213,3 +213,137 @@ export interface DeadLetteredMessage {
   readonly lastError: string | null
   readonly correlationId: string | null
 }
+
+/**
+ * Where a measurement-template version is in its life (#27).
+ *
+ * The interface members below keep `string` rather than this union, deliberately and for the same
+ * reason `Branch.status` does: a server that gains a state should fail to *render* — which a screen
+ * can say something honest about — rather than fail to type, which nobody sees until a build.
+ */
+export const TEMPLATE_VERSION_STATUSES = ['Draft', 'InReview', 'Published', 'Retired'] as const
+
+export type TemplateVersionStatus = (typeof TEMPLATE_VERSION_STATUSES)[number]
+
+/** One choice a field offers, when it is chosen rather than measured. */
+export interface TemplateChoiceOption {
+  readonly code: string
+  readonly label: string
+  readonly labelTamil: string | null
+  readonly displayOrder: number | string
+}
+
+/** One clause of a visibility rule. Clauses are joined by *or*. */
+export interface TemplateRuleClause {
+  /** Where the operand is read from: `Field` or `DesignSelection`. */
+  readonly scope: string
+  /** The field key, or the design option-group code. */
+  readonly name: string
+  /** `IsAnyOf` or `Excludes`. */
+  readonly operator: string
+  readonly values: readonly string[]
+}
+
+/** When a field is shown, in the shape the update accepts. */
+export interface TemplateRule {
+  /** `ShownWhen` or `HiddenWhen`. */
+  readonly effect: string
+  readonly anyOf: readonly TemplateRuleClause[]
+}
+
+/**
+ * One field of a version.
+ *
+ * ## Two pairs, and which half to read
+ *
+ * `rule` is the visibility rule rendered as an English sentence and `optionCodes` is the choices
+ * without their labels. Both are superseded by `ruleDefinition` and `options`, and both are still
+ * served only because removing a field inside a major version breaks every client reading it
+ * (`docs/architecture/conventions.md` section 5.2). **Read `ruleDefinition` and `options`.** The
+ * sentence is for showing a person; it cannot be sent back, because the update expects the clauses.
+ *
+ * Bounds and thresholds are millimetres. Rendering them in the unit a tailor thinks in is #94's
+ * work, and doing half of it here would be worse than not doing it.
+ */
+export interface TemplateField {
+  readonly templateFieldId: string
+  /** What captured values are filed under. Stable: a rename is a removal and an addition. */
+  readonly key: string
+  readonly label: string
+  readonly labelTamil: string | null
+  readonly groupName: string
+  readonly displayOrder: number | string
+  /** `Millimetre`, `Count` or `None`. */
+  readonly canonicalUnit: string
+  readonly displayUnits: readonly string[]
+  /** The inch step as a denominator: 8 means eighths. Zero for no inch display. */
+  readonly inchFraction: number | string
+  readonly centimetreDecimals: number | string
+  readonly isRequired: boolean
+  readonly minimumMillimetres: number | string
+  readonly maximumMillimetres: number | string
+  readonly warnBelowMillimetres: number | string | null
+  readonly warnAboveMillimetres: number | string | null
+  readonly helpText: string
+  /** The sheet and callout together, as `<diagram_key>#<field_key>`. */
+  readonly diagramReference: string | null
+  readonly diagramAlt: string | null
+  /** The bundled sheet as an update must send it back. */
+  readonly diagramKey: string | null
+  /** The uploaded diagram as an update must send it back (#31). */
+  readonly diagramMediaId: string | null
+  /** Superseded by `ruleDefinition`. A sentence to show, never to send. */
+  readonly rule: string | null
+  readonly ruleDefinition: TemplateRule | null
+  /** Superseded by `options`. Codes without their labels. */
+  readonly optionCodes: readonly string[]
+  readonly options: readonly TemplateChoiceOption[]
+}
+
+/** One version of a template. `fields` is null on the list, which does not carry them. */
+export interface TemplateVersion {
+  readonly templateVersionId: string
+  readonly versionNumber: number | string
+  readonly name: string
+  readonly notes: string | null
+  readonly status: string
+  /** The unit the capture wizard opens in, as this version declares it. */
+  readonly defaultDisplayUnit: string
+  /** Whether a second administrator has approved it. Publication needs this. */
+  readonly isApproved: boolean
+  readonly publishedAt: string | null
+  readonly retiredAt: string | null
+  readonly fields: readonly TemplateField[] | null
+}
+
+/**
+ * A measurement template and every version of it.
+ *
+ * There is no `version` member: the concurrency token for this aggregate travels in the `ETag` of
+ * the read, not in the body, and the screens hold it beside the value rather than inside it.
+ */
+export interface MeasurementTemplate {
+  readonly measurementTemplateId: string
+  /** The stable machine key a catalogue service type points at, such as `MT_BLOUSE_PATTERN`. */
+  readonly code: string
+  readonly name: string
+  readonly description: string | null
+  readonly publishedVersionId: string | null
+  readonly versions: readonly TemplateVersion[]
+}
+
+/** One thing publish validation noticed. `target` names the control it is about. */
+export interface TemplateFinding {
+  /** `Error` refuses publication; `Warning` does not. */
+  readonly severity: string
+  readonly code: string
+  readonly message: string
+  readonly target: string
+}
+
+/** What publish validation found. */
+export interface TemplateValidation {
+  readonly templateVersionId: string
+  readonly isReadyToPublish: boolean
+  readonly findings: readonly TemplateFinding[]
+}

@@ -245,6 +245,93 @@ export const adminEn = {
   'admin.access.reason.branches': 'Why are you changing where this person works?',
   'admin.access.lastAdministrator':
     'This would leave nobody able to administer accounts. Give somebody else an administrative role first, then take this one away.',
+
+  /* Measurement templates (#93). ------------------------------------------------------------- */
+  'admin.nav.templates': 'Measurement templates',
+  'admin.templates.title': 'Measurement templates',
+  'admin.templates.loading': 'measurement templates',
+  'admin.templates.empty':
+    'No measurement template has been set up yet. Until one is published, nothing can be measured.',
+  'admin.templates.caption': 'Measurement templates, with the version each is capturing against',
+  'admin.templates.column.code': 'Code',
+  'admin.templates.column.name': 'Name',
+  'admin.templates.column.published': 'Capturing against',
+  'admin.templates.column.inProgress': 'In progress',
+  'admin.templates.none': 'Nothing published',
+  'admin.templates.open': 'Open {name}',
+  'admin.templates.version': 'Version {number}',
+  'admin.templates.inProgress':
+    '{count, plural, =0 {Nothing in progress} one {1 version} other {# versions}}',
+  'admin.templates.notPublishedHint':
+    'A template captures nothing until one of its versions is published. Drafting, review and publication are separate acts, and the person who submits a version is not the person who approves it.',
+
+  /* One template, and its versions. */
+  'admin.template.loading': 'this template',
+  'admin.template.versions': 'Versions',
+  'admin.template.versionsCaption': 'Every version of this template, newest first',
+  'admin.template.column.version': 'Version',
+  'admin.template.column.status': 'State',
+  'admin.template.column.name': 'What changed',
+  'admin.template.column.fields': 'Fields',
+  'admin.template.fields': '{count, plural, =0 {No field} one {1 field} other {# fields}}',
+  'admin.template.readOnly':
+    'This version is published and cannot be edited. Change it by starting a draft from it, which copies its fields and leaves what has already been captured alone.',
+  'admin.template.clone': 'Start a draft from this version',
+  'admin.template.fieldsCaption': 'The fields of this version, in the order they are measured',
+  'admin.template.column.key': 'Key',
+  'admin.template.column.label': 'Label',
+  'admin.template.column.group': 'Step',
+  'admin.template.column.unit': 'Stored as',
+  'admin.template.column.range': 'Range',
+  'admin.template.column.required': 'Required',
+  'admin.template.required': 'Required',
+  'admin.template.optional': 'Optional',
+  'admin.template.millimetres': '{from}–{to} mm',
+  'admin.template.noFields':
+    'This version has no fields yet. A version with no fields cannot be published.',
+  'admin.template.noVersions':
+    'This template has no versions yet. Start a draft to describe what is measured.',
+  'admin.template.approved': 'Approved, ready to publish',
+  'admin.template.awaitingApproval': 'Waiting for a second administrator',
+  'admin.template.needsPublish':
+    'You can draft a version and submit it for review. Sending one back, approving it, publishing it and retiring it are the reviewing administrator’s acts and need the template publishing permission — ask the shop owner if you need it.',
+
+  /* The states a version can be in. The API's own words are the last segment. */
+  'admin.template.status.Draft': 'Draft',
+  'admin.template.status.InReview': 'In review',
+  'admin.template.status.Published': 'Published',
+  'admin.template.status.Retired': 'Retired',
+  'admin.template.status.unknown': 'A state this version of the application does not know',
+
+  /* The five lifecycle acts. */
+  'admin.template.action.submit': 'Submit for review',
+  'admin.template.action.submit.title': 'Submit this version for review?',
+  'admin.template.action.submit.body':
+    'It stops being editable straight away, so that whoever reviews it reads a version that cannot change under them.',
+  'admin.template.action.return': 'Send back',
+  'admin.template.action.return.title': 'Send this version back to its author?',
+  'admin.template.action.return.body':
+    'It becomes editable again and its approval goes back with it: a version that comes back for changes has not been reviewed in the state it will be in.',
+  'admin.template.action.return.reason': 'What needs changing?',
+  'admin.template.action.approve': 'Approve',
+  'admin.template.action.approve.title': 'Approve this version?',
+  'admin.template.action.approve.body':
+    'You are saying this is what should be measured. Somebody still has to publish it before anything is captured against it.',
+  'admin.template.action.publish': 'Publish',
+  'admin.template.action.publish.title': 'Publish this version?',
+  'admin.template.action.publish.body':
+    'Everything measured from now on is captured against it, and the version it replaces is retired in the same act. Measurements already taken still read through the version they were captured under.',
+  'admin.template.action.publish.reason': 'Why are you publishing this version?',
+  'admin.template.action.retire': 'Retire',
+  'admin.template.action.retire.title': 'Retire this version?',
+  'admin.template.action.retire.body':
+    'Nothing new is captured against it. Everything already captured still reads through it. This is refused while the published catalogue still points at this template.',
+  'admin.template.action.retire.reason': 'Why are you retiring this version?',
+  'admin.template.done': 'Version {number} — done.',
+  'admin.template.validationRefused':
+    'This version cannot be published yet: the checks that run before publication found something to fix. Open the version and correct what it reports, then publish again.',
+  'admin.template.selfApproval':
+    'The administrator who submitted a version does not also approve it, unless they are the only one who could. Ask a second administrator to review it.',
 } as const
 
 /*
@@ -639,4 +726,148 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.access.lastAdministrator':
     'This would leave nobody able to administer accounts. Give somebody else an administrative role first, then take this one away.',
+  // not translated — awaiting native-speaker review
+  'admin.nav.templates': 'Measurement templates',
+  // not translated — awaiting native-speaker review
+  'admin.templates.title': 'Measurement templates',
+  // not translated — awaiting native-speaker review
+  'admin.templates.loading': 'measurement templates',
+  // not translated — awaiting native-speaker review
+  'admin.templates.empty':
+    'No measurement template has been set up yet. Until one is published, nothing can be measured.',
+  // not translated — awaiting native-speaker review
+  'admin.templates.caption': 'Measurement templates, with the version each is capturing against',
+  // not translated — awaiting native-speaker review
+  'admin.templates.column.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'admin.templates.column.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'admin.templates.column.published': 'Capturing against',
+  // not translated — awaiting native-speaker review
+  'admin.templates.column.inProgress': 'In progress',
+  // not translated — awaiting native-speaker review
+  'admin.templates.none': 'Nothing published',
+  // not translated — awaiting native-speaker review
+  'admin.templates.open': 'Open {name}',
+  // not translated — awaiting native-speaker review
+  'admin.templates.version': 'Version {number}',
+  // not translated — awaiting native-speaker review
+  'admin.templates.inProgress':
+    '{count, plural, =0 {Nothing in progress} one {1 version} other {# versions}}',
+  // not translated — awaiting native-speaker review
+  'admin.templates.notPublishedHint':
+    'A template captures nothing until one of its versions is published. Drafting, review and publication are separate acts, and the person who submits a version is not the person who approves it.',
+  // not translated — awaiting native-speaker review
+  'admin.template.loading': 'this template',
+  // not translated — awaiting native-speaker review
+  'admin.template.versions': 'Versions',
+  // not translated — awaiting native-speaker review
+  'admin.template.versionsCaption': 'Every version of this template, newest first',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.version': 'Version',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.status': 'State',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.name': 'What changed',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.fields': 'Fields',
+  // not translated — awaiting native-speaker review
+  'admin.template.fields': '{count, plural, =0 {No field} one {1 field} other {# fields}}',
+  // not translated — awaiting native-speaker review
+  'admin.template.readOnly':
+    'This version is published and cannot be edited. Change it by starting a draft from it, which copies its fields and leaves what has already been captured alone.',
+  // not translated — awaiting native-speaker review
+  'admin.template.clone': 'Start a draft from this version',
+  // not translated — awaiting native-speaker review
+  'admin.template.fieldsCaption': 'The fields of this version, in the order they are measured',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.key': 'Key',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.label': 'Label',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.group': 'Step',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.unit': 'Stored as',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.range': 'Range',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.required': 'Required',
+  // not translated — awaiting native-speaker review
+  'admin.template.required': 'Required',
+  // not translated — awaiting native-speaker review
+  'admin.template.optional': 'Optional',
+  // not translated — awaiting native-speaker review
+  'admin.template.millimetres': '{from}–{to} mm',
+  // not translated — awaiting native-speaker review
+  'admin.template.noFields':
+    'This version has no fields yet. A version with no fields cannot be published.',
+  // not translated — awaiting native-speaker review
+  'admin.template.noVersions':
+    'This template has no versions yet. Start a draft to describe what is measured.',
+  // not translated — awaiting native-speaker review
+  'admin.template.approved': 'Approved, ready to publish',
+  // not translated — awaiting native-speaker review
+  'admin.template.awaitingApproval': 'Waiting for a second administrator',
+  // not translated — awaiting native-speaker review
+  'admin.template.needsPublish':
+    'You can draft a version and submit it for review. Sending one back, approving it, publishing it and retiring it are the reviewing administrator’s acts and need the template publishing permission — ask the shop owner if you need it.',
+  // not translated — awaiting native-speaker review
+  'admin.template.status.Draft': 'Draft',
+  // not translated — awaiting native-speaker review
+  'admin.template.status.InReview': 'In review',
+  // not translated — awaiting native-speaker review
+  'admin.template.status.Published': 'Published',
+  // not translated — awaiting native-speaker review
+  'admin.template.status.Retired': 'Retired',
+  // not translated — awaiting native-speaker review
+  'admin.template.status.unknown': 'A state this version of the application does not know',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.submit': 'Submit for review',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.submit.title': 'Submit this version for review?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.submit.body':
+    'It stops being editable straight away, so that whoever reviews it reads a version that cannot change under them.',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.return': 'Send back',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.return.title': 'Send this version back to its author?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.return.body':
+    'It becomes editable again and its approval goes back with it: a version that comes back for changes has not been reviewed in the state it will be in.',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.return.reason': 'What needs changing?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.approve': 'Approve',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.approve.title': 'Approve this version?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.approve.body':
+    'You are saying this is what should be measured. Somebody still has to publish it before anything is captured against it.',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.publish': 'Publish',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.publish.title': 'Publish this version?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.publish.body':
+    'Everything measured from now on is captured against it, and the version it replaces is retired in the same act. Measurements already taken still read through the version they were captured under.',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.publish.reason': 'Why are you publishing this version?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.retire': 'Retire',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.retire.title': 'Retire this version?',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.retire.body':
+    'Nothing new is captured against it. Everything already captured still reads through it. This is refused while the published catalogue still points at this template.',
+  // not translated — awaiting native-speaker review
+  'admin.template.action.retire.reason': 'Why are you retiring this version?',
+  // not translated — awaiting native-speaker review
+  'admin.template.done': 'Version {number} — done.',
+  // not translated — awaiting native-speaker review
+  'admin.template.validationRefused':
+    'This version cannot be published yet: the checks that run before publication found something to fix. Open the version and correct what it reports, then publish again.',
+  // not translated — awaiting native-speaker review
+  'admin.template.selfApproval':
+    'The administrator who submitted a version does not also approve it, unless they are the only one who could. Ask a second administrator to review it.',
 }
