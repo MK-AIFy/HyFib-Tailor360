@@ -20,11 +20,12 @@
     "dotnet CLIs only contribute information about external dependencies. Which external methods are",
     "modelled as taint sinks therefore moves with the dependency set - so a dependency bump can make a",
     "finding appear or disappear with no change to a single line of this repository's code. That is what",
-    "happened to the two cs/cleartext-storage-of-sensitive-information entries this register carried:",
-    "SessionService.cs and both PasswordChanged enum members are byte-identical to when they were",
-    "accepted, and the findings are simply no longer produced. Before removing an entry, check whether",
-    "the code it names actually changed; if it did not, say so where the removal is recorded, because",
-    "the next bump may well bring the finding back and the reason will be wanted again.",
+    "happened to the two cs/cleartext-storage-of-sensitive-information entries below: they were removed",
+    "on 2026-09-07 as stale, and on 2026-09-09 a later bump produced both findings again, against a",
+    "SessionService.cs and two PasswordChanged enum members that had not changed a byte in between. They",
+    "are restored with the reading they were accepted under, because that reading is still the right one.",
+    "So: before removing an entry, check whether the code it names actually changed; if it did not, say",
+    "so where the removal is recorded and keep the reason, because the next bump may well want it again.",
     "",
     "`scope` names the scan the entry belongs to, and the gate is given a --scope so it applies only",
     "the entries written for the run in hand. It is not decoration: the CodeQL job is a matrix over",
@@ -35,5 +36,24 @@
     "This register is for findings that are wrong. A finding that is right but is being carried",
     "anyway is a different thing and belongs in docs/process/waivers.md, with an owner and an expiry."
   ],
-  "accepted": []
+  "accepted": [
+    {
+      "scope": "csharp",
+      "rule": "cs/cleartext-storage-of-sensitive-information",
+      "path": "src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Sessions/SessionService.cs",
+      "message_contains": "PasswordChanged : SessionRotationReason",
+      "reason": "The value logged is the enum member SessionRotationReason.PasswordChanged — a reason code, not a credential. CodeQL's heuristic reads the identifier, sees 'Password', and treats the constant as sensitive data reaching a log sink. What the line actually writes is 'Rotated session X into Y because PasswordChanged', which is the audit trail this rotation exists to leave. Removed on 2026-09-07 when a dependency bump stopped the scanner producing it, and restored on 2026-09-09 when the next bump brought it back against byte-identical code; the reason it was not a defect has not changed, so it is the same reading, not a new one.",
+      "reviewed": "2026-09-07",
+      "reviewed_in": "#53, PR #67; restored in PR #101"
+    },
+    {
+      "scope": "csharp",
+      "rule": "cs/cleartext-storage-of-sensitive-information",
+      "path": "src/Modules/Identity/Tailor360.Modules.Identity.Infrastructure/Sessions/SessionService.cs",
+      "message_contains": "PasswordChanged : SessionEndReason",
+      "reason": "The same heuristic on the same word, one type along: SessionEndReason.PasswordChanged is the reason every other session was revoked when somebody changed their password. The enum is persisted by name (IdentityDbContext maps it with HasConversion<string>), so the member is a stored reason code; renaming it to something without the word 'password' would be a data migration made to satisfy a scanner, and would make the vocabulary worse. Removed on 2026-09-07 when a dependency bump stopped the scanner producing it, and restored on 2026-09-09 when the next bump brought it back against byte-identical code; the reason it was not a defect has not changed, so it is the same reading, not a new one.",
+      "reviewed": "2026-09-07",
+      "reviewed_in": "#53, PR #67; restored in PR #101"
+    }
+  ]
 }
