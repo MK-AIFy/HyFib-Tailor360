@@ -44,6 +44,14 @@ const IN_REVIEW = aTemplateVersion({
 
 const TEMPLATE = aMeasurementTemplate()
 
+/**
+ * Both template keys, which is what the Owner and Admin system roles carry.
+ *
+ * The screen needs the caller's permissions now, because four of the five lifecycle acts are gated
+ * on `catalog.templates.publish` rather than on the key that let somebody reach the screen.
+ */
+const BOTH_KEYS = [ADMIN_PERMISSIONS.templatesEdit, ADMIN_PERMISSIONS.templatesPublish]
+
 const LIVE = aMeasurementTemplate({
   publishedVersionId: PUBLISHED.templateVersionId,
   versions: [DRAFT, PUBLISHED],
@@ -55,7 +63,7 @@ beforeEach(() => {
   forgetAntiforgeryToken()
   setSessionChallengeHandler(null)
   transport = stubFetch()
-  transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser()))
+  transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser({ permissions: BOTH_KEYS })))
   transport.route(`GET ${TEMPLATES}`, () => jsonResponse([TEMPLATE]))
   transport.route(`GET ${DETAIL}`, () => versionedResponse(TEMPLATE, 'W/"1"'))
 })
@@ -85,7 +93,9 @@ function renderDetail() {
       <SessionProvider>
         <MemoryRouter initialEntries={[`/admin/templates/${TEMPLATE.measurementTemplateId}`]}>
           <Routes>
-            <Route path="/admin/templates/:templateId" element={<TemplateDetailRoute />} />
+            <Route element={<RequireSession />}>
+              <Route path="/admin/templates/:templateId" element={<TemplateDetailRoute />} />
+            </Route>
           </Routes>
         </MemoryRouter>
       </SessionProvider>
@@ -252,9 +262,112 @@ it('sends the version it was showing and a retry key, and asks again before it d
 
   expect(sent.headers.get('If-Match')).toBe('W/"1"')
   expect(sent.headers.get('Idempotency-Key')).not.toBeNull()
-  // Two reads: the one that rendered the screen, and the one taken immediately before the command
-  // so that the precondition is against what is true now.
-  expect(transport.callsTo(`GET ${DETAIL}`).length).toBeGreaterThanOrEqual(2)
+})
+
+it('acts on the version it rendered, not on one somebody else has since changed', async () => {
+  const user = userEvent.setup()
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Submit for review' })
+
+  // Somebody else changes the template while this page is open. Re-reading before the command would
+  // pick their revision up and submit against changes this administrator never saw, which is the one
+  // thing the precondition exists to refuse.
+  transport.route(`GET ${DETAIL}`, () => versionedResponse(TEMPLATE, 'W/"9"'))
+  transport.route(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`, () =>
+    problemResponse(409, 'measurements.version-changed'),
+  )
+
+  await confirm(user, 'Submit for review', null)
+
+  const sent = transport.callsTo(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`)[0]
+  if (sent === undefined) {
+    throw new Error('The submit command was never sent.')
+  }
+
+  expect(sent.headers.get('If-Match')).toBe('W/"1"')
+  expect(await screen.findByRole('button', { name: 'Reload' })).toBeInTheDocument()
+})
+
+it('sends one command however many times the confirmation is pressed', async () => {
+  const user = userEvent.setup()
+
+  // Never answers, so the command is still in flight when the second press lands.
+  transport.route(
+    `POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`,
+    () => new Promise<Response>(() => undefined),
+  )
+
+  renderDetail()
+
+  await screen.findByRole('button', { name: 'Submit for review' })
+  await user.click(screen.getByRole('button', { name: 'Submit for review' }))
+
+  const dialog = await screen.findByRole('dialog')
+  const confirmButton = Array.from(dialog.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent === 'Submit for review',
+  ) as HTMLButtonElement
+
+  await user.click(confirmButton)
+  await user.click(confirmButton)
+
+  expect(
+    transport.callsTo(`POST ${DETAIL}/versions/${DRAFT.templateVersionId}/submit`),
+  ).toHaveLength(1)
+})
+
+it('withholds the reviewing acts from somebody who may not carry them out, and says why', async () => {
+  transport.route('GET /api/v1/me', () =>
+    jsonResponse(aCurrentUser({ permissions: [ADMIN_PERMISSIONS.templatesEdit] })),
+  )
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(aMeasurementTemplate({ versions: [IN_REVIEW] }), 'W/"1"'),
+  )
+
+  renderDetail()
+
+  expect(await screen.findByText(/need the template publishing permission/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Send back' })).not.toBeInTheDocument()
+})
+
+it('names a cloned draft after the template’s next version, not after the one copied', async () => {
+  const user = userEvent.setup()
+
+  const retired = aTemplateVersion({
+    templateVersionId: '0199bb00-0000-7000-8000-0000000000e9',
+    versionNumber: 1,
+    name: 'Version 1',
+    status: 'Retired',
+  })
+
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(
+      aMeasurementTemplate({
+        publishedVersionId: PUBLISHED.templateVersionId,
+        versions: [retired, PUBLISHED, IN_REVIEW],
+      }),
+      'W/"1"',
+    ),
+  )
+  transport.route(`POST ${DETAIL}/versions`, () => versionedResponse(TEMPLATE, 'W/"2"'))
+
+  renderDetail()
+
+  const clones = await screen.findAllByRole('button', { name: 'Start a draft from this version' })
+  // The first row is version 3, newest first; the last is the retired version 1.
+  await user.click(clones[clones.length - 1] as HTMLButtonElement)
+
+  const sent = transport.callsTo(`POST ${DETAIL}/versions`)[0]
+  if (sent === undefined) {
+    throw new Error('The draft was never started.')
+  }
+
+  expect(sent.body).toMatchObject({
+    name: 'Version 4',
+    cloneFromVersionId: retired.templateVersionId,
+  })
 })
 
 it('carries the reason the server refuses publication without', async () => {

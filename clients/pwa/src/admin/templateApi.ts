@@ -98,6 +98,21 @@ export const TEMPLATE_ACTIONS_NEEDING_REASON: readonly TemplateLifecycleAction[]
   'retire',
 ]
 
+/**
+ * Which of them the server gates on `catalog.templates.publish` rather than on `catalog.templates.edit`.
+ *
+ * Submitting is the author saying they have finished, so it needs only the key that let them draft.
+ * The other four are the second administrator's acts, and `MeasurementTemplateEndpoints.MapLifecycle`
+ * demands the publishing key for each — so a screen that offers them to somebody holding only the
+ * edit key is offering four controls that each end in a 403.
+ */
+export const TEMPLATE_ACTIONS_NEEDING_PUBLISH: readonly TemplateLifecycleAction[] = [
+  'return',
+  'approve',
+  'publish',
+  'retire',
+]
+
 /** Applies one of the five acts to a version. */
 export async function commandTemplateVersion(input: {
   readonly templateId: string

@@ -11,13 +11,16 @@ import { DataTable } from '../../components/primitives/DataTable'
 import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import {
+  TEMPLATE_ACTIONS_NEEDING_PUBLISH,
   TEMPLATE_ACTIONS_NEEDING_REASON,
   commandTemplateVersion,
   readMeasurementTemplate,
   startTemplateDraft,
 } from '../../admin/templateApi'
 import type { TemplateLifecycleAction } from '../../admin/templateApi'
+import { ADMIN_PERMISSIONS } from '../../admin/adminPermissions'
 import { useAdminResource } from '../../admin/useAdminResource'
+import { useCurrentUser } from '../../auth/useSession'
 import type { TemplateField, TemplateVersion } from '../../admin/types'
 import type { MessageKey } from '../../i18n/en-IN'
 
@@ -38,6 +41,23 @@ import type { MessageKey } from '../../i18n/en-IN'
  * and editing one would silently rewrite what a customer's stored measurements mean. So the control
  * that would fail is not offered; the one that does the thing the person actually wants is.
  *
+ * ## Why the precondition is the version that was rendered
+ *
+ * Every lifecycle command sends the `ETag` of the read that painted this screen, not one taken just
+ * before the command. Re-reading would make the precondition true by construction: it would fetch
+ * whatever another administrator has since made of the template and act on that, which is exactly
+ * what `If-Match` exists to refuse. Sending the rendered tag means a template somebody else changed
+ * answers `409 measurements.version-changed`, and the conflict alert offers the re-read — so the
+ * person approves what they actually looked at, twice, rather than once.
+ *
+ * ## Why the acts are also filtered by what this administrator holds
+ *
+ * `submit` needs `catalog.templates.edit`; returning, approving, publishing and retiring need
+ * `catalog.templates.publish`. The two travel together in the Owner and Admin system roles, but a
+ * shop may define a custom role holding either alone, so the pair cannot be assumed. A control that
+ * would be refused is not offered — and, because a screen that silently drops four buttons reads as
+ * a broken screen, the reason is said in words instead.
+ *
  * ## Why the selected version is component state and not in the URL
  *
  * A deep link to a version would be useful and this deliberately does not have one yet: the reader
@@ -48,6 +68,9 @@ import type { MessageKey } from '../../i18n/en-IN'
 export function TemplateDetailRoute() {
   const intl = useIntl()
   const { templateId } = useParams()
+  const { permissions } = useCurrentUser()
+
+  const canPublish = permissions.includes(ADMIN_PERMISSIONS.templatesPublish)
 
   const template = useAdminResource(`measurement-template:${templateId ?? ''}`, (signal) =>
     readMeasurementTemplate(templateId ?? '', signal),
@@ -77,8 +100,8 @@ export function TemplateDetailRoute() {
     versions[0] ??
     null
 
-  /** What this version admits. A published one admits retiring; a retired one admits nothing. */
-  const actionsFor = (version: TemplateVersion): readonly TemplateLifecycleAction[] => {
+  /** What this version's state admits. A published one admits retiring; a retired one admits nothing. */
+  const admits = (version: TemplateVersion): readonly TemplateLifecycleAction[] => {
     if (version.status === 'Draft') return ['submit']
     if (version.status === 'InReview') {
       return version.isApproved ? ['return', 'publish'] : ['return', 'approve']
@@ -87,6 +110,15 @@ export function TemplateDetailRoute() {
 
     return []
   }
+
+  /** …and of those, the ones this administrator may actually carry out. */
+  const actionsFor = (version: TemplateVersion): readonly TemplateLifecycleAction[] =>
+    canPublish
+      ? admits(version)
+      : admits(version).filter((action) => !TEMPLATE_ACTIONS_NEEDING_PUBLISH.includes(action))
+
+  /** True when a version on this screen admits something this administrator is not allowed to do. */
+  const withheld = versions.some((version) => admits(version).length > actionsFor(version).length)
 
   const run = (outcome: ConfirmOutcome) => {
     if (pending === null || templateId === undefined) {
@@ -101,22 +133,30 @@ export function TemplateDetailRoute() {
       return
     }
 
+    // The entity tag of the read this screen is showing: the precondition is what the administrator
+    // reviewed. See the note above on why this is not re-read here.
+    const version = template.value?.version
+
+    if (version === undefined) {
+      // Fail closed. The read behind this screen always carries a tag, so a missing one means the
+      // screen is not showing a state worth acting on — ask for it again rather than send a
+      // precondition the server would have to guess at. The conflict alert offers exactly that.
+      setPending(null)
+      setFailure(new ApiError('The template must be read again.', { status: 409 }))
+      return
+    }
+
     setBusy(true)
     setFailure(null)
 
-    // Read immediately before the command, so the precondition is against what is true now rather
-    // than against a page that has been open while somebody else reviewed the same version.
-    void readMeasurementTemplate(templateId)
-      .then(async (current) =>
-        commandTemplateVersion({
-          templateId,
-          versionId: pending.version.templateVersionId,
-          action: pending.action,
-          reason: needsReason ? reason : null,
-          version: current.version ?? '',
-          idempotencyKey: pending.idempotencyKey,
-        }),
-      )
+    void commandTemplateVersion({
+      templateId,
+      versionId: pending.version.templateVersionId,
+      action: pending.action,
+      reason: needsReason ? reason : null,
+      version,
+      idempotencyKey: pending.idempotencyKey,
+    })
       .then(() => {
         setNotice(
           intl.formatMessage(
@@ -143,12 +183,16 @@ export function TemplateDetailRoute() {
     setBusy(true)
     setFailure(null)
 
+    // The server numbers a new version from the highest that exists, not from the one being copied
+    // (`MeasurementTemplate.NextVersionNumber`). Naming it after the source would call the fourth
+    // version of a template "Version 2" whenever somebody drafts from a superseded one, and the name
+    // is stored rather than derived, so it would stay wrong for the life of the version.
+    const next =
+      versions.reduce((highest, version) => Math.max(highest, Number(version.versionNumber)), 0) + 1
+
     void startTemplateDraft({
       templateId,
-      name: intl.formatMessage(
-        { id: 'admin.templates.version' },
-        { number: Number(from.versionNumber) + 1 },
-      ),
+      name: intl.formatMessage({ id: 'admin.templates.version' }, { number: next }),
       notes: null,
       defaultDisplayUnit: from.defaultDisplayUnit,
       cloneFromVersionId: from.templateVersionId,
@@ -242,6 +286,12 @@ export function TemplateDetailRoute() {
       <h3>
         <FormattedMessage id="admin.template.versions" />
       </h3>
+
+      {withheld ? (
+        <Alert tone="info" live="off">
+          <FormattedMessage id="admin.template.needsPublish" />
+        </Alert>
+      ) : null}
 
       {versions.length === 0 ? (
         <EmptyState iconName="ruler" live="polite">
@@ -426,6 +476,7 @@ export function TemplateDetailRoute() {
           })}
           cancelLabel={intl.formatMessage({ id: 'admin.cancel' })}
           irreversible={pending.action === 'publish' || pending.action === 'retire'}
+          busy={busy}
           onConfirm={run}
           onCancel={() => {
             setPending(null)

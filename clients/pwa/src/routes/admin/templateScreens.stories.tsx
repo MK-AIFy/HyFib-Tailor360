@@ -172,6 +172,35 @@ export const TemplateDetailNoFields: Story = {
   render: () => detail(aMeasurementTemplate({ versions: [aTemplateVersion({ fields: [] })] })),
 }
 
+/**
+ * An administrator who may draft but not review.
+ *
+ * Four of the five acts are gated on `catalog.templates.publish`, which a custom role may withhold
+ * while still granting `catalog.templates.edit`. The controls are not rendered greyed out — they are
+ * not rendered at all, and the reason is said in words, because a row of controls that each end in a
+ * refusal reads as a broken screen rather than as a boundary.
+ */
+export const TemplateDetailWithoutPublish: Story = {
+  render: () => {
+    const template = aMeasurementTemplate({
+      versions: [aTemplateVersion({ status: 'InReview', name: 'Version 1' })],
+    })
+
+    return withAdminApi(
+      <TemplateDetailRoute />,
+      {
+        'GET /api/v1/me': () =>
+          storyJson({ ...STORY_USER, permissions: [ADMIN_PERMISSIONS.templatesEdit] }),
+        [`GET ${TEMPLATES}/${template.measurementTemplateId}`]: () => storyJson(template, 'W/"1"'),
+      },
+      {
+        path: '/admin/templates/:templateId',
+        at: `/admin/templates/${template.measurementTemplateId}`,
+      },
+    )
+  },
+}
+
 /** Loading one template. */
 export const TemplateDetailLoading: Story = {
   render: () =>

@@ -293,6 +293,8 @@ export const adminEn = {
     'This template has no versions yet. Start a draft to describe what is measured.',
   'admin.template.approved': 'Approved, ready to publish',
   'admin.template.awaitingApproval': 'Waiting for a second administrator',
+  'admin.template.needsPublish':
+    'You can draft a version and submit it for review. Sending one back, approving it, publishing it and retiring it are the reviewing administrator’s acts and need the template publishing permission — ask the shop owner if you need it.',
 
   /* The states a version can be in. The API's own words are the last segment. */
   'admin.template.status.Draft': 'Draft',
@@ -803,6 +805,9 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   'admin.template.approved': 'Approved, ready to publish',
   // not translated — awaiting native-speaker review
   'admin.template.awaitingApproval': 'Waiting for a second administrator',
+  // not translated — awaiting native-speaker review
+  'admin.template.needsPublish':
+    'You can draft a version and submit it for review. Sending one back, approving it, publishing it and retiring it are the reviewing administrator’s acts and need the template publishing permission — ask the shop owner if you need it.',
   // not translated — awaiting native-speaker review
   'admin.template.status.Draft': 'Draft',
   // not translated — awaiting native-speaker review
