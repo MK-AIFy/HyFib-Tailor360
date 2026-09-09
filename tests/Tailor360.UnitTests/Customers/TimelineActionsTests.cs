@@ -2,6 +2,7 @@ using System.Reflection;
 using Shouldly;
 using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Application.Customers;
+using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Customers.Application.Preferences;
 using Tailor360.Platform.Security.Permissions;
 
@@ -30,11 +31,29 @@ public sealed class TimelineActionsTests
         declared.Length.ShouldBeGreaterThan(10, "the module's audited actions were not found by reflection");
 
         var mapped = TimelineActions.All.ToHashSet(StringComparer.Ordinal);
-        var missing = declared.Where(action => !mapped.Contains(action)).ToArray();
+        var missing = declared
+            .Where(action => !mapped.Contains(action))
+            .Where(action => !DeliberatelyAbsent.Contains(action))
+            .ToArray();
 
         missing.ShouldBeEmpty(
             "an audited action is not on the timeline and is not recorded as deliberately absent:\n"
             + string.Join('\n', missing));
+    }
+
+    [Fact]
+    public void RecordsOnlyActionsThatAreNotAboutOneCustomerAsDeliberatelyAbsent()
+    {
+        // The absent list is the escape hatch of the test above, so it needs a guard of its own: every entry has
+        // to be an action this module really declares. An entry for an action that no longer exists would sit
+        // there excusing nothing, and would go on excusing a future action that happened to be named the same.
+        var declared = ActionConstants().ToHashSet(StringComparer.Ordinal);
+
+        DeliberatelyAbsent.Where(action => !declared.Contains(action)).ShouldBeEmpty(
+            "the absent list names an action nothing declares, so it excuses nothing");
+
+        DeliberatelyAbsent.Where(TimelineActions.All.Contains).ShouldBeEmpty(
+            "an action cannot be both mapped onto the timeline and recorded as absent from it");
     }
 
     [Fact]
@@ -62,7 +81,16 @@ public sealed class TimelineActionsTests
             .ToArray();
 
         auditEntityTypes.ShouldNotBeEmpty("no audit helper declared an entity type");
-        auditEntityTypes.ShouldAllBe(type => type == TimelineActions.EntityType);
+
+        // Two, and only two. Everything this module audits is either about one customer — which is what the
+        // timeline reads — or about a measurement template, which is configuration and belongs to no customer.
+        // Listing them exactly is what keeps the guard: a typo in either produces a third value and fails here
+        // rather than silently reading an empty trail, and a genuinely new kind of audited thing has to be
+        // thought about rather than appearing by accident.
+        string[] known = [TimelineActions.EntityType, MeasurementTemplateAudit.EntityType];
+
+        auditEntityTypes.Order(StringComparer.Ordinal)
+            .ShouldBe(known.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -146,6 +174,30 @@ public sealed class TimelineActionsTests
         TimelineActions.TitleOf("orders.order.confirmed").ShouldBe("orders.order.confirmed");
         TimelineActions.PermissionFor("orders.order.confirmed").ShouldBeNull();
     }
+
+    /// <summary>
+    /// Audited actions that are deliberately not on any customer's timeline.
+    /// </summary>
+    /// <remarks>
+    /// Administering a measurement template is configuration, not something that happened to a customer. "The
+    /// Owner published version 3 of the blouse template" is true of the shop, not of Mrs Devi — putting it on her
+    /// timeline would say something about her that is not about her, and would say the same thing on every
+    /// customer in the shop at once. The entries are audited, and they are read through the template's own trail.
+    /// </remarks>
+    private static readonly HashSet<string> DeliberatelyAbsent = new(StringComparer.Ordinal)
+    {
+        MeasurementTemplateHandler.TemplateCreatedAction,
+        MeasurementTemplateHandler.DraftedAction,
+        MeasurementTemplateHandler.ClonedAction,
+        MeasurementTemplateHandler.FieldAddedAction,
+        MeasurementTemplateHandler.FieldChangedAction,
+        MeasurementTemplateHandler.FieldRemovedAction,
+        MeasurementTemplateHandler.SubmittedAction,
+        MeasurementTemplateHandler.ReturnedAction,
+        MeasurementTemplateHandler.ApprovedAction,
+        MeasurementTemplateHandler.PublishedAction,
+        MeasurementTemplateHandler.RetiredAction,
+    };
 
     private static HashSet<string> Holding(params string[] permissions)
         => new(permissions, StringComparer.Ordinal);

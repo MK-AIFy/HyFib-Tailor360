@@ -87,6 +87,28 @@ public interface ICatalogAvailabilityQuery
         Guid branchId,
         DateTimeOffset at,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Whether the published catalogue still points at a measurement template.</summary>
+    /// <remarks>
+    /// <para>
+    /// Asked by Customers before it retires a template's last published version (#27). Retiring one the catalogue
+    /// still references would leave a service type a counter can order with nothing to measure it by — the failure
+    /// the dependency validators exist to prevent, arriving from the other direction.
+    /// </para>
+    /// <para>
+    /// It answers about the <em>published</em> version only. A draft catalogue referencing a template is not a
+    /// reason to refuse: nothing can be ordered against a draft, and the catalogue's own publish validation is
+    /// where that reference is checked.
+    /// </para>
+    /// </remarks>
+    /// <param name="measurementTemplateId">The template.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when a published service type carries it.</returns>
+    Task<bool> ReferencesMeasurementTemplateAsync(
+        Guid measurementTemplateId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>What a branch may order, and the catalogue version that says so.</summary>

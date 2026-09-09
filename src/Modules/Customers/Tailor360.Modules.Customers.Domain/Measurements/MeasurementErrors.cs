@@ -297,10 +297,14 @@ public static class MeasurementErrors
         + "against the current state.");
 
     /// <summary>A template code was claimed twice in one organisation.</summary>
-    /// <param name="code">The repeated code.</param>
-    public static Error DuplicateTemplateCode(string code) => Error.Conflict(
-        "measurements.duplicate-template-code",
-        $"'{code}' already names a measurement template in this organisation.");
+    /// <remarks>
+    /// Raised by the database rather than by a read-then-write, so the code is not to hand at the point the
+    /// violation surfaces — and a message that guessed at it would be worse than one that does not.
+    /// </remarks>
+    public static readonly Error TemplateCodeTaken = Error.Conflict(
+        "measurements.template-code-taken",
+        "That code already names a measurement template in this organisation. Codes identify a template to the "
+        + "catalogue, so each one belongs to exactly one.");
 
     /// <summary>Retirement would leave work in progress with no template to render through.</summary>
     public static readonly Error RetirementWouldStrandOrders = Error.Conflict(

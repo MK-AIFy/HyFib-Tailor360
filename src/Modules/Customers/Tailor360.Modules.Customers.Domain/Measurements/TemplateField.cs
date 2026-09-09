@@ -41,8 +41,6 @@ public sealed class TemplateField
     /// <summary>The longest alternative text the column holds.</summary>
     public const int MaximumDiagramAltLength = 400;
 
-    private readonly List<ChoiceOption> _options = [];
-
     private TemplateField()
     {
         // Entity Framework materialises through this; Key is set by the property initialiser below.
@@ -106,7 +104,11 @@ public sealed class TemplateField
     public ConditionalRule? Rule { get; private set; }
 
     /// <summary>The choices, for a field that is chosen rather than measured.</summary>
-    public IReadOnlyList<ChoiceOption> Options => _options;
+    /// <remarks>
+    /// Replaced wholesale rather than mutated, so that the property can be mapped directly to the one JSON column
+    /// that holds it. A list edited in place would need a backing field the mapping then has to reach through.
+    /// </remarks>
+    public IReadOnlyList<ChoiceOption> Options { get; private set; } = [];
 
     /// <summary>Whether this field is chosen from a list rather than measured with a tape.</summary>
     public bool IsChoice => CanonicalUnit == CanonicalUnit.None;
@@ -188,9 +190,12 @@ public sealed class TemplateField
         DiagramAlt = string.IsNullOrWhiteSpace(definition.DiagramAlt) ? null : definition.DiagramAlt.Trim();
         Rule = definition.Rule;
 
-        _options.Clear();
-        _options.AddRange(definition.Options.OrderBy(option => option.DisplayOrder).ThenBy(
-            option => option.Code, StringComparer.Ordinal));
+        Options =
+        [
+            .. definition.Options
+                .OrderBy(option => option.DisplayOrder)
+                .ThenBy(option => option.Code, StringComparer.Ordinal),
+        ];
 
         return Result.Success();
     }
