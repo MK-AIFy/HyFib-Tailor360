@@ -6,6 +6,9 @@ import type {
   Role,
   StaffSummary,
   StaffUser,
+  MeasurementTemplate,
+  TemplateField,
+  TemplateVersion,
 } from '../types'
 
 /**
@@ -141,6 +144,83 @@ export function aDeadLetter(overrides: Partial<DeadLetteredMessage> = {}): DeadL
     attemptCount: 5,
     lastError: 'The provider refused the request: 503 Service Unavailable.',
     correlationId: 'req-synthetic-0001',
+    ...overrides,
+  }
+}
+
+/* Measurement templates (#93) ------------------------------------------------------------------ */
+
+/**
+ * One field of a version.
+ *
+ * The bands are the blouse chest measurement from the specification, in millimetres: 100 mm to
+ * 2000 mm refused outside, 200 mm and 1800 mm the thresholds that ask for an acknowledgement. They
+ * are real numbers from a real field set rather than round ones, because a fixture of 0 and 100
+ * would let a rendering bug that swaps the pair look correct.
+ */
+export function aTemplateField(overrides: Partial<TemplateField> = {}): TemplateField {
+  return {
+    templateFieldId: '0199bb00-0000-7000-8000-0000000000d1',
+    key: 'chest_bust',
+    label: 'Chest / bust',
+    labelTamil: null,
+    groupName: 'Bodice',
+    displayOrder: 0,
+    canonicalUnit: 'Millimetre',
+    displayUnits: ['Inch', 'Centimetre'],
+    inchFraction: 8,
+    centimetreDecimals: 1,
+    isRequired: true,
+    minimumMillimetres: 100,
+    maximumMillimetres: 2000,
+    warnBelowMillimetres: 200,
+    warnAboveMillimetres: 1800,
+    helpText: 'Round the fullest part, tape level.',
+    diagramReference: 'blouse_front_v1#chest_bust',
+    diagramAlt: 'Around the fullest part of the chest, tape level at the back.',
+    diagramKey: 'blouse_front_v1',
+    diagramMediaId: null,
+    rule: null,
+    ruleDefinition: null,
+    optionCodes: [],
+    options: [],
+    ...overrides,
+  }
+}
+
+/** One version. A draft by default, because that is the state every version starts in. */
+export function aTemplateVersion(overrides: Partial<TemplateVersion> = {}): TemplateVersion {
+  return {
+    templateVersionId: '0199bb00-0000-7000-8000-0000000000e1',
+    versionNumber: 1,
+    name: 'Version 1',
+    notes: null,
+    status: 'Draft',
+    defaultDisplayUnit: 'Inch',
+    isApproved: false,
+    publishedAt: null,
+    retiredAt: null,
+    fields: [aTemplateField()],
+    ...overrides,
+  }
+}
+
+/**
+ * One template, with a single draft version and nothing published.
+ *
+ * Nothing published is the honest default: a template arrives that way, and a fixture that started
+ * life published would let a screen that never handles "cannot measure anything yet" pass its tests.
+ */
+export function aMeasurementTemplate(
+  overrides: Partial<MeasurementTemplate> = {},
+): MeasurementTemplate {
+  return {
+    measurementTemplateId: '0199bb00-0000-7000-8000-0000000000f1',
+    code: 'MT_BLOUSE_PATTERN',
+    name: 'Blouse, pattern work',
+    description: 'What is measured for a pattern-work blouse.',
+    publishedVersionId: null,
+    versions: [aTemplateVersion()],
     ...overrides,
   }
 }

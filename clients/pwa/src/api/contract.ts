@@ -17,11 +17,13 @@ import type {
   Branch,
   DeadLetteredMessage,
   FeatureFlag,
+  MeasurementTemplate,
   Permission,
   Role,
   StaffSummary,
   StaffUser,
   StaffUserPage,
+  TemplateValidation,
 } from '../admin/types'
 
 /**
@@ -169,4 +171,23 @@ export type AuditPageConforms = Conforms<AuditPage, Immutable<Response200<'ReadA
 export type DeadLetterConforms = Conforms<
   DeadLetteredMessage,
   Immutable<components['schemas']['DeadLetteredMessagePayload']>
+>
+
+/* Measurement templates (#27, #93) ------------------------------------------------------------ */
+
+/**
+ * These live under `/api/v1/customers/`, not `/api/v1/admin/` — the routes belong to the Customers
+ * module even though an administrator is the only person who uses them.
+ *
+ * `MeasurementTemplate` is pinned against the read, but the same payload is what all eleven writes
+ * answer with, so pinning it once covers every one of them.
+ */
+export type MeasurementTemplateConforms = Conforms<
+  MeasurementTemplate,
+  Immutable<Response200<'GetMeasurementTemplate'>>
+>
+
+export type TemplateValidationConforms = Conforms<
+  TemplateValidation,
+  Immutable<Response200<'ValidateMeasurementTemplateVersion'>>
 >

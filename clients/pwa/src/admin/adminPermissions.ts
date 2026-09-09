@@ -12,4 +12,11 @@ export const ADMIN_PERMISSIONS = {
   featureFlags: 'admin.feature_flags',
   auditRead: 'admin.audit.read',
   outboxReplay: 'admin.outbox.replay',
+  // Measurement templates (#27). Two keys rather than one, because drafting and publishing are
+  // different acts by different people: the submitter of a version is not the person who decides it
+  // is right. Both are granted to `owner` and `admin` and to nobody else, so a reviewer always holds
+  // the drafting one too — which is why the screens gate on the key each action needs rather than
+  // assuming a reviewer cannot read.
+  templatesEdit: 'catalog.templates.edit',
+  templatesPublish: 'catalog.templates.publish',
 } as const
