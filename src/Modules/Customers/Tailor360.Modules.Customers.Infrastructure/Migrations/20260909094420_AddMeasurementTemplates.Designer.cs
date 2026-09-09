@@ -13,7 +13,7 @@ using Tailor360.Modules.Customers.Infrastructure.Persistence;
 namespace Tailor360.Modules.Customers.Infrastructure.Migrations
 {
     [DbContext(typeof(CustomersDbContext))]
-    [Migration("20260909090834_AddMeasurementTemplates")]
+    [Migration("20260909094420_AddMeasurementTemplates")]
     partial class AddMeasurementTemplates
     {
         /// <inheritdoc />
@@ -842,6 +842,44 @@ namespace Tailor360.Modules.Customers.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("template_version_id");
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Bands", "Tailor360.Modules.Customers.Domain.Measurements.TemplateField.Bands#ValidationBands", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<decimal>("MaximumMillimetres")
+                                .HasPrecision(8, 2)
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("maximum_mm");
+
+                            b1.Property<decimal>("MinimumMillimetres")
+                                .HasPrecision(8, 2)
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("minimum_mm");
+
+                            b1.Property<decimal?>("WarnAboveMillimetres")
+                                .HasPrecision(8, 2)
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("warn_above_mm");
+
+                            b1.Property<decimal?>("WarnBelowMillimetres")
+                                .HasPrecision(8, 2)
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("warn_below_mm");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Precision", "Tailor360.Modules.Customers.Domain.Measurements.TemplateField.Precision#FieldPrecision", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("CentimetreDecimals")
+                                .HasColumnType("integer")
+                                .HasColumnName("centimetre_decimals");
+
+                            b1.Property<int>("InchFraction")
+                                .HasColumnType("integer")
+                                .HasColumnName("inch_fraction");
+                        });
+
                     b.HasKey("Id")
                         .HasName("pk_measurement_template_fields");
 
@@ -1244,70 +1282,6 @@ namespace Tailor360.Modules.Customers.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_measurement_template_fields_measurement_template_versions_t");
-
-                    b.OwnsOne("Tailor360.Modules.Customers.Domain.Measurements.FieldPrecision", "Precision", b1 =>
-                        {
-                            b1.Property<Guid>("TemplateFieldId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("id");
-
-                            b1.Property<int>("CentimetreDecimals")
-                                .HasColumnType("integer")
-                                .HasColumnName("centimetre_decimals");
-
-                            b1.Property<int>("InchFraction")
-                                .HasColumnType("integer")
-                                .HasColumnName("inch_fraction");
-
-                            b1.HasKey("TemplateFieldId");
-
-                            b1.ToTable("measurement_template_fields", "customers");
-
-                            b1.WithOwner()
-                                .HasForeignKey("TemplateFieldId")
-                                .HasConstraintName("fk_measurement_template_fields_measurement_template_fields_id");
-                        });
-
-                    b.OwnsOne("Tailor360.Modules.Customers.Domain.Measurements.ValidationBands", "Bands", b1 =>
-                        {
-                            b1.Property<Guid>("TemplateFieldId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("id");
-
-                            b1.Property<decimal>("MaximumMillimetres")
-                                .HasPrecision(8, 2)
-                                .HasColumnType("numeric(8,2)")
-                                .HasColumnName("maximum_mm");
-
-                            b1.Property<decimal>("MinimumMillimetres")
-                                .HasPrecision(8, 2)
-                                .HasColumnType("numeric(8,2)")
-                                .HasColumnName("minimum_mm");
-
-                            b1.Property<decimal?>("WarnAboveMillimetres")
-                                .HasPrecision(8, 2)
-                                .HasColumnType("numeric(8,2)")
-                                .HasColumnName("warn_above_mm");
-
-                            b1.Property<decimal?>("WarnBelowMillimetres")
-                                .HasPrecision(8, 2)
-                                .HasColumnType("numeric(8,2)")
-                                .HasColumnName("warn_below_mm");
-
-                            b1.HasKey("TemplateFieldId");
-
-                            b1.ToTable("measurement_template_fields", "customers");
-
-                            b1.WithOwner()
-                                .HasForeignKey("TemplateFieldId")
-                                .HasConstraintName("fk_measurement_template_fields_measurement_template_fields_id");
-                        });
-
-                    b.Navigation("Bands")
-                        .IsRequired();
-
-                    b.Navigation("Precision")
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Tailor360.Modules.Customers.Domain.Measurements.TemplateVersion", b =>

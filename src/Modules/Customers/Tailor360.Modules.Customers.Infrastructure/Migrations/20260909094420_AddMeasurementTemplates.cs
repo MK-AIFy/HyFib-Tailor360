@@ -87,19 +87,19 @@ namespace Tailor360.Modules.Customers.Infrastructure.Migrations
                     group_name = table.Column<string>(type: "character varying(60)", maxLength: 60, nullable: false),
                     display_order = table.Column<int>(type: "integer", nullable: false),
                     canonical_unit = table.Column<int>(type: "integer", nullable: false),
-                    inch_fraction = table.Column<int>(type: "integer", nullable: false),
-                    centimetre_decimals = table.Column<int>(type: "integer", nullable: false),
-                    minimum_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: false),
-                    maximum_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: false),
-                    warn_below_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: true),
-                    warn_above_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: true),
                     is_required = table.Column<bool>(type: "boolean", nullable: false),
                     help_text = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: false),
                     diagram_key = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: true),
                     diagram_media_id = table.Column<Guid>(type: "uuid", nullable: true),
                     diagram_alt = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
                     rule = table.Column<string>(type: "jsonb", nullable: true),
-                    options = table.Column<string>(type: "jsonb", nullable: false)
+                    options = table.Column<string>(type: "jsonb", nullable: false),
+                    maximum_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: false),
+                    minimum_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: false),
+                    warn_above_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: true),
+                    warn_below_mm = table.Column<decimal>(type: "numeric(8,2)", precision: 8, scale: 2, nullable: true),
+                    centimetre_decimals = table.Column<int>(type: "integer", nullable: false),
+                    inch_fraction = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {

@@ -631,15 +631,19 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
             entity.Ignore(e => e.DiagramReference);
             entity.Ignore(e => e.IsChoice);
 
-            entity.OwnsOne(e => e.Precision, precision =>
+            // Complex properties rather than owned entities, and the difference is not cosmetic. An owned
+            // reference is something that can be absent, so Entity Framework decides it is absent when every one
+            // of its properties holds the CLR default — which is exactly what a choice field's precision (0, 0)
+            // and a choice field's bands (0, 0, null, null) look like. It then writes NULL into columns declared
+            // NOT NULL and the insert fails. A complex property is part of the row and is never absent, which is
+            // what a precision and a band actually are.
+            entity.ComplexProperty(e => e.Precision, precision =>
             {
                 precision.Property(p => p.InchFraction).HasColumnName("inch_fraction");
                 precision.Property(p => p.CentimetreDecimals).HasColumnName("centimetre_decimals");
             });
 
-            entity.Navigation(e => e.Precision).IsRequired();
-
-            entity.OwnsOne(e => e.Bands, bands =>
+            entity.ComplexProperty(e => e.Bands, bands =>
             {
                 // numeric(8,2): the canonical millimetre, to the two decimals a sixteenth-inch step round-trips
                 // through (docs/prd/measurement-templates.md section 2).
@@ -648,8 +652,6 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
                 bands.Property(b => b.WarnBelowMillimetres).HasColumnName("warn_below_mm").HasPrecision(8, 2);
                 bands.Property(b => b.WarnAboveMillimetres).HasColumnName("warn_above_mm").HasPrecision(8, 2);
             });
-
-            entity.Navigation(e => e.Bands).IsRequired();
 
             // The rule language is a small JSON document by design (plan blueprint for #27). Three tables for a
             // rule that is only ever read and written whole would buy nothing and cost a join per field.
