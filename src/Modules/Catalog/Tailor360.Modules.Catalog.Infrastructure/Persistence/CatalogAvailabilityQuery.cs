@@ -59,15 +59,7 @@ public sealed class CatalogAvailabilityQuery(
             return false;
         }
 
-        if (service.CategoryIsGroupingNode || service.Snapshot.NotOrderable)
-        {
-            return false;
-        }
-
-        var today = DateOnly.FromDateTime(
-            TimeZoneInfo.ConvertTime(at, IndiaTimeZone.Instance).DateTime);
-
-        if (!service.IsActiveOn(today) || !service.IsOfferedAt(branchId))
+        if (!IsOrderable(service, branchId, TodayAt(at)))
         {
             return false;
         }
@@ -80,6 +72,49 @@ public sealed class CatalogAvailabilityQuery(
                    flagKey,
                    new OrganisationContext(located.OrganisationId, branchId),
                    cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CatalogServiceSnapshot>> GetOrderableAsync(
+        Guid organisationId,
+        Guid branchId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        var published = await PublishedVersionIdAsync(organisationId, cancellationToken);
+
+        if (published is not { } versionId
+            || await LoadAsync(versionId, cancellationToken) is not { } version)
+        {
+            return [];
+        }
+
+        var today = TodayAt(at);
+        var orderable = new List<CatalogServiceSnapshot>();
+
+        foreach (var service in version.Services.Values)
+        {
+            if (!IsOrderable(service, branchId, today))
+            {
+                continue;
+            }
+
+            if (service.CategoryFeatureFlagKey is { } flagKey
+                && !await flags.IsEnabledAsync(
+                    flagKey, new OrganisationContext(organisationId, branchId), cancellationToken))
+            {
+                continue;
+            }
+
+            orderable.Add(service.Snapshot);
+        }
+
+        return
+        [
+            .. orderable
+                .OrderBy(service => service.CategoryCode, StringComparer.Ordinal)
+                .ThenBy(service => service.ServiceCode, StringComparer.Ordinal),
+        ];
     }
 
     /// <inheritdoc />
@@ -178,6 +213,25 @@ public sealed class CatalogAvailabilityQuery(
 
         return entry;
     }
+
+    /// <summary>
+    /// Everything about orderability that does not need to leave this process.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the single question and the branch-wide list so that there is one answer to "what
+    /// orderable means". The feature flag is deliberately outside it: it is the one check that reaches
+    /// another component, and keeping it at the call sites is what stops the list asking the flag
+    /// evaluator once per service that had already failed on a date or a branch.
+    /// </remarks>
+    private static bool IsOrderable(CachedService service, Guid branchId, DateOnly on)
+        => !service.CategoryIsGroupingNode
+           && !service.Snapshot.NotOrderable
+           && service.IsActiveOn(on)
+           && service.IsOfferedAt(branchId);
+
+    /// <summary>The instant read as a date in the branch's timezone.</summary>
+    private static DateOnly TodayAt(DateTimeOffset at)
+        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(at, IndiaTimeZone.Instance).DateTime);
 
     private sealed record Located(Guid OrganisationId, Guid VersionId, CachedService? Service);
 }

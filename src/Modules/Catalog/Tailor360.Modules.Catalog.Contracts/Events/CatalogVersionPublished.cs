@@ -44,7 +44,7 @@ public sealed record CatalogVersionPublished(
     : IntegrationEvent(EventId, OccurredAt, AggregateId)
 {
     /// <summary>The wire name. Subscribe by this constant rather than by a literal.</summary>
-    public const string Type = "catalog.version-published.v1";
+    public const string Type = "catalog.catalog-version-published.v1";
 
     /// <inheritdoc />
     public override string EventType => Type;

@@ -25,7 +25,7 @@ public sealed record CatalogVersionRetired(
     : IntegrationEvent(EventId, OccurredAt, AggregateId)
 {
     /// <summary>The wire name. Subscribe by this constant rather than by a literal.</summary>
-    public const string Type = "catalog.version-retired.v1";
+    public const string Type = "catalog.catalog-version-retired.v1";
 
     /// <inheritdoc />
     public override string EventType => Type;

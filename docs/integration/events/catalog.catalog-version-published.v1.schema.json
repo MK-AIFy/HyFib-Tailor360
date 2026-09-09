@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/catalog.catalog-version-published.v1.schema.json",
+  "title": "catalog.catalog-version-published.v1",
+  "description": "A catalogue version became the active configuration, superseding whatever was published before it. Two kinds of consumer act on it: a cache of the catalogue, whose entries are keyed by version identifier and become unreachable rather than wrong; and anything that shows what is orderable, which re-reads through Catalog.Contracts.ICatalogAvailabilityQuery. It changes nothing already under way — a garment job pins its catalogue version at confirmation, so publishing never re-prices, re-routes or re-measures work in progress (docs/prd/category-hierarchy.md section 7). A consumer that treats this as 're-evaluate the open orders' has misread it.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "versionNumber",
+    "supersededVersionId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the version was published, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The catalogue version that was published. It is what an order confirmed from now on is pinned to, and what a version-keyed cache is keyed by."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation whose catalogue it is. Exactly one version is published per organisation at any time."
+    },
+    "versionNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The version's number, for a message a person reads. A label and never a key: every reference is by aggregateId (docs/architecture/conventions.md section 3.1)."
+    },
+    "supersededVersionId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "The version that was current until now, retired by this publication, or null when this is the first version ever published. A consumer holding a cache keyed by that identifier may drop it, though it does not have to: the key is unreachable either way."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "catalog.catalog-version-published.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

@@ -1377,6 +1377,26 @@ acceptance criteria, which remain the contract.
   nor accepted.
 - **Rules**: retirement blocked with in-progress orders; version-keyed cache (D21) with invalidation on
   `CatalogVersionPublished`; permission-aware read API.
+- **Built (backend, PR for #29).** The version is the aggregate, not the category, because every rule worth
+  enforcing spans the tree. A category row belongs to one version and cloning copies it with a fresh row
+  identity; what survives is `category_key`, the category's identity as a *concept*, without which "the code
+  changed on an already-published record" cannot be checked at all. Publishing retires the version it
+  supersedes **in the same transaction**, with the retirement validators asked about the outgoing version and
+  the incoming one named as its successor — which is the only way section 7's "exactly one published version"
+  and its "retirement is refused while work in progress needs a service no successor replaces" fit together.
+  Immutability is a trigger comparing `to_jsonb(row)` with the four presentation columns removed, so a column
+  added by a later migration is frozen by default. `not_orderable` is **derived** from the links rather than
+  stored: a flag written onto a published row at the moment of publication is a write the database refuses,
+  which is how the trigger earned its keep before the code ever reached CI. The cache is version-keyed and the
+  published version identifier is never cached, so an entry can become unreachable but not wrong.
+  `catalog.read` is a new **branch-scoped** permission — what a branch may order is a different list at each
+  counter — proposed in `docs/security/permission-matrix.md` for the eight roles that take, measure, work or
+  price an order. The seeder writes a draft and publishes nothing: publication is an Owner's act with a second
+  factor and a reason, and the hierarchy itself is open decision OD-CAT-01.
+- **Not built, and split out**: the administration tree editor, its preview and its branch-availability
+  controls, and the "add a category without a deployment" screen recording. The API they sit on is complete
+  and demonstrated by an integration test that adds a category and orders against it; the screens are a
+  sub-issue of #29 rather than a second half of an already large pull request (CLAUDE.md section 6).
 - **Seed**: Blouse → Pattern, Aari work; Salwar; Lehenga; Gown; Kids (from `docs/prd/category-hierarchy.md`).
 - **Screens**: admin tree editor with preview and branch availability; demonstration "add a category without a
   deployment" recorded as evidence.

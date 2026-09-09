@@ -168,7 +168,6 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                     price_list_item_code = table.Column<string>(type: "character varying(60)", maxLength: 60, nullable: true),
                     qc_checklist_template_id = table.Column<Guid>(type: "uuid", nullable: true),
                     allow_incomplete = table.Column<bool>(type: "boolean", nullable: false),
-                    not_orderable = table.Column<bool>(type: "boolean", nullable: false),
                     active_from = table.Column<DateOnly>(type: "date", nullable: true),
                     active_to = table.Column<DateOnly>(type: "date", nullable: true)
                 },

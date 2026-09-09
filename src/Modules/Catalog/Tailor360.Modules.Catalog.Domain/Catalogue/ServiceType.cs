@@ -94,16 +94,6 @@ public sealed class ServiceType
     /// <summary>Whether publication may proceed with links missing.</summary>
     public bool AllowIncomplete { get; private set; }
 
-    /// <summary>
-    /// Whether the service was published with a link missing and is therefore not orderable.
-    /// </summary>
-    /// <remarks>
-    /// Set at publication rather than computed on read. The links point at other modules' versions,
-    /// and whether one was published <em>at the time this catalogue was</em> is a fact about that
-    /// moment; recomputing it later would silently change what an already-published version says.
-    /// </remarks>
-    public bool NotOrderable { get; private set; }
-
     /// <summary>The first day the service is offered, or null for always.</summary>
     public DateOnly? ActiveFrom { get; private set; }
 
@@ -123,6 +113,25 @@ public sealed class ServiceType
     public IEnumerable<Guid> DesignOptionGroupIds
         => _designGroups.OrderBy(group => group.DisplayOrder)
             .Select(group => group.DesignOptionGroupId);
+
+    /// <summary>
+    /// Whether the service has a link missing and is therefore never orderable.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Derived from the links rather than stored, for the reason
+    /// <see cref="CatalogVersion.IsGroupingNode"/> is derived from the hierarchy: a stored flag and the
+    /// thing it describes can disagree, and the thing it describes is what is true. It is also what a
+    /// published version's immutability requires — a column settled at publication would be an update
+    /// to a row the database has just frozen, which is how this was found.
+    /// </para>
+    /// <para>
+    /// Design option groups are not counted. Section 5 of <c>docs/prd/category-hierarchy.md</c> gives
+    /// them a cardinality of "zero or more", so an empty set is a complete answer; reading emptiness as
+    /// incompleteness would flag every service with no shape choices as unorderable.
+    /// </para>
+    /// </remarks>
+    public bool NotOrderable => !HasEveryRequiredLink;
 
     /// <summary>Whether every single-reference link is set.</summary>
     public bool HasEveryRequiredLink
@@ -180,14 +189,6 @@ public sealed class ServiceType
         Description = presentation.Description;
         DisplayOrder = presentation.DisplayOrder;
     }
-
-    /// <summary>Records at publication whether the service may be ordered.</summary>
-    /// <remarks>
-    /// Called once, by <see cref="CatalogVersion.Publish"/>. A service missing a link is orderable
-    /// only if it has every link; <see cref="AllowIncomplete"/> is what let it be published at all,
-    /// not a licence to take orders against it.
-    /// </remarks>
-    internal void SettleOrderability() => NotOrderable = !HasEveryRequiredLink;
 
     /// <summary>Copies the service type into a new version.</summary>
     /// <param name="id">The new row's identity.</param>

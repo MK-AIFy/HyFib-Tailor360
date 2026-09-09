@@ -163,7 +163,7 @@ public sealed class CatalogVersionTests
     }
 
     [Fact]
-    public void PublishesADraftAndSettlesWhichServicesMayBeOrdered()
+    public void PublishesADraftAndKnowsWhichServicesMayBeOrdered()
     {
         var version = CatalogTestData.Draft();
         var category = Add(version, "BLOUSE").Value;
@@ -176,6 +176,12 @@ public sealed class CatalogVersionTests
             CatalogTestData.ServiceOf("ALTERATION", complete: false, allowIncomplete: true),
             CatalogTestData.Now,
             null).Value;
+
+        // Derived from the links rather than settled at publication, so it reads the same before and
+        // after — which is what lets a published version stay immutable, because publishing writes
+        // nothing to the service's row.
+        complete.NotOrderable.ShouldBeFalse();
+        incomplete.NotOrderable.ShouldBeTrue();
 
         version.Publish(CatalogTestData.Now, null, "Launch").IsSuccess.ShouldBeTrue();
 

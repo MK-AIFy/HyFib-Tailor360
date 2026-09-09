@@ -12,7 +12,7 @@ using Tailor360.Modules.Catalog.Infrastructure.Persistence;
 namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
 {
     [DbContext(typeof(CatalogDbContext))]
-    [Migration("20260909051006_InitialCatalogSchema")]
+    [Migration("20260909054521_InitialCatalogSchema")]
     partial class InitialCatalogSchema
     {
         /// <inheritdoc />
@@ -299,10 +299,6 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         .IsUnicode(true)
                         .HasColumnType("character varying(120)")
                         .HasColumnName("name_tamil");
-
-                    b.Property<bool>("NotOrderable")
-                        .HasColumnType("boolean")
-                        .HasColumnName("not_orderable");
 
                     b.Property<Guid>("OrganisationId")
                         .HasColumnType("uuid")

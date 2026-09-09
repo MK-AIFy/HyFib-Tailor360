@@ -321,16 +321,22 @@ draft → published (immutable) → retired versions so that administrators chan
 
 | Table | Holds |
 | --- | --- |
-| `categories` | Category and sub-category, code, parent, active dates, branch availability, feature flag |
-| `service_types` | The orderable unit, with links to measurement template, workflow definition, design groups, price-list item and QC checklist |
-| `catalog_versions` | The coherent published snapshot of the whole hierarchy an order is confirmed against |
+| `categories` | Category and sub-category, code, parent, active dates, feature flag, and the stable `category_key` that identifies the category as a concept across versions |
+| `category_branches` | Which branches offer a category. An empty set means offered nowhere, not everywhere |
+| `service_types` | The orderable unit, with links to measurement template, workflow definition, price-list item and QC checklist, and its own `service_type_key` |
+| `service_type_branches` | Which branches offer a service type. Validated at publish as a subset of its category's |
+| `service_type_design_groups` | The ordered set of design option groups a service type offers (#30) |
+| `catalog_versions` | The coherent published snapshot of the whole hierarchy an order is confirmed against. Exactly one is published per organisation, held by a partial unique index; published rows are immutable but for their presentation fields, held by a trigger |
 | `design_option_groups`, `design_options`, `design_rules` | Groups, choices and the requires/excludes/conditional constraints between them |
 | `qc_checklist_templates`, `qc_checklist_versions`, `qc_criteria`, `defect_codes` | Typed QC criteria, evidence requirements, responsible role and defect vocabulary |
 
 **Owned object-storage prefix.** None. Option illustrations and measurement diagrams are Media objects referenced by
 id, with mandatory alternative text.
 
-**Publishes — integration events.** `catalog.catalog-version-published.v1`.
+**Publishes — integration events.** `catalog.catalog-version-published.v1` and
+`catalog.catalog-version-retired.v1`. The second is published only for an *explicit* retirement: a version
+retired because a successor superseded it is already announced by the first through its `supersededVersionId`,
+and publishing both would make one fact look like two.
 
 **Publishes — read contracts.** `ICatalogAvailabilityQuery` (what may be ordered, in this branch, on this date),
 `IDesignSelectionValidator` (does this set of selections satisfy the rules), the `GarmentDesignSnapshot` builder that

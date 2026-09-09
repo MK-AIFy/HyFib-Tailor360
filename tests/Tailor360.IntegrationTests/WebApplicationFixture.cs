@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Tailor360.Modules.Catalog.Infrastructure.Persistence;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence.Contexts;
@@ -89,8 +90,19 @@ public sealed class WebApplicationFixture : WebApplicationFactory<WebEntryPoint>
             .UseSnakeCaseNamingConvention()
             .Options;
 
-        await using var customers = new CustomersDbContext(customersOptions);
-        await customers.Database.MigrateAsync();
+        await using (var customers = new CustomersDbContext(customersOptions))
+        {
+            await customers.Database.MigrateAsync();
+        }
+
+        var catalogOptions = new DbContextOptionsBuilder<CatalogDbContext>()
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
+                ModuleDbContext.MigrationsHistoryTable, CatalogDbContext.SchemaName))
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        await using var catalog = new CatalogDbContext(catalogOptions);
+        await catalog.Database.MigrateAsync();
     }
 }
 

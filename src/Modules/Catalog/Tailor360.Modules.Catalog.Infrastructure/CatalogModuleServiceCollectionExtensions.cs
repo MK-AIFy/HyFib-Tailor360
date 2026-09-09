@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Tailor360.Modules.Catalog.Application.Abstractions;
 using Tailor360.Modules.Catalog.Application.Catalogue;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
+using Tailor360.Modules.Catalog.Infrastructure.Catalogue;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
@@ -57,6 +58,7 @@ public static class CatalogModuleServiceCollectionExtensions
 
         services.TryAddScoped<ICatalogStore, CatalogStore>();
         services.TryAddScoped<CatalogHandler>();
+        services.TryAddScoped<ICatalogReferenceDataSeeder, CatalogReferenceDataSeeder>();
 
         // Enumerable, not TryAdd: every module that owns something a service type links to adds its
         // own, and a second registration must join the list rather than replace this one.

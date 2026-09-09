@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Tailor360.Modules.Catalog.Application.Catalogue;
 using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Platform.Persistence.Contexts;
@@ -43,6 +44,7 @@ public static class InitReferenceDataCommand
             var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var seeder = scope.ServiceProvider.GetRequiredService<IIdentityReferenceDataSeeder>();
             var consent = scope.ServiceProvider.GetRequiredService<IConsentReferenceDataSeeder>();
+            var catalogue = scope.ServiceProvider.GetRequiredService<ICatalogReferenceDataSeeder>();
 
             Console.WriteLine($"Environment: {EnvironmentGuard.CurrentEnvironment}");
 
@@ -86,9 +88,26 @@ public static class InitReferenceDataCommand
                     + "(docs/nfr/data-classification.md section 4.1, DC-01).");
             }
 
-            Console.WriteLine(
-                "The default service catalogue is added by issue #29; this command grows with it and "
-                + "stays idempotent.");
+            var catalog = await catalogue.SeedInitialCatalogAsync(organisationId, cancellationToken);
+
+            Console.WriteLine(catalog.Created
+                ? $"Catalogue: version {catalog.VersionNumber} drafted with {catalog.CategoryCount} "
+                  + $"categories and {catalog.ServiceTypeCount} service types."
+                : $"Catalogue: version {catalog.VersionNumber} already exists; nothing was changed.");
+
+            if (catalog.AwaitingPublication)
+            {
+                // Not a warning about the seeder; a statement about what the shop cannot do yet. The
+                // same shape as the consent purposes above, and for the same reason: publishing is an
+                // Owner's act with a second factor and a stated reason, and the hierarchy itself is
+                // open decision OD-CAT-01. A command-line tool answering to nobody must not settle it.
+                Console.WriteLine(
+                    "  No catalogue version is published, so nothing can be ordered yet. Before an "
+                    + "Owner publishes: set branch availability on each category and service type (an "
+                    + "empty set means offered nowhere, which is what the seed leaves — OD-CAT-04), "
+                    + "and supply the five links each service type carries. The draft's notes say the "
+                    + "same, where the administration screens show them.");
+            }
 
             return ExitCodes.Success;
         });

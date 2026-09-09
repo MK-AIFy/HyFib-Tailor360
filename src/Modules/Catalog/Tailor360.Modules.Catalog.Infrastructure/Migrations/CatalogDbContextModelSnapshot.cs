@@ -297,10 +297,6 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("name_tamil");
 
-                    b.Property<bool>("NotOrderable")
-                        .HasColumnType("boolean")
-                        .HasColumnName("not_orderable");
-
                     b.Property<Guid>("OrganisationId")
                         .HasColumnType("uuid")
                         .HasColumnName("organisation_id");

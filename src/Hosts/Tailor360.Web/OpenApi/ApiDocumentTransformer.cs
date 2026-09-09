@@ -38,6 +38,14 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             + "caller's branches cannot see, because a revealed last-four is cheaper than the duplicate "
             + "record it prevents. Contact details are a separate permission from finding the record at "
             + "all, so a role without `customers.read_contact` receives those fields as null.",
+        ["Catalog"] =
+            "The stitching-category and service catalogue: what the shop offers, and what a branch may "
+            + "order today. Everything here is versioned configuration rather than code — an "
+            + "administrator adds a category or a service type through these routes and no deployment "
+            + "follows — and exactly one version is published at a time, because an order is placed "
+            + "against one coherent snapshot of the hierarchy. A published version is immutable but "
+            + "for its labels, so a correction is a clone, an edit and a second publication; "
+            + "publishing supersedes what came before it and never changes work already under way.",
         ["Platform"] =
             "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the "
             + "anti-forgery token pair and the build description the client shell reads on start-up.",

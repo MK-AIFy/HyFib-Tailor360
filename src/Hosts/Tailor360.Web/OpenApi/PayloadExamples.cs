@@ -26,6 +26,134 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["CreateCatalogDraft"] = """
+            {
+              "name": "Add the Kids age bands",
+              "notes": "Cloned from version 3 so the Aari links stay as published.",
+              "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000c3"
+            }
+            """,
+
+        ["AddCatalogCategory"] = """
+            {
+              "code": "BLOUSE_AARI",
+              "name": "Blouse — Aari work",
+              "nameTamil": "\u0BB0\u0BB5\u0BBF\u0B95\u0BCD\u0B95\u0BC8 — \u0B86\u0BB0\u0BBF \u0BB5\u0BC7\u0BB2\u0BC8",
+              "description": "Saree blouses carrying Aari hand embroidery.",
+              "parentCategoryId": "0199c2f0-0000-7000-8000-0000000000b1",
+              "displayOrder": 1,
+              "activeFrom": null,
+              "activeTo": null,
+              "featureFlagKey": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogCategory"] = """
+            {
+              "code": "BLOUSE_AARI",
+              "name": "Blouse — Aari work",
+              "nameTamil": null,
+              "description": "Saree blouses carrying Aari hand embroidery.",
+              "parentCategoryId": "0199c2f0-0000-7000-8000-0000000000b1",
+              "displayOrder": 2,
+              "activeFrom": null,
+              "activeTo": null,
+              "featureFlagKey": "catalog.aari",
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": "Aari moves below Pattern in the intake list, at the counter's request."
+            }
+            """,
+
+        ["AddCatalogServiceType"] = """
+            {
+              "code": "STITCHING",
+              "name": "Stitching",
+              "nameTamil": null,
+              "description": "A new garment cut and stitched from material the customer supplies.",
+              "displayOrder": 0,
+              "expectedDurationDays": 10,
+              "intakeWarning": null,
+              "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000d1",
+              "workflowDefinitionId": "0199c2f0-0000-7000-8000-0000000000d2",
+              "designOptionGroupIds": ["0199c2f0-0000-7000-8000-0000000000d3"],
+              "priceListItemCode": "BLOUSE_AARI_STITCH",
+              "qcChecklistTemplateId": "0199c2f0-0000-7000-8000-0000000000d4",
+              "allowIncomplete": false,
+              "activeFrom": null,
+              "activeTo": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogServiceType"] = """
+            {
+              "code": "ALTERATION",
+              "name": "Alteration",
+              "nameTamil": null,
+              "description": "Adjusting an existing finished garment.",
+              "displayOrder": 1,
+              "expectedDurationDays": 2,
+              "intakeWarning": "An alteration crossing an embroidered area may damage the work.",
+              "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000d1",
+              "workflowDefinitionId": "0199c2f0-0000-7000-8000-0000000000d2",
+              "designOptionGroupIds": [],
+              "priceListItemCode": "BLOUSE_AARI_ALTER",
+              "qcChecklistTemplateId": "0199c2f0-0000-7000-8000-0000000000d4",
+              "allowIncomplete": false,
+              "activeFrom": null,
+              "activeTo": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": "The Tailor Master asked for the intake warning to be spelled out."
+            }
+            """,
+
+        ["CorrectCatalogCategoryPresentation"] = """
+            {
+              "name": "Blouse — Pattern cut",
+              "nameTamil": null,
+              "description": "Plain and pattern-cut saree blouses.",
+              "displayOrder": 0,
+              "reason": "The counter reads 'Pattern cut' to customers; the label now matches."
+            }
+            """,
+
+        ["CorrectCatalogServiceTypePresentation"] = """
+            {
+              "name": "Re-stitching",
+              "nameTamil": null,
+              "description": "Opening a garment and re-making it to a new fit.",
+              "displayOrder": 2,
+              "reason": "Spelling corrected after the owner review."
+            }
+            """,
+
+        ["RemoveCatalogCategory"] = """
+            {
+              "reason": "Added by mistake; the code was meant for the sub-category."
+            }
+            """,
+
+        ["RemoveCatalogServiceType"] = """
+            {
+              "reason": "The shop does not offer re-stitching on this category."
+            }
+            """,
+
+        ["PublishCatalogVersion"] = """
+            {
+              "reason": "Owner workshop approved the launch hierarchy on 9 September."
+            }
+            """,
+
+        ["RetireCatalogVersion"] = """
+            {
+              "reason": "Superseded by the September hierarchy; no work is outstanding against it."
+            }
+            """,
+
         ["SuspendStaffUser"] = """
             {
               "reason": "Left the company on 5 September; access withdrawn at the manager's request."

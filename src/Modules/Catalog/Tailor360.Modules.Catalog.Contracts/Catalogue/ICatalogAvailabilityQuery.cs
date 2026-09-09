@@ -59,6 +59,26 @@ public interface ICatalogAvailabilityQuery
         Guid serviceTypeId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Everything a branch may order today, from the published version.
+    /// </summary>
+    /// <remarks>
+    /// The same predicate <see cref="IsOrderableAsync"/> applies, asked once for the whole branch
+    /// rather than once per service. It is one method rather than a filter the caller writes, because
+    /// a second copy of "what orderable means" is how a screen ends up offering something the
+    /// confirmation then refuses.
+    /// </remarks>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="branchId">The branch the work would be taken at.</param>
+    /// <param name="at">The instant to judge, read as a date in the branch's timezone.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The orderable services, or an empty list when nothing is published.</returns>
+    Task<IReadOnlyList<CatalogServiceSnapshot>> GetOrderableAsync(
+        Guid organisationId,
+        Guid branchId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default);
+
     /// <summary>The catalogue version an order placed now would be pinned to.</summary>
     /// <param name="organisationId">The organisation.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

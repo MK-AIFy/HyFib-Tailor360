@@ -474,10 +474,11 @@ public sealed class CatalogVersion
 
     /// <summary>Publishes the draft.</summary>
     /// <remarks>
-    /// The state machine only. Whether the draft is <em>fit</em> to publish is the registered
-    /// validators' answer and is asked before this is called; what happens here is the transition and
-    /// the one derived fact that must be settled at this instant — which services were complete enough
-    /// to be ordered.
+    /// The state machine and nothing else. Whether the draft is <em>fit</em> to publish is the
+    /// registered validators' answer and is asked before this is called, and whether a service may be
+    /// ordered is derived from its links rather than settled here — a published version is immutable,
+    /// so a flag written onto one of its rows at the moment of publication is a write the database
+    /// refuses.
     /// </remarks>
     /// <param name="now">The current instant.</param>
     /// <param name="by">The administrator.</param>
@@ -495,11 +496,6 @@ public sealed class CatalogVersion
         if (reasoned.IsFailure)
         {
             return reasoned;
-        }
-
-        foreach (var service in _serviceTypes)
-        {
-            service.SettleOrderability();
         }
 
         Status = CatalogStatus.Published;

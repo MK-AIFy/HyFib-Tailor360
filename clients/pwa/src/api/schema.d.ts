@@ -741,6 +741,281 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List what the caller's branch may order today.
+         * @description Answers from the published catalogue version, filtered by the branch's availability, the active dates read in the branch's timezone, the category's feature flag and whether the service was published complete. An empty list is a real answer: it means nothing has been published yet, or nothing is offered at this branch.
+         */
+        get: operations["GetCurrentCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organisation's catalogue versions, newest first.
+         * @description Summaries only. Reading a version's tree is a separate call, because a list of twenty versions carrying twenty trees is a page nobody needed.
+         */
+        get: operations["ListCatalogVersions"];
+        put?: never;
+        /**
+         * Start a draft catalogue version, empty or cloned from an existing one.
+         * @description Cloning the published version is the ordinary way to change a published catalogue: a published version is immutable, so a correction is a clone, an edit and a second publication. The clone carries the same categories and service types as concepts with new rows of its own.
+         */
+        post: operations["CreateCatalogDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one catalogue version and everything in it.
+         * @description The administrator's preview, and the same call whatever the version's status: a retired version reads exactly as it did, which is what makes a two-year-old job card render. The ETag is the token a publication must be made against.
+         */
+        get: operations["GetCatalogVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a category to a draft catalogue version.
+         * @description This is the route that makes 'an administrator adds a category without a deployment' true. Only a draft accepts it.
+         */
+        post: operations["AddCatalogCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace what a draft says about a category.
+         * @description Whole-value, not partial: the request carries everything an administrator says about the category, so an omitted branch list means 'offered nowhere' rather than 'unchanged'. Re-parenting is refused when it would make the hierarchy circular.
+         */
+        put: operations["EditCatalogCategory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a category, its sub-categories and their service types from a draft.
+         * @description A POST sub-resource rather than a DELETE, following the pattern the administration routes already use for a removal that carries a reason. Only from a draft: a published version is immutable and a database trigger refuses the delete as well. Descendants go with it, because leaving them would produce the orphaned parent publication refuses.
+         */
+        post: operations["RemoveCatalogCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/presentation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct the label, Tamil label, description or display order of a published category.
+         * @description The only edit a published version admits. Nothing downstream reads a label — a price list, a report, an export and an event payload all refer to the code — so a correction changes what is shown and nothing that was priced, worked to or reported. A reason is required and the change is audited.
+         */
+        post: operations["CorrectCatalogCategoryPresentation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/service-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a service type to a category in a draft.
+         * @description The five links may all be null here. Whether that is acceptable is decided at publication, where a missing link is an error unless the administrator accepted it with allowIncomplete, which flags the service not orderable.
+         */
+        post: operations["AddCatalogServiceType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a draft, superseding whatever was published before it.
+         * @description Exactly one version is published at a time, so publishing retires the one it replaces in the same transaction — and the retirement validators are asked about the outgoing version with this one named as its successor. A draft that dropped a category work in progress still needs is therefore refused here, where somebody can still do something about it. Two administrators publishing different drafts at once is settled by the database: one commits and the other is told plainly.
+         */
+        post: operations["PublishCatalogVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire the published version, so nothing new is taken against it.
+         * @description Retirement stops new orders and nothing else: jobs already in production run to dispatch on the configuration they were pinned to, and the retired version stays fully readable so their job cards, invoices and reports render exactly as they did. Refused while work in progress needs a service no successor replaces.
+         */
+        post: operations["RetireCatalogVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/service-types/{serviceTypeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a service type, its five links included. */
+        put: operations["EditCatalogServiceType"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/service-types/{serviceTypeId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a service type from a draft. */
+        post: operations["RemoveCatalogServiceType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/service-types/{serviceTypeId}/presentation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct the presentation fields of a published service type. */
+        post: operations["CorrectCatalogServiceTypePresentation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run every registered validator against a version and report what they found.
+         * @description A read: it changes nothing and is not audited. It runs the same code path publication takes, deliberately — a preview that ran different checks from the command it previews would be worse than no preview.
+         */
+        get: operations["ValidateCatalogVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers": {
         parameters: {
             query?: never;
@@ -1145,6 +1420,98 @@ export interface components {
             timeZoneId: string;
             version: string;
         };
+        CatalogFindingPayload: {
+            code: string;
+            message: string;
+            severity: string;
+            target: null | string;
+            validator: string;
+        };
+        CatalogPresentationRequest: {
+            description: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+        };
+        CatalogPublicationPayload: {
+            findings: components["schemas"]["CatalogFindingPayload"][];
+            /** Format: uuid */
+            supersededVersionId: null | string;
+            version: components["schemas"]["CatalogVersionSummaryPayload"];
+        };
+        CatalogReasonRequest: {
+            reason: null | string;
+        };
+        CatalogValidationReportPayload: {
+            /** Format: uuid */
+            catalogVersionId: string;
+            /** Format: int32 */
+            errorCount: number | string;
+            findings: components["schemas"]["CatalogFindingPayload"][];
+            publishable: boolean;
+            /** Format: int32 */
+            warningCount: number | string;
+        };
+        CatalogVersionPayload: {
+            categories: components["schemas"]["CategoryPayload"][];
+            serviceTypes: components["schemas"]["ServiceTypePayload"][];
+            version: components["schemas"]["CatalogVersionSummaryPayload"];
+        };
+        CatalogVersionSummaryPayload: {
+            /** Format: uuid */
+            catalogVersionId: string;
+            /** Format: uuid */
+            clonedFromVersionId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            name: string;
+            notes: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            status: string;
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
+        CategoryPayload: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            branchIds: string[];
+            /** Format: uuid */
+            categoryId: string;
+            code: string;
+            description: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            featureFlagKey: null | string;
+            isGroupingNode: boolean;
+            name: string;
+            nameTamil: null | string;
+            /** Format: uuid */
+            parentCategoryId: null | string;
+        };
+        CategoryRequest: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            branchIds: null | string[];
+            code: null | string;
+            description: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            featureFlagKey: null | string;
+            name: null | string;
+            nameTamil: null | string;
+            /** Format: uuid */
+            parentCategoryId: null | string;
+            reason: null | string;
+        };
         CommunicationPreferencePayload: {
             allowedChannels: string[];
             /** Format: uuid */
@@ -1196,6 +1563,12 @@ export interface components {
             phone: null | string;
             postcode: null | string;
             reason: null | string;
+        };
+        CreateCatalogDraftRequest: {
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
+            name: null | string;
+            notes: null | string;
         };
         CurrentUserResponse: {
             /** Format: uuid */
@@ -1460,6 +1833,35 @@ export interface components {
             state: null | string;
             timeZoneId: null | string;
         };
+        OrderableCatalogPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            catalogVersionId: null | string;
+            services: components["schemas"]["OrderableServicePayload"][];
+        };
+        OrderableServicePayload: {
+            categoryCode: string;
+            /** Format: uuid */
+            categoryId: string;
+            categoryName: string;
+            designOptionGroupIds: string[];
+            /** Format: int32 */
+            expectedDurationDays: number | string;
+            intakeWarning: null | string;
+            /** Format: uuid */
+            measurementTemplateId: null | string;
+            priceListItemCode: null | string;
+            /** Format: uuid */
+            qcChecklistTemplateId: null | string;
+            qualifiedReference: string;
+            serviceCode: string;
+            serviceName: string;
+            /** Format: uuid */
+            serviceTypeId: string;
+            /** Format: uuid */
+            workflowDefinitionId: null | string;
+        };
         PasskeyAssertionRequest: {
             ceremonyId: null | string;
             credential: components["schemas"]["JsonElement"];
@@ -1628,6 +2030,62 @@ export interface components {
             /** Format: uuid */
             updatedBy: null | string;
             version: string;
+        };
+        ServiceTypePayload: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            allowIncomplete: boolean;
+            branchIds: string[];
+            /** Format: uuid */
+            categoryId: string;
+            code: string;
+            description: null | string;
+            designOptionGroupIds: string[];
+            /** Format: int32 */
+            displayOrder: number | string;
+            /** Format: int32 */
+            expectedDurationDays: number | string;
+            intakeWarning: null | string;
+            /** Format: uuid */
+            measurementTemplateId: null | string;
+            name: string;
+            nameTamil: null | string;
+            notOrderable: boolean;
+            priceListItemCode: null | string;
+            /** Format: uuid */
+            qcChecklistTemplateId: null | string;
+            /** Format: uuid */
+            serviceTypeId: string;
+            /** Format: uuid */
+            workflowDefinitionId: null | string;
+        };
+        ServiceTypeRequest: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            allowIncomplete: boolean;
+            branchIds: null | string[];
+            code: null | string;
+            description: null | string;
+            designOptionGroupIds: null | string[];
+            /** Format: int32 */
+            displayOrder: number | string;
+            /** Format: int32 */
+            expectedDurationDays: number | string;
+            intakeWarning: null | string;
+            /** Format: uuid */
+            measurementTemplateId: null | string;
+            name: null | string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            /** Format: uuid */
+            qcChecklistTemplateId: null | string;
+            reason: null | string;
+            /** Format: uuid */
+            workflowDefinitionId: null | string;
         };
         SessionExpiryPayload: {
             /** Format: date-time */
@@ -4165,6 +4623,903 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             415: components["responses"]["UnsupportedMediaType"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCurrentCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderableCatalogPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListCatalogVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionSummaryPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateCatalogDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000c3",
+                 *       "name": "Add the Kids age bands",
+                 *       "notes": "Cloned from version 3 so the Aari links stay as published."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CreateCatalogDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCatalogVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "BLOUSE_AARI",
+                 *       "description": "Saree blouses carrying Aari hand embroidery.",
+                 *       "displayOrder": 1,
+                 *       "featureFlagKey": null,
+                 *       "name": "Blouse — Aari work",
+                 *       "nameTamil": "ரவிக்கை — ஆரி வேலை",
+                 *       "parentCategoryId": "0199c2f0-0000-7000-8000-0000000000b1",
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "BLOUSE_AARI",
+                 *       "description": "Saree blouses carrying Aari hand embroidery.",
+                 *       "displayOrder": 2,
+                 *       "featureFlagKey": "catalog.aari",
+                 *       "name": "Blouse — Aari work",
+                 *       "nameTamil": null,
+                 *       "parentCategoryId": "0199c2f0-0000-7000-8000-0000000000b1",
+                 *       "reason": "Aari moves below Pattern in the intake list, at the counter's request."
+                 *     }
+                 */
+                "application/json": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Added by mistake; the code was meant for the sub-category."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCatalogCategoryPresentation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "description": "Plain and pattern-cut saree blouses.",
+                 *       "displayOrder": 0,
+                 *       "name": "Blouse — Pattern cut",
+                 *       "nameTamil": null,
+                 *       "reason": "The counter reads 'Pattern cut' to customers; the label now matches."
+                 *     }
+                 */
+                "application/json": components["schemas"]["CatalogPresentationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddCatalogServiceType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "allowIncomplete": false,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "STITCHING",
+                 *       "description": "A new garment cut and stitched from material the customer supplies.",
+                 *       "designOptionGroupIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000d3"
+                 *       ],
+                 *       "displayOrder": 0,
+                 *       "expectedDurationDays": 10,
+                 *       "intakeWarning": null,
+                 *       "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000d1",
+                 *       "name": "Stitching",
+                 *       "nameTamil": null,
+                 *       "priceListItemCode": "BLOUSE_AARI_STITCH",
+                 *       "qcChecklistTemplateId": "0199c2f0-0000-7000-8000-0000000000d4",
+                 *       "reason": null,
+                 *       "workflowDefinitionId": "0199c2f0-0000-7000-8000-0000000000d2"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ServiceTypeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceTypePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PublishCatalogVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Owner workshop approved the launch hierarchy on 9 September."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogPublicationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RetireCatalogVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Superseded by the September hierarchy; no work is outstanding against it."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionSummaryPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogServiceType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                serviceTypeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "allowIncomplete": false,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "ALTERATION",
+                 *       "description": "Adjusting an existing finished garment.",
+                 *       "designOptionGroupIds": [],
+                 *       "displayOrder": 1,
+                 *       "expectedDurationDays": 2,
+                 *       "intakeWarning": "An alteration crossing an embroidered area may damage the work.",
+                 *       "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000d1",
+                 *       "name": "Alteration",
+                 *       "nameTamil": null,
+                 *       "priceListItemCode": "BLOUSE_AARI_ALTER",
+                 *       "qcChecklistTemplateId": "0199c2f0-0000-7000-8000-0000000000d4",
+                 *       "reason": "The Tailor Master asked for the intake warning to be spelled out.",
+                 *       "workflowDefinitionId": "0199c2f0-0000-7000-8000-0000000000d2"
+                 *     }
+                 */
+                "application/json": components["schemas"]["ServiceTypeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceTypePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogServiceType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                serviceTypeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "The shop does not offer re-stitching on this category."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCatalogServiceTypePresentation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                serviceTypeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "description": "Opening a garment and re-making it to a new fit.",
+                 *       "displayOrder": 2,
+                 *       "name": "Re-stitching",
+                 *       "nameTamil": null,
+                 *       "reason": "Spelling corrected after the owner review."
+                 *     }
+                 */
+                "application/json": components["schemas"]["CatalogPresentationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ValidateCatalogVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogValidationReportPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

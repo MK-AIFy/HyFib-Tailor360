@@ -243,6 +243,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
             entity.Ignore(service => service.BranchIds);
             entity.Ignore(service => service.DesignOptionGroupIds);
             entity.Ignore(service => service.HasEveryRequiredLink);
+            entity.Ignore(service => service.NotOrderable);
 
             entity.HasIndex(service => new { service.CategoryId, service.Code })
                 .IsUnique()

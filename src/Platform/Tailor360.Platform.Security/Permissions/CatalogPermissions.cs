@@ -11,6 +11,9 @@ namespace Tailor360.Platform.Security.Permissions;
 /// </remarks>
 public static class CatalogPermissions
 {
+    /// <summary>Read what the catalogue offers at a branch.</summary>
+    public const string Read = "catalog.read";
+
     /// <summary>Draft a catalogue version — categories, service types, design options and rules.</summary>
     public const string Edit = "catalog.edit";
 
@@ -32,6 +35,8 @@ public static class CatalogPermissions
     /// <summary>Every permission in this group, in declaration order.</summary>
     public static IReadOnlyCollection<Permission> All { get; } =
     [
+        new(Read, "Read the categories and services a branch may offer.",
+            PermissionModules.Catalog, PermissionScope.Branch),
         new(Edit, "Draft a catalogue version: categories, service types, design options and rules.",
             PermissionModules.Catalog, PermissionScope.Organisation),
         new(Publish, "Publish or retire a catalogue version.",

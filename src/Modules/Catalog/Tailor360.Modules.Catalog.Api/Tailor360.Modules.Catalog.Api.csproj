@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Catalog.Application\Tailor360.Modules.Catalog.Application.csproj" />
+    <ProjectReference Include="..\Tailor360.Modules.Catalog.Contracts\Tailor360.Modules.Catalog.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
   </ItemGroup>
