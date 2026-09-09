@@ -96,7 +96,8 @@ public sealed record MeasurementTemplateSnapshot(
 /// <param name="HelpText">Where the tape starts and ends, and whether the value is a body or a finished measurement.</param>
 /// <param name="DiagramReference">The sheet and callout, as <c>&lt;diagram_key&gt;#&lt;field_key&gt;</c>.</param>
 /// <param name="DiagramAlt">The measuring path in words.</param>
-/// <param name="OptionCodes">The choices, for a field that is chosen rather than measured.</param>
+/// <param name="Rule">When the field is shown, or null when it always is.</param>
+/// <param name="Options">The choices, for a field that is chosen rather than measured.</param>
 public sealed record MeasurementFieldSnapshot(
     string Key,
     string Label,
@@ -115,4 +116,45 @@ public sealed record MeasurementFieldSnapshot(
     string HelpText,
     string? DiagramReference,
     string? DiagramAlt,
-    IReadOnlyList<string> OptionCodes);
+    MeasurementRuleSnapshot? Rule,
+    IReadOnlyList<MeasurementOptionSnapshot> Options);
+
+/// <summary>When a conditional field is shown, in a form the caller can actually evaluate.</summary>
+/// <remarks>
+/// <para>
+/// The rule travels rather than a rendered sentence because the module that has to obey it is not the one
+/// that stores it. A clause may name a design selection — <c>design.sleeve_style</c> — and design
+/// selections only exist inside an order, so Orders is the only place the rule can be evaluated at all.
+/// A prose description cannot be evaluated, and no other published contract carries the clauses.
+/// </para>
+/// <para>
+/// The disjunction is inclusive: the field is decided the moment any one clause matches. A caller that
+/// cannot read an operand at all treats the rule as undecided and shows the field, because hiding on
+/// missing information drops a measurement the tailor needs.
+/// </para>
+/// </remarks>
+/// <param name="Effect">What a match does: <c>ShownWhen</c> or <c>HiddenWhen</c>.</param>
+/// <param name="AnyOf">The clauses, any one of which satisfies the rule.</param>
+public sealed record MeasurementRuleSnapshot(string Effect, IReadOnlyList<MeasurementRuleClauseSnapshot> AnyOf);
+
+/// <summary>One clause of a conditional rule.</summary>
+/// <param name="Scope">Where the operand is read from: <c>Field</c> or <c>DesignSelection</c>.</param>
+/// <param name="Name">The field key, or the design option-group code.</param>
+/// <param name="Operator">How the values are compared: <c>IsAnyOf</c> or <c>Excludes</c>.</param>
+/// <param name="Values">The values compared against.</param>
+public sealed record MeasurementRuleClauseSnapshot(
+    string Scope,
+    string Name,
+    string Operator,
+    IReadOnlyList<string> Values);
+
+/// <summary>One choice on a field that is chosen rather than measured.</summary>
+/// <remarks>
+/// The labels travel with the code because the caller renders the choice, and there is no other contract
+/// from which the Tamil label or the intended order could be recovered.
+/// </remarks>
+/// <param name="Code">What the captured value is stored as.</param>
+/// <param name="Label">What staff read.</param>
+/// <param name="LabelTamil">The Tamil label, or null.</param>
+/// <param name="DisplayOrder">The order the choices are offered in.</param>
+public sealed record MeasurementOptionSnapshot(string Code, string Label, string? LabelTamil, int DisplayOrder);

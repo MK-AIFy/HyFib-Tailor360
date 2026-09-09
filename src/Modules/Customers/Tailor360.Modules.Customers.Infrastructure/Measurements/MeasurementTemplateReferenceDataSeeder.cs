@@ -70,7 +70,14 @@ public sealed class MeasurementTemplateReferenceDataSeeder(
             store.Add(template.Value);
         }
 
-        await store.SaveAsync(cancellationToken);
+        var committed = await store.SaveAsync(cancellationToken);
+
+        if (committed.IsFailure)
+        {
+            // Two seeders running at once, which the command-line tool does not do but a retry after a partial
+            // failure could. Reporting nothing created is honest: this run wrote nothing.
+            return await CountAsync(organisationId, created: false, cancellationToken);
+        }
 
         return await CountAsync(organisationId, created: true, cancellationToken);
     }

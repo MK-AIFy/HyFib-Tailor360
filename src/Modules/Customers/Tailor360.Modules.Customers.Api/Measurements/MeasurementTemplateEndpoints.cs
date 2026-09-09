@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Routing;
 using Tailor360.Modules.Customers.Api.Payloads;
 using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Customers.Domain.Measurements;
+using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Multitenancy;
 using Tailor360.Platform.Security.Authorisation;
 using Tailor360.Platform.Security.Endpoints;
@@ -184,7 +185,7 @@ public static class MeasurementTemplateEndpoints
             {
                 ArgumentNullException.ThrowIfNull(request);
 
-                if (!Enum.TryParse<DisplayUnit>(request.DefaultDisplayUnit, ignoreCase: true, out var unit))
+                if (!EnumText.TryRead<DisplayUnit>(request.DefaultDisplayUnit, out var unit))
                 {
                     return Problems.From(
                         MeasurementApiErrors.NotAValidValue("defaultDisplayUnit", request.DefaultDisplayUnit),
@@ -243,6 +244,7 @@ public static class MeasurementTemplateEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(MeasurementTemplateHandler.FieldAddedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         customers.MapPut(
@@ -268,6 +270,7 @@ public static class MeasurementTemplateEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(MeasurementTemplateHandler.FieldChangedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         customers.MapPost(
@@ -285,7 +288,7 @@ public static class MeasurementTemplateEndpoints
                     var result = await handler.RemoveFieldAsync(
                         new RemoveTemplateFieldCommand(
                             templateId, versionId, caller.Context.OrganisationId, fieldId, request?.Reason,
-                            caller.UserId),
+                            Precondition(context), caller.UserId),
                         cancellationToken);
 
                     if (result.IsFailure)
@@ -307,6 +310,7 @@ public static class MeasurementTemplateEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(MeasurementTemplateHandler.FieldRemovedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
     }
 
@@ -418,7 +422,7 @@ public static class MeasurementTemplateEndpoints
                             versionId,
                             caller.Context.OrganisationId,
                             request?.Reason ?? string.Empty,
-                            context.Request.TryGetIfMatch(out var expected) ? expected : null,
+                            Precondition(context),
                             caller.UserId),
                         cancellationToken);
 
@@ -439,6 +443,7 @@ public static class MeasurementTemplateEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(action, reasonRequired)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         if (stepUp)
@@ -446,6 +451,17 @@ public static class MeasurementTemplateEndpoints
             route.RequireStepUp();
         }
     }
+
+    /// <summary>Reads the <c>If-Match</c> the route already refused the request without.</summary>
+    /// <remarks>
+    /// Every caller of this sits behind <c>RequireIfMatch()</c>, which answers 428 when the header is absent
+    /// and 400 when it is not a strong entity tag, so by here it is present and well formed. It still never
+    /// yields null: a null precondition means "nothing to check", and an administrator working from a screen
+    /// somebody else has already changed would silently overwrite them. An unreadable header therefore
+    /// becomes a tag that matches nothing, which fails closed as a 409.
+    /// </remarks>
+    private static EntityTag Precondition(HttpContext context)
+        => context.Request.TryGetIfMatch(out var expected) ? expected : new EntityTag(string.Empty);
 
     private static async Task<IResult> SaveFieldAsync(
         HttpContext context,
@@ -469,7 +485,7 @@ public static class MeasurementTemplateEndpoints
         var result = await handler.SaveFieldAsync(
             new SaveTemplateFieldCommand(
                 templateId, versionId, caller.Context.OrganisationId, fieldId, definition.Value,
-                context.Request.TryGetIfMatch(out var expected) ? expected : null, caller.UserId),
+                Precondition(context), caller.UserId),
             cancellationToken);
 
         if (result.IsFailure)

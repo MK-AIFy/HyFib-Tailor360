@@ -56,6 +56,7 @@ public sealed record SaveTemplateFieldCommand(
 /// <param name="OrganisationId">The organisation.</param>
 /// <param name="FieldId">The field.</param>
 /// <param name="Reason">Why.</param>
+/// <param name="ExpectedVersion">The version the administrator was looking at, from <c>If-Match</c>.</param>
 /// <param name="By">The administrator.</param>
 public sealed record RemoveTemplateFieldCommand(
     Guid TemplateId,
@@ -63,6 +64,7 @@ public sealed record RemoveTemplateFieldCommand(
     Guid OrganisationId,
     Guid FieldId,
     string? Reason,
+    EntityTag? ExpectedVersion,
     Guid? By);
 
 /// <summary>Moves a version through its lifecycle.</summary>
