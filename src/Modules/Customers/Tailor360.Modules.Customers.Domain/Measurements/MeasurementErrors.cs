@@ -1,0 +1,310 @@
+using Tailor360.Platform.Abstractions.Results;
+
+namespace Tailor360.Modules.Customers.Domain.Measurements;
+
+/// <summary>
+/// Every failure measurement-template administration reports, in one place.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Separate from <see cref="CustomersErrors"/> because the audience is different. Those errors are about a
+/// customer and are read at a counter with somebody waiting; these are about configuration and are read by an
+/// administrator building a template, who needs to know which field of which version is wrong and why. The codes
+/// are a published contract either way: the administration screen branches on them.
+/// </para>
+/// <para>
+/// No message carries a measurement. A template is configuration and holds none, but the same discipline applies
+/// as everywhere else in this module — a problem detail names the field and the rule, never a value
+/// (<c>docs/nfr/data-classification.md</c> section 5.2).
+/// </para>
+/// </remarks>
+public static class MeasurementErrors
+{
+    /// <summary>A required value was missing or blank.</summary>
+    /// <param name="field">The field the caller must supply.</param>
+    public static Error Required(string field) => Error.Validation(
+        "measurements.value-required",
+        "A required value was not supplied.",
+        field);
+
+    /// <summary>A value was longer than the column that holds it.</summary>
+    /// <param name="field">The field that was too long.</param>
+    /// <param name="maximum">The longest value the field accepts.</param>
+    public static Error TooLong(string field, int maximum) => Error.Validation(
+        "measurements.value-too-long",
+        $"That value is longer than the {maximum} characters this field holds.",
+        field);
+
+    /// <summary>A display order was negative.</summary>
+    /// <param name="field">The thing carrying the order.</param>
+    public static Error DisplayOrderNegative(string field) => Error.Validation(
+        "measurements.display-order-negative",
+        "Display order counts up from zero.",
+        field);
+
+    /// <summary>A field key was not lower snake case.</summary>
+    /// <param name="key">The malformed key.</param>
+    public static Error FieldKeyMalformed(string key) => Error.Validation(
+        "measurements.field-key-malformed",
+        $"'{key}' is not a field key. A key is lower snake case, starts with a letter and is between "
+        + $"{FieldKey.MinimumLength} and {FieldKey.MaximumLength} characters — for example 'front_neck_depth'.",
+        "key");
+
+    /// <summary>A template code was not upper snake case.</summary>
+    /// <param name="code">The malformed code.</param>
+    public static Error TemplateCodeMalformed(string code) => Error.Validation(
+        "measurements.template-code-malformed",
+        $"'{code}' is not a template code. A code is upper snake case, starts with a letter and is between "
+        + $"{MeasurementTemplate.MinimumCodeLength} and {MeasurementTemplate.MaximumCodeLength} characters — for "
+        + "example 'MT_BLOUSE_PATTERN'.",
+        "code");
+
+    /// <summary>Two fields of one version claimed the same key.</summary>
+    /// <param name="key">The repeated key.</param>
+    public static Error DuplicateFieldKey(string key) => Error.Validation(
+        "measurements.duplicate-field-key",
+        $"'{key}' is used by more than one field in this version. A key is what a captured value is filed under, "
+        + "so it identifies exactly one field.",
+        $"fields[{key}].key");
+
+    /// <summary>An inch step was not one a tape is divided into.</summary>
+    /// <param name="fraction">The denominator asked for.</param>
+    public static Error PrecisionNotPermitted(int fraction) => Error.Validation(
+        "measurements.precision-not-permitted",
+        $"An inch step of 1/{fraction} cannot be read off a tape. Use one of "
+        + $"{string.Join(", ", FieldPrecision.PermittedInchFractions.Order().Select(value => $"1/{value}"))}.",
+        "precision.inchFraction");
+
+    /// <summary>A centimetre precision asked for more decimals than the measurement carries.</summary>
+    /// <param name="decimals">The decimals asked for.</param>
+    public static Error DecimalsNotPermitted(int decimals) => Error.Validation(
+        "measurements.decimals-not-permitted",
+        $"{decimals} decimal places is finer than a tape can be read. Centimetre fields carry at most "
+        + $"{FieldPrecision.MaximumCentimetreDecimals}.",
+        "precision.centimetreDecimals");
+
+    /// <summary>A numeric field declared no precision in any unit.</summary>
+    public static readonly Error PrecisionMissing = Error.Validation(
+        "measurements.precision-missing",
+        "A numeric field is entered in inches, in centimetres or in both, so it declares a step for at least one.",
+        "precision");
+
+    /// <summary>A field declared a precision for a unit it is not shown in.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="unit">The unit.</param>
+    public static Error PrecisionNotAllowedForUnit(string key, DisplayUnit unit) => Error.Validation(
+        "measurements.precision-not-allowed-for-unit",
+        $"'{key}' declares a step for {unit} but is not shown in it. A step nobody can enter against is a rule "
+        + "that will not be applied.",
+        $"fields[{key}].precision");
+
+    /// <summary>A field's minimum was above its maximum.</summary>
+    /// <param name="key">The field.</param>
+    public static Error BoundsOutOfOrder(string key) => Error.Validation(
+        "measurements.bounds-out-of-order",
+        $"'{key}' has a minimum above its maximum, so every value would be refused.",
+        $"fields[{key}].bounds");
+
+    /// <summary>A warning threshold sat outside the hard bounds.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="which">Which threshold.</param>
+    public static Error WarningOutsideBounds(string key, string which) => Error.Validation(
+        "measurements.warning-outside-bounds",
+        $"'{key}' has a {which} threshold outside its hard bounds, so it can never be reached: the value is "
+        + "refused before anybody is asked to confirm it.",
+        $"fields[{key}].bands.{which}");
+
+    /// <summary>The warning band's lower threshold was above its upper one.</summary>
+    /// <param name="key">The field.</param>
+    public static Error WarningBandOutOfOrder(string key) => Error.Validation(
+        "measurements.warning-band-out-of-order",
+        $"'{key}' warns below a value that is above the value it warns above, so every measurement would be "
+        + "queried.",
+        $"fields[{key}].bands");
+
+    /// <summary>A choice option's code was not storable.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="code">The malformed code.</param>
+    public static Error ChoiceCodeMalformed(string key, string code) => Error.Validation(
+        "measurements.choice-code-malformed",
+        $"'{code}' is not an option code. A code is upper case with digits and underscores — for example "
+        + "'ELASTIC' or '12_14'.",
+        $"fields[{key}].options");
+
+    /// <summary>A choice field offered nothing to choose.</summary>
+    /// <param name="key">The field.</param>
+    public static Error ChoiceFieldHasNoOptions(string key) => Error.Validation(
+        "measurements.choice-field-has-no-options",
+        $"'{key}' is a choice field and offers no options, so it can never be answered.",
+        $"fields[{key}].options");
+
+    /// <summary>A numeric field carried choice options.</summary>
+    /// <param name="key">The field.</param>
+    public static Error NumericFieldHasOptions(string key) => Error.Validation(
+        "measurements.numeric-field-has-options",
+        $"'{key}' is measured, not chosen, so it carries no options.",
+        $"fields[{key}].options");
+
+    /// <summary>A rule carried more clauses than one rule may.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="maximum">The most clauses allowed.</param>
+    public static Error TooManyClauses(string key, int maximum) => Error.Validation(
+        "measurements.too-many-clauses",
+        $"The rule on '{key}' has more than {maximum} clauses. A rule that long is describing something the "
+        + "template should carry as its own field.",
+        $"fields[{key}].rule");
+
+    /// <summary>A clause compared against nothing.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="operand">The operand with no values.</param>
+    public static Error ClauseHasNoValues(string key, string operand) => Error.Validation(
+        "measurements.clause-has-no-values",
+        $"The rule on '{key}' compares '{operand}' against no values, so it can never match.",
+        $"fields[{key}].rule");
+
+    /// <summary>A rule operand was not a readable name.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="operand">The malformed operand.</param>
+    public static Error RuleOperandMalformed(string key, string operand) => Error.Validation(
+        "measurements.rule-operand-malformed",
+        $"The rule on '{key}' reads '{operand}', which is not a field key.",
+        $"fields[{key}].rule");
+
+    /// <summary>A rule read the field it governs.</summary>
+    /// <param name="key">The field.</param>
+    public static Error RuleReadsItself(string key) => Error.Validation(
+        "measurements.rule-reads-itself",
+        $"The rule on '{key}' reads '{key}'. A field whose visibility depends on its own value can never settle: "
+        + "hidden it has no value, and without a value it is shown.",
+        $"fields[{key}].rule");
+
+    /// <summary>A rule named a field this version does not have.</summary>
+    /// <param name="key">The field carrying the rule.</param>
+    /// <param name="referenced">The key it read.</param>
+    public static Error UnknownRuleField(string key, string referenced) => Error.Validation(
+        "measurements.unknown-rule-field",
+        $"The rule on '{key}' reads '{referenced}', which is not a field of this version.",
+        $"fields[{key}].rule");
+
+    /// <summary>Two or more fields' rules depend on each other in a loop.</summary>
+    /// <param name="keys">The fields in the cycle, in the order they were walked.</param>
+    public static Error CyclicCondition(IEnumerable<string> keys) => Error.Validation(
+        "measurements.cyclic-condition",
+        $"The visibility rules on {string.Join(" → ", keys)} form a loop, so none of them can be settled.",
+        "fields");
+
+    /// <summary>A required field could never be shown.</summary>
+    /// <param name="key">The field.</param>
+    public static Error RequiredFieldHiddenUnconditionally(string key) => Error.Validation(
+        "measurements.required-field-never-shown",
+        $"'{key}' is required and is hidden by a rule that always matches, so a capture could never be completed.",
+        $"fields[{key}].rule");
+
+    /// <summary>Alternative text was missing from a field carrying a diagram.</summary>
+    /// <param name="key">The field.</param>
+    public static Error DiagramAltMissing(string key) => Error.Validation(
+        "measurements.diagram-alt-missing",
+        $"'{key}' references a diagram with no alternative text. The text describes the measuring path in words "
+        + "and is what a screen reader and a printed sheet rely on.",
+        $"fields[{key}].diagramAlt");
+
+    /// <summary>A version had no fields at all.</summary>
+    public static readonly Error VersionHasNoFields = Error.Validation(
+        "measurements.version-has-no-fields",
+        "A template version with no fields would capture nothing. Add the fields before submitting it.",
+        "fields");
+
+    /// <summary>The template does not exist, or the caller may not see it.</summary>
+    public static readonly Error TemplateNotFound = Error.NotFound(
+        "measurements.template-not-found",
+        "That measurement template does not exist.");
+
+    /// <summary>The version does not exist within its template.</summary>
+    public static readonly Error VersionNotFound = Error.NotFound(
+        "measurements.version-not-found",
+        "That template version does not exist.");
+
+    /// <summary>The field does not exist within its version.</summary>
+    public static readonly Error FieldNotFound = Error.NotFound(
+        "measurements.field-not-found",
+        "That field does not exist in this template version.");
+
+    /// <summary>An edit was attempted against a version that is no longer a draft.</summary>
+    public static readonly Error VersionNotEditable = Error.Conflict(
+        "measurements.version-not-editable",
+        "Only a draft is edited. Clone this version to a new draft and change that.");
+
+    /// <summary>A submission was attempted against a version that is not a draft.</summary>
+    public static readonly Error VersionNotSubmittable = Error.Conflict(
+        "measurements.version-not-submittable",
+        "Only a draft is submitted for review.");
+
+    /// <summary>An approval was attempted against a version that is not in review.</summary>
+    public static readonly Error VersionNotApprovable = Error.Conflict(
+        "measurements.version-not-approvable",
+        "Only a version in review is approved. Submit the draft first.");
+
+    /// <summary>A version was approved twice.</summary>
+    public static readonly Error VersionAlreadyApproved = Error.Conflict(
+        "measurements.version-already-approved",
+        "This version has already been approved. Who approved it and when is part of its record, so a second "
+        + "approval is not recorded over the first.");
+
+    /// <summary>A template asked to open the wizard in a unit nobody enters lengths in.</summary>
+    public static readonly Error DefaultUnitNotEnterable = Error.Validation(
+        "measurements.default-unit-not-enterable",
+        "A template opens in inches or centimetres. Counts are the unit of a single field, not of a wizard.",
+        "defaultDisplayUnit");
+
+    /// <summary>A publication was attempted against a version that is not approved.</summary>
+    public static readonly Error VersionNotPublishable = Error.Conflict(
+        "measurements.version-not-publishable",
+        "A version is reviewed and approved before it is published.");
+
+    /// <summary>A retirement was attempted against a version that is not published.</summary>
+    public static readonly Error VersionNotRetirable = Error.Conflict(
+        "measurements.version-not-retirable",
+        "Only the published version is retired, and only once.");
+
+    /// <summary>The person who submitted a version tried to publish it as well.</summary>
+    public static readonly Error SubmitterCannotPublish = Error.Forbidden(
+        "measurements.submitter-cannot-publish",
+        "The administrator who submitted a template version does not also approve it. Ask another administrator "
+        + "to review it.");
+
+    /// <summary>Publish-time validation found something that has to be fixed first.</summary>
+    public static readonly Error PublishValidationFailed = Error.Validation(
+        "measurements.publish-validation-failed",
+        "This version cannot be published yet. The findings say what to correct.",
+        "fields");
+
+    /// <summary>Another publication won the race.</summary>
+    public static readonly Error PublishConflict = Error.Conflict(
+        "measurements.publish-conflict",
+        "Another version of this template was published while this one was being prepared. Review it and clone "
+        + "it if the change is still wanted.");
+
+    /// <summary>Two drafts of one template were started in the same moment.</summary>
+    public static readonly Error VersionNumberConflict = Error.Conflict(
+        "measurements.version-number-conflict",
+        "Another draft of this template was started at the same moment and took the next version number. Nothing "
+        + "was created; ask again and the draft will take the number after it.");
+
+    /// <summary>The version was changed by somebody else since it was read.</summary>
+    public static readonly Error VersionChanged = Error.Conflict(
+        "measurements.version-changed",
+        "This template version was changed by somebody else since it was read. Read it again and make the change "
+        + "against the current state.");
+
+    /// <summary>A template code was claimed twice in one organisation.</summary>
+    /// <param name="code">The repeated code.</param>
+    public static Error DuplicateTemplateCode(string code) => Error.Conflict(
+        "measurements.duplicate-template-code",
+        $"'{code}' already names a measurement template in this organisation.");
+
+    /// <summary>Retirement would leave work in progress with no template to render through.</summary>
+    public static readonly Error RetirementWouldStrandOrders = Error.Conflict(
+        "measurements.retirement-would-strand-orders",
+        "A published catalogue version still points at this template version. Publish a successor template first, "
+        + "or retire the catalogue version that references it.");
+}
