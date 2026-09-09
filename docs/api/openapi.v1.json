@@ -1134,6 +1134,28 @@
         ],
         "type": "object"
       },
+      "CreateMeasurementTemplateRequest": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
       "CurrentUserResponse": {
         "properties": {
           "branchId": {
@@ -2055,6 +2077,48 @@
         "type": "object"
       },
       "JsonElement": {},
+      "MeasurementTemplatePayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "publishedVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateVersionPayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "measurementTemplateId",
+          "code",
+          "name",
+          "description",
+          "publishedVersionId",
+          "versions"
+        ],
+        "type": "object"
+      },
       "MergeCustomerRequest": {
         "properties": {
           "mergedCustomerId": {
@@ -3692,6 +3756,530 @@
           "lastSignInAt",
           "createdAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "StartTemplateDraftRequest": {
+        "properties": {
+          "cloneFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultDisplayUnit": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "notes",
+          "defaultDisplayUnit",
+          "cloneFromVersionId"
+        ],
+        "type": "object"
+      },
+      "TemplateChoiceOptionRequest": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "labelTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "labelTamil",
+          "displayOrder"
+        ],
+        "type": "object"
+      },
+      "TemplateFieldPayload": {
+        "properties": {
+          "canonicalUnit": {
+            "type": "string"
+          },
+          "centimetreDecimals": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "diagramAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "diagramReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "displayUnits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "groupName": {
+            "type": "string"
+          },
+          "helpText": {
+            "type": "string"
+          },
+          "inchFraction": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "isRequired": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "labelTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maximumMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "minimumMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "optionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "rule": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateFieldId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "warnAboveMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "warnBelowMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "templateFieldId",
+          "key",
+          "label",
+          "labelTamil",
+          "groupName",
+          "displayOrder",
+          "canonicalUnit",
+          "displayUnits",
+          "inchFraction",
+          "centimetreDecimals",
+          "isRequired",
+          "minimumMillimetres",
+          "maximumMillimetres",
+          "warnBelowMillimetres",
+          "warnAboveMillimetres",
+          "helpText",
+          "diagramReference",
+          "diagramAlt",
+          "rule",
+          "optionCodes"
+        ],
+        "type": "object"
+      },
+      "TemplateFieldRequest": {
+        "properties": {
+          "canonicalUnit": {
+            "type": "string"
+          },
+          "centimetreDecimals": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "diagramAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "diagramKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "diagramMediaId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "groupName": {
+            "type": "string"
+          },
+          "helpText": {
+            "type": "string"
+          },
+          "inchFraction": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "isRequired": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "labelTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maximumMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "minimumMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateChoiceOptionRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "rule": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TemplateRuleRequest"
+              }
+            ]
+          },
+          "warnAboveMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "warnBelowMillimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "labelTamil",
+          "groupName",
+          "displayOrder",
+          "canonicalUnit",
+          "inchFraction",
+          "centimetreDecimals",
+          "isRequired",
+          "minimumMillimetres",
+          "maximumMillimetres",
+          "warnBelowMillimetres",
+          "warnAboveMillimetres",
+          "helpText",
+          "diagramKey",
+          "diagramMediaId",
+          "diagramAlt",
+          "rule",
+          "options"
+        ],
+        "type": "object"
+      },
+      "TemplateFindingPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "code",
+          "message",
+          "target"
+        ],
+        "type": "object"
+      },
+      "TemplateReasonRequest": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "TemplateRuleClauseRequest": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope",
+          "name",
+          "operator",
+          "values"
+        ],
+        "type": "object"
+      },
+      "TemplateRuleRequest": {
+        "properties": {
+          "anyOf": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateRuleClauseRequest"
+            },
+            "type": "array"
+          },
+          "effect": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "effect",
+          "anyOf"
+        ],
+        "type": "object"
+      },
+      "TemplateValidationPayload": {
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateFindingPayload"
+            },
+            "type": "array"
+          },
+          "isReadyToPublish": {
+            "type": "boolean"
+          },
+          "templateVersionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateVersionId",
+          "isReadyToPublish",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "TemplateVersionPayload": {
+        "properties": {
+          "defaultDisplayUnit": {
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldPayload"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "isApproved": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "retiredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "templateVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "templateVersionId",
+          "versionNumber",
+          "name",
+          "notes",
+          "status",
+          "defaultDisplayUnit",
+          "isApproved",
+          "publishedAt",
+          "retiredAt",
+          "fields"
         ],
         "type": "object"
       },
@@ -9387,6 +9975,1410 @@
         "x-tailor360-audit": "customers.customer.registered",
         "x-tailor360-authorisation": "permission:customers.create",
         "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates": {
+      "get": {
+        "description": "Without the fields: a list screen shows which templates exist, which version of each is published and what is in draft. Read one template to see its field set.",
+        "operationId": "ListMeasurementTemplates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the measurement templates and the state of each version.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "The template is the thing a catalogue service type points at; it captures nothing until a version has been drafted, reviewed and published.",
+        "operationId": "CreateMeasurementTemplate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "code": "MT_BLOUSE_PATTERN",
+                "description": "Linked from BLOUSE_PATTERN.STITCHING, .ALTERATION and .RESTITCHING.",
+                "name": "Blouse, Pattern"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateMeasurementTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Create a measurement template with no versions.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.created",
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}": {
+      "get": {
+        "description": "The entity tag is the template's, so an If-Match on any command below is a precondition on the whole template rather than on one version of it.",
+        "operationId": "GetMeasurementTemplate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one template and every version of it, with their fields.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions": {
+      "post": {
+        "description": "Cloning is how a published version is changed: the fields are copied with fresh identities and the same keys, so the draft describes the same measurements and can be edited freely without touching what the published version says.",
+        "operationId": "StartMeasurementTemplateDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "cloneFromVersionId": "01a08000-0000-7000-8000-000000000001",
+                "defaultDisplayUnit": "Inch",
+                "name": "Version 2",
+                "notes": "Widened the sleeve-round confirmation band after the October review."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StartTemplateDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start a draft version, empty or copied from an existing one.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.version.drafted",
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/approve": {
+      "post": {
+        "description": "The administrator who submitted a version does not also approve it — unless they are the only administrator who could, because a rule that locks a one-owner shop out of its own templates is not a rule that shop can follow.",
+        "operationId": "ApproveMeasurementTemplateVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Reviewed field by field with the Tailor Master."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TemplateReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Approve a reviewed version, so that it may be published.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.version.approved",
+        "x-tailor360-authorisation": "permission:catalog.templates.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/fields": {
+      "post": {
+        "description": "The key is what captured values are filed under, so it is unique within the version and cannot be changed once the version is published.",
+        "operationId": "AddMeasurementTemplateField",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "canonicalUnit": "Millimetre",
+                "centimetreDecimals": 1,
+                "diagramAlt": "From the shoulder seam beside the neck, straight down the front to the neckline point.",
+                "diagramKey": "blouse_front_v1",
+                "diagramMediaId": null,
+                "displayOrder": 9,
+                "groupName": "Neckline",
+                "helpText": "Finished measurement. Shoulder-seam line at the neck, straight down the front to the neckline point.",
+                "inchFraction": 16,
+                "isRequired": true,
+                "key": "front_neck_depth",
+                "label": "Front neck depth",
+                "labelTamil": null,
+                "maximumMillimetres": 450,
+                "minimumMillimetres": 30,
+                "options": [],
+                "rule": null,
+                "warnAboveMillimetres": 300,
+                "warnBelowMillimetres": 50
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TemplateFieldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a field to a draft.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.field.added",
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/fields/{fieldId}": {
+      "put": {
+        "description": "The key in the body is ignored. Renaming through an edit would orphan every value already filed under the old one, so a rename is a removal and an addition, which the trail shows as two acts.",
+        "operationId": "ChangeMeasurementTemplateField",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fieldId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "canonicalUnit": "Millimetre",
+                "centimetreDecimals": 1,
+                "diagramAlt": "From the shoulder point down the outside of the arm to where the sleeve ends.",
+                "diagramKey": "blouse_sleeve_v1",
+                "diagramMediaId": null,
+                "displayOrder": 6,
+                "groupName": "Sleeve",
+                "helpText": "Finished measurement. Shoulder point to the intended sleeve hem.",
+                "inchFraction": 8,
+                "isRequired": true,
+                "key": "sleeve_length",
+                "label": "Sleeve length",
+                "labelTamil": null,
+                "maximumMillimetres": 800,
+                "minimumMillimetres": 40,
+                "options": [],
+                "rule": {
+                  "anyOf": [
+                    {
+                      "name": "sleeve_style",
+                      "operator": "IsAnyOf",
+                      "scope": "DesignSelection",
+                      "values": [
+                        "SLEEVELESS"
+                      ]
+                    }
+                  ],
+                  "effect": "HiddenWhen"
+                },
+                "warnAboveMillimetres": 650,
+                "warnBelowMillimetres": 100
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TemplateFieldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace a field of a draft, keeping its key.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.field.changed",
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/fields/{fieldId}/delete": {
+      "post": {
+        "description": "A sub-resource rather than DELETE, so that the reason travels in a body like every other command here. Only a draft admits it.",
+        "operationId": "RemoveMeasurementTemplateField",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fieldId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Superseded by cross_front and cross_back, which the Tailor Master measures instead."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TemplateReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a field from a draft.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.field.removed",
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/publish": {
+      "post": {
+        "description": "Publication retires the version it supersedes in the same act, so there is never a moment with two published versions or none. Measurements already taken still render through the version they were captured under. Refused while publish validation reports an error — read the validation route first to see them all.",
+        "operationId": "PublishMeasurementTemplateVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Approved at the owner workshop on 9 September; supersedes version 1."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TemplateReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Make a version the one measurements are captured against.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.version.published",
+        "x-tailor360-authorisation": "permission:catalog.templates.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/retire": {
+      "post": {
+        "description": "Refused while a published catalogue version still points at this template: retiring it would leave a service a counter can order with nothing to measure it by. Everything already captured still renders through it.",
+        "operationId": "RetireMeasurementTemplateVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "This garment is no longer offered; no catalogue version references it."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TemplateReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Stop new captures against the published version.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.version.retired",
+        "x-tailor360-authorisation": "permission:catalog.templates.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/return": {
+      "post": {
+        "description": "The approval goes back with it. A version that comes back for changes and is then resubmitted has not been reviewed in the state it is now in.",
+        "operationId": "ReturnMeasurementTemplateVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "The armhole confirmation band is narrower than the sizes we actually see."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TemplateReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Send a version in review back to its author.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.version.returned",
+        "x-tailor360-authorisation": "permission:catalog.templates.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/submit": {
+      "post": {
+        "description": "The draft stops being editable the moment it is submitted: a reviewer reads a version that cannot change under them.",
+        "operationId": "SubmitMeasurementTemplateVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Field set complete and checked against the paper register."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TemplateReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Submit a draft for a second administrator to review.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement_template.version.submitted",
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/validation": {
+      "get": {
+        "description": "The preview publication runs. Every finding is reported rather than the first, because a published version cannot be corrected in place and an administrator fixing one wants the whole list rather than six round trips. Warnings do not refuse publication; errors do.",
+        "operationId": "ValidateMeasurementTemplateVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateValidationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Check a version without changing anything.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "default-user"
       }
     },
     "/api/v1/customers/{customerId}": {

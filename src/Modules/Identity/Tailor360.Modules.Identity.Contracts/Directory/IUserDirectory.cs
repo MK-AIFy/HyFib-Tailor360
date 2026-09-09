@@ -69,6 +69,28 @@ public interface IUserDirectory
     Task<IReadOnlyList<StaffMember>> ListActiveInBranchAsync(
         Guid branchId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>How many active people in an organisation hold a permission.</summary>
+    /// <remarks>
+    /// <para>
+    /// For the separation-of-duties rules another module enforces: "the administrator who submitted this does not
+    /// also approve it" is only a rule a shop can follow when there is somebody else to ask. A single-owner shop
+    /// has nobody, and a system that refused there would be one that could never publish its first template.
+    /// </para>
+    /// <para>
+    /// A count rather than a list, because the caller is deciding whether a rule applies and does not need — and
+    /// should not receive — the names of everybody who could have approved something. Suspended and invited
+    /// accounts are not counted: a rule satisfied by somebody who cannot sign in is not satisfied.
+    /// </para>
+    /// </remarks>
+    /// <param name="permissionKey">The permission, such as <c>catalog.templates.publish</c>.</param>
+    /// <param name="organisationId">The organisation to count within.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>How many active accounts hold it.</returns>
+    Task<int> CountActiveWithPermissionAsync(
+        string permissionKey,
+        Guid organisationId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>One member of staff as another module sees them.</summary>

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Tailor360.Modules.Catalog.Application.Catalogue;
 using Tailor360.Modules.Customers.Application.Consent;
+using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Identity.Application.Access;
 using Tailor360.Platform.Persistence.Contexts;
 
@@ -45,6 +46,8 @@ public static class InitReferenceDataCommand
             var seeder = scope.ServiceProvider.GetRequiredService<IIdentityReferenceDataSeeder>();
             var consent = scope.ServiceProvider.GetRequiredService<IConsentReferenceDataSeeder>();
             var catalogue = scope.ServiceProvider.GetRequiredService<ICatalogReferenceDataSeeder>();
+            var templates = scope.ServiceProvider
+                .GetRequiredService<IMeasurementTemplateReferenceDataSeeder>();
 
             Console.WriteLine($"Environment: {EnvironmentGuard.CurrentEnvironment}");
 
@@ -107,6 +110,27 @@ public static class InitReferenceDataCommand
                     + "empty set means offered nowhere, which is what the seed leaves — OD-CAT-04), "
                     + "and supply the five links each service type carries. The draft's notes say the "
                     + "same, where the administration screens show them.");
+            }
+
+            var measurement = await templates.SeedTemplatesAsync(organisationId, cancellationToken);
+
+            Console.WriteLine(measurement.Created
+                ? $"Measurement templates: {measurement.TemplateCount} drafted with "
+                  + $"{measurement.FieldCount} fields between them."
+                : $"Measurement templates: {measurement.TemplateCount} already exist; nothing was changed.");
+
+            if (measurement.AwaitingPublication > 0)
+            {
+                // The same shape as the consent purposes and the catalogue above, and for the same reason. Every
+                // seeded field set is marked "proposed and to be confirmed" in docs/prd/measurement-templates.md,
+                // its bounds and inch steps are open decisions OD-MEA-01, OD-MEA-07 and OD-MEA-08, and business
+                // review of each template is an acceptance criterion of issue #27. Publishing wants a permission,
+                // a second factor and a stated reason; this command holds none of them.
+                Console.WriteLine(
+                    $"  {measurement.AwaitingPublication} of them have no published version, so nothing can be "
+                    + "measured against them yet. An Owner reviews each field set with the Tailor Master — the "
+                    + "field list, the hard bounds, the confirmation bands and the inch steps — and publishes it "
+                    + "with a reason. The draft's own notes say which section of the specification it came from.");
             }
 
             return ExitCodes.Success;

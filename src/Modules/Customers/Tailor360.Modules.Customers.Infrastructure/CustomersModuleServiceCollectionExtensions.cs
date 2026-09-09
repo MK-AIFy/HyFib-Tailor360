@@ -3,15 +3,19 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Modules.Customers.Application.Abstractions;
 using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Application.Customers;
+using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Customers.Application.Options;
 using Tailor360.Modules.Customers.Application.Preferences;
 using Tailor360.Modules.Customers.Contracts.Consent;
 using Tailor360.Modules.Customers.Contracts.Customers;
+using Tailor360.Modules.Customers.Contracts.Measurements;
 using Tailor360.Modules.Customers.Contracts.Preferences;
 using Tailor360.Modules.Customers.Infrastructure.Consent;
+using Tailor360.Modules.Customers.Infrastructure.Measurements;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Platform.Abstractions.Ports;
 using Tailor360.Platform.Persistence;
@@ -95,6 +99,17 @@ public static class CustomersModuleServiceCollectionExtensions
         services.TryAddScoped<IConsentQuery, ConsentQuery>();
         services.TryAddScoped<ICommunicationPreferenceQuery, CommunicationPreferenceQuery>();
         services.TryAddScoped<ICustomerSnapshotQuery, CustomerSnapshotQuery>();
+        services.TryAddScoped<IMeasurementTemplateQuery, MeasurementTemplateQuery>();
+
+        services.TryAddScoped<IMeasurementTemplateStore, MeasurementTemplateStore>();
+        services.TryAddScoped<MeasurementTemplateHandler>();
+        services.TryAddScoped<IMeasurementTemplateReferenceDataSeeder, MeasurementTemplateReferenceDataSeeder>();
+
+        // Registered as one of possibly several validators, so the catalogue's publish command can ask every
+        // module in turn. TryAddEnumerable rather than TryAddScoped: the latter would mean the last module
+        // registered was the only one asked.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<ICatalogDependencyValidator, MeasurementTemplateCatalogValidator>());
 
         return services;
     }

@@ -142,6 +142,117 @@ public static class PayloadExamples
             }
             """,
 
+        ["CreateMeasurementTemplate"] = """
+            {
+              "code": "MT_BLOUSE_PATTERN",
+              "name": "Blouse, Pattern",
+              "description": "Linked from BLOUSE_PATTERN.STITCHING, .ALTERATION and .RESTITCHING."
+            }
+            """,
+
+        ["StartMeasurementTemplateDraft"] = """
+            {
+              "name": "Version 2",
+              "notes": "Widened the sleeve-round confirmation band after the October review.",
+              "defaultDisplayUnit": "Inch",
+              "cloneFromVersionId": "01a08000-0000-7000-8000-000000000001"
+            }
+            """,
+
+        ["AddMeasurementTemplateField"] = """
+            {
+              "key": "front_neck_depth",
+              "label": "Front neck depth",
+              "labelTamil": null,
+              "groupName": "Neckline",
+              "displayOrder": 9,
+              "canonicalUnit": "Millimetre",
+              "inchFraction": 16,
+              "centimetreDecimals": 1,
+              "isRequired": true,
+              "minimumMillimetres": 30,
+              "maximumMillimetres": 450,
+              "warnBelowMillimetres": 50,
+              "warnAboveMillimetres": 300,
+              "helpText": "Finished measurement. Shoulder-seam line at the neck, straight down the front to the neckline point.",
+              "diagramKey": "blouse_front_v1",
+              "diagramMediaId": null,
+              "diagramAlt": "From the shoulder seam beside the neck, straight down the front to the neckline point.",
+              "rule": null,
+              "options": []
+            }
+            """,
+
+        ["ChangeMeasurementTemplateField"] = """
+            {
+              "key": "sleeve_length",
+              "label": "Sleeve length",
+              "labelTamil": null,
+              "groupName": "Sleeve",
+              "displayOrder": 6,
+              "canonicalUnit": "Millimetre",
+              "inchFraction": 8,
+              "centimetreDecimals": 1,
+              "isRequired": true,
+              "minimumMillimetres": 40,
+              "maximumMillimetres": 800,
+              "warnBelowMillimetres": 100,
+              "warnAboveMillimetres": 650,
+              "helpText": "Finished measurement. Shoulder point to the intended sleeve hem.",
+              "diagramKey": "blouse_sleeve_v1",
+              "diagramMediaId": null,
+              "diagramAlt": "From the shoulder point down the outside of the arm to where the sleeve ends.",
+              "rule": {
+                "effect": "HiddenWhen",
+                "anyOf": [
+                  {
+                    "scope": "DesignSelection",
+                    "name": "sleeve_style",
+                    "operator": "IsAnyOf",
+                    "values": ["SLEEVELESS"]
+                  }
+                ]
+              },
+              "options": []
+            }
+            """,
+
+        ["RemoveMeasurementTemplateField"] = """
+            {
+              "reason": "Superseded by cross_front and cross_back, which the Tailor Master measures instead."
+            }
+            """,
+
+        ["SubmitMeasurementTemplateVersion"] = """
+            {
+              "reason": "Field set complete and checked against the paper register."
+            }
+            """,
+
+        ["ReturnMeasurementTemplateVersion"] = """
+            {
+              "reason": "The armhole confirmation band is narrower than the sizes we actually see."
+            }
+            """,
+
+        ["ApproveMeasurementTemplateVersion"] = """
+            {
+              "reason": "Reviewed field by field with the Tailor Master."
+            }
+            """,
+
+        ["PublishMeasurementTemplateVersion"] = """
+            {
+              "reason": "Approved at the owner workshop on 9 September; supersedes version 1."
+            }
+            """,
+
+        ["RetireMeasurementTemplateVersion"] = """
+            {
+              "reason": "This garment is no longer offered; no catalogue version references it."
+            }
+            """,
+
         ["PublishCatalogVersion"] = """
             {
               "reason": "Owner workshop approved the launch hierarchy on 9 September."

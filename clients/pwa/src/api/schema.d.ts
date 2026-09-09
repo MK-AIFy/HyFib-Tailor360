@@ -1040,6 +1040,250 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/measurement-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the measurement templates and the state of each version.
+         * @description Without the fields: a list screen shows which templates exist, which version of each is published and what is in draft. Read one template to see its field set.
+         */
+        get: operations["ListMeasurementTemplates"];
+        put?: never;
+        /**
+         * Create a measurement template with no versions.
+         * @description The template is the thing a catalogue service type points at; it captures nothing until a version has been drafted, reviewed and published.
+         */
+        post: operations["CreateMeasurementTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one template and every version of it, with their fields.
+         * @description The entity tag is the template's, so an If-Match on any command below is a precondition on the whole template rather than on one version of it.
+         */
+        get: operations["GetMeasurementTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a draft version, empty or copied from an existing one.
+         * @description Cloning is how a published version is changed: the fields are copied with fresh identities and the same keys, so the draft describes the same measurements and can be edited freely without touching what the published version says.
+         */
+        post: operations["StartMeasurementTemplateDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a reviewed version, so that it may be published.
+         * @description The administrator who submitted a version does not also approve it — unless they are the only administrator who could, because a rule that locks a one-owner shop out of its own templates is not a rule that shop can follow.
+         */
+        post: operations["ApproveMeasurementTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a field to a draft.
+         * @description The key is what captured values are filed under, so it is unique within the version and cannot be changed once the version is published.
+         */
+        post: operations["AddMeasurementTemplateField"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/fields/{fieldId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a field of a draft, keeping its key.
+         * @description The key in the body is ignored. Renaming through an edit would orphan every value already filed under the old one, so a rename is a removal and an addition, which the trail shows as two acts.
+         */
+        put: operations["ChangeMeasurementTemplateField"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/fields/{fieldId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a field from a draft.
+         * @description A sub-resource rather than DELETE, so that the reason travels in a body like every other command here. Only a draft admits it.
+         */
+        post: operations["RemoveMeasurementTemplateField"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a version the one measurements are captured against.
+         * @description Publication retires the version it supersedes in the same act, so there is never a moment with two published versions or none. Measurements already taken still render through the version they were captured under. Refused while publish validation reports an error — read the validation route first to see them all.
+         */
+        post: operations["PublishMeasurementTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop new captures against the published version.
+         * @description Refused while a published catalogue version still points at this template: retiring it would leave a service a counter can order with nothing to measure it by. Everything already captured still renders through it.
+         */
+        post: operations["RetireMeasurementTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a version in review back to its author.
+         * @description The approval goes back with it. A version that comes back for changes and is then resubmitted has not been reviewed in the state it is now in.
+         */
+        post: operations["ReturnMeasurementTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a draft for a second administrator to review.
+         * @description The draft stops being editable the moment it is submitted: a reviewer reads a version that cannot change under them.
+         */
+        post: operations["SubmitMeasurementTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-templates/{templateId}/versions/{versionId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check a version without changing anything.
+         * @description The preview publication runs. Every finding is reported rather than the first, because a published version cannot be corrected in place and an administrator fixing one wants the whole list rather than six round trips. Warnings do not refuse publication; errors do.
+         */
+        get: operations["ValidateMeasurementTemplateVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/{customerId}": {
         parameters: {
             query?: never;
@@ -1570,6 +1814,11 @@ export interface components {
             name: null | string;
             notes: null | string;
         };
+        CreateMeasurementTemplateRequest: {
+            code: string;
+            description: null | string;
+            name: string;
+        };
         CurrentUserResponse: {
             /** Format: uuid */
             branchId: null | string;
@@ -1787,6 +2036,16 @@ export interface components {
             userName: null | string;
         };
         JsonElement: unknown;
+        MeasurementTemplatePayload: {
+            code: string;
+            description: null | string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            name: string;
+            /** Format: uuid */
+            publishedVersionId: null | string;
+            versions: components["schemas"]["TemplateVersionPayload"][];
+        };
         MergeCustomerRequest: {
             /** Format: uuid */
             mergedCustomerId: string;
@@ -2168,6 +2427,120 @@ export interface components {
             userId: string;
             userName: string;
             version: string;
+        };
+        StartTemplateDraftRequest: {
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
+            defaultDisplayUnit: string;
+            name: string;
+            notes: null | string;
+        };
+        TemplateChoiceOptionRequest: {
+            code: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            label: string;
+            labelTamil: null | string;
+        };
+        TemplateFieldPayload: {
+            canonicalUnit: string;
+            /** Format: int32 */
+            centimetreDecimals: number | string;
+            diagramAlt: null | string;
+            diagramReference: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            displayUnits: string[];
+            groupName: string;
+            helpText: string;
+            /** Format: int32 */
+            inchFraction: number | string;
+            isRequired: boolean;
+            key: string;
+            label: string;
+            labelTamil: null | string;
+            /** Format: double */
+            maximumMillimetres: number | string;
+            /** Format: double */
+            minimumMillimetres: number | string;
+            optionCodes: string[];
+            rule: null | string;
+            /** Format: uuid */
+            templateFieldId: string;
+            /** Format: double */
+            warnAboveMillimetres: null | number | string;
+            /** Format: double */
+            warnBelowMillimetres: null | number | string;
+        };
+        TemplateFieldRequest: {
+            canonicalUnit: string;
+            /** Format: int32 */
+            centimetreDecimals: number | string;
+            diagramAlt: null | string;
+            diagramKey: null | string;
+            /** Format: uuid */
+            diagramMediaId: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            groupName: string;
+            helpText: string;
+            /** Format: int32 */
+            inchFraction: number | string;
+            isRequired: boolean;
+            key: string;
+            label: string;
+            labelTamil: null | string;
+            /** Format: double */
+            maximumMillimetres: number | string;
+            /** Format: double */
+            minimumMillimetres: number | string;
+            options: null | components["schemas"]["TemplateChoiceOptionRequest"][];
+            rule: null | components["schemas"]["TemplateRuleRequest"];
+            /** Format: double */
+            warnAboveMillimetres: null | number | string;
+            /** Format: double */
+            warnBelowMillimetres: null | number | string;
+        };
+        TemplateFindingPayload: {
+            code: string;
+            message: string;
+            severity: string;
+            target: string;
+        };
+        TemplateReasonRequest: {
+            reason: null | string;
+        };
+        TemplateRuleClauseRequest: {
+            name: string;
+            operator: string;
+            scope: string;
+            values: string[];
+        };
+        TemplateRuleRequest: {
+            anyOf: components["schemas"]["TemplateRuleClauseRequest"][];
+            effect: string;
+        };
+        TemplateValidationPayload: {
+            findings: components["schemas"]["TemplateFindingPayload"][];
+            isReadyToPublish: boolean;
+            /** Format: uuid */
+            templateVersionId: string;
+        };
+        TemplateVersionPayload: {
+            defaultDisplayUnit: string;
+            fields: null | components["schemas"]["TemplateFieldPayload"][];
+            isApproved: boolean;
+            name: string;
+            notes: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            status: string;
+            /** Format: uuid */
+            templateVersionId: string;
+            /** Format: int32 */
+            versionNumber: number | string;
         };
         VersionResponse: {
             api: string;
@@ -5622,6 +5995,801 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListMeasurementTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateMeasurementTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "MT_BLOUSE_PATTERN",
+                 *       "description": "Linked from BLOUSE_PATTERN.STITCHING, .ALTERATION and .RESTITCHING.",
+                 *       "name": "Blouse, Pattern"
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateMeasurementTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetMeasurementTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    StartMeasurementTemplateDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "cloneFromVersionId": "01a08000-0000-7000-8000-000000000001",
+                 *       "defaultDisplayUnit": "Inch",
+                 *       "name": "Version 2",
+                 *       "notes": "Widened the sleeve-round confirmation band after the October review."
+                 *     }
+                 */
+                "application/json": components["schemas"]["StartTemplateDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ApproveMeasurementTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Reviewed field by field with the Tailor Master."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["TemplateReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddMeasurementTemplateField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "canonicalUnit": "Millimetre",
+                 *       "centimetreDecimals": 1,
+                 *       "diagramAlt": "From the shoulder seam beside the neck, straight down the front to the neckline point.",
+                 *       "diagramKey": "blouse_front_v1",
+                 *       "diagramMediaId": null,
+                 *       "displayOrder": 9,
+                 *       "groupName": "Neckline",
+                 *       "helpText": "Finished measurement. Shoulder-seam line at the neck, straight down the front to the neckline point.",
+                 *       "inchFraction": 16,
+                 *       "isRequired": true,
+                 *       "key": "front_neck_depth",
+                 *       "label": "Front neck depth",
+                 *       "labelTamil": null,
+                 *       "maximumMillimetres": 450,
+                 *       "minimumMillimetres": 30,
+                 *       "options": [],
+                 *       "rule": null,
+                 *       "warnAboveMillimetres": 300,
+                 *       "warnBelowMillimetres": 50
+                 *     }
+                 */
+                "application/json": components["schemas"]["TemplateFieldRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ChangeMeasurementTemplateField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+                fieldId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "canonicalUnit": "Millimetre",
+                 *       "centimetreDecimals": 1,
+                 *       "diagramAlt": "From the shoulder point down the outside of the arm to where the sleeve ends.",
+                 *       "diagramKey": "blouse_sleeve_v1",
+                 *       "diagramMediaId": null,
+                 *       "displayOrder": 6,
+                 *       "groupName": "Sleeve",
+                 *       "helpText": "Finished measurement. Shoulder point to the intended sleeve hem.",
+                 *       "inchFraction": 8,
+                 *       "isRequired": true,
+                 *       "key": "sleeve_length",
+                 *       "label": "Sleeve length",
+                 *       "labelTamil": null,
+                 *       "maximumMillimetres": 800,
+                 *       "minimumMillimetres": 40,
+                 *       "options": [],
+                 *       "rule": {
+                 *         "anyOf": [
+                 *           {
+                 *             "name": "sleeve_style",
+                 *             "operator": "IsAnyOf",
+                 *             "scope": "DesignSelection",
+                 *             "values": [
+                 *               "SLEEVELESS"
+                 *             ]
+                 *           }
+                 *         ],
+                 *         "effect": "HiddenWhen"
+                 *       },
+                 *       "warnAboveMillimetres": 650,
+                 *       "warnBelowMillimetres": 100
+                 *     }
+                 */
+                "application/json": components["schemas"]["TemplateFieldRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveMeasurementTemplateField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+                fieldId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Superseded by cross_front and cross_back, which the Tailor Master measures instead."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["TemplateReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PublishMeasurementTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Approved at the owner workshop on 9 September; supersedes version 1."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["TemplateReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RetireMeasurementTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "This garment is no longer offered; no catalogue version references it."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["TemplateReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ReturnMeasurementTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "The armhole confirmation band is narrower than the sizes we actually see."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["TemplateReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SubmitMeasurementTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Field set complete and checked against the paper register."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["TemplateReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementTemplatePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ValidateMeasurementTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateValidationPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

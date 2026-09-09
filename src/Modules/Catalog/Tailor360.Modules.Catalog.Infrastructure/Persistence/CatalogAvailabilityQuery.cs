@@ -122,6 +122,26 @@ public sealed class CatalogAvailabilityQuery(
     }
 
     /// <inheritdoc />
+    public async Task<bool> ReferencesMeasurementTemplateAsync(
+        Guid measurementTemplateId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        // Straight to the database rather than through the cache. The answer decides whether a template version
+        // may be withdrawn from under work in progress, so it is worth one indexed read to be certain of.
+        var published = await PublishedVersionIdAsync(organisationId, cancellationToken);
+
+        return published is { } versionId
+               && await context.ServiceTypes
+                   .AsNoTracking()
+                   .IgnoreAutoIncludes()
+                   .AnyAsync(
+                       service => service.CatalogVersionId == versionId
+                                  && service.MeasurementTemplateId == measurementTemplateId,
+                       cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<CatalogServiceSnapshot?> GetServiceAsync(
         Guid serviceTypeId,
         CancellationToken cancellationToken = default)

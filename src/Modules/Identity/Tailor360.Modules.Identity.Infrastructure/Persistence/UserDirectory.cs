@@ -57,6 +57,25 @@ public sealed class UserDirectory(IdentityDbContext context) : IUserDirectory
                         assignment => assignment.UserId == user.Id && assignment.BranchId == branchId),
             cancellationToken);
 
+    /// <inheritdoc />
+    public async Task<int> CountActiveWithPermissionAsync(
+        string permissionKey,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+        => await context.Users
+            .AsNoTracking()
+            .Where(user => user.OrganisationId == organisationId && user.Status == UserStatus.Active)
+            .Where(user => context.UserRoles
+                .Where(assignment => assignment.UserId == user.Id)
+                .Join(context.Roles, assignment => assignment.RoleId, role => role.Id, (_, role) => role.Id)
+                .Join(
+                    context.RolePermissions,
+                    roleId => roleId,
+                    permission => permission.RoleId,
+                    (_, permission) => permission.PermissionKey)
+                .Any(key => key == permissionKey))
+            .CountAsync(cancellationToken);
+
     private async Task<IReadOnlyList<StaffMember>> ProjectAsync(
         System.Linq.Expressions.Expression<Func<StaffUser, bool>> match,
         CancellationToken cancellationToken)

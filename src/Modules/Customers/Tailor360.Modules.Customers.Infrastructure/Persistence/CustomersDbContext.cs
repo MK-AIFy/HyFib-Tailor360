@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Customers;
 using Tailor360.Modules.Customers.Domain.Deduplication;
+using Tailor360.Modules.Customers.Domain.Measurements;
 using Tailor360.Modules.Customers.Domain.Naming;
 using Tailor360.Modules.Customers.Domain.Preferences;
 using Tailor360.Platform.Persistence.Conventions;
@@ -71,6 +73,15 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
     /// <summary>Generated subject-access exports, and the emptied rows of the ones that have gone.</summary>
     public DbSet<CustomerExport> CustomerExports => Set<CustomerExport>();
 
+    /// <summary>The measurement templates, across every version of each.</summary>
+    public DbSet<MeasurementTemplate> MeasurementTemplates => Set<MeasurementTemplate>();
+
+    /// <summary>Every version of every template, draft to retired.</summary>
+    public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
+
+    /// <summary>Every field of every version.</summary>
+    public DbSet<TemplateField> TemplateFields => Set<TemplateField>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,7 +97,21 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         ConfigureMerges(modelBuilder);
         ConfigureDuplicateCandidates(modelBuilder);
         ConfigureExports(modelBuilder);
+        ConfigureMeasurementTemplates(modelBuilder);
     }
+
+    /// <summary>The index that holds "at most one published version per measurement template".</summary>
+    /// <remarks>
+    /// Named because <c>MeasurementTemplateStore</c> reads it off a failed write to tell two administrators
+    /// publishing at once apart from every other unique violation.
+    /// </remarks>
+    public const string OnePublishedTemplateVersionIndex = "ux_template_versions_one_published";
+
+    /// <summary>The unique index over a template's version numbers.</summary>
+    public const string TemplateVersionNumberIndex = "ux_template_versions_template_number";
+
+    /// <summary>The unique index over a template's code within its organisation.</summary>
+    public const string TemplateCodeIndex = "ux_measurement_templates_organisation_code";
 
     private static void ConfigureCustomers(ModelBuilder modelBuilder)
         => modelBuilder.Entity<Customer>(entity =>
@@ -527,4 +552,148 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
             // No concurrency token either, and no append-only trigger: unlike a merge, these rows must
             // be removable outright by the erasure workflow.
         });
+
+    private static void ConfigureMeasurementTemplates(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MeasurementTemplate>(entity =>
+        {
+            entity.ToTable("measurement_templates");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code).HasMaxLength(MeasurementTemplate.MaximumCodeLength).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(MeasurementTemplate.MaximumNameLength).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(MeasurementTemplate.MaximumDescriptionLength);
+
+            // A catalogue service type points at a template by code in every document and by identifier in the
+            // database, so two templates answering to one code would make the reference ambiguous.
+            entity.HasIndex(e => new { e.OrganisationId, e.Code })
+                .IsUnique()
+                .HasDatabaseName(TemplateCodeIndex);
+
+            UseRowVersion(entity);
+        });
+
+        modelBuilder.Entity<TemplateVersion>(entity =>
+        {
+            entity.ToTable("measurement_template_versions");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name).HasMaxLength(TemplateVersion.MaximumNameLength).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(TemplateVersion.MaximumNotesLength);
+            entity.Property(e => e.PublishReason).HasMaxLength(TemplateVersion.MaximumReasonLength);
+            entity.Property(e => e.RetiredReason).HasMaxLength(TemplateVersion.MaximumReasonLength);
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.DefaultDisplayUnit).HasConversion<int>();
+
+            entity.HasOne<MeasurementTemplate>()
+                .WithMany(template => template.Versions)
+                .HasForeignKey(version => version.MeasurementTemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Version numbers are read and then written, so two administrators starting a draft at once can pick
+            // the same one. The index settles it and the store turns the violation into a conflict.
+            entity.HasIndex(e => new { e.MeasurementTemplateId, e.VersionNumber })
+                .IsUnique()
+                .HasDatabaseName(TemplateVersionNumberIndex);
+
+            // At most one published version per template, held by the database rather than by a read-then-write in
+            // the application: publishing is a race two administrators can enter at the same instant.
+            entity.HasIndex(e => e.MeasurementTemplateId)
+                .IsUnique()
+                .HasFilter("status = 2")
+                .HasDatabaseName(OnePublishedTemplateVersionIndex);
+
+            UseRowVersion(entity);
+        });
+
+        modelBuilder.Entity<TemplateField>(entity =>
+        {
+            entity.ToTable("measurement_template_fields");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Key)
+                .HasConversion(key => key.Value, value => FieldKey.Create(value).Value)
+                .HasColumnName("field_key")
+                .HasMaxLength(FieldKey.MaximumLength)
+                .IsRequired();
+
+            entity.Property(e => e.Label).HasMaxLength(TemplateField.MaximumLabelLength).IsRequired();
+            entity.Property(e => e.LabelTamil).HasMaxLength(TemplateField.MaximumLabelLength);
+            entity.Property(e => e.GroupName).HasMaxLength(TemplateField.MaximumGroupLength).IsRequired();
+            entity.Property(e => e.HelpText).HasMaxLength(TemplateField.MaximumHelpTextLength).IsRequired();
+            entity.Property(e => e.DiagramKey).HasMaxLength(TemplateField.MaximumDiagramKeyLength);
+            entity.Property(e => e.DiagramAlt).HasMaxLength(TemplateField.MaximumDiagramAltLength);
+            entity.Property(e => e.CanonicalUnit).HasConversion<int>();
+
+            // Derived from the canonical unit and the precision, and from the sheet key plus the field key. Stored
+            // copies would be two more places for a field and its description to disagree.
+            entity.Ignore(e => e.DisplayUnits);
+            entity.Ignore(e => e.DiagramReference);
+            entity.Ignore(e => e.IsChoice);
+
+            // Complex properties rather than owned entities, and the difference is not cosmetic. An owned
+            // reference is something that can be absent, so Entity Framework decides it is absent when every one
+            // of its properties holds the CLR default — which is exactly what a choice field's precision (0, 0)
+            // and a choice field's bands (0, 0, null, null) look like. It then writes NULL into columns declared
+            // NOT NULL and the insert fails. A complex property is part of the row and is never absent, which is
+            // what a precision and a band actually are.
+            entity.ComplexProperty(e => e.Precision, precision =>
+            {
+                precision.Property(p => p.InchFraction).HasColumnName("inch_fraction");
+                precision.Property(p => p.CentimetreDecimals).HasColumnName("centimetre_decimals");
+            });
+
+            entity.ComplexProperty(e => e.Bands, bands =>
+            {
+                // numeric(8,2): the canonical millimetre, to the two decimals a sixteenth-inch step round-trips
+                // through (docs/prd/measurement-templates.md section 2).
+                bands.Property(b => b.MinimumMillimetres).HasColumnName("minimum_mm").HasPrecision(8, 2);
+                bands.Property(b => b.MaximumMillimetres).HasColumnName("maximum_mm").HasPrecision(8, 2);
+                bands.Property(b => b.WarnBelowMillimetres).HasColumnName("warn_below_mm").HasPrecision(8, 2);
+                bands.Property(b => b.WarnAboveMillimetres).HasColumnName("warn_above_mm").HasPrecision(8, 2);
+            });
+
+            // The rule language is a small JSON document by design (plan blueprint for #27). Three tables for a
+            // rule that is only ever read and written whole would buy nothing and cost a join per field.
+            entity.Property(e => e.Rule)
+                .HasConversion(
+                    rule => MeasurementJson.Write(rule),
+                    json => MeasurementJson.ReadRule(json))
+                .HasColumnName("rule")
+                .HasColumnType("jsonb");
+
+            entity.Property(e => e.Options)
+                .HasConversion(
+                    options => MeasurementJson.Write(options),
+                    json => MeasurementJson.ReadOptions(json),
+                    new ValueComparer<IReadOnlyList<ChoiceOption>>(
+                        (left, right) => left!.SequenceEqual(right!),
+                        options => options.Aggregate(0, (hash, option) => HashCode.Combine(hash, option)),
+                        options => options.ToList()))
+                .HasColumnName("options")
+                .HasColumnType("jsonb")
+                .IsRequired();
+
+            entity.HasOne<TemplateVersion>()
+                .WithMany(version => version.Fields)
+                .HasForeignKey(field => field.TemplateVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // A key identifies exactly one field within its version — the rule the domain enforces, held here too
+            // because it is what captured values are filed under.
+            entity.HasIndex(e => new { e.TemplateVersionId, e.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_template_fields_version_key");
+        });
+
+        modelBuilder.Entity<MeasurementTemplate>()
+            .Navigation(template => template.Versions)
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
+
+        modelBuilder.Entity<TemplateVersion>()
+            .Navigation(version => version.Fields)
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
+    }
 }

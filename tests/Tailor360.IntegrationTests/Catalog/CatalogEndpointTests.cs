@@ -9,6 +9,8 @@ using Tailor360.Modules.Catalog.Application.Abstractions;
 using Tailor360.Modules.Catalog.Application.Catalogue;
 using Tailor360.Modules.Catalog.Domain.Catalogue;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
+using Tailor360.Modules.Customers.Application.Measurements;
+using Tailor360.Modules.Customers.Domain.Measurements;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Security.Permissions;
@@ -597,7 +599,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         return body.RootElement.GetProperty("categoryId").GetGuid();
     }
 
-    private static async Task<Guid> AddServiceAsync(
+    private async Task<Guid> AddServiceAsync(
         AdministrationHarness.AdministratorClient client,
         Guid version,
         Guid categoryId,
@@ -606,6 +608,12 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         bool complete = true,
         bool allowIncomplete = false)
     {
+        // A complete service type names a measurement template, and since #27 that link is checked at publication
+        // by the Customers module's dependency validator: a template with no published version would leave the
+        // counter able to order a service with nothing to measure it by. So the test creates a real one rather
+        // than a plausible-looking identifier.
+        var measurementTemplateId = complete ? await PublishedTemplateAsync(code) : (Guid?)null;
+
         var response = await client.PostAsync(
             $"/api/v1/catalog/versions/{version}/categories/{categoryId}/service-types",
             new
@@ -617,7 +625,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
                 displayOrder = 0,
                 expectedDurationDays = 7,
                 intakeWarning = (string?)null,
-                measurementTemplateId = complete ? Guid.CreateVersion7() : (Guid?)null,
+                measurementTemplateId,
                 workflowDefinitionId = complete ? Guid.CreateVersion7() : (Guid?)null,
                 designOptionGroupIds = Array.Empty<Guid>(),
                 priceListItemCode = complete ? "PL-SYNTHETIC" : null,
@@ -646,6 +654,73 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
             displayOrder = 1,
             reason,
         };
+
+    /// <summary>Creates a measurement template with one published version, and answers its identifier.</summary>
+    /// <remarks>
+    /// Through the handler rather than over HTTP: this is a fixture for the catalogue's tests, not the thing they
+    /// are testing, and the template's own routes have their own tests. The acts are attributed to nobody, which
+    /// is what lets one caller both submit and approve however many administrators the test database happens to
+    /// hold.
+    /// </remarks>
+    private async Task<Guid> PublishedTemplateAsync(string stem)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var handler = scope.ServiceProvider.GetRequiredService<MeasurementTemplateHandler>();
+        var organisationId = SessionTestData.OrganisationId;
+        var code = $"MT_{stem}_{AdministrationHarness.UniqueToken(6).ToUpperInvariant()}";
+
+        var template = await handler.CreateAsync(
+            new CreateMeasurementTemplateCommand(organisationId, code, code, null, null), Token);
+
+        template.IsSuccess.ShouldBeTrue();
+
+        var templateId = template.Value.Template.Id;
+
+        var draft = await handler.StartDraftAsync(
+            new StartTemplateDraftCommand(
+                templateId, organisationId, "Version 1", null, DisplayUnit.Inch, null, null),
+            Token);
+
+        draft.IsSuccess.ShouldBeTrue();
+
+        var versionId = draft.Value.Version!.Id;
+
+        var field = await handler.SaveFieldAsync(
+            new SaveTemplateFieldCommand(
+                templateId,
+                versionId,
+                organisationId,
+                null,
+                new TemplateFieldDefinition(
+                    "chest_bust",
+                    "Chest (bust)",
+                    null,
+                    "Bodice",
+                    0,
+                    CanonicalUnit.Millimetre,
+                    FieldPrecision.Eighths,
+                    new ValidationBands(550m, 1500m, 710m, 1270m),
+                    true,
+                    "Body measurement. Round the fullest part of the bust, tape level at the back.",
+                    "blouse_front_v1",
+                    null,
+                    "Round the fullest part of the bust, tape level at the back.",
+                    null,
+                    []),
+                null,
+                null),
+            Token);
+
+        field.IsSuccess.ShouldBeTrue();
+
+        var command = new TemplateLifecycleCommand(templateId, versionId, organisationId, "Fixture.", null, null);
+
+        (await handler.SubmitAsync(command, Token)).IsSuccess.ShouldBeTrue();
+        (await handler.ApproveAsync(command, Token)).IsSuccess.ShouldBeTrue();
+        (await handler.PublishAsync(command, Token)).IsSuccess.ShouldBeTrue();
+
+        return templateId;
+    }
 
     private static object CategoryBody(
         string code,
