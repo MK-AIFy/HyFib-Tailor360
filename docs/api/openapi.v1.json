@@ -442,6 +442,430 @@
         ],
         "type": "object"
       },
+      "CatalogFindingPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "target": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "validator": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "validator",
+          "severity",
+          "code",
+          "message",
+          "target"
+        ],
+        "type": "object"
+      },
+      "CatalogPresentationRequest": {
+        "properties": {
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "nameTamil",
+          "description",
+          "displayOrder",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CatalogPublicationPayload": {
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogFindingPayload"
+            },
+            "type": "array"
+          },
+          "supersededVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/CatalogVersionSummaryPayload"
+          }
+        },
+        "required": [
+          "version",
+          "supersededVersionId",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "CatalogReasonRequest": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CatalogValidationReportPayload": {
+        "properties": {
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "errorCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogFindingPayload"
+            },
+            "type": "array"
+          },
+          "publishable": {
+            "type": "boolean"
+          },
+          "warningCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "catalogVersionId",
+          "publishable",
+          "errorCount",
+          "warningCount",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "CatalogVersionPayload": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryPayload"
+            },
+            "type": "array"
+          },
+          "serviceTypes": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceTypePayload"
+            },
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CatalogVersionSummaryPayload"
+          }
+        },
+        "required": [
+          "version",
+          "categories",
+          "serviceTypes"
+        ],
+        "type": "object"
+      },
+      "CatalogVersionSummaryPayload": {
+        "properties": {
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "clonedFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "retiredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "catalogVersionId",
+          "versionNumber",
+          "name",
+          "notes",
+          "status",
+          "clonedFromVersionId",
+          "createdAt",
+          "publishedAt",
+          "retiredAt"
+        ],
+        "type": "object"
+      },
+      "CategoryPayload": {
+        "properties": {
+          "activeFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "activeTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "categoryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "featureFlagKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isGroupingNode": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "parentCategoryId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "categoryId",
+          "code",
+          "name",
+          "nameTamil",
+          "description",
+          "parentCategoryId",
+          "displayOrder",
+          "isGroupingNode",
+          "activeFrom",
+          "activeTo",
+          "featureFlagKey",
+          "branchIds"
+        ],
+        "type": "object"
+      },
+      "CategoryRequest": {
+        "properties": {
+          "activeFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "activeTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "featureFlagKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "parentCategoryId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "nameTamil",
+          "description",
+          "parentCategoryId",
+          "displayOrder",
+          "activeFrom",
+          "activeTo",
+          "featureFlagKey",
+          "branchIds",
+          "reason"
+        ],
+        "type": "object"
+      },
       "CommunicationPreferencePayload": {
         "properties": {
           "allowedChannels": {
@@ -678,6 +1102,35 @@
           "postcode",
           "language",
           "reason"
+        ],
+        "type": "object"
+      },
+      "CreateCatalogDraftRequest": {
+        "properties": {
+          "cloneFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "notes",
+          "cloneFromVersionId"
         ],
         "type": "object"
       },
@@ -1827,6 +2280,125 @@
         ],
         "type": "object"
       },
+      "OrderableCatalogPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/OrderableServicePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "catalogVersionId",
+          "branchId",
+          "services"
+        ],
+        "type": "object"
+      },
+      "OrderableServicePayload": {
+        "properties": {
+          "categoryCode": {
+            "type": "string"
+          },
+          "categoryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "designOptionGroupIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expectedDurationDays": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "intakeWarning": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priceListItemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "qcChecklistTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "qualifiedReference": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string"
+          },
+          "serviceName": {
+            "type": "string"
+          },
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "workflowDefinitionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "serviceTypeId",
+          "categoryId",
+          "categoryCode",
+          "categoryName",
+          "serviceCode",
+          "serviceName",
+          "qualifiedReference",
+          "expectedDurationDays",
+          "intakeWarning",
+          "measurementTemplateId",
+          "workflowDefinitionId",
+          "designOptionGroupIds",
+          "priceListItemCode",
+          "qcChecklistTemplateId"
+        ],
+        "type": "object"
+      },
       "PasskeyAssertionRequest": {
         "properties": {
           "ceremonyId": {
@@ -2537,6 +3109,281 @@
           "updatedAt",
           "updatedBy",
           "version"
+        ],
+        "type": "object"
+      },
+      "ServiceTypePayload": {
+        "properties": {
+          "activeFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "activeTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "allowIncomplete": {
+            "type": "boolean"
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "categoryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "designOptionGroupIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "expectedDurationDays": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "intakeWarning": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notOrderable": {
+            "type": "boolean"
+          },
+          "priceListItemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "qcChecklistTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "workflowDefinitionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "serviceTypeId",
+          "categoryId",
+          "code",
+          "name",
+          "nameTamil",
+          "description",
+          "displayOrder",
+          "expectedDurationDays",
+          "intakeWarning",
+          "measurementTemplateId",
+          "workflowDefinitionId",
+          "designOptionGroupIds",
+          "priceListItemCode",
+          "qcChecklistTemplateId",
+          "allowIncomplete",
+          "notOrderable",
+          "activeFrom",
+          "activeTo",
+          "branchIds"
+        ],
+        "type": "object"
+      },
+      "ServiceTypeRequest": {
+        "properties": {
+          "activeFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "activeTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "allowIncomplete": {
+            "type": "boolean"
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "designOptionGroupIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "expectedDurationDays": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "intakeWarning": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priceListItemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "qcChecklistTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "workflowDefinitionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "nameTamil",
+          "description",
+          "displayOrder",
+          "expectedDurationDays",
+          "intakeWarning",
+          "measurementTemplateId",
+          "workflowDefinitionId",
+          "designOptionGroupIds",
+          "priceListItemCode",
+          "qcChecklistTemplateId",
+          "allowIncomplete",
+          "activeFrom",
+          "activeTo",
+          "branchIds",
+          "reason"
         ],
         "type": "object"
       },
@@ -6842,6 +7689,1523 @@
         "x-tailor360-rate-limit": "recovery-anon"
       }
     },
+    "/api/v1/catalog/current": {
+      "get": {
+        "description": "Answers from the published catalogue version, filtered by the branch's availability, the active dates read in the branch's timezone, the category's feature flag and whether the service was published complete. An empty list is a real answer: it means nothing has been published yet, or nothing is offered at this branch.",
+        "operationId": "GetCurrentCatalog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderableCatalogPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List what the caller's branch may order today.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.read",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/catalog/versions": {
+      "get": {
+        "description": "Summaries only. Reading a version's tree is a separate call, because a list of twenty versions carrying twenty trees is a page nobody needed.",
+        "operationId": "ListCatalogVersions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogVersionSummaryPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the organisation's catalogue versions, newest first.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "Cloning the published version is the ordinary way to change a published catalogue: a published version is immutable, so a correction is a clone, an edit and a second publication. The clone carries the same categories and service types as concepts with new rows of its own.",
+        "operationId": "CreateCatalogDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000c3",
+                "name": "Add the Kids age bands",
+                "notes": "Cloned from version 3 so the Aari links stay as published."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCatalogDraftRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start a draft catalogue version, empty or cloned from an existing one.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.version.drafted",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}": {
+      "get": {
+        "description": "The administrator's preview, and the same call whatever the version's status: a retired version reads exactly as it did, which is what makes a two-year-old job card render. The ETag is the token a publication must be made against.",
+        "operationId": "GetCatalogVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one catalogue version and everything in it.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/categories": {
+      "post": {
+        "description": "This is the route that makes 'an administrator adds a category without a deployment' true. Only a draft accepts it.",
+        "operationId": "AddCatalogCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "activeFrom": null,
+                "activeTo": null,
+                "branchIds": [
+                  "0199c2f0-0000-7000-8000-0000000000a1"
+                ],
+                "code": "BLOUSE_AARI",
+                "description": "Saree blouses carrying Aari hand embroidery.",
+                "displayOrder": 1,
+                "featureFlagKey": null,
+                "name": "Blouse — Aari work",
+                "nameTamil": "ரவிக்கை — ஆரி வேலை",
+                "parentCategoryId": "0199c2f0-0000-7000-8000-0000000000b1",
+                "reason": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a category to a draft catalogue version.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.category.added",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}": {
+      "put": {
+        "description": "Whole-value, not partial: the request carries everything an administrator says about the category, so an omitted branch list means 'offered nowhere' rather than 'unchanged'. Re-parenting is refused when it would make the hierarchy circular.",
+        "operationId": "EditCatalogCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "activeFrom": null,
+                "activeTo": null,
+                "branchIds": [
+                  "0199c2f0-0000-7000-8000-0000000000a1"
+                ],
+                "code": "BLOUSE_AARI",
+                "description": "Saree blouses carrying Aari hand embroidery.",
+                "displayOrder": 2,
+                "featureFlagKey": "catalog.aari",
+                "name": "Blouse — Aari work",
+                "nameTamil": null,
+                "parentCategoryId": "0199c2f0-0000-7000-8000-0000000000b1",
+                "reason": "Aari moves below Pattern in the intake list, at the counter's request."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace what a draft says about a category.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.category.changed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/delete": {
+      "post": {
+        "description": "A POST sub-resource rather than a DELETE, following the pattern the administration routes already use for a removal that carries a reason. Only from a draft: a published version is immutable and a database trigger refuses the delete as well. Descendants go with it, because leaving them would produce the orphaned parent publication refuses.",
+        "operationId": "RemoveCatalogCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Added by mistake; the code was meant for the sub-category."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a category, its sub-categories and their service types from a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.category.removed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/presentation": {
+      "post": {
+        "description": "The only edit a published version admits. Nothing downstream reads a label — a price list, a report, an export and an event payload all refer to the code — so a correction changes what is shown and nothing that was priced, worked to or reported. A reason is required and the change is audited.",
+        "operationId": "CorrectCatalogCategoryPresentation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "description": "Plain and pattern-cut saree blouses.",
+                "displayOrder": 0,
+                "name": "Blouse — Pattern cut",
+                "nameTamil": null,
+                "reason": "The counter reads 'Pattern cut' to customers; the label now matches."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CatalogPresentationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Correct the label, Tamil label, description or display order of a published category.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.label_corrected",
+        "x-tailor360-authorisation": "permission:catalog.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/service-types": {
+      "post": {
+        "description": "The five links may all be null here. Whether that is acceptable is decided at publication, where a missing link is an error unless the administrator accepted it with allowIncomplete, which flags the service not orderable.",
+        "operationId": "AddCatalogServiceType",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "activeFrom": null,
+                "activeTo": null,
+                "allowIncomplete": false,
+                "branchIds": [
+                  "0199c2f0-0000-7000-8000-0000000000a1"
+                ],
+                "code": "STITCHING",
+                "description": "A new garment cut and stitched from material the customer supplies.",
+                "designOptionGroupIds": [
+                  "0199c2f0-0000-7000-8000-0000000000d3"
+                ],
+                "displayOrder": 0,
+                "expectedDurationDays": 10,
+                "intakeWarning": null,
+                "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000d1",
+                "name": "Stitching",
+                "nameTamil": null,
+                "priceListItemCode": "BLOUSE_AARI_STITCH",
+                "qcChecklistTemplateId": "0199c2f0-0000-7000-8000-0000000000d4",
+                "reason": null,
+                "workflowDefinitionId": "0199c2f0-0000-7000-8000-0000000000d2"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ServiceTypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceTypePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a service type to a category in a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.service_type.added",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/publish": {
+      "post": {
+        "description": "Exactly one version is published at a time, so publishing retires the one it replaces in the same transaction — and the retirement validators are asked about the outgoing version with this one named as its successor. A draft that dropped a category work in progress still needs is therefore refused here, where somebody can still do something about it. Two administrators publishing different drafts at once is settled by the database: one commits and the other is told plainly.",
+        "operationId": "PublishCatalogVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Owner workshop approved the launch hierarchy on 9 September."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPublicationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Publish a draft, superseding whatever was published before it.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.version.published",
+        "x-tailor360-authorisation": "permission:catalog.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/retire": {
+      "post": {
+        "description": "Retirement stops new orders and nothing else: jobs already in production run to dispatch on the configuration they were pinned to, and the retired version stays fully readable so their job cards, invoices and reports render exactly as they did. Refused while work in progress needs a service no successor replaces.",
+        "operationId": "RetireCatalogVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Superseded by the September hierarchy; no work is outstanding against it."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionSummaryPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Retire the published version, so nothing new is taken against it.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.version.retired",
+        "x-tailor360-authorisation": "permission:catalog.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/service-types/{serviceTypeId}": {
+      "put": {
+        "operationId": "EditCatalogServiceType",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "serviceTypeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "activeFrom": null,
+                "activeTo": null,
+                "allowIncomplete": false,
+                "branchIds": [
+                  "0199c2f0-0000-7000-8000-0000000000a1"
+                ],
+                "code": "ALTERATION",
+                "description": "Adjusting an existing finished garment.",
+                "designOptionGroupIds": [],
+                "displayOrder": 1,
+                "expectedDurationDays": 2,
+                "intakeWarning": "An alteration crossing an embroidered area may damage the work.",
+                "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000d1",
+                "name": "Alteration",
+                "nameTamil": null,
+                "priceListItemCode": "BLOUSE_AARI_ALTER",
+                "qcChecklistTemplateId": "0199c2f0-0000-7000-8000-0000000000d4",
+                "reason": "The Tailor Master asked for the intake warning to be spelled out.",
+                "workflowDefinitionId": "0199c2f0-0000-7000-8000-0000000000d2"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ServiceTypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceTypePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace what a draft says about a service type, its five links included.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.service_type.changed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/service-types/{serviceTypeId}/delete": {
+      "post": {
+        "operationId": "RemoveCatalogServiceType",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "serviceTypeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "The shop does not offer re-stitching on this category."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a service type from a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.service_type.removed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/service-types/{serviceTypeId}/presentation": {
+      "post": {
+        "operationId": "CorrectCatalogServiceTypePresentation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "serviceTypeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "description": "Opening a garment and re-making it to a new fit.",
+                "displayOrder": 2,
+                "name": "Re-stitching",
+                "nameTamil": null,
+                "reason": "Spelling corrected after the owner review."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CatalogPresentationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Correct the presentation fields of a published service type.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.label_corrected",
+        "x-tailor360-authorisation": "permission:catalog.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/validation": {
+      "get": {
+        "description": "A read: it changes nothing and is not audited. It runs the same code path publication takes, deliberately — a preview that ran different checks from the command it previews would be worse than no preview.",
+        "operationId": "ValidateCatalogVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogValidationReportPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Run every registered validator against a version and report what they found.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/customers": {
       "get": {
         "description": "Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters returns nothing rather than the whole customer list.",
@@ -8511,6 +10875,10 @@
     {
       "description": "Signing in, second factors, passkeys and account recovery. These are the only operations that can be reached before a session exists, and every one of them still requires the anti-forgery token.",
       "name": "Authentication"
+    },
+    {
+      "description": "The stitching-category and service catalogue: what the shop offers, and what a branch may order today. Everything here is versioned configuration rather than code — an administrator adds a category or a service type through these routes and no deployment follows — and exactly one version is published at a time, because an order is placed against one coherent snapshot of the hierarchy. A published version is immutable but for its labels, so a correction is a clone, an edit and a second publication; publishing supersedes what came before it and never changes work already under way.",
+      "name": "Catalog"
     },
     {
       "description": "The customer record: finding one, creating one, correcting it, withdrawing it from use, and recording that a second branch has begun serving the person. A search answers across the whole organisation and returns a masked disambiguation card for a record the caller's branches cannot see, because a revealed last-four is cheaper than the duplicate record it prevents. Contact details are a separate permission from finding the record at all, so a role without `customers.read_contact` receives those fields as null.",

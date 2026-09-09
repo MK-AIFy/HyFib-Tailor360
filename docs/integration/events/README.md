@@ -17,9 +17,12 @@ and one of those disagree, they win and this one is corrected.
 | `customers.consent-withdrawn.v1` | [schema](customers.consent-withdrawn.v1.schema.json) | [example](customers.consent-withdrawn.v1.example.json) | Customers, on a withdrawal | #26 |
 | `customers.preferences-changed.v1` | [schema](customers.preferences-changed.v1.schema.json) | [example](customers.preferences-changed.v1.example.json) | Customers, on a recorded or replaced communication preference | #26 |
 | `customers.customer-merged.v1` | [schema](customers.customer-merged.v1.schema.json) | [example](customers.customer-merged.v1.example.json) | Customers, on an authorised merge of two records | #26 |
+| `catalog.catalog-version-published.v1` | [schema](catalog.catalog-version-published.v1.schema.json) | [example](catalog.catalog-version-published.v1.example.json) | Catalog, when a draft becomes the active configuration | #29 |
+| `catalog.catalog-version-retired.v1` | [schema](catalog.catalog-version-retired.v1.schema.json) | [example](catalog.catalog-version-retired.v1.example.json) | Catalog, on an explicit retirement | #29 |
 
 Each is declared as a record in the publishing module's `Contracts` project — the module's published surface — and
-nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds all four.
+nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the four Customers events and
+`Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones.
 
 ## 2. Naming and versioning
 
@@ -66,6 +69,13 @@ a copy — written to a table, read by every registered handler, outliving the m
   quiet window. It says the answer changed; the reader asks `ICommunicationPreferenceQuery` what it now is, which is
   what Notifications does before every send anyway, because a preference evaluated at send time is the only one
   that is current.
+- `catalog.catalog-version-published.v1` carries the version, the organisation, the number a person reads and the version it
+  superseded — and **not the hierarchy**. Copying the tree into an event would make every subscriber a second,
+  stale catalogue; a consumer that needs it reads `ICatalogAvailabilityQuery`, which re-authorises and answers from
+  whichever version is published at the moment it is asked.
+- `catalog.catalog-version-retired.v1` is published only for an **explicit** retirement. A version retired because a
+  successor superseded it is already announced by `catalog.catalog-version-published.v1` through its `supersededVersionId`,
+  and publishing both would make one fact look like two — a subscriber that acted on each would act twice.
 - `customers.customer-merged.v1` carries three identifiers, the organisation and the branch, and nothing else. Not
   the customer number, not the name, and **not the reason** — free text a member of staff typed about a named
   person, which is not one of the admitted kinds and which the erasure workflow has to be able to redact. It stays

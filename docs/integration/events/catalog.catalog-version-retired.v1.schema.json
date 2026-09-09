@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/catalog.catalog-version-retired.v1.schema.json",
+  "title": "catalog.catalog-version-retired.v1",
+  "description": "A catalogue version stopped being offered for new work. Retirement stops new orders and nothing else: jobs already in production run to dispatch on the configuration they were pinned to, and the retired version stays fully readable so their job cards, invoices and reports render exactly as they did (docs/prd/category-hierarchy.md section 7). A consumer that cancels or re-routes work on this event has misread it. It is published only for an explicit retirement; a version retired because a successor superseded it is announced by catalog.version-published.v1 through its supersededVersionId, so the supersession is one fact and not two.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "versionNumber",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the version was retired, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The catalogue version that was retired. It stays readable: everything pinned to it still renders from it."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation whose catalogue it is."
+    },
+    "versionNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The version's number, for a message a person reads."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "catalog.catalog-version-retired.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

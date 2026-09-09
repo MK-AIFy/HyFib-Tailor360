@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Tailor360.Modules.Catalog.Api.Catalogue;
 
 namespace Tailor360.Modules.Catalog.Api;
 
@@ -23,8 +24,10 @@ public static class CatalogEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        _ = endpoints.MapGroup(GroupPrefix)
-            .WithTags(OpenApiTag);
+        endpoints.MapGroup(GroupPrefix)
+            .WithTags(OpenApiTag)
+            .MapCurrentCatalogEndpoints()
+            .MapCatalogVersionEndpoints();
 
         return endpoints;
     }

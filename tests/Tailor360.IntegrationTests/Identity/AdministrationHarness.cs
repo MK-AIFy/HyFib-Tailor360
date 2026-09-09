@@ -30,13 +30,19 @@ internal static class AdministrationHarness
     /// The administrative permission to grant, or null for a caller who is signed in and entitled to
     /// nothing — which is what proves the permission is what the endpoint is checking.
     /// </param>
+    /// <param name="alsoGrant">
+    /// Further permissions to grant, for an endpoint that demands more than one. Empty for the
+    /// ordinary case, which is deliberately the common one: an account holding exactly what the
+    /// endpoint asks for is what proves the endpoint is asking.
+    /// </param>
     public static async Task<AdministratorClient> AdministratorAsync(
         WebApplicationFixture fixture,
         string prefix,
         string clientAddress,
-        string? grantPermission = IdentityPermissions.Users)
+        string? grantPermission = IdentityPermissions.Users,
+        params string[] alsoGrant)
     {
-        var (user, _) = await AccountAsync(fixture, prefix, grantPermission);
+        var (user, _) = await AccountAsync(fixture, prefix, grantPermission, alsoGrant);
         var client = AuthenticationClient.Open(fixture, clientAddress);
 
         (await client.PostAsync(
@@ -63,10 +69,12 @@ internal static class AdministrationHarness
     /// <param name="fixture">The hosted application.</param>
     /// <param name="prefix">A short, readable prefix.</param>
     /// <param name="grantPermission">The administrative permission to grant, or null for none.</param>
+    /// <param name="alsoGrant">Further permissions to grant, for an endpoint that demands more than one.</param>
     public static async Task<(StaffUser User, Guid RoleId)> AccountAsync(
         WebApplicationFixture fixture,
         string prefix,
-        string? grantPermission)
+        string? grantPermission,
+        params string[] alsoGrant)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -114,6 +122,11 @@ internal static class AdministrationHarness
         if (grantPermission is { Length: > 0 })
         {
             role.Grant(grantPermission, now, by: null).IsSuccess.ShouldBeTrue();
+        }
+
+        foreach (var permission in alsoGrant ?? [])
+        {
+            role.Grant(permission, now, by: null).IsSuccess.ShouldBeTrue();
         }
 
         context.Roles.Add(role);
