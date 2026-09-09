@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
 using Tailor360.Modules.Customers.Application.Measurements;
+using Tailor360.Modules.Customers.Contracts.Measurements;
 using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.IntegrationTests.Customers;
@@ -297,6 +298,75 @@ public sealed class MeasurementTemplateEndpointTests(WebApplicationFixture fixtu
                         .Where(finding => finding.Severity.ToString() == "Error")
                         .Select(finding => $"{finding.Code} at {finding.Target}")));
         }
+    }
+
+    [Fact]
+    public async Task ThePublishedReadAnswersWithEverythingACaptureNeeds()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // IMeasurementTemplateQuery is what #28's capture wizard and every job card will read, so what it carries
+        // is a contract rather than an implementation detail. The bands come back in millimetres on purpose: the
+        // caller renders them in whatever unit the reader chose, and a pre-rounded bound would refuse a value that
+        // is actually inside it.
+        using var drafter = await DrafterAsync("mt-query", "203.0.113.227");
+        using var reviewer = await ReviewerAsync("mt-query-rev", "203.0.113.237");
+
+        var template = await CreateAsync(drafter, Code("MT_QUERY"));
+        var version = await DraftAsync(drafter, template, "Version 1");
+
+        await AddFieldAsync(drafter, template, version, "chest_bust");
+
+        using var scope = fixture.Services.CreateScope();
+        var query = scope.ServiceProvider.GetRequiredService<IMeasurementTemplateQuery>();
+        var organisationId = SessionTestData.OrganisationId;
+
+        (await query.GetPublishedAsync(template, Token))
+            .ShouldBeNull("a draft is not something measurements are captured against");
+        (await query.WithPublishedVersionAsync([template], organisationId, Token))
+            .ShouldNotContain(template);
+
+        (await drafter.PostAsync($"{Root}/{template}/versions/{version}/submit", new { }, Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await reviewer.PostAsync($"{Root}/{template}/versions/{version}/approve", new { }, Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await reviewer.PostAsync(
+                $"{Root}/{template}/versions/{version}/publish", new { reason = "Live." }, Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var published = await query.GetPublishedAsync(template, Token);
+
+        published.ShouldNotBeNull();
+        published.TemplateId.ShouldBe(template);
+        published.VersionId.ShouldBe(version);
+        published.VersionNumber.ShouldBe(1);
+        published.IsPublished.ShouldBeTrue();
+        published.DefaultDisplayUnit.ShouldBe("Inch");
+
+        var field = published.Fields.ShouldHaveSingleItem();
+
+        field.Key.ShouldBe("chest_bust");
+        field.CanonicalUnit.ShouldBe("Millimetre");
+        field.DisplayUnits.ShouldBe(["Inch", "Centimetre"]);
+        field.InchFraction.ShouldBe(8);
+        field.CentimetreDecimals.ShouldBe(1);
+        field.MinimumMillimetres.ShouldBe(100m);
+        field.MaximumMillimetres.ShouldBe(2000m);
+        field.WarnBelowMillimetres.ShouldBe(200m);
+        field.DiagramReference.ShouldBe("blouse_front_v1#chest_bust", "the sheet key anchored by the field key");
+        field.DiagramAlt.ShouldNotBeNullOrWhiteSpace();
+
+        (await query.WithPublishedVersionAsync([template], organisationId, Token)).ShouldContain(template);
+
+        // Asked by its own identity, a version answers whatever state it is in — which is how a measurement taken
+        // under a since-retired version still renders.
+        var byVersion = await query.GetVersionAsync(version, Token);
+
+        byVersion.ShouldNotBeNull();
+        byVersion.VersionId.ShouldBe(version);
+
+        (await query.GetVersionAsync(Guid.CreateVersion7(), Token)).ShouldBeNull();
+        (await query.WithPublishedVersionAsync([], organisationId, Token)).ShouldBeEmpty();
     }
 
     private const string Root = "/api/v1/customers/measurement-templates";
