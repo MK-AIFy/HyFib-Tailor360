@@ -988,6 +988,9 @@
               "string"
             ]
           },
+          "contactIncluded": {
+            "type": "boolean"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -1082,6 +1085,7 @@
           "addressLine",
           "locality",
           "postcode",
+          "contactIncluded",
           "language",
           "status",
           "owningBranchId",
@@ -1104,6 +1108,121 @@
         },
         "required": [
           "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerTimelineEntryPayload": {
+        "properties": {
+          "actorDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "expandPermission": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reasonPermission": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referenceId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referenceType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entryId",
+          "occurredAt",
+          "source",
+          "kind",
+          "title",
+          "detail",
+          "reason",
+          "reasonPermission",
+          "referenceType",
+          "referenceId",
+          "expandPermission",
+          "branchId",
+          "actorDisplayName"
+        ],
+        "type": "object"
+      },
+      "CustomerTimelinePayload": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerTimelineEntryPayload"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unavailableSources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries",
+          "nextCursor",
+          "unavailableSources"
         ],
         "type": "object"
       },
@@ -6908,7 +7027,7 @@
     },
     "/api/v1/customers/{customerId}": {
       "get": {
-        "description": "The contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null, which is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires rather than an omission.",
+        "description": "The body is projected through the approved response view `customers.record`. The six contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null and `contactIncluded` is false, which is the difference between a number withheld and a customer who has not given one. The split is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires, and the field set is approved in `docs/security/field-visibility.md`.",
         "operationId": "GetCustomer",
         "parameters": [
           {
@@ -8110,6 +8229,87 @@
         "x-tailor360-audit": "customers.customer.reactivated",
         "x-tailor360-authorisation": "permission:customers.deactivate",
         "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/{customerId}/timeline": {
+      "get": {
+        "description": "Newest first, cursor-paged. An entry appears only when the caller's permissions reach it: consent and communication-preference entries need `customers.read_consent`, subject-access export entries need `customers.export`, and the reason an actor gave needs `customers.read_notes`. `unavailableSources` names any module that could not answer, so a gap in the history is visible rather than silent.",
+        "operationId": "GetCustomerTimeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 25,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerTimelinePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one customer's history, merged from every module that holds part of it.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:customers.read",
+        "x-tailor360-rate-limit": "default-user"
       }
     },
     "/api/v1/me": {

@@ -47,6 +47,7 @@ public sealed class FieldVisibilityDocumentTests
             view.ShouldNotBeNull($"the document declares a view '{row.Text("View")}' the code does not");
 
             row.Text("Module").ShouldBe(view.Module, view.Key);
+            row.Text("Surface").ShouldBe(view.Surface.ToString(), view.Key);
             row.Text("Requires").ShouldBe(view.RequiredPermission, view.Key);
             row.List("Withheld").ShouldBe(WithheldNames(view.Withheld), ignoreOrder: true, view.Key);
         }
@@ -151,13 +152,47 @@ public sealed class FieldVisibilityDocumentTests
     {
         // Asserted against the document as well as against the code, because this is the sentence the
         // owner is approving and it must be legible in the artefact they approved.
+        //
+        // It is scoped to the workshop surfaces because that is the scope of the sentence. The one it
+        // comes from — data-classification.md section 3 — is an argument about a card that is printed
+        // and left on a bench, and reading it as "no view carries contact details" made the customer
+        // record undeclarable and left it masking by hand instead. The surface is declared per view so
+        // that the scope is a stated thing rather than an artefact of there being only workshop views.
         string[] required = ["CustomerContact", "CustomerNotes", "Pricing", "PaymentState"];
 
-        foreach (var row in Document.Section("views").Rows)
+        var workshop = Document.Section("views").Rows
+            .Where(row => string.Equals(row.Text("Surface"), nameof(ViewSurface.Workshop), StringComparison.Ordinal))
+            .ToArray();
+
+        workshop.Length.ShouldBeGreaterThan(0, "the document approves no workshop surface at all");
+
+        foreach (var row in workshop)
         {
             var withheld = row.List("Withheld");
             required.Where(name => !withheld.Contains(name, StringComparer.Ordinal))
                 .ShouldBeEmpty($"{row.Text("View")} does not withhold every workshop-forbidden class");
+        }
+    }
+
+    [Fact]
+    public void NoCounterSurfaceIsApprovedToCarryMeasurementsPricingOrPaymentState()
+    {
+        // The other half of the same decision. A counter surface may carry contact details — that is
+        // what the counter is for — but a screen about a customer is still not the place for the
+        // figures a garment is cut to, a price, a payment, or a member of staff's throughput.
+        string[] required = ["Measurement", "Pricing", "PaymentState", "StaffPerformance"];
+
+        var counter = Document.Section("views").Rows
+            .Where(row => string.Equals(row.Text("Surface"), nameof(ViewSurface.Counter), StringComparison.Ordinal))
+            .ToArray();
+
+        counter.Length.ShouldBeGreaterThan(0, "the document approves no counter surface at all");
+
+        foreach (var row in counter)
+        {
+            var withheld = row.List("Withheld");
+            required.Where(name => !withheld.Contains(name, StringComparer.Ordinal))
+                .ShouldBeEmpty($"{row.Text("View")} does not withhold every counter-forbidden class");
         }
     }
 

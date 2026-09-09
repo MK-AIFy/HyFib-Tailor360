@@ -13,6 +13,7 @@ using Tailor360.Modules.Customers.Contracts.Customers;
 using Tailor360.Modules.Customers.Contracts.Preferences;
 using Tailor360.Modules.Customers.Infrastructure.Consent;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
+using Tailor360.Platform.Abstractions.Ports;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
@@ -69,6 +70,10 @@ public static class CustomersModuleServiceCollectionExtensions
         services.TryAddScoped<PreferenceHandler>();
         services.TryAddScoped<IConsentReferenceDataSeeder, ConsentReferenceDataSeeder>();
         services.TryAddScoped<IExportStore, ExportStore>();
+
+        // Enumerable, not TryAdd: the host composes every registered source into one timeline, so a
+        // second module registering its own must add to the list rather than replace this one.
+        services.AddScoped<ITimelineSource, CustomerTimelineSource>();
         services.TryAddScoped<CustomerExportHandler>();
 
         // Validated at start-up rather than when somebody answers a subject-access request. A

@@ -2,6 +2,8 @@ using Tailor360.Modules.Customers.Application.Abstractions;
 using Tailor360.Modules.Customers.Application.Customers;
 using Tailor360.Modules.Customers.Domain.Deduplication;
 using Tailor360.Platform.Abstractions.Concurrency;
+using Tailor360.Platform.Security.FieldVisibility;
+using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.Modules.Customers.Api.Payloads;
 
@@ -12,15 +14,23 @@ namespace Tailor360.Modules.Customers.Api.Payloads;
 /// <para>
 /// The contact fields are nullable and are populated only for a caller holding
 /// <c>customers.read_contact</c>. That split is <c>docs/nfr/data-classification.md</c> section 5.2 —
-/// a Tailor sees a name on a job card and never a telephone number — and it is applied in exactly one
-/// place, <see cref="From"/>, so a field added later cannot arrive on a screen that was never meant
-/// to carry it.
+/// a Tailor sees a name on a job card and never a telephone number.
 /// </para>
 /// <para>
-/// The platform's declared response-view mechanism is the eventual home for this, and
-/// <c>docs/security/field-visibility.md</c> section 1 names #26 as the issue that adds the customer
-/// views. It is not used here because declaring one means changing a test whose name says "workshop
-/// surface" and whose body iterates every view, and a sentence the owner is being asked to approve.
+/// <strong>Which fields those are is no longer decided here.</strong> The set comes from the declared
+/// view <c>customers.record</c> in <c>docs/security/field-visibility.md</c>, and <see cref="From"/>
+/// takes the <see cref="FieldMask"/> computed from it for the caller. Two tests hold the two halves
+/// together: one asserts that this record's properties are exactly the view's declared fields, so a
+/// property added here without an approved row fails the build rather than reaching a response; the
+/// other asserts what each role is shown. That is the guarantee section 2 of that document argues for,
+/// obtained at build time rather than on the request that first carries the new field.
+/// </para>
+/// <para>
+/// A withheld field arrives as null rather than being absent, because the schema this payload
+/// publishes is what the client is generated from. <see cref="ContactIncluded"/> is what makes the
+/// null unambiguous: false says the caller was not shown the contact fields, and true with a null
+/// <see cref="Email"/> says the customer has not given one. Without it the two read alike, which is
+/// the one thing a masked payload must not do.
 /// </para>
 /// </remarks>
 /// <param name="CustomerId">The record.</param>
@@ -33,6 +43,10 @@ namespace Tailor360.Modules.Customers.Api.Payloads;
 /// <param name="AddressLine">The street line, under the same permission.</param>
 /// <param name="Locality">The area or town, under the same permission.</param>
 /// <param name="Postcode">The postal code, under the same permission.</param>
+/// <param name="ContactIncluded">
+/// Whether the six fields above were included for this caller. False means they were withheld; true
+/// with a null value means the customer has not given one.
+/// </param>
 /// <param name="Language">The language the customer is written to in.</param>
 /// <param name="Status">Whether the record is in use.</param>
 /// <param name="OwningBranchId">The branch that created the record.</param>
@@ -58,6 +72,7 @@ public sealed record CustomerPayload(
     string? AddressLine,
     string? Locality,
     string? Postcode,
+    bool ContactIncluded,
     string Language,
     string Status,
     Guid OwningBranchId,
@@ -69,25 +84,59 @@ public sealed record CustomerPayload(
     Guid? MergedIntoCustomerId = null,
     DateTimeOffset? MergedAt = null)
 {
-    /// <summary>Projects a record onto the wire, withholding contact fields where they are not held.</summary>
+    /// <summary>Projects a record onto the wire through the caller's mask for the declared view.</summary>
     /// <param name="customer">The record.</param>
-    /// <param name="mayReadContact">Whether the caller holds <c>customers.read_contact</c>.</param>
+    /// <param name="mask">
+    /// The caller's mask for <c>customers.record</c>, from <c>IFieldVisibilityPolicy</c>. Every
+    /// withholdable value below is asked of it by name, so a field given a permission in the approved
+    /// view starts being withheld here without this method being edited.
+    /// </param>
     /// <returns>The payload.</returns>
-    public static CustomerPayload From(AdministeredCustomer customer, bool mayReadContact)
+    /// <exception cref="ArgumentException">
+    /// The mask is for some other view, or it reaches no field at all.
+    /// </exception>
+    public static CustomerPayload From(AdministeredCustomer customer, FieldMask mask)
     {
         ArgumentNullException.ThrowIfNull(customer);
+        ArgumentNullException.ThrowIfNull(mask);
+
+        if (!string.Equals(mask.View.Key, CustomersResponseViews.Record, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"A customer record is projected through '{CustomersResponseViews.Record}', not "
+                + $"'{mask.View.Key}'. Masking one view's payload with another view's mask shows "
+                + "whatever the two happen to have in common.",
+                nameof(mask));
+        }
+
+        // An empty mask is a caller who cannot reach the view at all, and
+        // docs/security/field-visibility.md section 5 is explicit that such a caller is shown nothing —
+        // "not an empty shell, not a redacted skeleton: the request is refused before a body exists".
+        // A body cannot express that, so reaching here with one is a fault in the endpoint rather than
+        // something to answer: every read route demands the view's own permission, and every command
+        // that answers with the record asks for its mask through MaskForReached.
+        if (mask.IsEmpty)
+        {
+            throw new ArgumentException(
+                $"The caller reaches no field of '{CustomersResponseViews.Record}', so there is no "
+                + "record to send them. An endpoint that answers with a customer must either demand "
+                + $"'{CustomersPermissions.Read}' or ask for its mask through MaskForReached, naming "
+                + "the permission it did demand.",
+                nameof(mask));
+        }
 
         return new CustomerPayload(
             customer.CustomerId,
             customer.CustomerNumber,
             customer.DisplayName,
-            customer.NativeName,
-            mayReadContact ? customer.PhoneE164 : null,
-            mayReadContact ? customer.AlternatePhoneE164 : null,
-            mayReadContact ? customer.Email : null,
-            mayReadContact ? customer.AddressLine : null,
-            mayReadContact ? customer.Locality : null,
-            mayReadContact ? customer.Postcode : null,
+            Text("nativeName", customer.NativeName),
+            Text("phone", customer.PhoneE164),
+            Text("alternatePhone", customer.AlternatePhoneE164),
+            Text("email", customer.Email),
+            Text("addressLine", customer.AddressLine),
+            Text("locality", customer.Locality),
+            Text("postcode", customer.Postcode),
+            ContactIncludedFor(mask),
             customer.Language,
             customer.Status.ToString(),
             customer.OwningBranchId,
@@ -96,11 +145,35 @@ public sealed record CustomerPayload(
             customer.CreatedAt,
             customer.UpdatedAt,
             customer.Version.Version,
-            // Never masked by customers.read_contact. Whether the record still stands is a fact about
+            // Never gated by customers.read_contact. Whether the record still stands is a fact about
             // the record rather than about the person, and a client that cannot see it shows somebody
-            // who has been merged away as though she were current.
-            customer.MergedIntoCustomerId,
-            customer.MergedAt);
+            // who has been merged away as though she were current. The view declares it ungated, which
+            // is where that decision now lives; it is still asked, so that changing the view is enough.
+            Value("mergedIntoCustomerId", customer.MergedIntoCustomerId),
+            Value("mergedAt", customer.MergedAt));
+
+        string? Text(string field, string? value) => mask.Allows(field) ? value : null;
+
+        T? Value<T>(string field, T? value) where T : struct => mask.Allows(field) ? value : null;
+    }
+
+    /// <summary>
+    /// Whether the caller was shown the contact block, for the discriminator.
+    /// </summary>
+    /// <remarks>
+    /// The contact fields share one class and one permission, so the mask allows all of them or none;
+    /// asking the view which they are, rather than naming one here, keeps this honest through a rename
+    /// or a seventh being approved. It is deliberately <em>not</em> the same question as "was any field
+    /// withheld": a client showing "no email on file" needs to know about the contact block, and a
+    /// future gated field of some other class is a different discriminator's problem.
+    /// </remarks>
+    private static bool ContactIncludedFor(FieldMask mask)
+    {
+        var contact = mask.View.Fields
+            .Where(field => field.Classification.HasFlag(FieldClassification.CustomerContact))
+            .ToArray();
+
+        return contact.Length > 0 && Array.TrueForAll(contact, field => mask.Allows(field.Name));
     }
 }
 
@@ -452,14 +525,14 @@ public sealed record CustomerMergePayload(
 {
     /// <summary>Projects an outcome, masking the contact fields unless the caller may read them.</summary>
     /// <param name="outcome">What the merge did.</param>
-    /// <param name="mayReadContact">Whether the caller holds <c>customers.read_contact</c>.</param>
+    /// <param name="mask">The caller's mask for <c>customers.record</c>.</param>
     /// <returns>The payload.</returns>
-    public static CustomerMergePayload From(CustomerMergeOutcome outcome, bool mayReadContact)
+    public static CustomerMergePayload From(CustomerMergeOutcome outcome, FieldMask mask)
     {
         ArgumentNullException.ThrowIfNull(outcome);
 
         return new CustomerMergePayload(
-            CustomerPayload.From(outcome.Survivor, mayReadContact),
+            CustomerPayload.From(outcome.Survivor, mask),
             outcome.MergeId,
             outcome.MergedCustomerId,
             outcome.MergedCustomerNumber,

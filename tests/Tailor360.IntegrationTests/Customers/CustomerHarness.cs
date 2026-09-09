@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -332,10 +333,28 @@ internal static class CustomerHarness
     /// <returns>The number, in E.164.</returns>
     public static string UniquePhone()
     {
-        var digits = new string([.. Guid.CreateVersion7().ToString("N").Where(char.IsAsciiDigit)]);
+        // A counter, not a draw. What this replaced took the last six decimal digits of a UUIDv7's hex
+        // and hoped: a space of a million, drawn from a few hundred times per run, into a database the
+        // suite does not empty between runs. By the birthday bound that is a 7.7% chance of a collision
+        // at four hundred customers and a near-certainty by three thousand — and a collision is not a
+        // duplicate phone number quietly appearing, it is a registration answered 409
+        // "customers.duplicates-not-reviewed", because two records sharing a telephone number score
+        // High. That is what made CustomerMergeEndpointTests fail roughly one run in eight, on a test
+        // whose subject is not duplicates at all.
+        //
+        // Eight digits instead of six widens the space a hundredfold, and the run prefix plus a
+        // monotonic counter makes a collision within one run impossible rather than unlikely. Two runs
+        // collide only by drawing the same four-digit prefix, which is one pair in ten thousand.
+        var sequence = Interlocked.Increment(ref _phoneSequence) % 10_000;
 
-        return "+919000" + (digits.Length >= 6 ? digits[^6..] : digits.PadLeft(6, '7'));
+        return string.Create(CultureInfo.InvariantCulture, $"+9190{PhoneRunPrefix}{sequence:D4}");
     }
+
+    /// <summary>Distinguishes this run's telephone numbers from those a previous run left behind.</summary>
+    private static readonly string PhoneRunPrefix =
+        Random.Shared.Next(1000, 10_000).ToString(CultureInfo.InvariantCulture);
+
+    private static int _phoneSequence;
 
     /// <summary>
     /// Defines a consent purpose of this test's own, and optionally publishes a wording for it.

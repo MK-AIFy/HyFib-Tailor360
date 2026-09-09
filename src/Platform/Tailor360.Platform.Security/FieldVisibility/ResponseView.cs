@@ -25,16 +25,19 @@ public sealed class ResponseView
     /// <summary>Declares a view.</summary>
     /// <param name="key">Stable dotted key, for example <c>orders.job_card</c>.</param>
     /// <param name="module">The module that owns the view.</param>
+    /// <param name="surface">Who reads it, which is what decides the classes it may never carry.</param>
     /// <param name="purpose">What the view is for, in operator language.</param>
     /// <param name="requiredPermission">The permission an endpoint returning this view must demand.</param>
     /// <param name="withheld">Classes of data this view must never carry.</param>
     /// <param name="fields">The fields it may carry.</param>
     /// <exception cref="ArgumentException">
-    /// A field repeats a name, or carries a class the view withholds.
+    /// A field repeats a name, a field carries a class the view withholds, or the view withholds less
+    /// than its surface forbids.
     /// </exception>
     public ResponseView(
         string key,
         string module,
+        ViewSurface surface,
         string purpose,
         string requiredPermission,
         FieldClassification withheld,
@@ -49,6 +52,18 @@ public sealed class ResponseView
         if (fields.Count == 0)
         {
             throw new ArgumentException($"View '{key}' declares no fields.", nameof(fields));
+        }
+
+        var forbidden = SurfaceRules.ForbiddenOn(surface);
+        var missing = forbidden & ~withheld;
+        if (missing != FieldClassification.None)
+        {
+            throw new ArgumentException(
+                $"View '{key}' is a {surface} surface and does not withhold {missing}. What a surface "
+                + "may never carry is a property of the surface, not of whoever declared the view: "
+                + "withhold at least SurfaceRules.ForbiddenOn(ViewSurface." + surface + "), or declare "
+                + "a different surface and say why in docs/security/field-visibility.md.",
+                nameof(withheld));
         }
 
         var offending = fields.Where(field => (field.Classification & withheld) != 0).ToArray();
@@ -74,6 +89,7 @@ public sealed class ResponseView
 
         Key = key;
         Module = module;
+        Surface = surface;
         Purpose = purpose;
         RequiredPermission = requiredPermission;
         Withheld = withheld;
@@ -86,6 +102,9 @@ public sealed class ResponseView
 
     /// <summary>The module that owns the view.</summary>
     public string Module { get; }
+
+    /// <summary>Who reads it, which is what decides the classes it may never carry.</summary>
+    public ViewSurface Surface { get; }
 
     /// <summary>What the view is for.</summary>
     public string Purpose { get; }
@@ -113,10 +132,27 @@ public sealed class ResponseView
     {
         ArgumentNullException.ThrowIfNull(permissions);
 
-        if (!permissions.Contains(RequiredPermission))
-        {
-            return [];
-        }
+        return permissions.Contains(RequiredPermission) ? FieldsFor(permissions) : [];
+    }
+
+    /// <summary>
+    /// The fields a caller holding <paramref name="permissions"/> may be shown once they have reached
+    /// the view, in declaration order — the per-field gates alone, without the view's own.
+    /// </summary>
+    /// <remarks>
+    /// It exists for the command that answers with the record it just changed. Such an endpoint demands
+    /// its own permission — <c>customers.update</c>, not <c>customers.read</c> — and refusing to show
+    /// the caller the change they were authorised to make would be a refusal of their own write. What
+    /// still applies is every <em>field</em> gate, which is what this returns; reaching the view at all
+    /// was decided by the endpoint. Callers go through
+    /// <see cref="IFieldVisibilityPolicy.MaskForReached"/>, which will not stand a permission in that
+    /// the caller does not actually hold.
+    /// </remarks>
+    /// <param name="permissions">The caller's effective permissions.</param>
+    /// <returns>The visible field names, in declaration order.</returns>
+    public IReadOnlyList<string> FieldsFor(IReadOnlySet<string> permissions)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
 
         return
         [

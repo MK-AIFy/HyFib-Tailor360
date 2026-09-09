@@ -41,6 +41,7 @@ using Tailor360.Web.Configuration;
 using Tailor360.Web.Endpoints;
 using Tailor360.Web.Middleware;
 using Tailor360.Web.OpenApi;
+using Tailor360.Web.Timeline;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +59,11 @@ builder.Host.UseSerilog((context, _, loggerConfiguration) =>
 builder.Services.ConfigureOptions<ForwardedHeadersOptionsSetup>();
 
 builder.Services.AddProblemDetails();
+
+// The customer timeline is composed rather than owned: every module registers an ITimelineSource for
+// the facts it holds and this merges them, which is why it lives in the host and not in Customers
+// (docs/architecture/architecture-rules.md, ROD-02).
+builder.Services.AddScoped<CustomerTimelineComposer>();
 builder.Services.AddTailor360OpenApi();
 builder.Services.AddRateLimiter(options => options.AddTailor360Policies());
 
@@ -167,6 +173,8 @@ app.UseAuthorization();
 app.MapTailor360HealthEndpoints();
 app.MapVersionEndpoint(app.Environment);
 app.MapAntiForgeryEndpoint();
+
+app.MapCustomerTimelineEndpoint();
 
 app.MapIdentityEndpoints()
     .MapCustomersEndpoints()

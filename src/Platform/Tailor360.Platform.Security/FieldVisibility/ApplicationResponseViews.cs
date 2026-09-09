@@ -6,9 +6,10 @@ namespace Tailor360.Platform.Security.FieldVisibility;
 /// <remarks>
 /// <para>
 /// Composed here for the same reason the permission catalogue is: the views have to be complete, and
-/// approvable, before the endpoints that return them exist. All three declared today are forward
-/// declarations — no endpoint returns any of them yet — and each traces to a named surface in the
-/// product documentation rather than to a screen somebody imagined.
+/// approvable, before the endpoints that return them exist. Two of the five are served today — the
+/// customer record and the search card, by the Customers endpoints of #26 — and the remaining three
+/// are forward declarations waiting for the modules that will serve them. Each traces to a named
+/// surface in the product documentation rather than to a screen somebody imagined.
 /// </para>
 /// <para>
 /// <see cref="IResponseViewSource"/> is the seam a module uses when it needs a view the platform cannot

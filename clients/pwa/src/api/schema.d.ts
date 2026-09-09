@@ -774,7 +774,7 @@ export interface paths {
         };
         /**
          * Read one customer record, with the version a correction must be made against.
-         * @description The contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null, which is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires rather than an omission.
+         * @description The body is projected through the approved response view `customers.record`. The six contact fields are populated only for a caller holding `customers.read_contact`; for everybody else they are null and `contactIncluded` is false, which is the difference between a number withheld and a customer who has not given one. The split is the field-level minimisation `docs/nfr/data-classification.md` section 5.2 requires, and the field set is approved in `docs/security/field-visibility.md`.
          */
         get: operations["GetCustomer"];
         /**
@@ -981,6 +981,26 @@ export interface paths {
          * @description The record appears in ordinary search results again. Gated on the same permission as withdrawing it, so a record cannot be put beyond the reach of everybody present.
          */
         post: operations["ReactivateCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one customer's history, merged from every module that holds part of it.
+         * @description Newest first, cursor-paged. An entry appears only when the caller's permissions reach it: consent and communication-preference entries need `customers.read_consent`, subject-access export entries need `customers.export`, and the reason an actor gave needs `customers.read_notes`. `unavailableSources` names any module that could not answer, so a gap in the history is visible rather than silent.
+         */
+        get: operations["GetCustomerTimeline"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1259,6 +1279,7 @@ export interface components {
             addressLine: null | string;
             aliases: components["schemas"]["CustomerAliasPayload"][];
             alternatePhone: null | string;
+            contactIncluded: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -1285,6 +1306,30 @@ export interface components {
         };
         CustomerReasonRequest: {
             reason: null | string;
+        };
+        CustomerTimelineEntryPayload: {
+            actorDisplayName: null | string;
+            /** Format: uuid */
+            branchId: null | string;
+            detail: null | string;
+            /** Format: uuid */
+            entryId: string;
+            expandPermission: null | string;
+            kind: string;
+            /** Format: date-time */
+            occurredAt: string;
+            reason: null | string;
+            reasonPermission: null | string;
+            /** Format: uuid */
+            referenceId: null | string;
+            referenceType: null | string;
+            source: string;
+            title: string;
+        };
+        CustomerTimelinePayload: {
+            entries: components["schemas"]["CustomerTimelineEntryPayload"][];
+            nextCursor: null | string;
+            unavailableSources: string[];
         };
         DeadLetteredMessagePayload: {
             /** Format: uuid */
@@ -4934,6 +4979,38 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCustomerTimeline: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTimelinePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

@@ -31,14 +31,16 @@ public static class OrdersResponseViews
     public const string WorkQueue = "orders.work_queue";
 
     /// <summary>
-    /// The classes no Tailor-facing surface may carry. Declared once and used by every view below, so
-    /// that a fourth surface cannot be added with a quietly shorter list.
+    /// The classes no Tailor-facing surface may carry.
     /// </summary>
-    public const FieldClassification WithheldFromTheWorkshop =
-        FieldClassification.CustomerContact
-        | FieldClassification.CustomerNotes
-        | FieldClassification.Pricing
-        | FieldClassification.PaymentState;
+    /// <remarks>
+    /// It is <see cref="SurfaceRules.ForbiddenOnAWorkshopSurface"/> and not a list of its own. The set
+    /// is a property of the workshop rather than of this module — the measurement sheet is a workshop
+    /// surface owned by Customers — and a second copy here is a second place for it to be wrong.
+    /// <see cref="ResponseView"/> refuses a workshop view that withholds less, so the alias is a
+    /// convenience and never the authority.
+    /// </remarks>
+    public const FieldClassification WithheldFromTheWorkshop = SurfaceRules.ForbiddenOnAWorkshopSurface;
 
     /// <summary>The Orders views.</summary>
     public static IReadOnlyCollection<ResponseView> All { get; } =
@@ -46,6 +48,7 @@ public static class OrdersResponseViews
         new ResponseView(
             JobCard,
             PermissionModules.Orders,
+            ViewSurface.Workshop,
             "One garment job as the workshop needs it: what to make, from whose measurements, by when.",
             OrdersPermissions.Read,
             WithheldFromTheWorkshop,
@@ -91,6 +94,7 @@ public static class OrdersResponseViews
         new ResponseView(
             WorkQueue,
             PermissionModules.Orders,
+            ViewSurface.Workshop,
             "The branch's jobs as a list, for picking up the next piece of work.",
             OrdersPermissions.Read,
             WithheldFromTheWorkshop,
