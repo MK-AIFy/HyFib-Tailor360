@@ -49,6 +49,16 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     /// </remarks>
     public const string OnePublishedVersionIndex = "ux_catalog_versions_one_published";
 
+    /// <summary>
+    /// The unique index over an organisation's catalogue version numbers.
+    /// </summary>
+    /// <remarks>
+    /// Named because <c>CatalogStore</c> reads the name off a failed insert to tell "two administrators
+    /// started a draft in the same moment" apart from every other unique violation. A literal in the
+    /// catch filter would go stale the first time this mapping was renamed.
+    /// </remarks>
+    public const string VersionNumberIndex = "ux_catalog_versions_organisation_number";
+
     /// <summary>The catalogue versions, draft, published and retired.</summary>
     public DbSet<CatalogVersion> CatalogVersions => Set<CatalogVersion>();
 
@@ -107,7 +117,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
 
             entity.HasIndex(version => new { version.OrganisationId, version.VersionNumber })
                 .IsUnique()
-                .HasDatabaseName("ux_catalog_versions_organisation_number");
+                .HasDatabaseName(VersionNumberIndex);
 
             entity.HasIndex(version => new { version.OrganisationId, version.Status })
                 .HasDatabaseName("ix_catalog_versions_organisation_status");

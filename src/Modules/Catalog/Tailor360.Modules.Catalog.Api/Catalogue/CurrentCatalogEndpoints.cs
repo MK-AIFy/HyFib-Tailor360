@@ -66,16 +66,16 @@ public static class CurrentCatalogEndpoints
                     return Problems.From(NoBranch, context);
                 }
 
-                var services = await availability.GetOrderableAsync(
+                // One call, because the version and the services have to be the same answer. Asking
+                // for them separately would let a publication land between the two reads and label
+                // one version's services with another version's identifier.
+                var catalogue = await availability.GetOrderableCatalogAsync(
                     caller.Context.OrganisationId, branchId, clock.UtcNow, cancellationToken);
 
-                var versionId = await availability.GetPublishedVersionIdAsync(
-                    caller.Context.OrganisationId, cancellationToken);
-
                 return Results.Ok(new OrderableCatalogPayload(
-                    versionId,
+                    catalogue.VersionId,
                     branchId,
-                    [.. services.Select(OrderableServicePayload.From)]));
+                    [.. catalogue.Services.Select(OrderableServicePayload.From)]));
             })
             .Produces<OrderableCatalogPayload>(StatusCodes.Status200OK)
             .WithName("GetCurrentCatalog")

@@ -115,6 +115,12 @@ public static class CatalogErrors
         "Another catalogue version was published while this one was being prepared. Review the "
         + "published version and clone it if the change is still wanted.");
 
+    /// <summary>Two drafts were started for the same organisation in the same moment.</summary>
+    public static readonly Error DraftNumberConflict = Error.Conflict(
+        "catalog.draft-number-conflict",
+        "Another catalogue version was started at the same moment and took the next version number. "
+        + "Nothing was created; ask again and the draft will take the number after it.");
+
     /// <summary>The version was changed by somebody else since it was read.</summary>
     public static readonly Error VersionChanged = Error.Conflict(
         "catalog.version-changed",

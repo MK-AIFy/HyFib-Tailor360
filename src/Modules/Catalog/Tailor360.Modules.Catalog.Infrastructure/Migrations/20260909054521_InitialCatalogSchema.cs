@@ -316,6 +316,12 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
             // change rather than enumerating what may not means a column added by a later migration is
             // frozen by default: the failure mode of forgetting to update this is a refused write that
             // somebody investigates, not a silently mutable published version.
+            //
+            // INSERT is covered too, and has to be: freezing every column of every existing row says
+            // nothing about a row that was not there before. An INSERT into a published version's tree
+            // would add a category or a service to configuration that orders are already pinned to —
+            // changing what the version offers and how its historical job cards render — without
+            // cloning, validating or publishing anything.
             migrationBuilder.Sql("""
                 CREATE FUNCTION catalog.published_entries_are_immutable()
                 RETURNS trigger
@@ -334,6 +340,14 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                     -- takes its tree with it.
                     IF version_status IS NULL OR version_status = 0 THEN
                         RETURN COALESCE(NEW, OLD);
+                    END IF;
+
+                    IF TG_OP = 'INSERT' THEN
+                        RAISE EXCEPTION
+                            'catalog.% cannot be added to a published or retired catalogue version. '
+                            'Clone the version to a new draft, add it there and publish that.',
+                            TG_TABLE_NAME
+                            USING ERRCODE = 'restrict_violation';
                     END IF;
 
                     IF TG_OP = 'DELETE' THEN
@@ -360,13 +374,13 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
 
             migrationBuilder.Sql("""
                 CREATE TRIGGER categories_published_are_immutable
-                BEFORE UPDATE OR DELETE ON catalog.categories
+                BEFORE INSERT OR UPDATE OR DELETE ON catalog.categories
                 FOR EACH ROW EXECUTE FUNCTION catalog.published_entries_are_immutable();
                 """);
 
             migrationBuilder.Sql("""
                 CREATE TRIGGER service_types_published_are_immutable
-                BEFORE UPDATE OR DELETE ON catalog.service_types
+                BEFORE INSERT OR UPDATE OR DELETE ON catalog.service_types
                 FOR EACH ROW EXECUTE FUNCTION catalog.published_entries_are_immutable();
                 """);
 
@@ -384,6 +398,21 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         ARRAY['status', 'retired_at', 'retired_by', 'retired_reason',
                               'updated_at', 'updated_by'];
                 BEGIN
+                    -- A version is created as a draft and reaches published by being published. An
+                    -- insert that arrives already published or retired would skip validation, the
+                    -- supersession of the version it replaces and the audit entry that records who
+                    -- decided — so the lifecycle starts where the lifecycle says it starts.
+                    IF TG_OP = 'INSERT' THEN
+                        IF NEW.status = 0 THEN
+                            RETURN NEW;
+                        END IF;
+
+                        RAISE EXCEPTION
+                            'A catalogue version is created as a draft. Status % is reached by '
+                            'publishing or retiring it, not by inserting it.', NEW.status
+                            USING ERRCODE = 'restrict_violation';
+                    END IF;
+
                     IF TG_OP = 'DELETE' THEN
                         IF OLD.status = 0 THEN
                             RETURN OLD;
@@ -420,7 +449,7 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
 
             migrationBuilder.Sql("""
                 CREATE TRIGGER catalog_versions_are_immutable
-                BEFORE UPDATE OR DELETE ON catalog.catalog_versions
+                BEFORE INSERT OR UPDATE OR DELETE ON catalog.catalog_versions
                 FOR EACH ROW EXECUTE FUNCTION catalog.catalog_versions_are_immutable();
                 """);
         }

@@ -142,7 +142,13 @@ public sealed class CatalogHandler(
         var version = created.Value;
 
         store.Add(version);
-        await store.SaveAsync(cancellationToken);
+
+        var saved = await store.SaveDraftAsync(cancellationToken);
+
+        if (saved.IsFailure)
+        {
+            return Result.Failure<AdministeredCatalogVersion>(saved.Error);
+        }
 
         await CatalogAudit.RecordAsync(
             audit, action, version.Id, summary, null, null,
@@ -693,7 +699,7 @@ public sealed class CatalogHandler(
                 : null;
 
             var corrected = version.CorrectCategoryPresentation(
-                categoryId, command.Presentation, clock.UtcNow, command.By);
+                categoryId, command.Presentation, command.Reason, clock.UtcNow, command.By);
 
             if (corrected.IsFailure)
             {
@@ -713,7 +719,7 @@ public sealed class CatalogHandler(
             before = existing is null ? null : CatalogEntrySnapshot.Of(existing, categoryCode);
 
             var corrected = version.CorrectServiceTypePresentation(
-                serviceTypeId, command.Presentation, clock.UtcNow, command.By);
+                serviceTypeId, command.Presentation, command.Reason, clock.UtcNow, command.By);
 
             if (corrected.IsFailure)
             {

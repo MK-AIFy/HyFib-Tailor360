@@ -1,9 +1,16 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Modules.Catalog.Application.Abstractions;
 using Tailor360.Modules.Catalog.Application.Catalogue;
+using Tailor360.Modules.Catalog.Domain.Catalogue;
+using Tailor360.Modules.Catalog.Infrastructure.Persistence;
+using Tailor360.Platform.Abstractions.Identifiers;
+using Tailor360.Platform.Abstractions.Time;
 using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.IntegrationTests.Catalog;
@@ -187,6 +194,133 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         read.GetProperty("name").GetString().ShouldBe("Lehenga — bridal");
         read.GetProperty("code").GetString().ShouldBe(
             Code("LEHENGA"), "a correction changes what is shown and never what anything refers to");
+    }
+
+    [Fact]
+    public async Task RefusesAPresentationCorrectionThatCarriesNoReason()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("cat-reason", "203.0.113.213");
+
+        var version = await DraftAsync(owner, "Reasoned");
+        var category = await AddCategoryAsync(owner, version, Code("KURTA"), branches: [HomeBranch]);
+        var service = await AddServiceAsync(owner, version, category, "STITCHING", [HomeBranch]);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/publish",
+                new { reason = "Approved at the owner workshop." },
+                Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // A correction is the single mutation a published version admits, so the reason is the only
+        // record of why a label a customer was quoted from reads differently today. `reasonRequired`
+        // on the endpoint documents that; it does not enforce it, and this is the enforcement.
+        foreach (var reason in new[] { (string?)null, string.Empty, "   " })
+        {
+            var refusedCategory = await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/presentation",
+                Presentation("Kurta — renamed", reason),
+                Key());
+
+            refusedCategory.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            (await CodeOfAsync(refusedCategory)).ShouldBe("catalog.value-required");
+
+            var refusedService = await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/service-types/{service}/presentation",
+                Presentation("Stitching — renamed", reason),
+                Key());
+
+            refusedService.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            (await CodeOfAsync(refusedService)).ShouldBe("catalog.value-required");
+        }
+
+        var read = await owner.GetAsync($"/api/v1/catalog/versions/{version}");
+
+        using var body = JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token));
+
+        body.RootElement.GetProperty("categories").EnumerateArray().Single()
+            .GetProperty("name").GetString()
+            .ShouldBe(Code("KURTA"), "a refused correction leaves the published label alone");
+    }
+
+    [Fact]
+    public async Task RefusesAnInsertIntoAPublishedVersionAtTheDatabase()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("cat-insert", "203.0.113.214");
+
+        var version = await DraftAsync(owner, "Insert");
+        var category = await AddCategoryAsync(owner, version, Code("SHERWANI"), branches: [HomeBranch]);
+        await AddServiceAsync(owner, version, category, "STITCHING", [HomeBranch]);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/publish",
+                new { reason = "Approved at the owner workshop." },
+                Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
+        // Freezing every column of every existing row says nothing about a row that was not there
+        // before. Reaching the table directly and adding a category to a published version would
+        // change what that version offers — and what its finished orders render from — without
+        // cloning, validating or publishing anything.
+        var refused = await Should.ThrowAsync<PostgresException>(async () =>
+            await context.Database.ExecuteSqlAsync(
+                $"""
+                 INSERT INTO catalog.categories
+                     (id, category_key, catalog_version_id, organisation_id, code, name,
+                      display_order)
+                 VALUES
+                     ({Guid.CreateVersion7()}, {Guid.CreateVersion7()}, {version},
+                      {SessionTestData.OrganisationId}, {Code("SMUGGLED")}, 'Smuggled in', 0)
+                 """,
+                Token));
+
+        refused.SqlState.ShouldBe(PostgresErrorCodes.RestrictViolation);
+        refused.MessageText.ShouldContain("published or retired catalogue version");
+
+        var read = await owner.GetAsync($"/api/v1/catalog/versions/{version}");
+
+        using var body = JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token));
+
+        body.RootElement.GetProperty("categories").EnumerateArray().Count()
+            .ShouldBe(1, "the refused insert added nothing");
+    }
+
+    [Fact]
+    public async Task RefusesASecondDraftThatTookTheSameVersionNumber()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var scope = fixture.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ICatalogStore>();
+        var ids = scope.ServiceProvider.GetRequiredService<IIdGenerator>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+
+        var number = await store.NextVersionNumberAsync(SessionTestData.OrganisationId, Token);
+
+        // Two administrators starting a draft in the same moment both read this maximum and both
+        // choose the number after it. Both drafts are added to one context here because that is the
+        // deterministic way to make the index fire — the production race is two requests, and what is
+        // under test is the same either way: the loser is answered a conflict rather than the five
+        // hundred an uncaught DbUpdateException would be.
+        foreach (var name in new[] { "First past the post", "Second past the post" })
+        {
+            var draft = CatalogVersion.CreateDraft(
+                ids.NewId(), SessionTestData.OrganisationId, number, name, null, clock.UtcNow, null);
+
+            draft.IsSuccess.ShouldBeTrue();
+            store.Add(draft.Value);
+        }
+
+        var saved = await store.SaveDraftAsync(Token);
+
+        saved.IsFailure.ShouldBeTrue();
+        saved.Error.Code.ShouldBe("catalog.draft-number-conflict");
     }
 
     [Fact]
@@ -502,6 +636,16 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
 
         return body.RootElement.GetProperty("serviceTypeId").GetGuid();
     }
+
+    private static object Presentation(string name, string? reason)
+        => new
+        {
+            name,
+            nameTamil = (string?)null,
+            description = "A synthetic correction written by a test.",
+            displayOrder = 1,
+            reason,
+        };
 
     private static object CategoryBody(
         string code,

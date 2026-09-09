@@ -60,32 +60,48 @@ public interface ICatalogAvailabilityQuery
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Everything a branch may order today, from the published version.
+    /// Everything a branch may order today, and the version that answer came from.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The same predicate <see cref="IsOrderableAsync"/> applies, asked once for the whole branch
     /// rather than once per service. It is one method rather than a filter the caller writes, because
     /// a second copy of "what orderable means" is how a screen ends up offering something the
     /// confirmation then refuses.
+    /// </para>
+    /// <para>
+    /// <strong>The version and the services are one answer, not two.</strong> Asking which version is
+    /// published and then what it offers reads the published version twice, and a publication landing
+    /// between the two reads would label one version's services with another version's identifier — a
+    /// caller pinning that pair would pin a catalogue selection that never existed. One lookup cannot
+    /// disagree with itself.
+    /// </para>
     /// </remarks>
     /// <param name="organisationId">The organisation.</param>
     /// <param name="branchId">The branch the work would be taken at.</param>
     /// <param name="at">The instant to judge, read as a date in the branch's timezone.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The orderable services, or an empty list when nothing is published.</returns>
-    Task<IReadOnlyList<CatalogServiceSnapshot>> GetOrderableAsync(
+    /// <returns>The published version and what it offers, or <see cref="OrderableCatalog.None"/>.</returns>
+    Task<OrderableCatalog> GetOrderableCatalogAsync(
         Guid organisationId,
         Guid branchId,
         DateTimeOffset at,
         CancellationToken cancellationToken = default);
+}
 
-    /// <summary>The catalogue version an order placed now would be pinned to.</summary>
-    /// <param name="organisationId">The organisation.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The published version, or null when none has been published.</returns>
-    Task<Guid?> GetPublishedVersionIdAsync(
-        Guid organisationId,
-        CancellationToken cancellationToken = default);
+/// <summary>What a branch may order, and the catalogue version that says so.</summary>
+/// <remarks>
+/// A null <paramref name="VersionId"/> and an empty <paramref name="Services"/> travel together: they
+/// are the honest answer when nothing is published, and neither can be true without the other.
+/// </remarks>
+/// <param name="VersionId">The published version an order placed now would be pinned to, or null.</param>
+/// <param name="Services">What the branch may order, in category then service code order.</param>
+public sealed record OrderableCatalog(
+    Guid? VersionId,
+    IReadOnlyList<CatalogServiceSnapshot> Services)
+{
+    /// <summary>Nothing is published, so nothing is orderable.</summary>
+    public static OrderableCatalog None { get; } = new(null, []);
 }
 
 /// <summary>One service type, its category and its five links, as one version fixed them.</summary>

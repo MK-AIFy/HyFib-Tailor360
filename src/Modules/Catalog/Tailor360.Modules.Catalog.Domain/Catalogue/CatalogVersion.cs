@@ -540,14 +540,23 @@ public sealed class CatalogVersion
     }
 
     /// <summary>Corrects the label, Tamil label, description or display order of a published category.</summary>
+    /// <remarks>
+    /// The reason is checked here rather than at the endpoint, for the same reason publication and
+    /// retirement check theirs here: this is the one mutation a published version admits, and an
+    /// invariant that lives in the transport is not an invariant. It is not stored on the row — the row
+    /// is immutable but for the four presentation columns — so it reaches the audit trail and nothing
+    /// else, which is where a reader looks to find out why a published label reads differently today.
+    /// </remarks>
     /// <param name="categoryId">The category in this version.</param>
     /// <param name="presentation">The correction.</param>
+    /// <param name="reason">Why. A correction to a published version demands one.</param>
     /// <param name="now">The current instant.</param>
     /// <param name="by">The administrator.</param>
     /// <returns>The category, or the reason it could not be corrected.</returns>
     public Result<Category> CorrectCategoryPresentation(
         Guid categoryId,
         CatalogPresentation presentation,
+        string reason,
         DateTimeOffset now,
         Guid? by)
     {
@@ -570,6 +579,13 @@ public sealed class CatalogVersion
             return Result.Failure<Category>(validated.Error);
         }
 
+        var reasoned = CheckReason(reason);
+
+        if (reasoned.IsFailure)
+        {
+            return Result.Failure<Category>(reasoned.Error);
+        }
+
         category.ApplyPresentation(presentation);
         Touch(now, by);
 
@@ -579,12 +595,14 @@ public sealed class CatalogVersion
     /// <summary>Corrects the presentation fields of a published service type.</summary>
     /// <param name="serviceTypeId">The service type in this version.</param>
     /// <param name="presentation">The correction.</param>
+    /// <param name="reason">Why. A correction to a published version demands one.</param>
     /// <param name="now">The current instant.</param>
     /// <param name="by">The administrator.</param>
     /// <returns>The service type, or the reason it could not be corrected.</returns>
     public Result<ServiceType> CorrectServiceTypePresentation(
         Guid serviceTypeId,
         CatalogPresentation presentation,
+        string reason,
         DateTimeOffset now,
         Guid? by)
     {
@@ -605,6 +623,13 @@ public sealed class CatalogVersion
         if (validated.IsFailure)
         {
             return Result.Failure<ServiceType>(validated.Error);
+        }
+
+        var reasoned = CheckReason(reason);
+
+        if (reasoned.IsFailure)
+        {
+            return Result.Failure<ServiceType>(reasoned.Error);
         }
 
         service.ApplyPresentation(presentation);

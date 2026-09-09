@@ -256,19 +256,63 @@ public sealed class CatalogVersionTests
         var category = Add(version, "BLOUSE").Value;
         var correction = new CatalogPresentation("Blouse — Pattern cut", "ரவிக்கை", "Saree blouses", 3);
 
-        version.CorrectCategoryPresentation(category.Id, correction, CatalogTestData.Now, null)
+        version.CorrectCategoryPresentation(category.Id, correction, "Typo", CatalogTestData.Now, null)
             .Error.Code.ShouldBe("catalog.correction-needs-published-version");
 
         version.Publish(CatalogTestData.Now, null, "Launch");
 
         var corrected = version.CorrectCategoryPresentation(
-            category.Id, correction, CatalogTestData.Now, null);
+            category.Id, correction, "Typo in the counter label", CatalogTestData.Now, null);
 
         corrected.IsSuccess.ShouldBeTrue();
         corrected.Value.Name.ShouldBe("Blouse — Pattern cut");
         corrected.Value.NameTamil.ShouldBe("ரவிக்கை");
         corrected.Value.DisplayOrder.ShouldBe(3);
         corrected.Value.Code.ShouldBe("BLOUSE", "a correction never touches the code");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RefusesAPresentationCorrectionWithoutAReason(string reason)
+    {
+        // The one mutation a published version admits, so the reason is the only record of why a
+        // label a customer was quoted from reads differently today. An endpoint that merely declares
+        // `reasonRequired` documents the rule; this is what enforces it.
+        var version = CatalogTestData.Draft();
+        var category = Add(version, "BLOUSE").Value;
+        var service = AddService(version, category.Id, "STITCHING").Value;
+        var correction = new CatalogPresentation("Blouse — Pattern cut", null, null, 3);
+
+        version.Publish(CatalogTestData.Now, null, "Launch");
+
+        version.CorrectCategoryPresentation(category.Id, correction, reason, CatalogTestData.Now, null)
+            .Error.Code.ShouldBe("catalog.value-required");
+
+        version.CorrectServiceTypePresentation(
+                service.Id, correction, reason, CatalogTestData.Now, null)
+            .Error.Code.ShouldBe("catalog.value-required");
+
+        category.Name.ShouldNotBe("Blouse — Pattern cut", "a refused correction changes nothing");
+        service.Name.ShouldNotBe("Blouse — Pattern cut", "a refused correction changes nothing");
+    }
+
+    [Fact]
+    public void CorrectsAServiceTypePresentationWithAReason()
+    {
+        var version = CatalogTestData.Draft();
+        var category = Add(version, "BLOUSE").Value;
+        var service = AddService(version, category.Id, "STITCHING").Value;
+        var correction = new CatalogPresentation("Stitching — full", "தையல்", "Full stitching", 2);
+
+        version.Publish(CatalogTestData.Now, null, "Launch");
+
+        var corrected = version.CorrectServiceTypePresentation(
+            service.Id, correction, "Renamed after the owner workshop", CatalogTestData.Now, null);
+
+        corrected.IsSuccess.ShouldBeTrue();
+        corrected.Value.Name.ShouldBe("Stitching — full");
+        corrected.Value.Code.ShouldBe("STITCHING", "a correction never touches the code");
     }
 
     [Fact]

@@ -116,6 +116,29 @@ public sealed class CatalogStore(CatalogDbContext context) : ICatalogStore
         => await context.SaveChangesAsync(cancellationToken);
 
     /// <inheritdoc />
+    public async Task<Result> SaveDraftAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: CatalogDbContext.VersionNumberIndex,
+            })
+        {
+            // Two administrators started a draft in the same moment and read the same maximum version
+            // number. The insert that lost is told so; the draft it would have created does not exist,
+            // which is exactly what "nothing was created" has to mean for a caller that retries.
+            return Result.Failure(CatalogErrors.DraftNumberConflict);
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<Result> SavePublicationAsync(CancellationToken cancellationToken = default)
     {
         try

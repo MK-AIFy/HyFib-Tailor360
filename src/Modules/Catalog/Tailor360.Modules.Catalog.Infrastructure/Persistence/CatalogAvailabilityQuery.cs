@@ -75,18 +75,21 @@ public sealed class CatalogAvailabilityQuery(
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<CatalogServiceSnapshot>> GetOrderableAsync(
+    public async Task<OrderableCatalog> GetOrderableCatalogAsync(
         Guid organisationId,
         Guid branchId,
         DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
+        // Read once and answer from that one read. The version identifier returned below is this
+        // `versionId` and never a second lookup: a publication landing mid-request would otherwise
+        // pair one version's services with another version's identifier.
         var published = await PublishedVersionIdAsync(organisationId, cancellationToken);
 
         if (published is not { } versionId
             || await LoadAsync(versionId, cancellationToken) is not { } version)
         {
-            return [];
+            return OrderableCatalog.None;
         }
 
         var today = TodayAt(at);
@@ -109,12 +112,13 @@ public sealed class CatalogAvailabilityQuery(
             orderable.Add(service.Snapshot);
         }
 
-        return
-        [
-            .. orderable
-                .OrderBy(service => service.CategoryCode, StringComparer.Ordinal)
-                .ThenBy(service => service.ServiceCode, StringComparer.Ordinal),
-        ];
+        return new OrderableCatalog(
+            versionId,
+            [
+                .. orderable
+                    .OrderBy(service => service.CategoryCode, StringComparer.Ordinal)
+                    .ThenBy(service => service.ServiceCode, StringComparer.Ordinal),
+            ]);
     }
 
     /// <inheritdoc />
@@ -126,12 +130,6 @@ public sealed class CatalogAvailabilityQuery(
 
         return located?.Service?.Snapshot;
     }
-
-    /// <inheritdoc />
-    public async Task<Guid?> GetPublishedVersionIdAsync(
-        Guid organisationId,
-        CancellationToken cancellationToken = default)
-        => await PublishedVersionIdAsync(organisationId, cancellationToken);
 
     private async Task<Located?> LocateAsync(Guid serviceTypeId, CancellationToken cancellationToken)
     {

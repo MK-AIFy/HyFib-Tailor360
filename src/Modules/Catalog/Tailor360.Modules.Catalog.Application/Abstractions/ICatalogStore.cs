@@ -91,6 +91,18 @@ public interface ICatalogStore
     /// <returns>The number of rows written.</returns>
     Task<int> SaveAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Commits a newly started draft.</summary>
+    /// <remarks>
+    /// The next version number is read and then written, so two administrators starting a draft in the
+    /// same moment can both read the same maximum and both choose the same number. The unique index
+    /// settles it, and the loser is answered a conflict rather than a five hundred: nothing was
+    /// created, and asking again takes the number after. The translation lives here because this is
+    /// the layer that knows the index exists.
+    /// </remarks>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success, or the conflict.</returns>
+    Task<Result> SaveDraftAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Commits a publication, translating the one-published-version clash into a conflict.
     /// </summary>

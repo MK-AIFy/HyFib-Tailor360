@@ -326,7 +326,7 @@ draft → published (immutable) → retired versions so that administrators chan
 | `service_types` | The orderable unit, with links to measurement template, workflow definition, price-list item and QC checklist, and its own `service_type_key` |
 | `service_type_branches` | Which branches offer a service type. Validated at publish as a subset of its category's |
 | `service_type_design_groups` | The ordered set of design option groups a service type offers (#30) |
-| `catalog_versions` | The coherent published snapshot of the whole hierarchy an order is confirmed against. Exactly one is published per organisation, held by a partial unique index; published rows are immutable but for their presentation fields, held by a trigger |
+| `catalog_versions` | The coherent published snapshot of the whole hierarchy an order is confirmed against. Exactly one is published per organisation, held by a partial unique index; a version is created as a draft and reaches published by being published, held by a trigger. Its categories and service types are immutable once it leaves draft — no insert, no delete, and no update but the four presentation fields — held by a second trigger, because freezing the rows that exist says nothing about a row added afterwards |
 | `design_option_groups`, `design_options`, `design_rules` | Groups, choices and the requires/excludes/conditional constraints between them |
 | `qc_checklist_templates`, `qc_checklist_versions`, `qc_criteria`, `defect_codes` | Typed QC criteria, evidence requirements, responsible role and defect vocabulary |
 
