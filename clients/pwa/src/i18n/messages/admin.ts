@@ -332,6 +332,95 @@ export const adminEn = {
     'This version cannot be published yet: the checks that run before publication found something to fix. Open the version and correct what it reports, then publish again.',
   'admin.template.selfApproval':
     'The administrator who submitted a version does not also approve it, unless they are the only one who could. Ask a second administrator to review it.',
+
+  /* The draft field editor (#102). ------------------------------------------------------------ */
+  'admin.field.editor.title': 'Fields of version {number}',
+  'admin.field.editor.loading': 'this version',
+  'admin.field.editor.notDraft':
+    'Only a draft can be edited. Start a draft from this version to change what is measured; what has already been captured is left alone.',
+  'admin.field.editor.notFound': 'No version of this template matches that address.',
+  'admin.field.editor.open': 'Edit the fields',
+  'admin.field.add': 'Add a field',
+  'admin.field.edit': 'Edit {label}',
+  'admin.field.remove': 'Remove {label}',
+  'admin.field.addTitle': 'A new field',
+  'admin.field.editTitle': 'Editing {label}',
+  'admin.field.save': 'Save this field',
+  'admin.field.added': 'Added {label}.',
+  'admin.field.changed': 'Saved {label}.',
+  'admin.field.removed': 'Removed {label}.',
+  'admin.field.remove.title': 'Remove this field?',
+  'admin.field.remove.body':
+    'The field is removed from this draft. Versions that are already published keep it, and every measurement already captured under it is untouched — a draft is not measuring anything yet.',
+  'admin.field.remove.reason': 'Why are you removing this field?',
+  'admin.field.key': 'Key',
+  'admin.field.key.hint':
+    'What captured values are filed under. Two to sixty characters, lower case, starting with a letter; letters, digits and underscores.',
+  'admin.field.key.fixedHint':
+    'A key cannot be renamed. Values already captured are filed under it, so the server ignores a key sent with an edit. To change one, remove this field and add it again — two acts, both recorded, and the field starts a new history.',
+  'admin.field.label': 'Label',
+  'admin.field.label.hint': 'What a tailor reads on the capture screen.',
+  'admin.field.labelTamil': 'Label in Tamil',
+  'admin.field.labelTamil.hint': 'Optional. Left empty, the English label is shown in both.',
+  'admin.field.group': 'Step',
+  'admin.field.group.hint':
+    'Fields sharing a step are measured together. Arranging the steps is a separate screen.',
+  'admin.field.help': 'How to measure it',
+  'admin.field.help.hint':
+    'Required. Say whether this is measured on the body or on a finished garment — confusing the two is the commonest cause of a re-make.',
+  'admin.field.unit': 'Stored as',
+  'admin.field.unit.Millimetre': 'A length',
+  'admin.field.unit.Count': 'A count',
+  'admin.field.unit.None': 'A choice',
+  'admin.field.unit.hint':
+    'A length is entered in inches or centimetres and stored in millimetres. A count is a whole number. A choice offers a fixed list and is not a measurement at all.',
+  'admin.field.inchFraction': 'Inch step',
+  'admin.field.inchFraction.hint': 'How finely the tape is read. Halving, as a tape is divided.',
+  'admin.field.inchFraction.none': 'Not shown in inches',
+  'admin.field.inchFraction.value': 'To the nearest 1/{denominator}',
+  'admin.field.centimetreDecimals': 'Centimetre places',
+  'admin.field.centimetreDecimals.none': 'Not shown in centimetres',
+  'admin.field.centimetreDecimals.value':
+    '{places, plural, one {# decimal place} other {# decimal places}}',
+  'admin.field.required': 'A tailor must fill this in',
+  'admin.field.diagramKey': 'Diagram',
+  'admin.field.diagramKey.hint':
+    'The name of a bundled sheet. There is no picker and nothing yet renders it: a field can reference a diagram, and choosing one arrives with the media library.',
+  'admin.field.diagramAlt': 'Describe the diagram',
+  'admin.field.diagramAlt.hint':
+    'Required once a diagram is named. It is what somebody who cannot see the picture is told instead.',
+  'admin.field.wholeNumber':
+    'A count is a whole number, so it has no inch step and no decimal places.',
+  'admin.field.choiceShape':
+    'A choice has no range and no units. It has a list, and a tailor picks from it.',
+  'admin.field.bandsElsewhere':
+    'The range this field accepts is set on its own screen, and a save here leaves it as it is.',
+  'admin.field.options': 'The choices',
+  'admin.field.options.add': 'Add a choice',
+  'admin.field.options.remove': 'Remove choice {position}',
+  'admin.field.option.code': 'Stored value',
+  'admin.field.option.code.hint': 'Upper case, starting with a letter or a digit.',
+  'admin.field.option.label': 'What a tailor reads',
+  'admin.field.option.labelTamil': 'In Tamil',
+  'admin.field.options.empty': 'A choice field needs at least one choice before it can be saved.',
+  'admin.field.error.summary': 'This field cannot be saved yet',
+  'admin.field.error.keyRequired': 'Give this field a key.',
+  'admin.field.error.keyMalformed':
+    'A key is 2 to 60 characters, lower case, starting with a letter, and uses only letters, digits and underscores.',
+  'admin.field.error.keyTaken': 'Another field in this version already uses that key.',
+  'admin.field.error.labelRequired': 'Give this field a label.',
+  'admin.field.error.groupRequired': 'Say which step this field is measured in.',
+  'admin.field.error.helpRequired': 'Say how this is measured.',
+  'admin.field.error.altRequired': 'Describe the diagram, or remove it.',
+  'admin.field.error.tooLong': 'Shorten this to {limit} characters or fewer.',
+  'admin.field.error.precisionMissing':
+    'A length needs an inch step, decimal centimetre places, or both — otherwise there is no unit to enter it in.',
+  'admin.field.error.fractionNotPermitted': 'Choose a step a tape is divided into.',
+  'admin.field.error.optionsRequired': 'Add at least one choice.',
+  'admin.field.error.optionCode':
+    'A stored value is up to 40 characters, upper case, starting with a letter or a digit.',
+  'admin.field.error.optionDuplicate': 'Two choices cannot share a stored value.',
+  'admin.field.error.optionLabel': 'Give this choice something a tailor can read.',
 } as const
 
 /*
@@ -870,4 +959,164 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.template.selfApproval':
     'The administrator who submitted a version does not also approve it, unless they are the only one who could. Ask a second administrator to review it.',
+
+  /* The draft field editor (#102). ------------------------------------------------------------ */
+  // not translated — awaiting native-speaker review
+  'admin.field.editor.title': 'Fields of version {number}',
+  // not translated — awaiting native-speaker review
+  'admin.field.editor.loading': 'this version',
+  // not translated — awaiting native-speaker review
+  'admin.field.editor.notDraft':
+    'Only a draft can be edited. Start a draft from this version to change what is measured; what has already been captured is left alone.',
+  // not translated — awaiting native-speaker review
+  'admin.field.editor.notFound': 'No version of this template matches that address.',
+  // not translated — awaiting native-speaker review
+  'admin.field.editor.open': 'Edit the fields',
+  // not translated — awaiting native-speaker review
+  'admin.field.add': 'Add a field',
+  // not translated — awaiting native-speaker review
+  'admin.field.edit': 'Edit {label}',
+  // not translated — awaiting native-speaker review
+  'admin.field.remove': 'Remove {label}',
+  // not translated — awaiting native-speaker review
+  'admin.field.addTitle': 'A new field',
+  // not translated — awaiting native-speaker review
+  'admin.field.editTitle': 'Editing {label}',
+  // not translated — awaiting native-speaker review
+  'admin.field.save': 'Save this field',
+  // not translated — awaiting native-speaker review
+  'admin.field.added': 'Added {label}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.changed': 'Saved {label}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.removed': 'Removed {label}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.remove.title': 'Remove this field?',
+  // not translated — awaiting native-speaker review
+  'admin.field.remove.body':
+    'The field is removed from this draft. Versions that are already published keep it, and every measurement already captured under it is untouched — a draft is not measuring anything yet.',
+  // not translated — awaiting native-speaker review
+  'admin.field.remove.reason': 'Why are you removing this field?',
+  // not translated — awaiting native-speaker review
+  'admin.field.key': 'Key',
+  // not translated — awaiting native-speaker review
+  'admin.field.key.hint':
+    'What captured values are filed under. Two to sixty characters, lower case, starting with a letter; letters, digits and underscores.',
+  // not translated — awaiting native-speaker review
+  'admin.field.key.fixedHint':
+    'A key cannot be renamed. Values already captured are filed under it, so the server ignores a key sent with an edit. To change one, remove this field and add it again — two acts, both recorded, and the field starts a new history.',
+  // not translated — awaiting native-speaker review
+  'admin.field.label': 'Label',
+  // not translated — awaiting native-speaker review
+  'admin.field.label.hint': 'What a tailor reads on the capture screen.',
+  // not translated — awaiting native-speaker review
+  'admin.field.labelTamil': 'Label in Tamil',
+  // not translated — awaiting native-speaker review
+  'admin.field.labelTamil.hint': 'Optional. Left empty, the English label is shown in both.',
+  // not translated — awaiting native-speaker review
+  'admin.field.group': 'Step',
+  // not translated — awaiting native-speaker review
+  'admin.field.group.hint':
+    'Fields sharing a step are measured together. Arranging the steps is a separate screen.',
+  // not translated — awaiting native-speaker review
+  'admin.field.help': 'How to measure it',
+  // not translated — awaiting native-speaker review
+  'admin.field.help.hint':
+    'Required. Say whether this is measured on the body or on a finished garment — confusing the two is the commonest cause of a re-make.',
+  // not translated — awaiting native-speaker review
+  'admin.field.unit': 'Stored as',
+  // not translated — awaiting native-speaker review
+  'admin.field.unit.Millimetre': 'A length',
+  // not translated — awaiting native-speaker review
+  'admin.field.unit.Count': 'A count',
+  // not translated — awaiting native-speaker review
+  'admin.field.unit.None': 'A choice',
+  // not translated — awaiting native-speaker review
+  'admin.field.unit.hint':
+    'A length is entered in inches or centimetres and stored in millimetres. A count is a whole number. A choice offers a fixed list and is not a measurement at all.',
+  // not translated — awaiting native-speaker review
+  'admin.field.inchFraction': 'Inch step',
+  // not translated — awaiting native-speaker review
+  'admin.field.inchFraction.hint': 'How finely the tape is read. Halving, as a tape is divided.',
+  // not translated — awaiting native-speaker review
+  'admin.field.inchFraction.none': 'Not shown in inches',
+  // not translated — awaiting native-speaker review
+  'admin.field.inchFraction.value': 'To the nearest 1/{denominator}',
+  // not translated — awaiting native-speaker review
+  'admin.field.centimetreDecimals': 'Centimetre places',
+  // not translated — awaiting native-speaker review
+  'admin.field.centimetreDecimals.none': 'Not shown in centimetres',
+  // not translated — awaiting native-speaker review
+  'admin.field.centimetreDecimals.value':
+    '{places, plural, one {# decimal place} other {# decimal places}}',
+  // not translated — awaiting native-speaker review
+  'admin.field.required': 'A tailor must fill this in',
+  // not translated — awaiting native-speaker review
+  'admin.field.diagramKey': 'Diagram',
+  // not translated — awaiting native-speaker review
+  'admin.field.diagramKey.hint':
+    'The name of a bundled sheet. There is no picker and nothing yet renders it: a field can reference a diagram, and choosing one arrives with the media library.',
+  // not translated — awaiting native-speaker review
+  'admin.field.diagramAlt': 'Describe the diagram',
+  // not translated — awaiting native-speaker review
+  'admin.field.diagramAlt.hint':
+    'Required once a diagram is named. It is what somebody who cannot see the picture is told instead.',
+  // not translated — awaiting native-speaker review
+  'admin.field.wholeNumber':
+    'A count is a whole number, so it has no inch step and no decimal places.',
+  // not translated — awaiting native-speaker review
+  'admin.field.choiceShape':
+    'A choice has no range and no units. It has a list, and a tailor picks from it.',
+  // not translated — awaiting native-speaker review
+  'admin.field.bandsElsewhere':
+    'The range this field accepts is set on its own screen, and a save here leaves it as it is.',
+  // not translated — awaiting native-speaker review
+  'admin.field.options': 'The choices',
+  // not translated — awaiting native-speaker review
+  'admin.field.options.add': 'Add a choice',
+  // not translated — awaiting native-speaker review
+  'admin.field.options.remove': 'Remove choice {position}',
+  // not translated — awaiting native-speaker review
+  'admin.field.option.code': 'Stored value',
+  // not translated — awaiting native-speaker review
+  'admin.field.option.code.hint': 'Upper case, starting with a letter or a digit.',
+  // not translated — awaiting native-speaker review
+  'admin.field.option.label': 'What a tailor reads',
+  // not translated — awaiting native-speaker review
+  'admin.field.option.labelTamil': 'In Tamil',
+  // not translated — awaiting native-speaker review
+  'admin.field.options.empty': 'A choice field needs at least one choice before it can be saved.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.summary': 'This field cannot be saved yet',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.keyRequired': 'Give this field a key.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.keyMalformed':
+    'A key is 2 to 60 characters, lower case, starting with a letter, and uses only letters, digits and underscores.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.keyTaken': 'Another field in this version already uses that key.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.labelRequired': 'Give this field a label.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.groupRequired': 'Say which step this field is measured in.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.helpRequired': 'Say how this is measured.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.altRequired': 'Describe the diagram, or remove it.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.tooLong': 'Shorten this to {limit} characters or fewer.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.precisionMissing':
+    'A length needs an inch step, decimal centimetre places, or both — otherwise there is no unit to enter it in.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.fractionNotPermitted': 'Choose a step a tape is divided into.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.optionsRequired': 'Add at least one choice.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.optionCode':
+    'A stored value is up to 40 characters, upper case, starting with a letter or a digit.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.optionDuplicate': 'Two choices cannot share a stored value.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.optionLabel': 'Give this choice something a tailor can read.',
 }

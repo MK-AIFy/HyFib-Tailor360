@@ -23,6 +23,7 @@ import type {
   StaffSummary,
   StaffUser,
   StaffUserPage,
+  TemplateFieldRequest,
   TemplateValidation,
 } from '../admin/types'
 
@@ -54,6 +55,22 @@ import type {
 /** The response body of one documented operation. */
 type Response200<TOperation extends keyof operations> = operations[TOperation] extends {
   responses: { 200: { content: { 'application/json': infer TBody } } }
+}
+  ? TBody
+  : never
+
+/**
+ * The request body of one documented operation.
+ *
+ * Requests need pinning as much as responses do, and until now nothing here pinned one. A
+ * hand-written request type is the more dangerous of the two: a response that has drifted shows up
+ * as a screen rendering `undefined`, whereas a request that has drifted is a `400` a person
+ * discovers by failing to save something they typed. `TemplateFieldRequest` has nineteen members,
+ * every one of them required by the schema even where nullable, which is precisely the shape that
+ * rots quietly.
+ */
+type RequestBody<TOperation extends keyof operations> = operations[TOperation] extends {
+  requestBody: { content: { 'application/json': infer TBody } }
 }
   ? TBody
   : never
@@ -190,4 +207,24 @@ export type MeasurementTemplateConforms = Conforms<
 export type TemplateValidationConforms = Conforms<
   TemplateValidation,
   Immutable<Response200<'ValidateMeasurementTemplateVersion'>>
+>
+
+/**
+ * The write half (#102).
+ *
+ * Adding and changing share one body, so pinning it once covers both routes; the assertion is what
+ * turns "the server grew a required member" from a refusal on a shop floor into a compile error
+ * here. The direction is the same as every other assertion in this file — the hand-written type must
+ * be assignable to the generated one — which is what makes a member the server requires and this
+ * type omits fail to compile.
+ */
+export type TemplateFieldRequestConforms = Conforms<
+  TemplateFieldRequest,
+  Immutable<RequestBody<'AddMeasurementTemplateField'>>
+>
+
+/** The same body on the change route, asserted separately so a divergence between them is caught. */
+export type TemplateFieldChangeRequestConforms = Conforms<
+  TemplateFieldRequest,
+  Immutable<RequestBody<'ChangeMeasurementTemplateField'>>
 >
