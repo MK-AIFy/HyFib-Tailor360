@@ -237,6 +237,12 @@ public sealed class CustomerHandler(
         var before = CustomerSnapshot.Of(customer);
         var changed = ChangedFields(customer, command.Details);
 
+        if (!command.CanChangeContact && changed.Any(field => field is
+                "phone" or "alternatePhone" or "email" or "addressLine" or "locality" or "postcode"))
+        {
+            return Result.Failure<AdministeredCustomer>(CustomersErrors.ContactChangeForbidden);
+        }
+
         var corrected = customer.Correct(command.Details, clock.UtcNow, command.By, ids.NewId());
         if (corrected.IsFailure)
         {
@@ -834,12 +840,14 @@ public sealed record RegisterCustomerCommand(
 /// <summary>What to correct.</summary>
 /// <param name="CustomerId">The record.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="CanChangeContact">Server-evaluated access to every customer contact field.</param>
 /// <param name="Details">The validated new details.</param>
 /// <param name="Reason">Why. Required: a correction with no reason is a mystery in the timeline.</param>
 /// <param name="By">The actor.</param>
 public sealed record CorrectCustomerCommand(
     Guid CustomerId,
     Guid OrganisationId,
+    bool CanChangeContact,
     CustomerDetails Details,
     string? Reason,
     Guid? By);

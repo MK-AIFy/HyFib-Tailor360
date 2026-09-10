@@ -407,6 +407,13 @@ public static class CustomerEndpoints
                     return Problems.From(details.Error, context);
                 }
 
+                var mask = views.MaskForReached(CustomersResponseViews.Record, CustomersPermissions.Update);
+                var contactFields = mask.View.Fields
+                    .Where(field => field.Classification.HasFlag(FieldClassification.CustomerContact))
+                    .ToArray();
+                var canChangeContact = contactFields.Length > 0
+                    && Array.TrueForAll(contactFields, field => mask.Allows(field.Name));
+
                 return await ApplyAsync(
                     customerId,
                     context,
@@ -418,6 +425,7 @@ public static class CustomerEndpoints
                         new CorrectCustomerCommand(
                             customerId,
                             caller.Context.OrganisationId,
+                            canChangeContact,
                             details.Value,
                             request!.Reason,
                             caller.UserId),

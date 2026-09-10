@@ -1,7 +1,10 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Security.FieldVisibility;
 using Tailor360.Platform.Security.Permissions;
 
@@ -188,22 +191,10 @@ public sealed class CustomerFieldMaskTests(WebApplicationFixture fixture)
         using var current = await ReadJsonAsync(editor, $"/api/v1/customers/{customerId}");
         var version = current.RootElement.GetProperty("version").GetString().ShouldNotBeNull();
 
-        var correction = new
-        {
-            displayName = $"Kavitha mask-write {RunToken} corrected",
-            nativeName = (string?)null,
-
-            // The editor cannot read the contact fields, so it cannot resend them; the correction
-            // clears what it cannot see, which is a separate product question and not this test's.
-            phone = CustomerHarness.UniquePhone(),
-            alternatePhone = (string?)null,
-            email = (string?)null,
-            addressLine = (string?)null,
-            locality = (string?)null,
-            postcode = (string?)null,
-            language = "ta-IN",
-            reason = "Confirmed with the customer at the counter.",
-        };
+        // Contact values are unchanged, even though this caller's response withholds them.
+        using var original = await ReadJsonAsync(reception, $"/api/v1/customers/{customerId}");
+        var correction = CorrectionBody(original.RootElement);
+        correction["displayName"] = $"Kavitha mask-write {RunToken} corrected";
 
         var response = await editor.PutAsync(
             $"/api/v1/customers/{customerId}",
@@ -322,6 +313,109 @@ public sealed class CustomerFieldMaskTests(WebApplicationFixture fixture)
         created.RootElement.GetProperty("contactIncluded").GetBoolean().ShouldBeFalse();
         created.RootElement.GetProperty("phone").ValueKind.ShouldBe(JsonValueKind.Null);
         created.RootElement.GetProperty("email").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    private static int _contactClientNumber;
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("alternatePhone")]
+    [InlineData("email")]
+    [InlineData("addressLine")]
+    [InlineData("locality")]
+    [InlineData("postcode")]
+    public async Task AContactChangeRequiresContactAccessAndRefusalLeavesNoPartialCorrection(string field)
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+        await CustomerHarness.BranchAsync(fixture, BranchId, BranchCode);
+        var client = Interlocked.Increment(ref _contactClientNumber);
+        using var reception = await ReceptionAsync("contact-owner", $"2001:db8:83:1::{client:x}");
+        using var editor = await CustomerHarness.CounterAsync(
+            fixture, "contact-editor", $"2001:db8:83:2::{client:x}", BranchId,
+            CustomersPermissions.Read, CustomersPermissions.Update);
+        var customerId = await CreateAsync(reception, "contact-policy");
+        var route = $"/api/v1/customers/{customerId}";
+        using var original = await ReadJsonAsync(reception, route);
+        var snapshot = original.RootElement.GetRawText();
+        var version = original.RootElement.GetProperty("version").GetString();
+        var replacement = field switch
+        {
+            "phone" or "alternatePhone" => CustomerHarness.UniquePhone(),
+            "email" => "changed@example.invalid",
+            "addressLine" => "34 Synthetic Street",
+            "locality" => "Synthetic locality",
+            "postcode" => "600001",
+            _ => throw new ArgumentOutOfRangeException(nameof(field)),
+        };
+        var auditBefore = await CorrectionAuditCountAsync(customerId);
+
+        // The primary phone is required by normal validation; optional contacts can also be cleared
+        // or omitted. A whole-record correction must refuse all three ways of erasing hidden data.
+        foreach (var operation in field == "phone" ? new[] { "replace" } : new[] { "replace", "clear", "omit" })
+        {
+            var body = CorrectionBody(original.RootElement);
+            body["displayName"] = "This name must not be saved after a refused contact edit";
+            body["canChangeContact"] = true; // A forged capability in the body is never authority.
+            if (operation == "omit")
+            {
+                body.Remove(field);
+            }
+            else
+            {
+                body[field] = operation == "clear" ? null : replacement;
+            }
+
+            using var refused = await editor.PutAsync(
+                route, body,
+                ("Idempotency-Key", Guid.CreateVersion7().ToString()),
+                ("If-Match", $"\"{version}\""));
+            refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+            var problem = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            problem.ShouldContain("customers.contact-change-forbidden");
+            foreach (var contact in ContactFields())
+            {
+                problem.ShouldNotContain(original.RootElement.GetProperty(contact).GetString().ShouldNotBeNull());
+            }
+
+            using var unchanged = await ReadJsonAsync(reception, route);
+            unchanged.RootElement.GetRawText().ShouldBe(snapshot);
+            (await CorrectionAuditCountAsync(customerId)).ShouldBe(auditBefore);
+        }
+
+        // The same correction is allowed when the effective role grants contact access.
+        var permittedBody = CorrectionBody(original.RootElement);
+        permittedBody[field] = replacement;
+        using var permitted = await reception.PutAsync(
+            route, permittedBody,
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()),
+            ("If-Match", $"\"{version}\""));
+        permitted.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await CorrectionAuditCountAsync(customerId)).ShouldBe(auditBefore + 1);
+    }
+
+    private async Task<int> CorrectionAuditCountAsync(Guid customerId)
+    {
+        await using var scope = fixture.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await context.AuditEvents.CountAsync(
+            entry => entry.EntityId == customerId && entry.Action == "customers.customer.corrected",
+            TestContext.Current.CancellationToken);
+    }
+
+    private static Dictionary<string, object?> CorrectionBody(JsonElement original)
+    {
+        var body = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var field in new[]
+        {
+            "displayName", "nativeName", "phone", "alternatePhone", "email", "addressLine", "locality",
+            "postcode", "language",
+        })
+        {
+            body[field] = original.GetProperty(field).GetString();
+        }
+
+        body["reason"] = "Confirmed with the customer at the counter.";
+        return body;
     }
 
     private static string[] Declared(string viewKey)

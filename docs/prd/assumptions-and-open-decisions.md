@@ -104,6 +104,7 @@ existing plan Section 11 item, and is listed here so the workshop agenda is comp
 
 | Question | Resolves under | Interim position |
 | --- | --- | --- |
+| May a custom role correct contact fields it cannot read? | OD-13; #83 | **Decided — 2026-09-10, Owner response in the implementation task.** Reject changes to contact fields unless the caller can access them. A valid correction that would change any contact field returns 403 atomically; unchanged contact values remain permitted and masked in the response. See [`../security/field-visibility.md`](../security/field-visibility.md). |
 | Is Branch Manager a distinct role, or a branch-scoped variant of Admin? | OD-13 | A distinct role, and since 2026-09-06 an implemented one: seeded by `init-reference-data` with 76 default grants and recorded in [`../security/permission-matrix.md`](../security/permission-matrix.md) section 3 |
 | Does Measurement Staff remain a separate role, or is `measurements.capture` simply granted to Reception? | OD-13 | Both, deliberately: since 2026-09-06 the role is seeded and assigned to nobody, and `measurements.capture` is granted to Reception as well, so either answer needs no code change |
 | Who may approve a stocktake variance and a custody reconciliation above threshold — Branch Manager or Owner? | OD-13 | The plan's rule stands: a different user from the one who recorded it, above a configurable threshold |
