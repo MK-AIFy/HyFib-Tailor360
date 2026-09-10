@@ -119,6 +119,8 @@ export const STORY_USER = {
     'admin.outbox.replay',
     'catalog.templates.edit',
     'catalog.templates.publish',
+    'catalog.edit',
+    'catalog.publish',
   ],
   security: {
     mfaEnrolment: 'Enrolled',

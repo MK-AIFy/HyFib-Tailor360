@@ -19,4 +19,8 @@ export const ADMIN_PERMISSIONS = {
   // assuming a reviewer cannot read.
   templatesEdit: 'catalog.templates.edit',
   templatesPublish: 'catalog.templates.publish',
+  /** Drafting and changing a catalogue version. */
+  catalogEdit: 'catalog.edit',
+  /** Publishing, retiring, and correcting a published label — a different key from the above. */
+  catalogPublish: 'catalog.publish',
 } as const

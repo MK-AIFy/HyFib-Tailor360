@@ -15,6 +15,8 @@ import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
 import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
+import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEditorRoute'
+import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
@@ -230,6 +232,26 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.templatesEdit}>
                     <TemplateVersionEditorRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'catalog',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
+                    <CatalogVersionListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // Guarded on the drafting permission, not the publishing one — the same shape the
+                // measurement templates use, and for the same reason: a reviewer who could not read
+                // the version they are being asked to approve would be a product this shop does not
+                // have. The publishing acts themselves are hidden without the second key.
+                path: 'catalog/:versionId',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
+                    <CatalogVersionEditorRoute />
                   </RequirePermission>
                 ),
               },

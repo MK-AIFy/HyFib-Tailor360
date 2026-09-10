@@ -25,6 +25,7 @@ export const ADMIN_DESTINATIONS: readonly AdminDestination[] = [
     messageId: 'admin.nav.templates',
     permission: ADMIN_PERMISSIONS.templatesEdit,
   },
+  { path: 'catalog', messageId: 'admin.nav.catalog', permission: ADMIN_PERMISSIONS.catalogEdit },
   { path: 'features', messageId: 'admin.nav.features', permission: ADMIN_PERMISSIONS.featureFlags },
   { path: 'audit', messageId: 'admin.nav.audit', permission: ADMIN_PERMISSIONS.auditRead },
   { path: 'outbox', messageId: 'admin.nav.outbox', permission: ADMIN_PERMISSIONS.outboxReplay },
