@@ -410,6 +410,118 @@ export const RuleBuilder: Story = {
     ),
 }
 
+const CHECK_DRAFT = aTemplateVersion({
+  templateVersionId: '0199bb00-0000-7000-8000-0000000000e9',
+  versionNumber: 8,
+  name: 'Version 8',
+  fields: [aTemplateField(), CHOICE, COUNT],
+})
+
+const CHECK_TEMPLATE = aMeasurementTemplate({
+  measurementTemplateId: '0199bb00-0000-7000-8000-0000000000f6',
+  versions: [CHECK_DRAFT, PUBLISHED],
+})
+
+const CHECK_VALIDATION = `${TEMPLATES}/${CHECK_TEMPLATE.measurementTemplateId}/versions/${CHECK_DRAFT.templateVersionId}/validation`
+
+const checker = (routes: Parameters<typeof withAdminApi>[1] = {}) =>
+  withAdminApi(
+    <TemplateVersionEditorRoute />,
+    {
+      [`GET ${TEMPLATES}/${CHECK_TEMPLATE.measurementTemplateId}`]: () =>
+        storyJson(CHECK_TEMPLATE, 'W/"1"'),
+      ...routes,
+    },
+    {
+      path: '/admin/templates/:templateId/versions/:versionId',
+      at: `/admin/templates/${CHECK_TEMPLATE.measurementTemplateId}/versions/${CHECK_DRAFT.templateVersionId}`,
+    },
+  )
+
+/**
+ * A version that passes every check (#96).
+ *
+ * Press "Check this version". The report is the whole of what a ready version has to say.
+ */
+export const ChecksPassed: Story = {
+  render: () =>
+    checker({
+      [`GET ${CHECK_VALIDATION}`]: () =>
+        storyJson({
+          templateVersionId: CHECK_DRAFT.templateVersionId,
+          isReadyToPublish: true,
+          findings: [],
+        }),
+    }),
+}
+
+/**
+ * A version with a dozen findings.
+ *
+ * Press "Check this version" and read down the field list rather than the summary: every message
+ * sits beside the field that caused it. That is the point of the server reporting *every* finding
+ * rather than the first — the list is long by design, and a list is exactly the rendering that
+ * makes an administrator map a target path onto a form by eye.
+ *
+ * The last two findings are the ones that cannot be anchored: one about the version as a whole, and
+ * one naming a field this screen has never heard of, which is the version having changed under the
+ * reader. Both are carried in the summary rather than dropped.
+ */
+export const ChecksFound: Story = {
+  render: () =>
+    checker({
+      [`GET ${CHECK_VALIDATION}`]: () =>
+        storyJson({
+          templateVersionId: CHECK_DRAFT.templateVersionId,
+          isReadyToPublish: false,
+          findings: [
+            {
+              severity: 'Error',
+              code: 'measurements.field-precision-missing',
+              message: 'Chest / bust has no unit it can be entered in.',
+              target: 'fields[chest_bust].precision',
+            },
+            {
+              severity: 'Error',
+              code: 'measurements.bounds-out-of-order',
+              message: 'The lower bound of Chest / bust is above its upper bound.',
+              target: 'fields[chest_bust].bands',
+            },
+            {
+              severity: 'Warning',
+              code: 'measurements.label-not-translated',
+              message: 'Chest / bust has no Tamil label.',
+              target: 'fields[chest_bust].labelTamil',
+            },
+            {
+              severity: 'Error',
+              code: 'measurements.choice-field-has-no-options',
+              message: 'Neckline shape offers nothing to choose from.',
+              target: 'fields[neckline_shape].options',
+            },
+            {
+              severity: 'Warning',
+              code: 'measurements.diagram-missing',
+              message: 'Hooks references a diagram sheet that is not bundled.',
+              target: 'fields[hook_count].diagramKey',
+            },
+            {
+              severity: 'Error',
+              code: 'measurements.version-has-no-fields',
+              message: 'A version with no fields cannot be published.',
+              target: 'fields',
+            },
+            {
+              severity: 'Error',
+              code: 'measurements.rule-reads-itself',
+              message: 'A field not on this screen has a rule that reads its own answer.',
+              target: 'fields[gone_away].rule',
+            },
+          ],
+        }),
+    }),
+}
+
 /** The 40% text growth the client guide asks every screen to tolerate. */
 export const TextGrowth: Story = {
   ...Fields,

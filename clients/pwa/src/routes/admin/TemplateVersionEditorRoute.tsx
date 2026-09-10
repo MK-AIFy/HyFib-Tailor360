@@ -16,7 +16,12 @@ import {
   changeTemplateField,
   readMeasurementTemplate,
   removeTemplateField,
+  validateTemplateVersion,
 } from '../../admin/templateApi'
+import { findingsForField, parseTarget } from '../../admin/templateFindings'
+import { TemplateCapturePreview } from './TemplateCapturePreview'
+import { TemplateValidationReport } from './TemplateValidationReport'
+import { TemplateVersionCompare } from './TemplateVersionCompare'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { blankField, fieldToForm, toRequest, validateField } from '../../admin/templateFieldForm'
 import type { FieldFormState } from '../../admin/templateFieldForm'
@@ -28,7 +33,12 @@ import {
   unitForBands,
 } from '../../design-system/components/forms/measurementRange'
 import type { CentimetreDecimals, InchFractionStep } from '../../i18n/units'
-import type { MeasurementTemplate, TemplateField } from '../../admin/types'
+import type {
+  MeasurementTemplate,
+  TemplateField,
+  TemplateFinding,
+  TemplateValidation,
+} from '../../admin/types'
 
 /**
  * The fields of one draft version: what is measured, and the three acts that change the list.
@@ -97,6 +107,11 @@ export function TemplateVersionEditorRoute() {
 
   /** The tag the last command returned, which supersedes the read until it is re-read. */
   const [held, setHeld] = useState<string | undefined>(undefined)
+  const [validation, setValidation] = useState<TemplateValidation | null>(null)
+  const [checking, setChecking] = useState(false)
+  /** True once a write has landed since the report was computed. */
+  const [staleReport, setStaleReport] = useState(false)
+  const [compareAgainst, setCompareAgainst] = useState<string | null>(null)
 
   const keyFor = (id: string): string => {
     const existing = keys[id]
@@ -179,6 +194,7 @@ export function TemplateVersionEditorRoute() {
       hold(result)
       setEditing(null)
       setRemoving(null)
+      setStaleReport(validation !== null)
       setNotice(done)
       template.reload()
     } catch (cause: unknown) {
@@ -257,6 +273,7 @@ export function TemplateVersionEditorRoute() {
         tag = result.version
       }
 
+      setStaleReport(validation !== null)
       setNotice(announce)
       template.reload()
     } catch (cause: unknown) {
@@ -400,6 +417,53 @@ export function TemplateVersionEditorRoute() {
         }),
       intl.formatMessage({ id: 'admin.field.removed' }, { label: field.label }),
     )
+  }
+
+  /**
+   * Runs the publish checks without changing anything, and holds what they found.
+   *
+   * The report is held rather than re-fetched on every render, and marked stale the moment a field
+   * is written: it was computed against a state the screen has since moved past, and a stale report
+   * that looked current would let somebody fix a finding, see it still listed, and fix it twice.
+   */
+  const check = async (): Promise<void> => {
+    if (templateId === undefined || versionId === undefined) {
+      return
+    }
+
+    setChecking(true)
+    setFailure(null)
+
+    try {
+      setValidation(await validateTemplateVersion({ templateId, versionId }))
+      setStaleReport(false)
+    } catch (cause: unknown) {
+      setFailure(cause)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  /** The label of the field a finding is about, or null when it is about nothing on screen. */
+  const labelForFinding = (finding: TemplateFinding): string | null => {
+    const { fieldKey } = parseTarget(finding.target)
+    if (fieldKey === null) {
+      return null
+    }
+    return fields.find((field) => field.key === fieldKey)?.label ?? null
+  }
+
+  /** Opens the field a finding is about, which is where it can actually be corrected. */
+  const goToFinding = (finding: TemplateFinding): void => {
+    const { fieldKey } = parseTarget(finding.target)
+    const field = fields.find((candidate) => candidate.key === fieldKey)
+
+    if (field === undefined) {
+      return
+    }
+
+    setFailure(null)
+    setEditing({ field, form: fieldToForm(field) })
   }
 
   const conflict = failure instanceof ApiError && failure.status === 409
@@ -638,6 +702,17 @@ export function TemplateVersionEditorRoute() {
                         id: row.isRequired ? 'admin.template.required' : 'admin.template.optional',
                       }),
                   },
+                  {
+                    id: 'findings',
+                    header: intl.formatMessage({ id: 'admin.version.check' }),
+                    // The anchoring, which the issue calls the feature: the message sits beside
+                    // the field that caused it, so an administrator reads which control is wrong
+                    // rather than mapping a target path onto a form by eye.
+                    cell: (row: TemplateField) =>
+                      findingsForField(validation?.findings ?? [], row.key)
+                        .map((finding) => finding.message)
+                        .join(' '),
+                  },
                 ]}
                 rowActions={(row: TemplateField) => (
                   <>
@@ -699,6 +774,36 @@ export function TemplateVersionEditorRoute() {
       >
         <FormattedMessage id="admin.field.add" />
       </Button>
+
+      <Button
+        busy={checking}
+        onClick={() => {
+          void check()
+        }}
+        variant="secondary"
+      >
+        <FormattedMessage id="admin.version.check" />
+      </Button>
+
+      {validation === null ? null : (
+        <TemplateValidationReport
+          knownKeys={fields.map((field) => field.key)}
+          labelFor={labelForFinding}
+          onGoTo={goToFinding}
+          stale={staleReport}
+          validation={validation}
+        />
+      )}
+
+      <TemplateCapturePreview version={version} />
+
+      <TemplateVersionCompare
+        againstId={compareAgainst}
+        controlId={(name) => `editor-${name}`}
+        onAgainstChange={setCompareAgainst}
+        others={value.versions.filter((one) => one.templateVersionId !== version.templateVersionId)}
+        version={version}
+      />
 
       {editing === null ? null : (
         <TemplateFieldForm
