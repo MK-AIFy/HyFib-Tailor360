@@ -9,7 +9,7 @@ import { DataTable } from '../../components/primitives/DataTable'
 import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { ApiError } from '../../auth/apiClient'
-import { listBranches, readBranch, setBranchTrading } from '../../admin/adminApi'
+import { listBranches, setBranchTrading } from '../../admin/adminApi'
 import { useAdminResource } from '../../admin/useAdminResource'
 import type { Branch } from '../../admin/types'
 
@@ -23,12 +23,11 @@ import type { Branch } from '../../admin/types'
  * being closed, never by being removed — and the confirmation says that in words, because an
  * administrator reaching for "close" is usually asking themselves whether it is the destructive one.
  *
- * ## Why closing reads the branch first
+ * ## Why a command uses the rendered row's version
  *
- * The list carries a version per row, but the row on screen may be minutes old, and closing is
- * refused while anybody is still assigned to the branch — a condition that can change under the
- * reader. Reading immediately before the command means the `If-Match` is against what is true now,
- * and the refusal, when it comes, is about the branch rather than about the staleness of the table.
+ * The list carries a version per row. Sending that version means another administrator's edit
+ * causes a conflict, rather than applying this decision to details the person has never seen.
+ * Reload is explicit after a conflict: reading fresh state must not silently repeat the command.
  */
 export function BranchListRoute() {
   const intl = useIntl()
@@ -57,16 +56,13 @@ export function BranchListRoute() {
     setBusy(true)
     setFailure(null)
 
-    void readBranch(pending.branch.branchId)
-      .then(async (current) =>
-        setBranchTrading({
-          branchId: pending.branch.branchId,
-          open: pending.open,
-          reason,
-          version: current.version ?? current.value.version,
-          idempotencyKey: pending.idempotencyKey,
-        }),
-      )
+    void setBranchTrading({
+      branchId: pending.branch.branchId,
+      open: pending.open,
+      reason,
+      version: pending.branch.version,
+      idempotencyKey: pending.idempotencyKey,
+    })
       .then(() => {
         register.reload()
       })
@@ -80,6 +76,7 @@ export function BranchListRoute() {
   }
 
   const branches = register.value ?? []
+  const conflict = failure instanceof ApiError && failure.code === 'identity.concurrent-change'
 
   return (
     <section>
@@ -87,7 +84,28 @@ export function BranchListRoute() {
         <FormattedMessage id="admin.branches.title" />
       </h2>
 
-      <AuthProblemAlert failure={failure ?? register.failure} />
+      {conflict ? (
+        <Alert
+          tone="warning"
+          live="assertive"
+          title={intl.formatMessage({ id: 'admin.conflict.title' })}
+          actions={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFailure(null)
+                register.reload()
+              }}
+            >
+              <FormattedMessage id="admin.reload" />
+            </Button>
+          }
+        >
+          <FormattedMessage id="admin.conflict.body" />
+        </Alert>
+      ) : (
+        <AuthProblemAlert failure={failure ?? register.failure} />
+      )}
 
       {register.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'admin.branches.loading' })} />
