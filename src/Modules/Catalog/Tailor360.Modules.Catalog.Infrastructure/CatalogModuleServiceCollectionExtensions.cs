@@ -8,9 +8,11 @@ using Tailor360.Modules.Catalog.Application.Catalogue;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Modules.Catalog.Infrastructure.Catalogue;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
+using Tailor360.Modules.Catalog.Infrastructure.Reconciliation;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
+using Tailor360.Platform.Persistence.Outbox;
 
 namespace Tailor360.Modules.Catalog.Infrastructure;
 
@@ -57,8 +59,19 @@ public static class CatalogModuleServiceCollectionExtensions
         services.TryAddScoped<ICatalogEventPublisher, CatalogEventPublisher>();
 
         services.TryAddScoped<ICatalogStore, CatalogStore>();
+        services.TryAddScoped<CatalogPublicationCheck>();
         services.TryAddScoped<CatalogHandler>();
         services.TryAddScoped<ICatalogReferenceDataSeeder, CatalogReferenceDataSeeder>();
+
+        // The reconciliation of INV-MTV-06 and every other cross-module reference (issue #91). Three
+        // handlers because the race has two orderings and a third event heals it, and because the inbox
+        // de-duplicates on a handler's name — one handler answering to three names would have no answer
+        // to "did this delivery already run". Enumerable for the same reason the validators are.
+        services.TryAddScoped<ICatalogReferenceBreachStore, CatalogReferenceBreachStore>();
+        services.TryAddScoped<CatalogReconciler>();
+        services.AddScoped<IOutboxMessageHandler, TemplateRetiredReconciliationHandler>();
+        services.AddScoped<IOutboxMessageHandler, TemplatePublishedReconciliationHandler>();
+        services.AddScoped<IOutboxMessageHandler, CatalogPublishedReconciliationHandler>();
 
         // Enumerable, not TryAdd: every module that owns something a service type links to adds its
         // own, and a second registration must join the list rather than replace this one.

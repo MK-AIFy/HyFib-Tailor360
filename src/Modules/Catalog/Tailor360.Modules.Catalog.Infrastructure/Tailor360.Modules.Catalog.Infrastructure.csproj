@@ -12,6 +12,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Catalog.Application\Tailor360.Modules.Catalog.Application.csproj" />
     <ProjectReference Include="..\Tailor360.Modules.Catalog.Contracts\Tailor360.Modules.Catalog.Contracts.csproj" />
+    <!-- The reconciliation consumes the measurement-template lifecycle events (issue #91). A Contracts
+         project is the only thing that may cross a module boundary (ARCH-004). -->
+    <ProjectReference Include="..\..\Customers\Tailor360.Modules.Customers.Contracts\Tailor360.Modules.Customers.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
   </ItemGroup>

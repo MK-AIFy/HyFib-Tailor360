@@ -281,8 +281,10 @@ service this becomes a candidate to move, which is why the document code and ver
 
 **Publishes — integration events.** `customers.customer-created.v1`, `customers.customer-merged.v1`,
 `customers.customer-corrected.v1`, `customers.customer-deactivated.v1`, `customers.consent-recorded.v1`,
-`customers.consent-withdrawn.v1`, `customers.preferences-changed.v1`, `customers.measurement-version-confirmed.v1`.
-The two consent events, the preference event and `customers.customer-merged.v1` are built (#26), each with its
+`customers.consent-withdrawn.v1`, `customers.preferences-changed.v1`, `customers.measurement-version-confirmed.v1`,
+`customers.measurement-template-version-published.v1`, `customers.measurement-template-version-retired.v1`.
+The two consent events, the preference event and `customers.customer-merged.v1` are built (#26), and the two
+template lifecycle events with the reconciliation of INV-MTV-06 (#91) — each with its
 JSON Schema and example under [`../integration/events/`](../integration/events/README.md). Their payloads are
 deliberately thin: consent records and communication preferences are **Personal** under
 [`../nfr/data-classification.md`](../nfr/data-classification.md) section 5.3, whose access row says the consuming
@@ -329,6 +331,7 @@ draft → published (immutable) → retired versions so that administrators chan
 | `catalog_versions` | The coherent published snapshot of the whole hierarchy an order is confirmed against. Exactly one is published per organisation, held by a partial unique index; a version is created as a draft and reaches published by being published, held by a trigger. Its categories and service types are immutable once it leaves draft — no insert, no delete, and no update but the four presentation fields — held by a second trigger, because freezing the rows that exist says nothing about a row added afterwards |
 | `design_option_groups`, `design_options`, `design_rules` | Groups, choices and the requires/excludes/conditional constraints between them |
 | `qc_checklist_templates`, `qc_checklist_versions`, `qc_criteria`, `defect_codes` | Typed QC criteria, evidence requirements, responsible role and defect vocabulary |
+| `reference_breaches` | Cross-module references of the published catalogue that stopped being valid after publication, opened and closed by the reconciliation of **INV-MTV-06** and its siblings (#91). Written only from the delivery of an integration event, so a row commits with the inbox row recording the check ran. A partial unique index over `(catalog_version_id, code, target)` filtered on unresolved rows keeps at most one open breach per finding, and closed rows are kept because a reference that broke twice is a pattern worth seeing |
 
 **Owned object-storage prefix.** None. Option illustrations and measurement diagrams are Media objects referenced by
 id, with mandatory alternative text.
@@ -337,6 +340,12 @@ id, with mandatory alternative text.
 `catalog.catalog-version-retired.v1`. The second is published only for an *explicit* retirement: a version
 retired because a successor superseded it is already announced by the first through its `supersededVersionId`,
 and publishing both would make one fact look like two.
+
+**Consumes — integration events.** `customers.measurement-template-version-retired.v1`,
+`customers.measurement-template-version-published.v1` and its own `catalog.catalog-version-published.v1`, all three
+into the same reconciliation (#91). Consuming its own event is not a mistake: a template retirement committing
+between a publication's validation and its commit is the one ordering of the INV-MTV-06 race that the publication's
+own validation cannot have seen.
 
 **Publishes — read contracts.** `ICatalogAvailabilityQuery` (what may be ordered, in this branch, on this date),
 `IDesignSelectionValidator` (does this set of selections satisfy the rules), the `GarmentDesignSnapshot` builder that

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.measurement-template-version-retired.v1.schema.json",
+  "title": "customers.measurement-template-version-retired.v1",
+  "description": "A measurement-template version stopped taking new captures. Retirement invalidates nothing: measurements already taken render through the version they were captured under, forever (docs/prd/measurement-templates.md section 11). This is the write that can strand a published catalogue. The retirement command refuses to retire a template's last published version while a published catalogue points at it, but it asks Catalog through a contract and then writes to its own schema, so a catalogue publication committing in that window was validated against a template this retirement has since emptied. INV-MTV-06 is therefore reconciled by this event rather than guaranteed by the guard alone, which is what G-6 promises for every cross-module reference.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "templateVersionId",
+    "templateCode",
+    "versionNumber",
+    "templateStillPublishable",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the version was retired, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The template, not the version. Ordering is preserved per template, so a retirement cannot be delivered before the publication that superseded it."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation whose template it is. A reconciliation is scoped to it."
+    },
+    "templateVersionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The version that was retired. Measurements pinned to it still render through it."
+    },
+    "templateCode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The template's stable machine key, such as MT_BLOUSE_PATTERN."
+    },
+    "versionNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The version's number, for a message a person reads."
+    },
+    "templateStillPublishable": {
+      "type": "boolean",
+      "description": "Whether the template still has a published version after this retirement. False is the case that can strand a catalogue. It is derived state and the only such field on the payload, because it is the fact the event is about; a consumer still re-reads before acting, since the payload says what was true when the write committed and a reconciliation asks again."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.measurement-template-version-retired.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}
