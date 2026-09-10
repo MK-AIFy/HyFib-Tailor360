@@ -111,15 +111,21 @@ public static class UserAdminEndpoints
                 string? cursor = null,
                 int limit = StaffQuery.DefaultLimit) =>
             {
-                if (status is { Length: > 0 } && !Enum.TryParse<UserStatus>(status, ignoreCase: true, out _))
+                UserStatus? selectedStatus = null;
+                if (context.Request.Query.ContainsKey("status"))
                 {
-                    return Problems.From(IdentityApiErrors.StatusNotRecognised, context);
+                    if (!EnumText.TryRead<UserStatus>(status, out var parsedStatus))
+                    {
+                        return Problems.From(IdentityApiErrors.StatusNotRecognised, context);
+                    }
+
+                    selectedStatus = parsedStatus;
                 }
 
                 var page = await directory.SearchAsync(
                     new StaffQuery(
                         caller.Context.OrganisationId,
-                        status is { Length: > 0 } ? Enum.Parse<UserStatus>(status, ignoreCase: true) : null,
+                        selectedStatus,
                         role,
                         branch,
                         q,

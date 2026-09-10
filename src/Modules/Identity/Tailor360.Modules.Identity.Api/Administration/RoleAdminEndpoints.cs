@@ -105,7 +105,7 @@ public static class RoleAdminEndpoints
                     return refusal;
                 }
 
-                if (!Enum.TryParse<RoleReach>(request!.Reach, ignoreCase: true, out var reach))
+                if (!EnumText.TryRead<RoleReach>(request!.Reach, out var reach))
                 {
                     return Problems.From(IdentityApiErrors.RoleReachNotRecognised, context);
                 }

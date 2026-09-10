@@ -1,6 +1,7 @@
 using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Customers.Domain.Measurements;
 using Tailor360.Platform.Abstractions.Results;
+using Tailor360.Platform.Security.Endpoints;
 
 namespace Tailor360.Modules.Customers.Api.Payloads;
 

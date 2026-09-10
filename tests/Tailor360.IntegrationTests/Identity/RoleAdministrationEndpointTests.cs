@@ -29,6 +29,63 @@ public sealed class RoleAdministrationEndpointTests(WebApplicationFixture fixtur
     /// <summary>Whether a PostgreSQL instance was found for this run.</summary>
     public static bool Available => DatabaseAvailability.IsAvailable;
 
+    private static int _enumClientNumber;
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("99")]
+    [InlineData("-1")]
+    [InlineData("Branch, Organisation")]
+    [InlineData("Branch, Branch")]
+    [InlineData("Unknown")]
+    public async Task RoleReachMustNameOneDeclaredMember(string? reach)
+    {
+        Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
+        using var administrator = await AdministrationHarness.AdministratorAsync(
+            fixture, "adm-reachname", $"2001:db8:90:1::{Interlocked.Increment(ref _enumClientNumber):x}", Permissions.Roles);
+        var key = $"invalid_{AdministrationHarness.UniqueToken(10)}";
+
+        using var refused = await administrator.PostAsync(
+            "/api/v1/admin/roles/",
+            new { key, name = "Synthetic role", description = "Parser regression.", reach, reason = Reason },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await AuthenticationClient.CodeAsync(refused)).ShouldBe("identity.role-reach-not-recognised");
+        await using var scope = fixture.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        (await context.Roles.AnyAsync(role => role.Key == key, TestContext.Current.CancellationToken))
+            .ShouldBeFalse("an invalid reach must never become a stored role");
+    }
+
+    [Theory]
+    [InlineData("branch", "Branch")]
+    [InlineData(" oRgAnIsAtIoN ", "Organisation")]
+    public async Task RoleReachAcceptsDeclaredNamesIgnoringCase(string reach, string expected)
+    {
+        Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
+        using var administrator = await AdministrationHarness.AdministratorAsync(
+            fixture, "adm-reachvalid", $"2001:db8:90:1::{Interlocked.Increment(ref _enumClientNumber):x}", Permissions.Roles);
+        using var created = await administrator.PostAsync(
+            "/api/v1/admin/roles/",
+            new
+            {
+                key = $"valid_{AdministrationHarness.UniqueToken(10)}",
+                name = "Synthetic role",
+                description = "Parser regression.",
+                reach,
+                reason = Reason,
+            },
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await AuthenticationClient.ReadAsync<RoleBody>(created)).ShouldNotBeNull().Reach.ShouldBe(expected);
+    }
+
     [Fact(Skip = DatabaseAvailability.SkipMessage,
         SkipUnless = nameof(Available),
         SkipType = typeof(RoleAdministrationEndpointTests))]

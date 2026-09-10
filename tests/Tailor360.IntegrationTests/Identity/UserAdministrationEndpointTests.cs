@@ -32,6 +32,44 @@ public sealed class UserAdministrationEndpointTests(WebApplicationFixture fixtur
     /// <summary>Whether a PostgreSQL instance was found for this run.</summary>
     public static bool Available => DatabaseAvailability.IsAvailable;
 
+    private static int _enumClientNumber;
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("99")]
+    [InlineData("-1")]
+    [InlineData("Active, Suspended")]
+    [InlineData("Active, Active")]
+    [InlineData("Unknown")]
+    public async Task AProvidedStatusFilterMustNameOneDeclaredMember(string status)
+    {
+        Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
+        using var administrator = await AdministrationHarness.AdministratorAsync(
+            fixture, "adm-statusname", $"2001:db8:90:2::{Interlocked.Increment(ref _enumClientNumber):x}");
+        using var refused = await administrator.GetAsync(
+            $"/api/v1/admin/users/?status={Uri.EscapeDataString(status)}");
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await AuthenticationClient.CodeAsync(refused)).ShouldBe("identity.status-not-recognised");
+    }
+
+    [Fact]
+    public async Task StatusNamesIgnoreCaseAndAnOmittedFilterRemainsOptional()
+    {
+        Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
+        using var administrator = await AdministrationHarness.AdministratorAsync(
+            fixture, "adm-statusvalid", $"2001:db8:90:2::{Interlocked.Increment(ref _enumClientNumber):x}");
+        var subject = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "sub-statusvalid");
+        var search = Uri.EscapeDataString(subject.UserName);
+        var filtered = await ListAsync(administrator, $"?status=aCtIvE&q={search}&limit=100");
+        filtered.Users.ShouldContain(user => user.UserId == subject.Id);
+        var unfiltered = await ListAsync(administrator, $"?q={search}&limit=100");
+        unfiltered.Users.ShouldContain(user => user.UserId == subject.Id);
+    }
+
     [Fact(Skip = DatabaseAvailability.SkipMessage,
         SkipUnless = nameof(Available),
         SkipType = typeof(UserAdministrationEndpointTests))]
