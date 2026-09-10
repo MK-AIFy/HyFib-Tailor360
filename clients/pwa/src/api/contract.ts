@@ -12,6 +12,16 @@ import type {
   SignOutEverywhereResult,
 } from '../auth/types'
 import type {
+  CatalogPublication,
+  CatalogValidationReport,
+  CatalogVersion,
+  CatalogVersionSummary,
+  CategoryRequest,
+  OrderableCatalog,
+  PresentationRequest,
+  ServiceTypeRequest,
+} from '../catalog/types'
+import type {
   AssignedAccess,
   AuditPage,
   Branch,
@@ -227,4 +237,62 @@ export type TemplateFieldRequestConforms = Conforms<
 export type TemplateFieldChangeRequestConforms = Conforms<
   TemplateFieldRequest,
   Immutable<RequestBody<'ChangeMeasurementTemplateField'>>
+>
+
+/* The catalogue (#29, #85) --------------------------------------------------------------------- */
+
+/**
+ * Fifteen routes under `/api/v1/catalog`, published with #29's backend and unused by any client
+ * until now. The reads and the writes are both pinned, for the reason the measurement-template
+ * request is: a drifted response renders `undefined`, and a drifted request is a `400` a person
+ * meets after filling in a form.
+ */
+export type CatalogVersionConforms = Conforms<
+  CatalogVersion,
+  Immutable<Response200<'GetCatalogVersion'>>
+>
+
+export type CurrentCatalogConforms = Conforms<
+  OrderableCatalog,
+  Immutable<Response200<'GetCurrentCatalog'>>
+>
+
+export type CatalogVersionSummaryConforms = Conforms<
+  CatalogVersionSummary,
+  Immutable<components['schemas']['CatalogVersionSummaryPayload']>
+>
+
+export type CatalogValidationConforms = Conforms<
+  CatalogValidationReport,
+  Immutable<Response200<'ValidateCatalogVersion'>>
+>
+
+export type CatalogPublicationConforms = Conforms<
+  CatalogPublication,
+  Immutable<Response200<'PublishCatalogVersion'>>
+>
+
+export type CategoryRequestConforms = Conforms<
+  CategoryRequest,
+  Immutable<RequestBody<'AddCatalogCategory'>>
+>
+
+export type CategoryEditRequestConforms = Conforms<
+  CategoryRequest,
+  Immutable<RequestBody<'EditCatalogCategory'>>
+>
+
+export type ServiceTypeRequestConforms = Conforms<
+  ServiceTypeRequest,
+  Immutable<RequestBody<'AddCatalogServiceType'>>
+>
+
+export type ServiceTypeEditRequestConforms = Conforms<
+  ServiceTypeRequest,
+  Immutable<RequestBody<'EditCatalogServiceType'>>
+>
+
+export type PresentationRequestConforms = Conforms<
+  PresentationRequest,
+  Immutable<RequestBody<'CorrectCatalogCategoryPresentation'>>
 >

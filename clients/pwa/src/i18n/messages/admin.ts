@@ -566,6 +566,7 @@ export const adminEn = {
   'admin.version.compare.change.changed': 'Changed',
   'admin.version.compare.renameNote':
     'A key cannot be renamed, so a renamed field reads here as one removed and one added — which is what it is: values already captured stay filed under the old key.',
+  'admin.nav.catalog': 'Catalogue',
 } as const
 
 /*
@@ -1515,4 +1516,6 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.version.compare.renameNote':
     'A key cannot be renamed, so a renamed field reads here as one removed and one added — which is what it is: values already captured stay filed under the old key.',
+  // not translated — awaiting native-speaker review
+  'admin.nav.catalog': 'Catalogue',
 }
