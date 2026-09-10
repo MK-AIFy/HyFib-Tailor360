@@ -515,6 +515,57 @@ export const adminEn = {
   'admin.field.rule.error.readsItself':
     'A field cannot depend on its own answer: it would be hidden, so it would have no answer, so it would be shown. Point this condition at another measurement.',
   'admin.field.rule.error.noValues': 'Give this condition at least one value to compare against.',
+
+  /* Validation report, capture preview and version comparison (#96). ---------------------------- */
+  'admin.version.check': 'Check this version',
+  'admin.version.checking': 'the checks that run before publication',
+  'admin.version.ready': 'Every check passed. This version can be published.',
+  'admin.version.findings':
+    '{errors, plural, =0 {No problem} one {1 problem} other {# problems}} and {warnings, plural, =0 {nothing} one {1 thing} other {# things}} worth knowing.',
+  'admin.version.blocked':
+    'Publication is refused until the problems below are corrected. Each one is shown beside the control that caused it.',
+  'admin.version.warningsOnly':
+    'Nothing here refuses publication. Each is shown beside the control it is about, so it can be looked at before the version goes out.',
+  'admin.version.finding.error': 'Problem',
+  'admin.version.finding.warning': 'Worth knowing',
+  'admin.version.finding.goto': 'Go to {label}',
+  'admin.version.unanchored':
+    'This was reported about something not on this screen. The version may have changed since the check ran — run it again to see where it stands.',
+  'admin.version.stale':
+    'The check ran against an earlier state of this version. Run it again before deciding.',
+
+  'admin.version.preview': 'How a tailor will see this',
+  'admin.version.preview.hint':
+    'The version as the capture wizard would present it. Nothing typed here is saved; it is here so a value can be tried against the range before the version goes out.',
+  'admin.version.preview.empty': 'There is nothing to preview until this version has a field.',
+  'admin.version.preview.hidden': '{label} is not asked for with these answers.',
+  'admin.version.preview.undecidable':
+    '{label} is asked for because its rule cannot be settled here. Design choices only exist inside an order, and a field whose rule cannot be settled is always asked for rather than skipped.',
+  'admin.version.preview.choice': '{label}',
+  'admin.version.preview.count': '{label}',
+
+  'admin.version.compare': 'What changed',
+  'admin.version.compare.against': 'Compared with',
+  'admin.version.compare.nothing': 'Nothing differs between these two versions.',
+  'admin.version.compare.added': '{count, plural, one {1 field added} other {# fields added}}',
+  'admin.version.compare.removed':
+    '{count, plural, one {1 field removed} other {# fields removed}}',
+  'admin.version.compare.changed':
+    '{count, plural, one {1 field changed} other {# fields changed}}',
+  'admin.version.compare.unchanged':
+    '{count, plural, =0 {No field is unchanged} one {1 field is unchanged} other {# fields are unchanged}}',
+  'admin.version.compare.caption': 'What changed between these two versions',
+  'admin.version.compare.column.field': 'Field',
+  'admin.version.compare.column.change': 'Change',
+  'admin.version.compare.column.detail': 'What differs',
+  'admin.version.compare.was': '{attribute}: was {before}, now {after}',
+  'admin.version.compare.wasEmpty': '{attribute}: was empty, now {after}',
+  'admin.version.compare.nowEmpty': '{attribute}: was {before}, now empty',
+  'admin.version.compare.change.added': 'Added',
+  'admin.version.compare.change.removed': 'Removed',
+  'admin.version.compare.change.changed': 'Changed',
+  'admin.version.compare.renameNote':
+    'A key cannot be renamed, so a renamed field reads here as one removed and one added — which is what it is: values already captured stay filed under the old key.',
 } as const
 
 /*
@@ -1377,4 +1428,91 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
     'A field cannot depend on its own answer: it would be hidden, so it would have no answer, so it would be shown. Point this condition at another measurement.',
   // not translated — awaiting native-speaker review
   'admin.field.rule.error.noValues': 'Give this condition at least one value to compare against.',
+
+  /* Validation report, capture preview and version comparison (#96). ---------------------------- */
+  // not translated — awaiting native-speaker review
+  'admin.version.check': 'Check this version',
+  // not translated — awaiting native-speaker review
+  'admin.version.checking': 'the checks that run before publication',
+  // not translated — awaiting native-speaker review
+  'admin.version.ready': 'Every check passed. This version can be published.',
+  // not translated — awaiting native-speaker review
+  'admin.version.findings':
+    '{errors, plural, =0 {No problem} one {1 problem} other {# problems}} and {warnings, plural, =0 {nothing} one {1 thing} other {# things}} worth knowing.',
+  // not translated — awaiting native-speaker review
+  'admin.version.blocked':
+    'Publication is refused until the problems below are corrected. Each one is shown beside the control that caused it.',
+  // not translated — awaiting native-speaker review
+  'admin.version.warningsOnly':
+    'Nothing here refuses publication. Each is shown beside the control it is about, so it can be looked at before the version goes out.',
+  // not translated — awaiting native-speaker review
+  'admin.version.finding.error': 'Problem',
+  // not translated — awaiting native-speaker review
+  'admin.version.finding.warning': 'Worth knowing',
+  // not translated — awaiting native-speaker review
+  'admin.version.finding.goto': 'Go to {label}',
+  // not translated — awaiting native-speaker review
+  'admin.version.unanchored':
+    'This was reported about something not on this screen. The version may have changed since the check ran — run it again to see where it stands.',
+  // not translated — awaiting native-speaker review
+  'admin.version.stale':
+    'The check ran against an earlier state of this version. Run it again before deciding.',
+
+  // not translated — awaiting native-speaker review
+  'admin.version.preview': 'How a tailor will see this',
+  // not translated — awaiting native-speaker review
+  'admin.version.preview.hint':
+    'The version as the capture wizard would present it. Nothing typed here is saved; it is here so a value can be tried against the range before the version goes out.',
+  // not translated — awaiting native-speaker review
+  'admin.version.preview.empty': 'There is nothing to preview until this version has a field.',
+  // not translated — awaiting native-speaker review
+  'admin.version.preview.hidden': '{label} is not asked for with these answers.',
+  // not translated — awaiting native-speaker review
+  'admin.version.preview.undecidable':
+    '{label} is asked for because its rule cannot be settled here. Design choices only exist inside an order, and a field whose rule cannot be settled is always asked for rather than skipped.',
+  // not translated — awaiting native-speaker review
+  'admin.version.preview.choice': '{label}',
+  // not translated — awaiting native-speaker review
+  'admin.version.preview.count': '{label}',
+
+  // not translated — awaiting native-speaker review
+  'admin.version.compare': 'What changed',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.against': 'Compared with',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.nothing': 'Nothing differs between these two versions.',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.added': '{count, plural, one {1 field added} other {# fields added}}',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.removed':
+    '{count, plural, one {1 field removed} other {# fields removed}}',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.changed':
+    '{count, plural, one {1 field changed} other {# fields changed}}',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.unchanged':
+    '{count, plural, =0 {No field is unchanged} one {1 field is unchanged} other {# fields are unchanged}}',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.caption': 'What changed between these two versions',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.column.field': 'Field',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.column.change': 'Change',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.column.detail': 'What differs',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.was': '{attribute}: was {before}, now {after}',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.wasEmpty': '{attribute}: was empty, now {after}',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.nowEmpty': '{attribute}: was {before}, now empty',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.change.added': 'Added',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.change.removed': 'Removed',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.change.changed': 'Changed',
+  // not translated — awaiting native-speaker review
+  'admin.version.compare.renameNote':
+    'A key cannot be renamed, so a renamed field reads here as one removed and one added — which is what it is: values already captured stay filed under the old key.',
 }

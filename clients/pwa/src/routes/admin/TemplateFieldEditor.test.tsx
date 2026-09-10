@@ -734,7 +734,12 @@ it('shows the fields grouped as the capture wizard will ask for them', async () 
   expect(await screen.findByRole('heading', { name: 'Step: Bodice' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Step: Sleeve' })).toBeInTheDocument()
 
-  const headings = screen.getAllByRole('heading', { level: 3 }).map((one) => one.textContent)
+  // The field list's step headings, in order. The page carries other level-three headings — the
+  // preview and the comparison — so the assertion is about the steps rather than about every one.
+  const headings = screen
+    .getAllByRole('heading', { level: 3 })
+    .map((one) => one.textContent)
+    .filter((text) => text?.startsWith('Step: ') === true)
   expect(headings).toEqual(['Step: Bodice', 'Step: Sleeve'])
 })
 
@@ -884,6 +889,311 @@ it('moves a whole step as a block', async () => {
 it('passes axe over the grouped editor', async () => {
   const { container } = renderOrdered()
   await screen.findByRole('heading', { name: 'Step: Bodice' })
+
+  await expectNoAccessibilityViolations(container)
+})
+
+/* Validation report, capture preview and comparison (#96) --------------------------------------- */
+
+const VALIDATION = `${DETAIL}/versions/${DRAFT.templateVersionId}/validation`
+
+it('says a version is ready when every check passed', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: true,
+      findings: [],
+    }),
+  )
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+
+  expect(
+    await screen.findByText('Every check passed. This version can be published.'),
+  ).toBeInTheDocument()
+})
+
+it('puts each finding beside the field that caused it, not only in a list', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: false,
+      findings: [
+        {
+          severity: 'Error',
+          code: 'measurements.field-precision-missing',
+          message: 'This field has no unit it can be entered in.',
+          target: `fields[${FIELD.key}].precision`,
+        },
+      ],
+    }),
+  )
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+
+  // Anchoring is the feature: a list makes an administrator map a target path onto a form by eye,
+  // and the whole point of reporting every finding rather than the first is that the list is long.
+  const row = (await screen.findAllByRole('row')).find((one) =>
+    one.textContent?.includes('Chest / bust'),
+  )
+  expect(
+    within(row as HTMLElement).getByText(/This field has no unit it can be entered in/),
+  ).toBeInTheDocument()
+
+  // And the summary offers a way to get to it.
+  expect(screen.getByRole('button', { name: 'Go to Chest / bust' })).toBeInTheDocument()
+})
+
+it('opens the field a finding is about when the summary link is pressed', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: false,
+      findings: [
+        {
+          severity: 'Error',
+          code: 'measurements.field-precision-missing',
+          message: 'This field has no unit it can be entered in.',
+          target: `fields[${FIELD.key}].precision`,
+        },
+      ],
+    }),
+  )
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+  await user.click(await screen.findByRole('button', { name: 'Go to Chest / bust' }))
+
+  expect(await screen.findByRole('form', { name: 'Editing Chest / bust' })).toBeInTheDocument()
+})
+
+it('keeps a finding it cannot anchor, rather than quietly losing a refusal', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: false,
+      findings: [
+        {
+          severity: 'Error',
+          code: 'measurements.field-precision-missing',
+          message: 'A field this screen has never heard of is wrong.',
+          target: 'fields[gone_away].precision',
+        },
+      ],
+    }),
+  )
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+
+  // The version changed under the reader. Dropping this would tell an administrator their version
+  // is ready when the server will refuse to publish it.
+  // The message sits inside its summary entry beside the severity word, so it is matched rather
+  // than compared whole.
+  expect(
+    await screen.findByText(/A field this screen has never heard of is wrong\./),
+  ).toBeInTheDocument()
+  expect(screen.getByText(/reported about something not on this screen/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Go to/ })).not.toBeInTheDocument()
+})
+
+it('does not let a warning read as something that blocks publication', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: true,
+      findings: [
+        {
+          severity: 'Warning',
+          code: 'measurements.label-not-translated',
+          message: 'This field has no Tamil label.',
+          target: `fields[${FIELD.key}].labelTamil`,
+        },
+      ],
+    }),
+  )
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+
+  expect(await screen.findByText(/Nothing here refuses publication/)).toBeInTheDocument()
+  expect(screen.queryByText(/Publication is refused/)).not.toBeInTheDocument()
+})
+
+it('says a report is stale once a field has been written since it ran', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: false,
+      findings: [
+        {
+          severity: 'Error',
+          code: 'measurements.field-precision-missing',
+          message: 'This field has no unit it can be entered in.',
+          target: `fields[${FIELD.key}].precision`,
+        },
+      ],
+    }),
+  )
+  transport.route(`PUT ${FIELDS}/${FIELD.templateFieldId}`, () =>
+    versionedResponse(TEMPLATE, 'W/"2"'),
+  )
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+  await screen.findByRole('button', { name: 'Go to Chest / bust' })
+
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+  await user.clear(form.getByLabelText(/^Label$/))
+  await user.type(form.getByLabelText(/^Label$/), 'Chest')
+  await user.click(form.getByRole('button', { name: 'Save this field' }))
+
+  // A stale report that looked current would let somebody fix a finding, see it still listed, and
+  // fix it twice.
+  expect(await screen.findByText(/ran against an earlier state/)).toBeInTheDocument()
+})
+
+it('previews the version through the real capture control, saving nothing', async () => {
+  const user = userEvent.setup()
+  renderEditor()
+  await screen.findByRole('table')
+
+  const preview = within(
+    screen
+      .getByRole('heading', { name: 'How a tailor will see this' })
+      .closest('section') as HTMLElement,
+  )
+
+  // The real control, so the bands it enforces cannot drift from what the wizard will do — which is
+  // also what makes this the test-data check #27 asks for and no screen exercised.
+  const whole = preview.getByLabelText('Chest / bust — whole inches')
+  await user.type(whole, '2')
+
+  // The fixture refuses below 100 mm; two inches is 50.8 mm.
+  expect(await preview.findByText(/must be between/)).toBeInTheDocument()
+  expect(transport.callsTo(`PUT ${FIELDS}/${FIELD.templateFieldId}`)).toHaveLength(0)
+})
+
+it('says a field is not asked for rather than simply not showing it', async () => {
+  const hidden = aTemplateField({
+    templateFieldId: '0199bb00-0000-7000-8000-0000000000db',
+    key: 'lining_length',
+    label: 'Lining length',
+    displayOrder: 1,
+    ruleDefinition: {
+      effect: 'ShownWhen',
+      anyOf: [{ scope: 'Field', name: 'chest_bust', operator: 'IsAnyOf', values: ['NEVER'] }],
+    },
+  })
+  const version = aTemplateVersion({ fields: [FIELD, hidden] })
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(aMeasurementTemplate({ versions: [version] }), 'W/"1"'),
+  )
+
+  const user = userEvent.setup()
+  renderEditor(version.templateVersionId)
+  await screen.findByRole('table')
+
+  const preview = within(
+    screen
+      .getByRole('heading', { name: 'How a tailor will see this' })
+      .closest('section') as HTMLElement,
+  )
+
+  // The rule reads `chest_bust`, which has no answer yet — so it cannot be settled, and an
+  // undecidable rule *shows* the field. Answering it makes the clause readable and false.
+  expect(preview.getByText(/its rule cannot be settled here/)).toBeInTheDocument()
+  await user.type(preview.getByLabelText('Chest / bust — whole inches'), '20')
+
+  // A reviewer checking a rule needs to see that it hid the field; a field that simply is not there
+  // looks identical to a field somebody forgot to add.
+  expect(
+    await preview.findByText('Lining length is not asked for with these answers.'),
+  ).toBeInTheDocument()
+})
+
+it('says why a field whose rule cannot be settled is asked for anyway', async () => {
+  const undecidable = aTemplateField({
+    templateFieldId: '0199bb00-0000-7000-8000-0000000000dc',
+    key: 'sleeve_length',
+    label: 'Sleeve length',
+    displayOrder: 1,
+    ruleDefinition: {
+      effect: 'ShownWhen',
+      anyOf: [
+        { scope: 'DesignSelection', name: 'sleeve_style', operator: 'IsAnyOf', values: ['FULL'] },
+      ],
+    },
+  })
+  const version = aTemplateVersion({ fields: [undecidable] })
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(aMeasurementTemplate({ versions: [version] }), 'W/"1"'),
+  )
+
+  renderEditor(version.templateVersionId)
+
+  // Design selections only exist inside an order, and hiding on missing information drops a
+  // measurement the tailor needs.
+  expect(await screen.findByText(/its rule cannot be settled here/)).toBeInTheDocument()
+})
+
+it('compares this version with another, and says which attribute of each field differs', async () => {
+  const changed = aTemplateField({ label: 'Chest', minimumMillimetres: 200 })
+  const other = aTemplateVersion({
+    templateVersionId: '0199bb00-0000-7000-8000-0000000000ef',
+    versionNumber: 4,
+    fields: [changed],
+  })
+  const version = aTemplateVersion({ fields: [FIELD] })
+  transport.route(`GET ${DETAIL}`, () =>
+    versionedResponse(aMeasurementTemplate({ versions: [version, other] }), 'W/"1"'),
+  )
+
+  renderEditor(version.templateVersionId)
+  await screen.findByRole('heading', { name: 'What changed' })
+
+  // A reviewer approving a version is asked one question — is this change right — and a screen that
+  // hands them every field of both versions makes them answer a different one.
+  expect(screen.getByText(/Label: was Chest, now Chest \/ bust/)).toBeInTheDocument()
+  expect(screen.getByText(/1 field changed/)).toBeInTheDocument()
+})
+
+it('passes axe with the report, the preview and the comparison on screen', async () => {
+  const user = userEvent.setup()
+  transport.route(`GET ${VALIDATION}`, () =>
+    jsonResponse({
+      templateVersionId: DRAFT.templateVersionId,
+      isReadyToPublish: false,
+      findings: [
+        {
+          severity: 'Error',
+          code: 'measurements.field-precision-missing',
+          message: 'This field has no unit it can be entered in.',
+          target: `fields[${FIELD.key}].precision`,
+        },
+      ],
+    }),
+  )
+
+  const { container } = renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Check this version' }))
+  await screen.findByRole('button', { name: 'Go to Chest / bust' })
 
   await expectNoAccessibilityViolations(container)
 })
