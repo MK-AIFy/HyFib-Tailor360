@@ -74,6 +74,12 @@ public static class CustomersErrors
         "customers.customer-not-found",
         "No customer matches that identifier.");
 
+    /// <summary>A correction would change contact details the caller may not access.</summary>
+    public static Error ContactChangeForbidden { get; } = Error.Forbidden(
+        "customers.contact-change-forbidden",
+        "Changing contact details requires permission to access them. Ask an authorised colleague "
+        + "to make this correction.");
+
     /// <summary>The record changed between being read and being written.</summary>
     public static Error ConcurrentChange { get; } = Error.Conflict(
         "customers.concurrent-change",

@@ -277,6 +277,16 @@ permission the route demanded. Every **field** gate in section 4 still applies, 
 correct a record but not read contact details is answered with the corrected record and no telephone number. The
 permission named must be one the caller actually holds, so a handler cannot assert reach on anybody's behalf.
 
+**Contact corrections — Owner decision, 2026-09-10 (#83).** After normal payload validation, a correction that
+changes `phone`, `alternatePhone`, `email`, `addressLine`, `locality` or `postcode` requires access to the contact
+block through `customers.read_contact`. Without that access, the application refuses the entire correction with
+403 and `customers.contact-change-forbidden`, including a request that clears or omits an optional contact value.
+No name, alias, version or correction-audit entry is changed by a refused request. A correction that leaves every
+contact value unchanged may proceed and still returns the existing field mask. Normalised contact values are
+compared, and the refusal never includes the old or new values. The capability is evaluated on the server; a
+request body cannot grant it. Creation, status changes and communication preferences retain their own rules.
+
+
 <!-- matrix:role-fields -->
 | View | Role | Reaches | Visible fields |
 | --- | --- | --- | --- |
