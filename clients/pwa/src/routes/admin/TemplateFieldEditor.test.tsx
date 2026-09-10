@@ -331,6 +331,39 @@ it('asks for a reason before removing a field, and says what removal does not to
   expect(sent?.headers.get('Idempotency-Key')).not.toBeNull()
 })
 
+it('shows a refused removal inside the dialog, with the reason still typed', async () => {
+  // The dialog stays open on a refusal, which is what keeps the reason and the retry key. It is
+  // therefore also where the refusal has to reach the person: the dialog is modal, so an alert on
+  // the page behind it is under the backdrop and outside the focus trap, and somebody who pressed
+  // Remove would see a dialog that appeared to do nothing.
+  const user = userEvent.setup()
+  const route = `POST ${FIELDS}/${FIELD.templateFieldId}/delete`
+  transport.route(route, () => problemResponse(409, 'measurements.version-changed'))
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Remove Chest / bust' }))
+
+  const dialog = await screen.findByRole('dialog')
+  const reason = within(dialog).getByRole('textbox')
+
+  await user.type(reason, 'Superseded by the two-part chest fields.')
+  await user.click(within(dialog).getByRole('button', { name: 'Remove Chest / bust' }))
+
+  await within(dialog).findByRole('alert')
+  expect(reason).toHaveValue('Superseded by the two-part chest fields.')
+
+  // conventions section 4.3: the retry reuses the key, so a removal whose answer was lost rather
+  // than refused cannot happen twice.
+  await user.click(within(dialog).getByRole('button', { name: 'Remove Chest / bust' }))
+  await waitFor(() => {
+    expect(transport.callsTo(route)).toHaveLength(2)
+  })
+
+  const sent = transport.callsTo(route)
+  expect(sent[1]?.headers.get('Idempotency-Key')).toBe(sent[0]?.headers.get('Idempotency-Key'))
+})
+
 it('acts on the tag the last command returned, not the one the first read carried', async () => {
   const user = userEvent.setup()
   // Every field route answers with the whole template and a fresh tag. The next command has to

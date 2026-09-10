@@ -577,7 +577,7 @@ export function TemplateVersionEditorRoute() {
         </Alert>
       )}
 
-      {conflict && partial === null ? (
+      {conflict && partial === null && removing === null ? (
         <Alert
           tone="warning"
           live="assertive"
@@ -598,7 +598,7 @@ export function TemplateVersionEditorRoute() {
           <FormattedMessage id="admin.conflict.body" />
         </Alert>
       ) : (
-        <AuthProblemAlert failure={failure} />
+        <AuthProblemAlert failure={removing === null ? failure : null} />
       )}
 
       {fields.length === 0 ? (
@@ -828,6 +828,7 @@ export function TemplateVersionEditorRoute() {
       {removing === null ? null : (
         <ConfirmDialog
           open
+          problem={<AuthProblemAlert failure={failure} />}
           tier="reason"
           action={intl.formatMessage({ id: 'admin.field.remove' }, { label: removing.label })}
           title={intl.formatMessage({ id: 'admin.field.remove.title' })}

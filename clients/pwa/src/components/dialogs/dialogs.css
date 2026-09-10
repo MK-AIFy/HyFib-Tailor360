@@ -189,6 +189,12 @@
     font-weight: var(--font-weight-medium);
   }
 
+  /* The refusal the last confirmation got. First in the body, because an error summary at the top
+     of the step is where a person and a screen reader both look for it. */
+  .confirm-dialog__problem {
+    margin-block-end: var(--space-3);
+  }
+
   .confirm-dialog__phrase {
     margin: 0;
     font-size: var(--font-size-300);
