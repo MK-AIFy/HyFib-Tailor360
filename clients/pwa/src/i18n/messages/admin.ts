@@ -447,6 +447,29 @@ export const adminEn = {
   'admin.field.error.warningBandOutOfOrder': 'The lower threshold has to be below the upper one.',
   'admin.field.error.warningWithoutBounds':
     'A confirmation threshold needs a range to sit inside. Set the bounds, or clear the threshold.',
+
+  /* Grouping and ordering the fields of a version (#104). --------------------------------------- */
+  'admin.field.order.group': 'Step: {name}',
+  'admin.field.order.groupUp': 'Move the {name} step earlier',
+  'admin.field.order.groupDown': 'Move the {name} step later',
+  'admin.field.order.up': 'Measure {label} earlier',
+  'admin.field.order.down': 'Measure {label} later',
+  'admin.field.order.position': '{position} of {total} in {group}',
+  'admin.field.order.moved': '{label} is now {position} of {total} in {group}.',
+  'admin.field.order.groupMoved': 'The {name} step is now step {position} of {total}.',
+  'admin.field.order.atStart': '{label} is already measured first in this step.',
+  'admin.field.order.atEnd': '{label} is already measured last in this step.',
+  'admin.field.order.groupAtStart': 'The {name} step is already the first one.',
+  'admin.field.order.groupAtEnd': 'The {name} step is already the last one.',
+  'admin.field.order.working':
+    'Moving — {done} of {total} saved. Leave this screen open until it finishes.',
+  'admin.field.order.partial':
+    'The move stopped after {done} of {total} changes. What has been saved is correct as far as it went; reload to see where the order stands now, then move it again.',
+  'admin.field.order.explain':
+    'Moving a field renumbers this version so the order you see is the order that is stored. It saves one field at a time, so a large first move takes a moment.',
+  'admin.template.column.position': 'Position',
+  'admin.field.order.caption':
+    'The fields measured in the {name} step, in the order they are measured',
 } as const
 
 /*
@@ -1190,4 +1213,44 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.field.error.warningWithoutBounds':
     'A confirmation threshold needs a range to sit inside. Set the bounds, or clear the threshold.',
+
+  /* Grouping and ordering the fields of a version (#104). --------------------------------------- */
+  // not translated — awaiting native-speaker review
+  'admin.field.order.group': 'Step: {name}',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.groupUp': 'Move the {name} step earlier',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.groupDown': 'Move the {name} step later',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.up': 'Measure {label} earlier',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.down': 'Measure {label} later',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.position': '{position} of {total} in {group}',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.moved': '{label} is now {position} of {total} in {group}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.groupMoved': 'The {name} step is now step {position} of {total}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.atStart': '{label} is already measured first in this step.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.atEnd': '{label} is already measured last in this step.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.groupAtStart': 'The {name} step is already the first one.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.groupAtEnd': 'The {name} step is already the last one.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.working':
+    'Moving — {done} of {total} saved. Leave this screen open until it finishes.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.partial':
+    'The move stopped after {done} of {total} changes. What has been saved is correct as far as it went; reload to see where the order stands now, then move it again.',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.explain':
+    'Moving a field renumbers this version so the order you see is the order that is stored. It saves one field at a time, so a large first move takes a moment.',
+  // not translated — awaiting native-speaker review
+  'admin.template.column.position': 'Position',
+  // not translated — awaiting native-speaker review
+  'admin.field.order.caption':
+    'The fields measured in the {name} step, in the order they are measured',
 }
