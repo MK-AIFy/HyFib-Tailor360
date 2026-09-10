@@ -59,6 +59,36 @@ public sealed class CommandSafetyApplication : IAsyncLifetime
     /// <summary>A request-timeout policy short enough for a test to wait out.</summary>
     public const string FastTimeoutPolicy = "probe-fast";
 
+    /// <summary>
+    /// A policy long enough that an endpoint filter's own database work fits inside it.
+    /// </summary>
+    public const string SlowCommandPolicy = "probe-slow-command";
+
+    /// <summary>
+    /// How long <see cref="FastTimeoutPolicy" /> gives a request. It is spent, in full, by a handler
+    /// holding an open transaction, so it is kept short: the cost of this number is a database
+    /// connection and a row lock held for its whole length, in a suite where five collections share one
+    /// PostgreSQL.
+    /// </summary>
+    public static readonly TimeSpan FastTimeout = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// How long <see cref="SlowCommandPolicy" /> gives a request.
+    /// </summary>
+    /// <remarks>
+    /// A request timeout has to cover more than the handler. Everything an endpoint filter does happens
+    /// inside the request, so a duplicate's wait — and the database round-trip each of its polls makes —
+    /// is spent out of this budget too, and a duplicate that runs out of it is answered with a timeout
+    /// instead of the conflict it was waiting to be told about. A quarter of a second did not cover it,
+    /// and failed in continuous integration while passing on every developer machine.
+    /// <para>
+    /// Two seconds is affordable here and would not be on <see cref="FastTimeoutPolicy" />, because the
+    /// endpoint that carries this one holds no database connection while it waits: its idempotency claim
+    /// is committed before the handler blocks. The wait costs wall-clock and nothing else.
+    /// </para>
+    /// </remarks>
+    public static readonly TimeSpan SlowCommandTimeout = TimeSpan.FromSeconds(2);
+
     private static readonly DateTimeOffset Start = new(2026, 9, 6, 10, 0, 0, TimeSpan.Zero);
 
     private string? _databaseName;
@@ -251,9 +281,12 @@ public sealed class CommandSafetyApplication : IAsyncLifetime
 
                     // The real catalogue, plus one policy short enough for a test to wait out.
                     services.AddTailor360RequestTimeouts();
-                    services.AddRequestTimeouts(options => options.AddPolicy(
-                        FastTimeoutPolicy,
-                        RequestTimeoutPolicies.Create(TimeSpan.FromMilliseconds(250))));
+                    services.AddRequestTimeouts(options =>
+                    {
+                        options.AddPolicy(FastTimeoutPolicy, RequestTimeoutPolicies.Create(FastTimeout));
+                        options.AddPolicy(
+                            SlowCommandPolicy, RequestTimeoutPolicies.Create(SlowCommandTimeout));
+                    });
                 })
                 .Configure(app =>
                 {
@@ -296,7 +329,7 @@ public sealed class CommandSafetyApplication : IAsyncLifetime
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return Results.Ok();
-        }).RequireIdempotency().WithRequestTimeout(FastTimeoutPolicy);
+        }).RequireIdempotency().WithRequestTimeout(SlowCommandPolicy);
 
         endpoints.MapPost("/probe/slow-write", async (
             PlatformDbContext db,
@@ -429,12 +462,27 @@ public sealed class CommandSafetyApplication : IAsyncLifetime
             statusCode: StatusCodes.Status201Created);
     }
 
+    /// <summary>
+    /// How long a maintenance statement — creating or dropping a scratch database — is given.
+    /// </summary>
+    /// <remarks>
+    /// Npgsql's default is thirty seconds, which is a generic number rather than one chosen for
+    /// this. <c>DROP DATABASE ... WITH (FORCE)</c> terminates every backend still attached and
+    /// waits for them to go, and the collection fixtures tear down against one PostgreSQL, so on a
+    /// loaded runner thirty seconds is reachable — and a fixture that cannot drop its database is
+    /// reported as a failure of every test in its collection, over tests that all passed. Two
+    /// minutes is room to finish, not room to hide: a statement that truly cannot complete still
+    /// fails the run.
+    /// </remarks>
+    private const int MaintenanceCommandTimeoutSeconds = 120;
+
     private static async Task OnMaintenanceDatabaseAsync(string sql)
     {
         var builder = new NpgsqlConnectionStringBuilder(DatabaseAvailability.ConnectionString)
         {
             Database = "postgres",
             Pooling = false,
+            CommandTimeout = MaintenanceCommandTimeoutSeconds,
         };
 
         await using var connection = new NpgsqlConnection(builder.ConnectionString);

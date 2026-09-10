@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE } from './locales'
 import type { SupportedLocale } from './locales'
 import { DISPLAY_UNITS, millimetresToCentimetres, millimetresToInchFraction } from './units'
-import type { DisplayUnit, InchFractionStep } from './units'
+import type { CentimetreDecimals, DisplayUnit, InchFractionStep } from './units'
 
 /**
  * The one place a number, an amount, a date, a time or a measurement becomes text.
@@ -87,6 +87,14 @@ export interface MeasurementFormatOptions {
   /** The inch fraction step from the template field. Ignored for centimetres. */
   readonly step?: InchFractionStep
   /**
+   * The decimal places from the template field. Ignored for inches.
+   *
+   * The server permits nought, one or two, and the field declares which. One was fixed here until a
+   * two-decimal field was found to render at the wrong precision (#100); it stays the default
+   * because it is what the templates document specifies for a field that does not say otherwise.
+   */
+  readonly decimals?: CentimetreDecimals
+  /**
    * The unit word to print instead of the symbol. The symbol is language-neutral; the word is
    * glossary-owned and comes from the message catalogue.
    */
@@ -169,10 +177,15 @@ export function createFormatters(
     maximumFractionDigits: 3,
   })
   const quantity = new Intl.NumberFormat(tag, { maximumFractionDigits: 4 })
-  const centimetres = new Intl.NumberFormat(tag, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })
+  // One per permitted precision rather than one fixed at a single decimal place: a formatter is the
+  // expensive thing to build, and there are exactly three of them.
+  const centimetresAt = [0, 1, 2].map(
+    (places) =>
+      new Intl.NumberFormat(tag, {
+        minimumFractionDigits: places,
+        maximumFractionDigits: places,
+      }),
+  )
   const millimetreFormat = new Intl.NumberFormat(tag, { maximumFractionDigits: 2 })
 
   const shortDateParts = new Intl.DateTimeFormat(tag, {
@@ -301,7 +314,7 @@ export function createFormatters(
     },
 
     formatMeasurement(millimetres, measurementOptions) {
-      const { unit, step, unitLabel } = measurementOptions
+      const { unit, step, decimals, unitLabel } = measurementOptions
       if (!DISPLAY_UNITS.includes(unit)) {
         throw new Error(`Not a display unit: ${JSON.stringify(unit)}`)
       }
@@ -321,7 +334,14 @@ export function createFormatters(
       }
 
       if (unit === 'cm') {
-        return `${normaliseSpaces(centimetres.format(millimetresToCentimetres(millimetres)))} ${symbol}`
+        const places = decimals ?? 1
+        const formatter = centimetresAt[places] ?? centimetresAt[1]
+
+        if (formatter === undefined) {
+          throw new Error(`No centimetre formatter for ${String(places)} decimal places.`)
+        }
+
+        return `${normaliseSpaces(formatter.format(millimetresToCentimetres(millimetres, places)))} ${symbol}`
       }
 
       return `${normaliseSpaces(millimetreFormat.format(millimetres))} ${symbol}`

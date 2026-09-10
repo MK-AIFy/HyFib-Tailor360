@@ -56,24 +56,39 @@ public sealed class RequestTimeoutTests(CommandSafetyApplication application)
         var payment = new PaymentRequest(Guid.CreateVersion7(), 100);
         using var client = application.ClientFor("clerk-2");
 
-        // The duplicate's wait happens inside the endpoint, so it spends the retry's own timeout budget.
-        // Kept well under it here, exactly as the five-second default sits well under thirty.
+        // The duplicate's wait happens inside the endpoint, so it spends the retry's own timeout budget —
+        // and so does the database round-trip each poll makes, which is the part that is easy to forget.
+        // The margin is asserted rather than assumed: a future change to either number should fail here,
+        // naming the reason, instead of surfacing as a 504 on a loaded machine that reads like a flake.
+        // Fifty milliseconds against the two seconds this endpoint is given is the same shape as the
+        // five-second default against thirty.
         application.RequestOptions.DuplicateWaitBudget = TimeSpan.FromMilliseconds(50);
-        application.RequestOptions.DuplicatePollInterval = TimeSpan.FromMilliseconds(10);
+        application.RequestOptions.DuplicatePollInterval = TimeSpan.FromMilliseconds(25);
 
-        using var timedOut = await SendAsync(client, key, payment, TestContext.Current.CancellationToken);
-        timedOut.StatusCode.ShouldBe(HttpStatusCode.GatewayTimeout);
+        application.RequestOptions.DuplicateWaitBudget
+            .ShouldBeLessThan(CommandSafetyApplication.SlowCommandTimeout / 4);
 
-        // A timeout tells the caller nothing about whether the command took effect, so the retry is told
-        // to wait rather than allowed to run a second time on a guess.
-        using var retry = await SendAsync(client, key, payment, TestContext.Current.CancellationToken);
-        retry.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        try
+        {
+            using var timedOut = await SendAsync(client, key, payment, TestContext.Current.CancellationToken);
+            timedOut.StatusCode.ShouldBe(HttpStatusCode.GatewayTimeout);
 
-        var body = await retry.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        using var problem = JsonDocument.Parse(body);
-        problem.RootElement.GetProperty("code").GetString().ShouldBe(IdempotencyProblems.InProgress);
+            // A timeout tells the caller nothing about whether the command took effect, so the retry is
+            // told to wait rather than allowed to run a second time on a guess.
+            using var retry = await SendAsync(client, key, payment, TestContext.Current.CancellationToken);
+            retry.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
-        application.RequestOptions.DuplicateWaitBudget = TimeSpan.FromSeconds(5);
+            var body = await retry.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            using var problem = JsonDocument.Parse(body);
+            problem.RootElement.GetProperty("code").GetString().ShouldBe(IdempotencyProblems.InProgress);
+        }
+        finally
+        {
+            // The options are the shared application's, so a failure here must not shorten the wait for
+            // every test that runs after it.
+            application.RequestOptions.DuplicateWaitBudget = TimeSpan.FromSeconds(5);
+            application.RequestOptions.DuplicatePollInterval = TimeSpan.FromMilliseconds(100);
+        }
     }
 
     [Fact(Skip = DatabaseAvailability.SkipMessage, SkipUnless = nameof(Available), SkipType = typeof(RequestTimeoutTests))]

@@ -109,12 +109,27 @@ public sealed class PlatformDatabaseFixture : IAsyncLifetime
         return builder.ConnectionString;
     }
 
+    /// <summary>
+    /// How long a maintenance statement — creating or dropping a scratch database — is given.
+    /// </summary>
+    /// <remarks>
+    /// Npgsql's default is thirty seconds, which is a generic number rather than one chosen for
+    /// this. <c>DROP DATABASE ... WITH (FORCE)</c> terminates every backend still attached and
+    /// waits for them to go, and the collection fixtures tear down against one PostgreSQL, so on a
+    /// loaded runner thirty seconds is reachable — and a fixture that cannot drop its database is
+    /// reported as a failure of every test in its collection, over tests that all passed. Two
+    /// minutes is room to finish, not room to hide: a statement that truly cannot complete still
+    /// fails the run.
+    /// </remarks>
+    private const int MaintenanceCommandTimeoutSeconds = 120;
+
     private static async Task ExecuteOnMaintenanceDatabaseAsync(string sql)
     {
         var builder = new NpgsqlConnectionStringBuilder(DatabaseAvailability.ConnectionString)
         {
             Database = "postgres",
             Pooling = false,
+            CommandTimeout = MaintenanceCommandTimeoutSeconds,
         };
 
         await using var connection = new NpgsqlConnection(builder.ConnectionString);

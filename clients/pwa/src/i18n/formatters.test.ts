@@ -109,6 +109,20 @@ describe.each(LOCALES)('%s', (locale) => {
       expect(formatters.formatMeasurement(371.48, { unit: 'in', step: 16 })).toBe('14 5/8 in')
     })
 
+    it('renders a coarser inch step, which a field may declare', () => {
+      // The server permits halves and quarters as well as eighths and sixteenths; the client's
+      // types rejected them until #100.
+      expect(formatters.formatMeasurement(368.3, { unit: 'in', step: 2 })).toBe('14 1/2 in')
+      expect(formatters.formatMeasurement(374.65, { unit: 'in', step: 4 })).toBe('14 3/4 in')
+    })
+
+    it('renders centimetres at the precision the field declares', () => {
+      // Nought, one or two decimal places, per FieldPrecision. One is the default, and was fixed
+      // here until #100.
+      expect(formatters.formatMeasurement(368.35, { unit: 'cm', decimals: 2 })).toBe('36.84 cm')
+      expect(formatters.formatMeasurement(368.35, { unit: 'cm', decimals: 0 })).toBe('37 cm')
+    })
+
     it('renders centimetres to one decimal place', () => {
       expect(formatters.formatMeasurement(368.3, { unit: 'cm' })).toBe('36.8 cm')
     })

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import type { FieldProps } from '../../foundations/FieldProps'
 import { centimetresToMillimetres, millimetresToCentimetres } from '../../../i18n/units'
-import type { InchFractionStep } from '../../../i18n/units'
+import type { CentimetreDecimals, InchFractionStep } from '../../../i18n/units'
 import {
   MEASUREMENT_EXAMPLE_MILLIMETRES,
   evaluateMeasurement,
@@ -45,6 +45,14 @@ export interface MeasurementFieldProps extends Omit<FieldProps<number>, 'unit' |
   readonly displayUnit: MeasurementDisplayUnit
   /** The template field's inch step: 8 for a length, 16 for shaping and neckline. Inches only. */
   readonly fractionStep?: InchFractionStep
+  /**
+   * The template field's centimetre precision. Centimetres only.
+   *
+   * The step follows from it — a field measured to two decimals is stepped by 0.01 cm, not by the
+   * half-centimetre a one-decimal field uses — so that the control a person holds down never lands
+   * between two values the field can express.
+   */
+  readonly centimetreDecimals?: CentimetreDecimals
   /** The hard bounds and the confirmation band, in canonical millimetres. */
   readonly bounds?: MeasurementBounds
   /** Whether the confirmation band has been acknowledged for the current value. */
@@ -60,10 +68,17 @@ export function MeasurementField(props: MeasurementFieldProps) {
     onValueChange,
     displayUnit,
     fractionStep = 8,
+    centimetreDecimals = 1,
     bounds = {},
     acknowledged = false,
     onAcknowledgedChange,
   } = props
+
+  // The half-centimetre is a tape increment, not a precision: it is what a person means by "a bit
+  // more", and stepping by the field's own precision instead would be ten presses to the centimetre.
+  // It only has to be *expressible* at the field's precision, and at nought decimals it is not — so
+  // that is the one case that moves, to a whole centimetre.
+  const centimetreStep = centimetreDecimals === 0 ? 1 : 0.5
   const intl = useIntl()
   const formatters = formattersForLocale(intl.locale)
   const [acknowledgement, setAcknowledgement] = useState('')
@@ -80,6 +95,7 @@ export function MeasurementField(props: MeasurementFieldProps) {
     formatters.formatMeasurement(millimetres, {
       unit: displayUnit,
       step: fractionStep,
+      decimals: centimetreDecimals,
       unitLabel: unitSymbol,
     })
 
@@ -189,13 +205,19 @@ export function MeasurementField(props: MeasurementFieldProps) {
       ) : (
         <NumericStepper
           {...shared}
-          decimalPlaces={1}
+          decimalPlaces={centimetreDecimals}
           showRangeHint={false}
-          step={0.5}
+          step={centimetreStep}
           unit={{ symbol: unitSymbol, label: unitLabel }}
-          {...(minimum === undefined ? {} : { min: millimetresToCentimetres(minimum) })}
-          {...(maximum === undefined ? {} : { max: millimetresToCentimetres(maximum) })}
-          {...(value === undefined ? {} : { value: millimetresToCentimetres(value) })}
+          {...(minimum === undefined
+            ? {}
+            : { min: millimetresToCentimetres(minimum, centimetreDecimals) })}
+          {...(maximum === undefined
+            ? {}
+            : { max: millimetresToCentimetres(maximum, centimetreDecimals) })}
+          {...(value === undefined
+            ? {}
+            : { value: millimetresToCentimetres(value, centimetreDecimals) })}
           {...(onValueChange === undefined
             ? {}
             : {

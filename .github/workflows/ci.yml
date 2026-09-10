@@ -727,6 +727,44 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
+    env:
+      # Scan the whole tree on a pull request, exactly as on a push to `main`.
+      #
+      # From v3.29.3 the CodeQL action turns on *diff-informed queries* whenever it is analysing a
+      # pull request: the init step computes the pull request's diff ranges, writes a
+      # `codeql-action/pr-diff-range` extension pack, and passes it to `codeql database run-queries`,
+      # which restricts the alerts the queries produce to the lines the pull request touched. The
+      # filtering happens at query-evaluation time, upstream of `interpret-results`, so it narrows
+      # the SARIF written to `output:` — the very file the gate below reads. On a push the feature is
+      # inert, and the action says so: "Not performing diff-informed analysis because we are not
+      # analyzing a pull request."
+      #
+      # Three reasons that is wrong here, and none of them is the build being red today.
+      #
+      # 1. The gate reads the local report and treats it as the findings in this repository. A
+      #    report narrowed to one pull request's diff does not mean that, so a pull request could
+      #    pass a gate its own merge commit then fails — which is exactly what happened between
+      #    2026-09-07 and 2026-09-09: every pull request was green while `main` was red on two high
+      #    findings, and the acceptance register was emptied on the strength of a pull request run
+      #    that never looked at the file.
+      # 2. Taint reaches across files. A change that adds a source in one file and reaches a sink in
+      #    another is only alerted on the lines it touched, so the half of the flow that makes it a
+      #    vulnerability can sit outside the diff and go unreported.
+      # 3. GitHub documents the restriction as best-effort: the `restrictAlertsTo` predicate
+      #    "permits but does not guarantee that queries omit out-of-range alerts", so a gate reading
+      #    the raw report is reading an unstable one.
+      #
+      # This environment variable is the only supported control — the action exposes no input and no
+      # repository setting for it. It is read during `init`, where the ranges are computed, so it is
+      # set for the whole job rather than on one step. Turning it off also reverts the overlay
+      # database mode to none, which is why a pull request now builds the database in full; the cost
+      # is under a minute against this job's 25-minute budget.
+      #
+      # If a later action version ignores it, the failure is loud rather than silent: the register's
+      # entries stop matching and the gate fails as stale, which is the signal that brought this to
+      # light in the first place.
+      CODEQL_ACTION_DIFF_INFORMED_QUERIES: "false"
+
     permissions:
       contents: read
       # Only for the SARIF upload, and only when CODE_SCANNING_ENABLED is on. The scan itself needs

@@ -23,21 +23,101 @@ export const DISPLAY_UNITS = ['in', 'cm', 'mm'] as const
 export type DisplayUnit = (typeof DISPLAY_UNITS)[number]
 
 /**
- * The inch fraction steps a template may specify: eighths for general lengths, sixteenths for
- * shaping and neckline fields. A slider is never used for a measurement — `FractionInput` offers
- * exactly these divisions as segmented controls, which is what makes the value enterable with a
- * finger guard on.
+ * The inch fraction steps a template may specify.
+ *
+ * The server permits halves, quarters, eighths and sixteenths (`FieldPrecision.PermittedInchFractions`):
+ * eighths for general lengths, sixteenths for the shaping and neckline fields where a quarter-inch
+ * error changes the fit, and the coarser two for fields a tailor reads off in halves. A slider is
+ * never used for a measurement — `FractionInput` offers exactly these divisions as segmented
+ * controls, which is what makes the value enterable with a finger guard on.
  */
-export const INCH_FRACTION_STEPS = [8, 16] as const
+export const INCH_FRACTION_STEPS = [2, 4, 8, 16] as const
 
 export type InchFractionStep = (typeof INCH_FRACTION_STEPS)[number]
+
+/** The decimal places a centimetre field may declare. The server permits nought to two. */
+export const CENTIMETRE_DECIMALS = [0, 1, 2] as const
+
+export type CentimetreDecimals = (typeof CENTIMETRE_DECIMALS)[number]
+
+/* The arithmetic --------------------------------------------------------------------------------
+ *
+ * Every conversion below goes through these three functions, and none of them multiplies two
+ * inexact doubles. That is the whole point of them.
+ *
+ * `UnitConversion.cs` does this arithmetic in `decimal`, whose remarks say why: "double would
+ * introduce an error in a value that a tailor then cuts fabric against". JavaScript has no decimal,
+ * and the obvious transliteration is wrong in a way that is invisible until somebody sweeps it —
+ * `0.375 * 25.4 * 100` is `952.49999999999988631316`, just under the midpoint, so `Math.round` sends
+ * 3/8 in down to 9.52 mm where the server stores 9.53. That disagreement held for 146 of the 1,804
+ * values a tailor can type between 0 and 60 inches at the permitted denominators.
+ *
+ * So the conversion factors are held as integers — 2540 hundredths of a millimetre to the inch
+ * rather than 25.4 millimetres — and the value being converted is decomposed into its own decimal
+ * digits first. Integers multiply exactly, and the division that follows carries its remainder, so
+ * the midpoint is a comparison rather than a floating-point accident.
+ */
+
+/** Hundredths of a millimetre in one inch. Exact, and an integer so that it multiplies exactly. */
+const HUNDREDTHS_PER_INCH = 2540
+
+/** Hundredths of a millimetre in one centimetre. */
+const HUNDREDTHS_PER_CENTIMETRE = 1000
+
+/** Hundredths in one millimetre, which is also the storage precision. */
+const HUNDREDTHS_PER_MILLIMETRE = 100
+
+/**
+ * A number as the exact decimal it reads as: `value === units / 10 ** scale`.
+ *
+ * `toString` gives the shortest representation that round-trips, which is the number a person would
+ * write, and that is the value the conversion should honour.
+ */
+function scaledDigits(value: number): { readonly units: number; readonly scale: number } {
+  const text = value.toString()
+
+  if (text.includes('e') || text.includes('E')) {
+    // No measurement reaches exponent notation. Treating such a value as whole is honest; guessing
+    // at a mantissa would put a wrong number on a cutting table.
+    return { units: Math.trunc(value), scale: 0 }
+  }
+
+  const point = text.indexOf('.')
+
+  return point === -1
+    ? { units: Number(text), scale: 0 }
+    : { units: Number(text.replace('.', '')), scale: text.length - point - 1 }
+}
+
+/**
+ * `numerator / divisor`, rounded half away from zero, on non-negative integers.
+ *
+ * Half away from zero rather than `Math.round`, which is half toward positive infinity: the two
+ * agree on every positive midpoint and disagree on every negative one, and an ease allowance may be
+ * negative. It is also the rule `UnitConversion` and the money conventions both state, so a
+ * measurement and an amount never disagree about which way a halfway value goes.
+ */
+function divideHalfAwayFromZero(numerator: number, divisor: number): number {
+  const quotient = Math.floor(numerator / divisor)
+  const remainder = numerator - quotient * divisor
+
+  return 2 * remainder >= divisor ? quotient + 1 : quotient
+}
+
+/** `value * factor`, rounded half away from zero, without multiplying two inexact doubles. */
+function scaleExactly(value: number, factor: number): number {
+  const { units, scale } = scaledDigits(value)
+  const magnitude = divideHalfAwayFromZero(Math.abs(units) * factor, 10 ** scale)
+
+  return units < 0 ? -magnitude : magnitude
+}
 
 /**
  * Canonical storage keeps two decimal places (`numeric(8,2)`), which is what lets a 1/16 inch step
  * — 1.5875 mm — survive a round trip.
  */
 export function roundMillimetres(millimetres: number): number {
-  return Math.round(millimetres * 100) / 100
+  return scaleExactly(millimetres, HUNDREDTHS_PER_MILLIMETRE) / HUNDREDTHS_PER_MILLIMETRE
 }
 
 /** An inch value split into the parts `FractionInput` shows and reads back. */
@@ -66,8 +146,11 @@ export function millimetresToInchFraction(
   millimetres: number,
   step: InchFractionStep = 8,
 ): InchFraction {
-  const negative = millimetres < 0
-  const totalSteps = Math.round((Math.abs(millimetres) / MILLIMETRES_PER_INCH) * step)
+  const hundredths = scaleExactly(millimetres, HUNDREDTHS_PER_MILLIMETRE)
+  const negative = hundredths < 0
+  // `RoundToFraction(mm / 25.4, step)` from UnitConversion, as integers: the value in hundredths
+  // times the step, over the hundredths in an inch.
+  const totalSteps = divideHalfAwayFromZero(Math.abs(hundredths) * step, HUNDREDTHS_PER_INCH)
   const whole = Math.floor(totalSteps / step)
   const remainder = totalSteps % step
 
@@ -91,28 +174,41 @@ export function inchFractionToMillimetres(fraction: {
   if (denominator === 0) {
     throw new Error('An inch fraction cannot have a denominator of zero.')
   }
-  const inches = fraction.whole + numerator / denominator
-  const millimetres = roundMillimetres(inches * MILLIMETRES_PER_INCH)
+
+  // Whole and fraction are combined into a count of steps before anything is divided, so the only
+  // division is the exact one below and 14 1/2 in reaches storage as 368.30 mm rather than near it.
+  const steps = fraction.whole * denominator + numerator
+  const millimetres =
+    divideHalfAwayFromZero(steps * HUNDREDTHS_PER_INCH, denominator) / HUNDREDTHS_PER_MILLIMETRE
+
   return fraction.negative === true ? -millimetres : millimetres
 }
 
 /**
- * Converts canonical millimetres to centimetres at the one decimal place templates specify.
+ * Converts canonical millimetres to centimetres at the field's own precision.
  *
- * Rounds the millimetre value first and divides afterwards: dividing and then rounding to one
- * decimal place in binary floating point produces values like 36.800000000000004, which then print
- * with a spurious digit on a measurement sheet.
+ * The decimal places are the field's, not this module's: the server permits nought, one or two
+ * (`FieldPrecision.CentimetreDecimals`), and one was hard-coded here until a two-decimal field —
+ * perfectly legal — was found to render wrongly. One remains the default because it is what the
+ * templates document specifies for a field that does not say otherwise.
  */
-export function millimetresToCentimetres(millimetres: number): number {
-  return Math.round(millimetres) / MILLIMETRES_PER_CENTIMETRE
+export function millimetresToCentimetres(
+  millimetres: number,
+  decimals: CentimetreDecimals = 1,
+): number {
+  const hundredths = scaleExactly(millimetres, HUNDREDTHS_PER_MILLIMETRE)
+  const places = 10 ** decimals
+  const magnitude = divideHalfAwayFromZero(Math.abs(hundredths) * places, HUNDREDTHS_PER_CENTIMETRE)
+
+  return (hundredths < 0 ? -magnitude : magnitude) / places
 }
 
 /** Converts centimetres to canonical millimetres. */
 export function centimetresToMillimetres(centimetres: number): number {
-  return roundMillimetres(centimetres * MILLIMETRES_PER_CENTIMETRE)
+  return scaleExactly(centimetres, HUNDREDTHS_PER_CENTIMETRE) / HUNDREDTHS_PER_MILLIMETRE
 }
 
 /** Converts decimal inches to canonical millimetres, for a value that is not entered as a fraction. */
 export function inchesToMillimetres(inches: number): number {
-  return roundMillimetres(inches * MILLIMETRES_PER_INCH)
+  return scaleExactly(inches, HUNDREDTHS_PER_INCH) / HUNDREDTHS_PER_MILLIMETRE
 }
