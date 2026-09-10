@@ -208,7 +208,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -249,7 +250,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -294,7 +296,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -340,7 +343,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -384,7 +388,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -432,7 +437,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -506,7 +512,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -514,11 +521,6 @@ public sealed class CatalogHandler(
         }
 
         var draft = found.Value;
-
-        if (command.ExpectedVersion is { } expected && !expected.Matches(store.EntityTagOf(draft)))
-        {
-            return Result.Failure<CatalogPublication>(CatalogErrors.VersionChanged);
-        }
 
         var checkedDraft = await CheckPublicationAsync(draft, cancellationToken);
 
@@ -619,7 +621,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -680,7 +683,8 @@ public sealed class CatalogHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var found = await LoadAsync(command.VersionId, command.OrganisationId, cancellationToken);
+        var found = await LoadForChangeAsync(
+            command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
 
         if (found.IsFailure)
         {
@@ -830,6 +834,27 @@ public sealed class CatalogHandler(
         return Result.Success(new CatalogValidationReport(version.Id, findings));
     }
 
+    private async Task<Result<CatalogVersion>> LoadForChangeAsync(
+        Guid versionId,
+        Guid organisationId,
+        EntityTag expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var found = await LoadAsync(versionId, organisationId, cancellationToken);
+
+        if (found.IsFailure)
+        {
+            return found;
+        }
+
+        // The token belongs to the whole version, including additions and removals in its tree.
+        // Compare before any domain mutation, event publication or audit. The tracked xmin then
+        // guards the remaining interval between this read and SaveChanges.
+        return expectedVersion.Matches(store.EntityTagOf(found.Value))
+            ? found
+            : Result.Failure<CatalogVersion>(CatalogErrors.VersionChanged);
+    }
+
     private async Task<Result<CatalogVersion>> LoadAsync(
         Guid versionId,
         Guid organisationId,
@@ -898,12 +923,14 @@ public sealed record CreateCatalogDraftCommand(
 /// <summary>Adds a category to a draft.</summary>
 /// <param name="VersionId">The draft.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="ParentCategoryId">The parent category, or null for top level.</param>
 /// <param name="Details">What the administrator says about it.</param>
 /// <param name="By">The administrator.</param>
 public sealed record AddCategoryCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid? ParentCategoryId,
     CategoryDetails Details,
     Guid? By);
@@ -911,6 +938,7 @@ public sealed record AddCategoryCommand(
 /// <summary>Replaces what a draft says about a category.</summary>
 /// <param name="VersionId">The draft.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="CategoryId">The category.</param>
 /// <param name="ParentCategoryId">The parent it should have, or null for top level.</param>
 /// <param name="Details">What it should now say.</param>
@@ -919,6 +947,7 @@ public sealed record AddCategoryCommand(
 public sealed record EditCategoryCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid CategoryId,
     Guid? ParentCategoryId,
     CategoryDetails Details,
@@ -928,12 +957,14 @@ public sealed record EditCategoryCommand(
 /// <summary>Removes a category and everything beneath it from a draft.</summary>
 /// <param name="VersionId">The draft.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="CategoryId">The category.</param>
 /// <param name="Reason">Why, where the administrator gave one.</param>
 /// <param name="By">The administrator.</param>
 public sealed record RemoveCategoryCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid CategoryId,
     string? Reason,
     Guid? By);
@@ -941,12 +972,14 @@ public sealed record RemoveCategoryCommand(
 /// <summary>Adds a service type to a category in a draft.</summary>
 /// <param name="VersionId">The draft.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="CategoryId">The category that offers it.</param>
 /// <param name="Details">What the administrator says about it.</param>
 /// <param name="By">The administrator.</param>
 public sealed record AddServiceTypeCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid CategoryId,
     ServiceTypeDetails Details,
     Guid? By);
@@ -954,6 +987,7 @@ public sealed record AddServiceTypeCommand(
 /// <summary>Replaces what a draft says about a service type.</summary>
 /// <param name="VersionId">The draft.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="ServiceTypeId">The service type.</param>
 /// <param name="Details">What it should now say.</param>
 /// <param name="Reason">Why, where the administrator gave one.</param>
@@ -961,6 +995,7 @@ public sealed record AddServiceTypeCommand(
 public sealed record EditServiceTypeCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid ServiceTypeId,
     ServiceTypeDetails Details,
     string? Reason,
@@ -969,12 +1004,14 @@ public sealed record EditServiceTypeCommand(
 /// <summary>Removes a service type from a draft.</summary>
 /// <param name="VersionId">The draft.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="ServiceTypeId">The service type.</param>
 /// <param name="Reason">Why, where the administrator gave one.</param>
 /// <param name="By">The administrator.</param>
 public sealed record RemoveServiceTypeCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid ServiceTypeId,
     string? Reason,
     Guid? By);
@@ -992,23 +1029,26 @@ public sealed record PublishCatalogVersionCommand(
     Guid VersionId,
     Guid OrganisationId,
     string Reason,
-    EntityTag? ExpectedVersion,
+    EntityTag ExpectedVersion,
     Guid? By);
 
 /// <summary>Retires the published version.</summary>
 /// <param name="VersionId">The version.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="Reason">Why. Retirement demands one.</param>
 /// <param name="By">The administrator.</param>
 public sealed record RetireCatalogVersionCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     string Reason,
     Guid? By);
 
 /// <summary>Corrects presentation on a published version.</summary>
 /// <param name="VersionId">The version.</param>
 /// <param name="OrganisationId">The caller's organisation.</param>
+/// <param name="ExpectedVersion">The token of the version the administrator reviewed.</param>
 /// <param name="CategoryId">The category to correct, or null when correcting a service type.</param>
 /// <param name="ServiceTypeId">The service type to correct, or null when correcting a category.</param>
 /// <param name="Presentation">The corrected label, Tamil label, description and display order.</param>
@@ -1017,6 +1057,7 @@ public sealed record RetireCatalogVersionCommand(
 public sealed record CorrectCatalogPresentationCommand(
     Guid VersionId,
     Guid OrganisationId,
+    EntityTag ExpectedVersion,
     Guid? CategoryId,
     Guid? ServiceTypeId,
     CatalogPresentation Presentation,
