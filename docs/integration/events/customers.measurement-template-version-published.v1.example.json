@@ -1,0 +1,12 @@
+{
+  "eventId": "019bd5b2-4e31-7c72-8b19-5c6d7e8f9a01",
+  "occurredAt": "2026-09-09T05:20:11.4470000+00:00",
+  "aggregateId": "019bd4a0-7b22-7a53-96e4-2f3a4b5c6d7e",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "templateVersionId": "019bd5b1-6c13-7f84-8d25-3a4b5c6d7e8f",
+  "templateCode": "MT_BLOUSE_PATTERN",
+  "versionNumber": 3,
+  "supersededVersionId": "019bd29d-3b84-7d16-8e37-8b9c0d1e2f3a",
+  "eventType": "customers.measurement-template-version-published.v1",
+  "schemaVersion": 1
+}

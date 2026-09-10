@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.measurement-template-version-published.v1.schema.json",
+  "title": "customers.measurement-template-version-published.v1",
+  "description": "A measurement-template version became the one measurements are captured against. A catalogue service type references the template rather than one of its versions, so publishing changes what the counter asks for without touching a catalogue row (docs/prd/measurement-templates.md section 2) and nothing downstream re-points anything. What it is published for is the other direction: a template with no published version strands every catalogue service type that points at it (INV-MTV-06), and publishing one is what heals such a breach. Catalog reconciles on it. The payload carries identifiers, a code and a version number and nothing about the fields; a consumer that needs them reads through Customers.Contracts.IMeasurementTemplateQuery, because copying a field set into an event would make every subscriber a second, stale template.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "templateVersionId",
+    "templateCode",
+    "versionNumber",
+    "supersededVersionId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the version was published, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The template, not the version. It is what a catalogue service type's measurementTemplateId names, and ordering is preserved per template so a publication and a retirement of the same template cannot be delivered out of order."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation whose template it is. A reconciliation is scoped to it."
+    },
+    "templateVersionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The version that was published. A measurement pins this; a catalogue reference never does."
+    },
+    "templateCode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The template's stable machine key, such as MT_BLOUSE_PATTERN. A code and not a name: it is what a seed file, an export and a message a person reads all refer to."
+    },
+    "versionNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The version's number, for a message a person reads. A label and never a key: every reference is by identifier (docs/architecture/conventions.md section 3.1)."
+    },
+    "supersededVersionId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "The version this one replaced, retired by the same publication, or null when it is the first version this template has published."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.measurement-template-version-published.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

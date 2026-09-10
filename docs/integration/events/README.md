@@ -19,9 +19,11 @@ and one of those disagree, they win and this one is corrected.
 | `customers.customer-merged.v1` | [schema](customers.customer-merged.v1.schema.json) | [example](customers.customer-merged.v1.example.json) | Customers, on an authorised merge of two records | #26 |
 | `catalog.catalog-version-published.v1` | [schema](catalog.catalog-version-published.v1.schema.json) | [example](catalog.catalog-version-published.v1.example.json) | Catalog, when a draft becomes the active configuration | #29 |
 | `catalog.catalog-version-retired.v1` | [schema](catalog.catalog-version-retired.v1.schema.json) | [example](catalog.catalog-version-retired.v1.example.json) | Catalog, on an explicit retirement | #29 |
+| `customers.measurement-template-version-published.v1` | [schema](customers.measurement-template-version-published.v1.schema.json) | [example](customers.measurement-template-version-published.v1.example.json) | Customers, when a template version becomes the one measurements are captured against | #91 |
+| `customers.measurement-template-version-retired.v1` | [schema](customers.measurement-template-version-retired.v1.schema.json) | [example](customers.measurement-template-version-retired.v1.example.json) | Customers, when a template version stops taking new captures | #91 |
 
 Each is declared as a record in the publishing module's `Contracts` project — the module's published surface — and
-nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the four Customers events and
+nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the six Customers events and
 `Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones.
 
 ## 2. Naming and versioning

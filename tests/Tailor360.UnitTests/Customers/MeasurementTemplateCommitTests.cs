@@ -149,5 +149,6 @@ public sealed class MeasurementTemplateCommitTests
             new MeasurementTestData.CountingIds("commit"),
             new RecordingAuditWriter(),
             new StubUserDirectory(activeWithPermission: 2),
-            new StubCatalogAvailability(referencesTemplate: false));
+            new StubCatalogAvailability(referencesTemplate: false),
+            new RecordingEventPublisher());
 }

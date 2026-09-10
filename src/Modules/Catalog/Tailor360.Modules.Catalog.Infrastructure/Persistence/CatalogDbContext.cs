@@ -59,6 +59,16 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     /// </remarks>
     public const string VersionNumberIndex = "ux_catalog_versions_organisation_number";
 
+    /// <summary>
+    /// The partial unique index that makes "at most one open breach per version, code and target" a fact about the
+    /// database rather than a hope about the reconciliation.
+    /// </summary>
+    /// <remarks>
+    /// Named as a constant for the same reason the others here are: it is what makes a redelivered event a no-op,
+    /// so a test asserts on it by name rather than on a literal that would go stale.
+    /// </remarks>
+    public const string OneOpenBreachIndex = "ux_reference_breaches_one_open";
+
     /// <summary>The catalogue versions, draft, published and retired.</summary>
     public DbSet<CatalogVersion> CatalogVersions => Set<CatalogVersion>();
 
@@ -67,6 +77,16 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
 
     /// <summary>The service types of every version.</summary>
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
+
+    /// <summary>
+    /// Cross-module references of the published catalogue that stopped being valid after publication.
+    /// </summary>
+    /// <remarks>
+    /// Written only by the reconciliation, and only from the delivery of an integration event, so a row commits
+    /// with the inbox row that records the check ran (issue #91). It carries no personal data — a code, a path and
+    /// a validator's own sentence about configuration.
+    /// </remarks>
+    public DbSet<CatalogReferenceBreach> ReferenceBreaches => Set<CatalogReferenceBreach>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -77,6 +97,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
         ConfigureVersions(modelBuilder);
         ConfigureCategories(modelBuilder);
         ConfigureServiceTypes(modelBuilder);
+        ConfigureReferenceBreaches(modelBuilder);
     }
 
     private static void ConfigureVersions(ModelBuilder modelBuilder)
@@ -212,6 +233,56 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
             });
 
             entity.Navigation(category => category.Branches).AutoInclude();
+        });
+
+    /// <summary>
+    /// The reconciliation's answer, one row per distinct breach.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The partial unique index is what makes a redelivered event a no-op rather than a second row: at most one
+    /// <em>open</em> breach may exist per version, code and target, while every closed one is kept. A plain unique
+    /// index over the three columns would refuse to reopen a breach that healed and recurred, which is the pattern
+    /// most worth seeing.
+    /// </para>
+    /// <para>
+    /// No foreign key to <c>catalog_versions</c>, even though both are in this schema. A breach outlives the
+    /// interest in the version it is about — it is read as history — and a cascade from a version would delete the
+    /// record of the exposure along with it.
+    /// </para>
+    /// <para>
+    /// It carries neither the <c>created_by</c>/<c>updated_by</c> pair nor a row version, which every table an
+    /// administrator edits does. Nobody edits this one: rows are written only by the reconciliation, from the
+    /// delivery of an integration event, and there is no actor to record beyond the event that caused it — which
+    /// is what <c>detected_because_of</c> is. Concurrent writers are settled by the outbox lease and by the partial
+    /// unique index below, so an optimistic token would guard against a second writer that cannot exist.
+    /// </para>
+    /// </remarks>
+    private static void ConfigureReferenceBreaches(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<CatalogReferenceBreach>(entity =>
+        {
+            entity.ToTable("reference_breaches", table => table.HasCheckConstraint(
+                "ck_reference_breaches_resolution_is_ordered",
+                "resolved_at IS NULL OR resolved_at >= detected_at"));
+
+            entity.HasKey(breach => breach.Id);
+
+            entity.Property(breach => breach.Code).HasMaxLength(200).IsRequired();
+            entity.Property(breach => breach.Target).HasMaxLength(400).IsRequired();
+            entity.Property(breach => breach.Message).HasMaxLength(2000).IsRequired();
+            entity.Property(breach => breach.Validator).HasMaxLength(200).IsRequired();
+            entity.Property(breach => breach.DetectedBecauseOf).HasMaxLength(200).IsRequired();
+            entity.Property(breach => breach.ResolvedBecauseOf).HasMaxLength(200);
+
+            entity.Ignore(breach => breach.IsOpen);
+
+            entity.HasIndex(breach => new { breach.CatalogVersionId, breach.Code, breach.Target })
+                .IsUnique()
+                .HasFilter("resolved_at IS NULL")
+                .HasDatabaseName(OneOpenBreachIndex);
+
+            entity.HasIndex(breach => new { breach.OrganisationId, breach.ResolvedAt })
+                .HasDatabaseName("ix_reference_breaches_organisation_resolved");
         });
 
     private static void ConfigureServiceTypes(ModelBuilder modelBuilder)

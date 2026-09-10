@@ -1,5 +1,6 @@
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Modules.Customers.Application.Abstractions;
+using Tailor360.Modules.Customers.Contracts.Events;
 using Tailor360.Modules.Customers.Domain.Measurements;
 using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
@@ -27,13 +28,15 @@ namespace Tailor360.Modules.Customers.Application.Measurements;
 /// <param name="audit">The platform's audit writer.</param>
 /// <param name="users">Identity's staff directory, for the separation-of-duties count.</param>
 /// <param name="catalogue">Catalog's availability contract, for the retirement guard.</param>
+/// <param name="events">This module's outbox, for the two lifecycle events Catalog reconciles on.</param>
 public sealed class MeasurementTemplateHandler(
     IMeasurementTemplateStore store,
     IClock clock,
     IIdGenerator ids,
     IAuditWriter audit,
     IUserDirectory users,
-    ICatalogAvailabilityQuery catalogue)
+    ICatalogAvailabilityQuery catalogue,
+    ICustomersEventPublisher events)
 {
     /// <summary>A template was created.</summary>
     public const string TemplateCreatedAction = "customers.measurement_template.created";
@@ -362,6 +365,19 @@ public sealed class MeasurementTemplateHandler(
             return Result.Failure<AdministeredTemplate>(published.Error);
         }
 
+        // Staged before the save, so the event commits with the publication or not at all. Catalog
+        // reconciles INV-MTV-06 on it: publishing a version is what closes a breach that a retirement
+        // opened, and nothing else would tell Catalog the template can be measured against again.
+        events.Publish(new MeasurementTemplateVersionPublished(
+            ids.NewId(),
+            clock.UtcNow,
+            template.Id,
+            template.OrganisationId,
+            version.Id,
+            template.Code,
+            version.VersionNumber,
+            published.Value?.Id));
+
         var saved = await store.SavePublicationAsync(cancellationToken);
 
         if (saved.IsFailure)
@@ -425,7 +441,20 @@ public sealed class MeasurementTemplateHandler(
                 $"Version {candidate.VersionNumber} of '{owner.Code}' retired. Nothing new is captured against it; "
                 + "everything already captured still renders through it.",
             reasonRequired: true,
-            cancellationToken);
+            cancellationToken,
+            // Staged before the save, so the event commits with the retirement or not at all. This is the
+            // write that can strand a published catalogue (INV-MTV-06): the guard above asked Catalog and
+            // then wrote here, and a catalogue publication committing in that window was validated against
+            // a template this retirement has since emptied. Catalog reconciles on the event.
+            (owner, candidate) => events.Publish(new MeasurementTemplateVersionRetired(
+                ids.NewId(),
+                clock.UtcNow,
+                owner.Id,
+                owner.OrganisationId,
+                candidate.Id,
+                owner.Code,
+                candidate.VersionNumber,
+                owner.PublishedVersion is not null)));
     }
 
     /// <summary>Checks a version without changing anything.</summary>
@@ -478,13 +507,19 @@ public sealed class MeasurementTemplateHandler(
         return [.. templates.Select(template => Administered(template, template.PublishedVersion))];
     }
 
+    /// <param name="onTransitioned">
+    /// Staged after the transition succeeds and before the save, for a transition that also publishes an
+    /// integration event. It runs inside the same unit of work on purpose: an event staged after the save would be
+    /// a dual write, which is the thing the outbox exists to make impossible.
+    /// </param>
     private async Task<Result<AdministeredTemplate>> TransitionAsync(
         TemplateLifecycleCommand command,
         Func<TemplateVersion, DateTimeOffset, Guid?, Result> transition,
         string action,
         Func<MeasurementTemplate, TemplateVersion, string> summary,
         bool reasonRequired,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<MeasurementTemplate, TemplateVersion>? onTransitioned = null)
     {
         ArgumentNullException.ThrowIfNull(command);
 
@@ -513,6 +548,7 @@ public sealed class MeasurementTemplateHandler(
         }
 
         template.Touch(clock.UtcNow, command.By);
+        onTransitioned?.Invoke(template, version);
 
         var committed = await store.SaveAsync(cancellationToken);
 

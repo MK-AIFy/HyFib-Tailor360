@@ -143,7 +143,7 @@ is.
 | INV-MTV-03 | A conditional rule may reference only field keys present in the same version. | Publish-time validator |
 | INV-MTV-04 | Publishing a new version never changes what an existing service type, measurement version or garment job references. Retirement blocks new references and invalidates none. | Version pinning, G-10 |
 | INV-MTV-05 | Values are captured and stored in millimetres; the display unit is presentation only, and inch fractions are converted on entry, not stored as text. | Domain type, `FractionInput` |
-| INV-MTV-06 | A published catalogue version's service type points at a template that has a published version. Both directions are checked before the write: catalogue publication refuses a service type whose template has none, and retirement refuses while a published catalogue still points at the template. | `MeasurementTemplateCatalogValidator`; `ICatalogAvailabilityQuery.ReferencesMeasurementTemplateAsync` |
+| INV-MTV-06 | A published catalogue version's service type points at a template that has a published version. Both directions are checked before the write: catalogue publication refuses a service type whose template has none, and retirement refuses while a published catalogue still points at the template. A breach that gets past both guards is detected and recorded by event. | `MeasurementTemplateCatalogValidator`; `ICatalogAvailabilityQuery.ReferencesMeasurementTemplateAsync`; `CatalogReconciler` |
 
 **Transactional boundary.** The template, the version and all its fields, published in one transaction with the
 publication event.
@@ -164,11 +164,29 @@ the catalogue is then published against a template whose only published version 
 that window would need the two writes serialised across the module boundary — a distributed lock or a shared
 transaction — which is precisely what **G-6** says this codebase does not do: a cross-module reference is
 validated through the contract at write time, and *continued* validity is reconciled by events rather than
-enforced by a constraint. The guards are therefore best-effort by design, and the reconciliation that G-6 promises
-is not yet built for this pair (issue to follow). Until it is, the residual window leaves a service type a counter
-cannot order, which the counter discovers at capture time rather than silently mis-measuring — the failure is
-visible, not corrupting. Changing this to a synchronous guarantee is an architecture decision record against G-6,
-not a code change.
+enforced by a constraint. The guards are therefore best-effort by design, and the reconciliation G-6 promises is
+what closes the loop. Changing this to a synchronous guarantee is an architecture decision record against G-6, not
+a code change.
+
+**The reconciliation** (issue #91) is `CatalogReconciler`, in Catalog, driven by three integration events:
+`customers.measurement-template-version-retired.v1`, `customers.measurement-template-version-published.v1` and
+Catalog's own `catalog.catalog-version-published.v1`. The race has two orderings and each is closed by a different
+one of the first and last; the middle event is what *heals* a breach, because publishing a template version is the
+fix an administrator makes and nothing else would tell the catalogue so. On any of them the currently published
+catalogue is re-checked through `CatalogPublicationCheck` — the same question publication itself asks, so a version
+that publishes cleanly and one that reconciles cleanly mean the same thing — and every error is opened as a row in
+`catalog.reference_breaches`, or closed when a later check no longer finds it. A partial unique index over
+`(catalog_version_id, code, target)` filtered on unresolved rows is what makes an at-least-once redelivery a no-op
+rather than a second row with a later detection time. A validator that cannot answer fails the delivery rather
+than concluding anything: "we could not check" is not "we checked and it is fine", and closing a standing breach
+on a failed check would tell an administrator an outage had fixed their shop.
+
+**The reconciliation records; it does not block.** A breach does not flip `notOrderable`, refuse an order or
+retire the catalogue, so the residual window still leaves a service type a counter cannot fully serve — discovered
+at capture time rather than silently mis-measured, which is a visible failure rather than a corrupting one. What
+has changed is that it is no longer discovered *only* there. Whether a breach should also stop the counter
+ordering is a product decision, open as **OD-18** in
+[`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md).
 
 **Deliberately eventually consistent.** Version-keyed read caches, invalidated by the publication event within the
 documented propagation bound (plan D21); seed exports and printed measurement sheets already produced.

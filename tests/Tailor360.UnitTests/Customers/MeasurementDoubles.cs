@@ -3,6 +3,7 @@ using Tailor360.Modules.Customers.Application.Abstractions;
 using Tailor360.Modules.Customers.Domain.Measurements;
 using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Concurrency;
+using Tailor360.Platform.Abstractions.Events;
 using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.UnitTests.Customers;
@@ -132,4 +133,22 @@ internal sealed class StubCatalogAvailability(bool referencesTemplate) : ICatalo
         Guid organisationId,
         CancellationToken cancellationToken = default)
         => Task.FromResult(referencesTemplate);
+}
+
+/// <summary>
+/// Collects what the handler published, so a test can assert an event was staged with the change.
+/// </summary>
+/// <remarks>
+/// It records rather than sends, because what a test about this handler cares about is that the event was added
+/// to the unit of work at all — the outbox's own behaviour is the integration tier's subject.
+/// </remarks>
+internal sealed class RecordingEventPublisher : ICustomersEventPublisher
+{
+    private readonly List<IIntegrationEvent> _published = [];
+
+    /// <summary>Everything staged, in the order it was staged.</summary>
+    public IReadOnlyList<IIntegrationEvent> Published => _published;
+
+    /// <inheritdoc />
+    public void Publish(IIntegrationEvent integrationEvent) => _published.Add(integrationEvent);
 }

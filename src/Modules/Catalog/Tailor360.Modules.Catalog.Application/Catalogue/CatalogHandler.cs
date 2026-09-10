@@ -40,6 +40,7 @@ namespace Tailor360.Modules.Catalog.Application.Catalogue;
 /// </para>
 /// </remarks>
 /// <param name="store">The catalogue store.</param>
+/// <param name="publicationCheck">What every registered validator says about a version.</param>
 /// <param name="validators">Every registered validator, this module's built-in one included.</param>
 /// <param name="events">This module's outbox publisher.</param>
 /// <param name="cache">This node's cached versions, cleared when one of them stops being true.</param>
@@ -49,6 +50,7 @@ namespace Tailor360.Modules.Catalog.Application.Catalogue;
 /// <param name="logger">The logger, for a validator that fell over.</param>
 public sealed class CatalogHandler(
     ICatalogStore store,
+    CatalogPublicationCheck publicationCheck,
     IEnumerable<ICatalogDependencyValidator> validators,
     ICatalogEventPublisher events,
     ICatalogCache cache,
@@ -759,39 +761,12 @@ public sealed class CatalogHandler(
         return Result.Success(Administered(version));
     }
 
-    private async Task<Result<CatalogValidationReport>> CheckPublicationAsync(
+    // Delegated so that publication, the administration screen's check and the reconciliation that runs
+    // after another module changed something all ask the same question in the same words (issue #91).
+    private Task<Result<CatalogValidationReport>> CheckPublicationAsync(
         CatalogVersion version,
         CancellationToken cancellationToken)
-    {
-        var ledger = await store.ReadCodeHistoryAsync(version.OrganisationId, cancellationToken);
-        var candidate = CatalogProjection.ToCandidate(version, ledger);
-        var findings = new List<AttributedFinding>();
-
-        foreach (var validator in validators)
-        {
-            try
-            {
-                var found = await validator.ValidatePublicationAsync(candidate, cancellationToken);
-
-                findings.AddRange(found.Select(finding => new AttributedFinding(validator.Name, finding)));
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-#pragma warning disable CA1031 // A validator is another module's code; one that fell over must stop
-            catch (Exception exception) // the command rather than take the whole request down.
-#pragma warning restore CA1031
-            {
-                ValidatorFailed(logger, validator.Name, version.Id, exception);
-
-                return Result.Failure<CatalogValidationReport>(
-                    CatalogErrors.ValidatorUnavailable(validator.Name));
-            }
-        }
-
-        return Result.Success(new CatalogValidationReport(version.Id, findings));
-    }
+        => publicationCheck.RunAsync(version, cancellationToken);
 
     private async Task<Result<CatalogValidationReport>> CheckRetirementAsync(
         CatalogVersion version,
