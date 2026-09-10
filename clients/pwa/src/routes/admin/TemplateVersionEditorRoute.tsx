@@ -20,6 +20,8 @@ import {
 import { useAdminResource } from '../../admin/useAdminResource'
 import { blankField, fieldToForm, toRequest, validateField } from '../../admin/templateFieldForm'
 import type { FieldFormState } from '../../admin/templateFieldForm'
+import { groupFields, planFieldMove, planGroupMove } from '../../admin/templateFieldOrder'
+import type { FieldGroup, MoveDirection, OrderWrite } from '../../admin/templateFieldOrder'
 import { TemplateFieldForm } from './TemplateFieldForm'
 import {
   formatMeasurementRange,
@@ -76,6 +78,16 @@ export function TemplateVersionEditorRoute() {
 
   const [removing, setRemoving] = useState<TemplateField | null>(null)
   const [busy, setBusy] = useState(false)
+  const [moving, setMoving] = useState(false)
+  /** How far a move has got, while it is running. */
+  const [progress, setProgress] = useState<{
+    readonly done: number
+    readonly total: number
+  } | null>(null)
+  /** How far a move got before it stopped, which is a prefix of the renumbering and is saved. */
+  const [partial, setPartial] = useState<{ readonly done: number; readonly total: number } | null>(
+    null,
+  )
   const [failure, setFailure] = useState<unknown>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(0)
@@ -108,6 +120,8 @@ export function TemplateVersionEditorRoute() {
   const precondition = held ?? template.value?.version
   const version = value?.versions.find((row) => row.templateVersionId === versionId) ?? null
   const fields = useMemo(() => [...(version?.fields ?? [])], [version])
+  /** The groups as the capture wizard will ask for them, which is the order the screen renders. */
+  const groups = useMemo(() => groupFields(fields), [fields])
 
   /** The band this field accepts, in the unit the version opens in, or undefined when it has none. */
   const rangeOf = (field: TemplateField): string | undefined => {
@@ -172,6 +186,145 @@ export function TemplateVersionEditorRoute() {
     } finally {
       setBusy(false)
     }
+  }
+
+  /**
+   * Applies one move: a sequence of full-body writes, one field at a time.
+   *
+   * ## Why it is a loop rather than a call
+   *
+   * There is no reorder endpoint and no bulk field save. Nothing accepts a list of identifiers or
+   * two changed orders in one request, so a move is one `PUT …/fields/{fieldId}` per affected field,
+   * **sequentially** — each carrying its own retry key, and each needing the `ETag` the previous
+   * response returned, because the template's version advances on every write. Firing them together
+   * would make all but the first fail their precondition.
+   *
+   * ## Why a failure part-way is reported rather than hidden
+   *
+   * The writes are ascending, so what has been saved when one fails is a *prefix* of the new
+   * sequence: the numbers before the failure are right and the ones after it are unchanged. That is
+   * a real state of the template, not a corrupt one — but it is not the state the person asked for,
+   * and a screen that retried silently or said nothing would leave them believing a move happened.
+   * So it says how far it got, in those words, and offers the reload that shows where the order
+   * actually stands.
+   */
+  const applyMove = async (writes: readonly OrderWrite[], announce: string): Promise<void> => {
+    if (templateId === undefined || versionId === undefined || writes.length === 0) {
+      return
+    }
+
+    let tag = precondition
+
+    if (tag === undefined) {
+      setFailure(new ApiError('The template must be read again.', { status: 409 }))
+      return
+    }
+
+    setMoving(true)
+    setFailure(null)
+    setNotice(null)
+    setPartial(null)
+    setProgress({ done: 0, total: writes.length })
+
+    let done = 0
+
+    try {
+      for (const write of writes) {
+        const id = `order:${write.field.templateFieldId}:${String(write.displayOrder)}`
+        const result = await changeTemplateField({
+          templateId,
+          versionId,
+          fieldId: write.field.templateFieldId,
+          // The whole field, with only its number changed. There is no PATCH, and echoing the read
+          // is what stops a reorder quietly resetting a bound or a rule it does not own.
+          field: toRequest(fieldToForm(write.field), write.field, write.displayOrder),
+          version: tag,
+          idempotencyKey: keyFor(id),
+        })
+
+        forget(id)
+        setHeld(result.version)
+        done += 1
+        setProgress({ done, total: writes.length })
+
+        if (result.version === undefined) {
+          // Every one of these routes answers with an `ETag`, so a response without one is a
+          // response this screen cannot build the next precondition from. Stopping here reports a
+          // real prefix; carrying on would send the tag the previous write already consumed.
+          throw new ApiError('The template must be read again.', { status: 409 })
+        }
+
+        tag = result.version
+      }
+
+      setNotice(announce)
+      template.reload()
+    } catch (cause: unknown) {
+      // Honest about how far it got. A prefix of the renumbering is saved and correct; the rest is
+      // untouched, and the person needs to see where the order stands before deciding again.
+      setPartial({ done, total: writes.length })
+      setFailure(cause)
+    } finally {
+      setMoving(false)
+      setProgress(null)
+    }
+  }
+
+  const moveField = (field: TemplateField, direction: MoveDirection, group: FieldGroup): void => {
+    const writes = planFieldMove(fields, field.templateFieldId, direction)
+
+    if (writes.length === 0) {
+      // The control stays on screen at the boundary rather than disappearing and moving every other
+      // control under the pointer, so pressing it says why nothing happened.
+      setNotice(
+        intl.formatMessage(
+          { id: direction === 'up' ? 'admin.field.order.atStart' : 'admin.field.order.atEnd' },
+          { label: field.label },
+        ),
+      )
+      return
+    }
+
+    const at = group.fields.indexOf(field)
+    void applyMove(
+      writes,
+      intl.formatMessage(
+        { id: 'admin.field.order.moved' },
+        {
+          label: field.label,
+          position: (direction === 'up' ? at - 1 : at + 1) + 1,
+          total: group.fields.length,
+          group: group.name,
+        },
+      ),
+    )
+  }
+
+  const moveGroup = (name: string, direction: MoveDirection, at: number, total: number): void => {
+    const writes = planGroupMove(fields, name, direction)
+
+    if (writes.length === 0) {
+      setNotice(
+        intl.formatMessage(
+          {
+            id:
+              direction === 'up'
+                ? 'admin.field.order.groupAtStart'
+                : 'admin.field.order.groupAtEnd',
+          },
+          { name },
+        ),
+      )
+      return
+    }
+
+    void applyMove(
+      writes,
+      intl.formatMessage(
+        { id: 'admin.field.order.groupMoved' },
+        { name, position: (direction === 'up' ? at - 1 : at + 1) + 1, total },
+      ),
+    )
   }
 
   const save = (form: FieldFormState): void => {
@@ -326,7 +479,41 @@ export function TemplateVersionEditorRoute() {
         </Alert>
       )}
 
-      {conflict ? (
+      {progress === null ? null : (
+        <Alert tone="info" live="polite">
+          {intl.formatMessage(
+            { id: 'admin.field.order.working' },
+            { done: progress.done, total: progress.total },
+          )}
+        </Alert>
+      )}
+
+      {partial === null ? null : (
+        <Alert
+          tone="warning"
+          live="assertive"
+          actions={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPartial(null)
+                setFailure(null)
+                setHeld(undefined)
+                template.reload()
+              }}
+            >
+              <FormattedMessage id="admin.reload" />
+            </Button>
+          }
+        >
+          {intl.formatMessage(
+            { id: 'admin.field.order.partial' },
+            { done: partial.done, total: partial.total },
+          )}
+        </Alert>
+      )}
+
+      {conflict && partial === null ? (
         <Alert
           tone="warning"
           live="assertive"
@@ -355,84 +542,150 @@ export function TemplateVersionEditorRoute() {
           {intl.formatMessage({ id: 'admin.template.noFields' })}
         </EmptyState>
       ) : (
-        <DataTable
-          caption={intl.formatMessage({ id: 'admin.template.fieldsCaption' })}
-          rows={fields}
-          rowKey={(row) => row.templateFieldId}
-          rowLabel={(row) => row.label}
-          columns={[
-            {
-              id: 'label',
-              header: intl.formatMessage({ id: 'admin.template.column.label' }),
-              primary: true,
-              cell: (row: TemplateField) => row.label,
-            },
-            {
-              id: 'key',
-              header: intl.formatMessage({ id: 'admin.template.column.key' }),
-              cell: (row: TemplateField) => row.key,
-            },
-            {
-              id: 'group',
-              header: intl.formatMessage({ id: 'admin.template.column.group' }),
-              cell: (row: TemplateField) => row.groupName,
-            },
-            {
-              id: 'unit',
-              header: intl.formatMessage({ id: 'admin.template.column.unit' }),
-              cell: (row: TemplateField) =>
-                intl.formatMessage({
-                  id:
-                    row.canonicalUnit === 'Count'
-                      ? 'admin.field.unit.Count'
-                      : row.canonicalUnit === 'None'
-                        ? 'admin.field.unit.None'
-                        : 'admin.field.unit.Millimetre',
-                }),
-            },
-            {
-              id: 'range',
-              header: intl.formatMessage({ id: 'admin.template.column.range' }),
-              numeric: true,
-              hideWhenNarrow: true,
-              // The tailor's own unit at the field's own precision (#103). A choice field and a
-              // field carrying the no-bounds sentinel both render nothing, because neither has a
-              // range to state — and "0–0 mm" would read as a field that accepts only zero.
-              cell: (row: TemplateField) => rangeOf(row) ?? '',
-            },
-            {
-              id: 'required',
-              header: intl.formatMessage({ id: 'admin.template.column.required' }),
-              cell: (row: TemplateField) =>
-                intl.formatMessage({
-                  id: row.isRequired ? 'admin.template.required' : 'admin.template.optional',
-                }),
-            },
-          ]}
-          rowActions={(row: TemplateField) => (
-            <>
+        <>
+          <p>{intl.formatMessage({ id: 'admin.field.order.explain' })}</p>
+          {groups.map((group, groupIndex) => (
+            <section key={group.name}>
+              <h3>{intl.formatMessage({ id: 'admin.field.order.group' }, { name: group.name })}</h3>
+
               <Button
+                iconName="chevron-up"
+                busy={moving}
+                onClick={() => {
+                  moveGroup(group.name, 'up', groupIndex, groups.length)
+                }}
                 variant="secondary"
-                onClick={() => {
-                  setFailure(null)
-                  setEditing({ field: row, form: fieldToForm(row) })
-                }}
               >
-                {intl.formatMessage({ id: 'admin.field.edit' }, { label: row.label })}
+                {intl.formatMessage({ id: 'admin.field.order.groupUp' }, { name: group.name })}
               </Button>
               <Button
-                variant="danger"
-                busy={busy && removing?.templateFieldId === row.templateFieldId}
+                iconName="chevron-down"
+                busy={moving}
                 onClick={() => {
-                  setFailure(null)
-                  setRemoving(row)
+                  moveGroup(group.name, 'down', groupIndex, groups.length)
                 }}
+                variant="secondary"
               >
-                {intl.formatMessage({ id: 'admin.field.remove' }, { label: row.label })}
+                {intl.formatMessage({ id: 'admin.field.order.groupDown' }, { name: group.name })}
               </Button>
-            </>
-          )}
-        />
+
+              <DataTable
+                caption={intl.formatMessage(
+                  { id: 'admin.field.order.caption' },
+                  { name: group.name },
+                )}
+                rows={group.fields}
+                rowKey={(row) => row.templateFieldId}
+                rowLabel={(row) => row.label}
+                columns={[
+                  {
+                    id: 'label',
+                    header: intl.formatMessage({ id: 'admin.template.column.label' }),
+                    primary: true,
+                    cell: (row: TemplateField) => row.label,
+                  },
+                  {
+                    id: 'key',
+                    header: intl.formatMessage({ id: 'admin.template.column.key' }),
+                    cell: (row: TemplateField) => row.key,
+                  },
+                  {
+                    id: 'position',
+                    header: intl.formatMessage({ id: 'admin.template.column.position' }),
+                    numeric: true,
+                    // Where the field sits in its step, in words. A person moving a field with the
+                    // keyboard needs to be able to read the position back, and a bare display order —
+                    // which is global to the version and not contiguous until something renumbers it —
+                    // is not that.
+                    cell: (row: TemplateField) =>
+                      intl.formatMessage(
+                        { id: 'admin.field.order.position' },
+                        {
+                          position: group.fields.indexOf(row) + 1,
+                          total: group.fields.length,
+                          group: group.name,
+                        },
+                      ),
+                  },
+                  {
+                    id: 'unit',
+                    header: intl.formatMessage({ id: 'admin.template.column.unit' }),
+                    cell: (row: TemplateField) =>
+                      intl.formatMessage({
+                        id:
+                          row.canonicalUnit === 'Count'
+                            ? 'admin.field.unit.Count'
+                            : row.canonicalUnit === 'None'
+                              ? 'admin.field.unit.None'
+                              : 'admin.field.unit.Millimetre',
+                      }),
+                  },
+                  {
+                    id: 'range',
+                    header: intl.formatMessage({ id: 'admin.template.column.range' }),
+                    numeric: true,
+                    hideWhenNarrow: true,
+                    // The tailor's own unit at the field's own precision (#103). A choice field and a
+                    // field carrying the no-bounds sentinel both render nothing, because neither has a
+                    // range to state — and "0–0 mm" would read as a field that accepts only zero.
+                    cell: (row: TemplateField) => rangeOf(row) ?? '',
+                  },
+                  {
+                    id: 'required',
+                    header: intl.formatMessage({ id: 'admin.template.column.required' }),
+                    cell: (row: TemplateField) =>
+                      intl.formatMessage({
+                        id: row.isRequired ? 'admin.template.required' : 'admin.template.optional',
+                      }),
+                  },
+                ]}
+                rowActions={(row: TemplateField) => (
+                  <>
+                    <Button
+                      iconName="chevron-up"
+                      busy={moving}
+                      variant="secondary"
+                      onClick={() => {
+                        moveField(row, 'up', group)
+                      }}
+                    >
+                      {intl.formatMessage({ id: 'admin.field.order.up' }, { label: row.label })}
+                    </Button>
+                    <Button
+                      iconName="chevron-down"
+                      busy={moving}
+                      variant="secondary"
+                      onClick={() => {
+                        moveField(row, 'down', group)
+                      }}
+                    >
+                      {intl.formatMessage({ id: 'admin.field.order.down' }, { label: row.label })}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setFailure(null)
+                        setEditing({ field: row, form: fieldToForm(row) })
+                      }}
+                    >
+                      {intl.formatMessage({ id: 'admin.field.edit' }, { label: row.label })}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      busy={busy && removing?.templateFieldId === row.templateFieldId}
+                      onClick={() => {
+                        setFailure(null)
+                        setRemoving(row)
+                      }}
+                    >
+                      {intl.formatMessage({ id: 'admin.field.remove' }, { label: row.label })}
+                    </Button>
+                  </>
+                )}
+              />
+            </section>
+          ))}
+        </>
       )}
 
       <Button

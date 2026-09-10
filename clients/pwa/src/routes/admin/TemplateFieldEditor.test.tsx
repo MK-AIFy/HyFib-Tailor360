@@ -521,6 +521,195 @@ it('offers no bands at all to a choice field, and none to a count', async () => 
   expect(form.getByText('The range this field accepts')).toBeInTheDocument()
 })
 
+/* Grouping and ordering (#104) ---------------------------------------------------------------- */
+
+const SLEEVE = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000dd',
+  key: 'sleeve_length',
+  label: 'Sleeve length',
+  groupName: 'Sleeve',
+  displayOrder: 2,
+})
+
+const WAIST = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000de',
+  key: 'waist',
+  label: 'Waist',
+  groupName: 'Bodice',
+  displayOrder: 1,
+})
+
+const ORDERED = aTemplateVersion({ fields: [FIELD, WAIST, SLEEVE] })
+const ORDERED_TEMPLATE = aMeasurementTemplate({ versions: [ORDERED, PUBLISHED] })
+const ORDERED_FIELDS = `${DETAIL}/versions/${ORDERED.templateVersionId}/fields`
+
+/** The editor over a version with two steps in it. */
+function renderOrdered() {
+  transport.route(`GET ${DETAIL}`, () => versionedResponse(ORDERED_TEMPLATE, 'W/"1"'))
+  return renderEditor(ORDERED.templateVersionId)
+}
+
+it('shows the fields grouped as the capture wizard will ask for them', async () => {
+  renderOrdered()
+
+  // A heading per step, in the order their first field sits — which is what the server derives.
+  expect(await screen.findByRole('heading', { name: 'Step: Bodice' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Step: Sleeve' })).toBeInTheDocument()
+
+  const headings = screen.getAllByRole('heading', { level: 3 }).map((one) => one.textContent)
+  expect(headings).toEqual(['Step: Bodice', 'Step: Sleeve'])
+})
+
+it('says where each field sits in its step, in words rather than as a raw number', async () => {
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+
+  // A person moving a field with the keyboard has to be able to read the position back, and the
+  // display order is global to the version and not contiguous until something renumbers it.
+  expect(screen.getByText('1 of 2 in Bodice')).toBeInTheDocument()
+  expect(screen.getByText('2 of 2 in Bodice')).toBeInTheDocument()
+  expect(screen.getByText('1 of 1 in Sleeve')).toBeInTheDocument()
+})
+
+it('offers a button for every move, and never only a drag', async () => {
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+
+  // clients/pwa/CLAUDE.md section 3 and checklist item A11Y-75: every drag has a button
+  // alternative. There is no drag here at all — the buttons are the whole control.
+  expect(screen.getByRole('button', { name: 'Measure Waist earlier' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Measure Chest / bust later' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Move the Sleeve step earlier' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Move the Bodice step later' })).toBeInTheDocument()
+})
+
+it('sends one write per changed field, in order, each carrying the last response tag', async () => {
+  const user = userEvent.setup()
+  let tag = 1
+  transport.route(`PUT ${ORDERED_FIELDS}/${WAIST.templateFieldId}`, () =>
+    versionedResponse(ORDERED_TEMPLATE, `W/"${String(++tag)}"`),
+  )
+  transport.route(`PUT ${ORDERED_FIELDS}/${FIELD.templateFieldId}`, () =>
+    versionedResponse(ORDERED_TEMPLATE, `W/"${String(++tag)}"`),
+  )
+
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+  await user.click(screen.getByRole('button', { name: 'Measure Waist earlier' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(`PUT ${ORDERED_FIELDS}/${FIELD.templateFieldId}`)).toHaveLength(1)
+  })
+
+  // There is no reorder endpoint and no bulk save: a move is one full-body PUT per affected field,
+  // sequentially, each needing the ETag the previous response returned because the template's
+  // version advances on every write.
+  const first = transport.callsTo(`PUT ${ORDERED_FIELDS}/${WAIST.templateFieldId}`)[0]
+  const second = transport.callsTo(`PUT ${ORDERED_FIELDS}/${FIELD.templateFieldId}`)[0]
+
+  expect(first?.headers.get('If-Match')).toBe('W/"1"')
+  expect(second?.headers.get('If-Match')).toBe('W/"2"')
+  expect((first?.body as Record<string, unknown>).displayOrder).toBe(0)
+  expect((second?.body as Record<string, unknown>).displayOrder).toBe(1)
+
+  // The whole field goes back, with only its number changed: there is no PATCH, and echoing the
+  // read is what stops a reorder quietly resetting a bound it does not own.
+  expect((first?.body as Record<string, unknown>).minimumMillimetres).toBe(100)
+  expect(Object.keys(first?.body as Record<string, unknown>)).toHaveLength(19)
+})
+
+it('announces the new position rather than leaving it to be re-read', async () => {
+  const user = userEvent.setup()
+  let tag = 1
+  transport.route(`PUT ${ORDERED_FIELDS}/${WAIST.templateFieldId}`, () =>
+    versionedResponse(ORDERED_TEMPLATE, `W/"${String(++tag)}"`),
+  )
+  transport.route(`PUT ${ORDERED_FIELDS}/${FIELD.templateFieldId}`, () =>
+    versionedResponse(ORDERED_TEMPLATE, `W/"${String(++tag)}"`),
+  )
+
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+  await user.click(screen.getByRole('button', { name: 'Measure Waist earlier' }))
+
+  expect(await screen.findByText('Waist is now 1 of 2 in Bodice.')).toBeInTheDocument()
+})
+
+it('says why nothing happened at the end of a step, rather than hiding the control', async () => {
+  const user = userEvent.setup()
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+
+  // A control that disappears at the boundary is a control whose position moves under the pointer.
+  await user.click(screen.getByRole('button', { name: 'Measure Chest / bust earlier' }))
+
+  expect(
+    await screen.findByText('Chest / bust is already measured first in this step.'),
+  ).toBeInTheDocument()
+  expect(transport.callsTo(`PUT ${ORDERED_FIELDS}/${FIELD.templateFieldId}`)).toHaveLength(0)
+})
+
+it('says how far a move got when one of its writes is refused', async () => {
+  const user = userEvent.setup()
+  transport.route(`PUT ${ORDERED_FIELDS}/${WAIST.templateFieldId}`, () =>
+    versionedResponse(ORDERED_TEMPLATE, 'W/"2"'),
+  )
+  transport.route(`PUT ${ORDERED_FIELDS}/${FIELD.templateFieldId}`, () =>
+    problemResponse(409, 'measurements.version-changed'),
+  )
+
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+  await user.click(screen.getByRole('button', { name: 'Measure Waist earlier' }))
+
+  // The writes are ascending, so what is saved is a prefix of the new sequence: correct as far as
+  // it went, and not the state the person asked for. Saying nothing would leave them believing the
+  // move happened.
+  expect(await screen.findByText(/stopped after 1 of 2 changes/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
+  expect(screen.queryByText(/is now 1 of 2 in Bodice/)).not.toBeInTheDocument()
+})
+
+it('moves a whole step as a block', async () => {
+  const user = userEvent.setup()
+  let tag = 1
+  for (const one of [FIELD, WAIST, SLEEVE]) {
+    transport.route(`PUT ${ORDERED_FIELDS}/${one.templateFieldId}`, () =>
+      versionedResponse(ORDERED_TEMPLATE, `W/"${String(++tag)}"`),
+    )
+  }
+
+  renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+  await user.click(screen.getByRole('button', { name: 'Move the Sleeve step earlier' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(`PUT ${ORDERED_FIELDS}/${SLEEVE.templateFieldId}`)).toHaveLength(1)
+  })
+
+  // A group's position *is* the position of its first field, so moving one field of it would either
+  // take the group with it or split the group. All three fields are renumbered.
+  expect(
+    (
+      transport.callsTo(`PUT ${ORDERED_FIELDS}/${SLEEVE.templateFieldId}`)[0]?.body as Record<
+        string,
+        unknown
+      >
+    ).displayOrder,
+  ).toBe(0)
+  await waitFor(() => {
+    expect(transport.callsTo(`PUT ${ORDERED_FIELDS}/${WAIST.templateFieldId}`)).toHaveLength(1)
+  })
+  expect(await screen.findByText('The Sleeve step is now step 1 of 2.')).toBeInTheDocument()
+})
+
+it('passes axe over the grouped editor', async () => {
+  const { container } = renderOrdered()
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+
+  await expectNoAccessibilityViolations(container)
+})
+
 it('passes axe with the form open, at the three profiles the guide names', async () => {
   const user = userEvent.setup()
   const { container } = render(

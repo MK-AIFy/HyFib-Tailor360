@@ -261,6 +261,96 @@ export const Bands: Story = {
     ),
 }
 
+const ORDER_SLEEVE = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000d7',
+  key: 'sleeve_length',
+  label: 'Sleeve length',
+  groupName: 'Sleeve',
+  displayOrder: 2,
+})
+
+const ORDER_CUFF = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000d8',
+  key: 'cuff_round',
+  label: 'Cuff round',
+  groupName: 'Sleeve',
+  displayOrder: 3,
+})
+
+const ORDER_WAIST = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000d9',
+  key: 'waist',
+  label: 'Waist',
+  groupName: 'Bodice',
+  displayOrder: 1,
+})
+
+const ORDER_DRAFT = aTemplateVersion({
+  templateVersionId: '0199bb00-0000-7000-8000-0000000000e7',
+  versionNumber: 6,
+  name: 'Version 6',
+  fields: [aTemplateField(), ORDER_WAIST, ORDER_SLEEVE, ORDER_CUFF],
+})
+
+const ORDER_TEMPLATE = aMeasurementTemplate({
+  measurementTemplateId: '0199bb00-0000-7000-8000-0000000000f4',
+  versions: [ORDER_DRAFT],
+})
+
+const ORDER_FIELDS = `${TEMPLATES}/${ORDER_TEMPLATE.measurementTemplateId}/versions/${ORDER_DRAFT.templateVersionId}/fields`
+
+const orderEditor = (routes: Parameters<typeof withAdminApi>[1] = {}) =>
+  withAdminApi(
+    <TemplateVersionEditorRoute />,
+    {
+      [`GET ${TEMPLATES}/${ORDER_TEMPLATE.measurementTemplateId}`]: () =>
+        storyJson(ORDER_TEMPLATE, 'W/"1"'),
+      ...routes,
+    },
+    {
+      path: '/admin/templates/:templateId/versions/:versionId',
+      at: `/admin/templates/${ORDER_TEMPLATE.measurementTemplateId}/versions/${ORDER_DRAFT.templateVersionId}`,
+    },
+  )
+
+/**
+ * Grouping and ordering (#104).
+ *
+ * Two steps, four fields. Every move is a button — there is no drag here at all, which is the
+ * strongest form of the rule that every drag has a button alternative. Each field says where it
+ * sits in words, because a display order is global to the version and not contiguous until
+ * something renumbers it.
+ */
+export const Ordering: Story = {
+  render: () =>
+    orderEditor(
+      Object.fromEntries(
+        [aTemplateField(), ORDER_WAIST, ORDER_SLEEVE, ORDER_CUFF].map((field) => [
+          `PUT ${ORDER_FIELDS}/${field.templateFieldId}`,
+          () => storyJson(ORDER_TEMPLATE, 'W/"1"'),
+        ]),
+      ),
+    ),
+}
+
+/**
+ * A move that stops part-way.
+ *
+ * Press "Measure Waist earlier". The first write lands and the second is refused, so a prefix of the
+ * renumbering is saved — correct as far as it went, and not the state the person asked for. The
+ * screen says how far it got and offers the reload that shows where the order actually stands,
+ * rather than retrying silently or claiming the move happened.
+ */
+export const MoveStoppedPartWay: Story = {
+  render: () =>
+    orderEditor({
+      [`PUT ${ORDER_FIELDS}/${ORDER_WAIST.templateFieldId}`]: () =>
+        storyJson(ORDER_TEMPLATE, 'W/"2"'),
+      [`PUT ${ORDER_FIELDS}/${aTemplateField().templateFieldId}`]: () =>
+        storyProblem(409, 'measurements.version-changed'),
+    }),
+}
+
 /** The 40% text growth the client guide asks every screen to tolerate. */
 export const TextGrowth: Story = {
   ...Fields,
