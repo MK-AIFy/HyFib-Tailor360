@@ -312,7 +312,7 @@ export const authEn = {
   'auth.reauth.submit': 'Sign back in',
   'auth.reauth.submit.stepUp': 'Confirm',
   'auth.reauth.abandon': 'Not now',
-  'auth.reauth.action': 'Signing back in',
+  'auth.reauth.action': 'continuing with this action',
   'auth.reauth.done': 'Signed back in. Carrying on where you left off.',
   'auth.reauth.code.title': 'One more step',
   'auth.reauth.code.body': 'Type the code from your authenticator to finish signing back in.',
@@ -808,7 +808,7 @@ export const authTa: Record<keyof typeof authEn, string> = {
   // not translated — awaiting native-speaker review
   'auth.reauth.abandon': 'Not now',
   // not translated — awaiting native-speaker review
-  'auth.reauth.action': 'Signing back in',
+  'auth.reauth.action': 'continuing with this action',
   // not translated — awaiting native-speaker review
   'auth.reauth.done': 'Signed back in. Carrying on where you left off.',
   // not translated — awaiting native-speaker review

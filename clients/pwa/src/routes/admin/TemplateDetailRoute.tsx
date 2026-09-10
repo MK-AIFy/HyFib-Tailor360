@@ -21,7 +21,7 @@ import {
 import type { TemplateLifecycleAction } from '../../admin/templateApi'
 import { ADMIN_PERMISSIONS } from '../../admin/adminPermissions'
 import { useAdminResource } from '../../admin/useAdminResource'
-import { useCurrentUser, useStepUp } from '../../auth/useSession'
+import { useCurrentUser } from '../../auth/useSession'
 import type { MeasurementTemplate, TemplateField, TemplateVersion } from '../../admin/types'
 import type { MessageKey } from '../../i18n/en-IN'
 
@@ -91,7 +91,6 @@ export function TemplateDetailRoute() {
   const intl = useIntl()
   const { templateId } = useParams()
   const { permissions } = useCurrentUser()
-  const stepUp = useStepUp()
 
   const canPublish = permissions.includes(ADMIN_PERMISSIONS.templatesPublish)
 
@@ -204,19 +203,13 @@ export function TemplateDetailRoute() {
   }
 
   /**
-   * Sends one lifecycle command, and answers a step-up refusal by asking rather than by failing.
-   *
-   * Returning, approving, publishing and retiring all carry `.RequireStepUp()`, so an administrator
-   * who has been reading a version for longer than the freshness window is refused with
-   * `security.step-up-required` — which is a question, not a refusal. It raises the same
-   * re-authentication dialog the session-expiry path uses, then sends the identical command again:
-   * same retry key, same reason, same precondition. Nothing the person typed is asked for twice.
+   * Sends one lifecycle command. The shared transport handles step-up recovery while this pending
+   * decision stays in place, preserving its body, retry key and precondition for the single replay.
    */
   const send = async (
     attempt: PendingCommand,
     reason: string | null,
     version: string,
-    proving = false,
   ): Promise<void> => {
     if (templateId === undefined) {
       return
@@ -249,16 +242,6 @@ export function TemplateDetailRoute() {
       )
       template.reload()
     } catch (cause: unknown) {
-      const needsProof =
-        !proving && cause instanceof ApiError && cause.code === 'security.step-up-required'
-
-      if (needsProof && (await stepUp(attempt.action))) {
-        // Once only: a second refusal after a fresh proof is a refusal, and asking again would be a
-        // loop the person cannot leave.
-        await send(attempt, reason, version, true)
-        return
-      }
-
       setFailure(cause)
       setPending(null)
     } finally {

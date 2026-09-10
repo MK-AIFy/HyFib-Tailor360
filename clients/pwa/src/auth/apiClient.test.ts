@@ -5,6 +5,7 @@ import {
   ApiError,
   apiRequest,
   setSessionChallengeHandler,
+  STEP_UP_REQUIRED_CODE,
   UPGRADE_REQUIRED_CODE,
 } from './apiClient'
 import { jsonResponse, noContent, problemResponse, stubFetch } from './testing/fixtures'
@@ -284,6 +285,139 @@ describe('a session that has ended mid-request', () => {
     transport.route('GET /api/v1/me', () => problemResponse(401, 'identity.session-required'))
 
     await expect(apiRequest('/api/v1/me')).rejects.toMatchObject({ status: 401 })
+  })
+})
+
+describe('a server-required fresh proof of identity', () => {
+  const path = '/api/v1/admin/roles/synthetic/permissions'
+  const route = `PUT ${path}`
+  const refusal = () => problemResponse(403, STEP_UP_REQUIRED_CODE)
+
+  it('replays the original body, precondition and key even if caller state changes during the dialog', async () => {
+    let attempts = 0
+    transport.route(route, () => (++attempts === 1 ? refusal() : noContent()))
+    const input = {
+      method: 'PUT' as const,
+      body: { permissionKeys: ['orders.read'], reason: 'Approved synthetic role change.' },
+      ifMatch: '"1"',
+      idempotencyKey: 'original-decision',
+    }
+    const challenge = vi.fn(() => {
+      input.body.permissionKeys.push('admin.roles')
+      input.body.reason = 'Different decision.'
+      input.ifMatch = '"9"'
+      input.idempotencyKey = 'different-decision'
+      return Promise.resolve(true)
+    })
+    setSessionChallengeHandler(challenge)
+
+    await apiRequest(path, input)
+
+    expect(challenge).toHaveBeenCalledExactlyOnceWith('step-up')
+    const calls = transport.callsTo(route)
+    expect(calls).toHaveLength(2)
+    for (const call of calls) {
+      expect(call.body).toEqual({
+        permissionKeys: ['orders.read'],
+        reason: 'Approved synthetic role change.',
+      })
+      expect(call.headers.get('If-Match')).toBe('"1"')
+      expect(call.headers.get('Idempotency-Key')).toBe('original-decision')
+    }
+    expect(transport.callsTo('GET /api/v1/antiforgery')).toHaveLength(2)
+  })
+
+  it('returns the specific refusal without replay when the person declines', async () => {
+    transport.route(route, refusal)
+    setSessionChallengeHandler(() => Promise.resolve(false))
+    await expect(apiRequest(path, { method: 'PUT' })).rejects.toMatchObject({
+      status: 403,
+      code: STEP_UP_REQUIRED_CODE,
+    })
+    expect(transport.callsTo(route)).toHaveLength(1)
+  })
+
+  it('does not ask again when the retried command is still refused', async () => {
+    transport.route(route, refusal)
+    const challenge = vi.fn(() => Promise.resolve(true))
+    setSessionChallengeHandler(challenge)
+    await expect(apiRequest(path, { method: 'PUT' })).rejects.toMatchObject({
+      code: STEP_UP_REQUIRED_CODE,
+    })
+    expect(challenge).toHaveBeenCalledTimes(1)
+    expect(transport.callsTo(route)).toHaveLength(2)
+  })
+
+  it('does not challenge ordinary forbidden responses', async () => {
+    transport.route(route, () => problemResponse(403, 'security.permission-denied'))
+    const challenge = vi.fn(() => Promise.resolve(true))
+    setSessionChallengeHandler(challenge)
+    await expect(apiRequest(path, { method: 'PUT' })).rejects.toMatchObject({ status: 403 })
+    expect(challenge).not.toHaveBeenCalled()
+    expect(transport.callsTo(route)).toHaveLength(1)
+  })
+
+  it.each([{ challengeOnUnauthenticated: false }, { challengeOnStepUp: false }])(
+    'does not recursively challenge authentication endpoints or explicit opt-outs: %j',
+    async (options) => {
+      transport.route(route, refusal)
+      const challenge = vi.fn(() => Promise.resolve(true))
+      setSessionChallengeHandler(challenge)
+      await expect(apiRequest(path, { method: 'PUT', ...options })).rejects.toMatchObject({
+        code: STEP_UP_REQUIRED_CODE,
+      })
+      expect(challenge).not.toHaveBeenCalled()
+      expect(transport.callsTo(route)).toHaveLength(1)
+    },
+  )
+
+  it('shares one identity question across concurrent refused requests', async () => {
+    let confirmed = false
+    transport.route(route, () => (confirmed ? noContent() : refusal()))
+    const challenge = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          setTimeout(() => {
+            confirmed = true
+            resolve(true)
+          }, 20)
+        }),
+    )
+    setSessionChallengeHandler(challenge)
+    await Promise.all(
+      ['first', 'second', 'third'].map((idempotencyKey) =>
+        apiRequest(path, { method: 'PUT', idempotencyKey }),
+      ),
+    )
+    expect(challenge).toHaveBeenCalledTimes(1)
+    for (const key of ['first', 'second', 'third']) {
+      expect(
+        transport.callsTo(route).filter((call) => call.headers.get('Idempotency-Key') === key),
+      ).toHaveLength(2)
+    }
+  })
+
+  it('does not replay a request aborted while identity was being proved', async () => {
+    const controller = new AbortController()
+    transport.route(route, refusal)
+    setSessionChallengeHandler(() => {
+      controller.abort()
+      return Promise.resolve(true)
+    })
+    await expect(
+      apiRequest(path, { method: 'PUT', signal: controller.signal }),
+    ).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(transport.callsTo(route)).toHaveLength(1)
+  })
+
+  it('returns the refusal when no identity dialog is registered', async () => {
+    transport.route(route, refusal)
+    await expect(apiRequest(path, { method: 'PUT' })).rejects.toMatchObject({
+      code: STEP_UP_REQUIRED_CODE,
+    })
+    expect(transport.callsTo(route)).toHaveLength(1)
   })
 })
 

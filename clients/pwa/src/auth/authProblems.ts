@@ -50,6 +50,7 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   // server distinguishes them: the first two come from the route's own assurance requirement, the
   // third from the handler once it knows the account already holds a factor.
   'security.second-factor-required': 'auth.problem.secondFactorRequired',
+  'security.step-up-required': 'admin.stepUp.body',
   'identity.second-factor-not-satisfied': 'auth.problem.secondFactorRequired',
   'security.sign-in-incomplete': 'auth.problem.signInIncomplete',
   'security.antiforgery-token-invalid': 'auth.problem.securityRefused',

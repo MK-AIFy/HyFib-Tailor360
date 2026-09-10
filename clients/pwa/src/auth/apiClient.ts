@@ -5,7 +5,7 @@ import { ANTIFORGERY_HEADER, antiforgeryToken, forgetAntiforgeryToken } from './
 /**
  * The one way this application talks to its API.
  *
- * It is a real interceptor rather than a wrapper around `fetch`, because three things have to happen
+ * It is a real interceptor rather than a wrapper around `fetch`, because four things have to happen
  * on every request and none of them can be left to a call site:
  *
  *  1. **The anti-forgery header.** Every state-changing request carries the request half of the token
@@ -20,13 +20,15 @@ import { ANTIFORGERY_HEADER, antiforgeryToken, forgetAntiforgeryToken } from './
  *     with a tape measure. So a 401 suspends the request, raises the re-authentication dialog over
  *     whatever is on screen, and when the person has signed back in the *same* request is sent again.
  *     The screen never unmounts and never learns that any of it happened.
+ *  4. **A stale proof of identity is renewed in place.** A `403 security.step-up-required`
+ *     raises the same dialog, then retries once with the original body, version and retry key.
  *
  * ## What it deliberately does not do
  *
  * It does not cache, it does not de-duplicate and it does not queue. Server state belongs to the
  * shared query cache #50 introduces, and the bounded offline queue is #51's; a second data-fetching
  * path built here would be the thing both of those have to unpick. This is the transport, and the
- * three rules above are transport concerns.
+ * four rules above are transport concerns.
  *
  * ## The three headers it adds without being asked
  *
@@ -107,6 +109,9 @@ export const SESSION_STATE_HEADER = 'X-Session-State'
 /** The problem code the server returns when the anti-forgery token is missing or stale. */
 export const ANTIFORGERY_REFUSED_CODE = 'security.antiforgery-token-invalid'
 
+/** The caller is authorised but must prove their identity again before this action. */
+export const STEP_UP_REQUIRED_CODE = 'security.step-up-required'
+
 /**
  * The problem code the server returns when this build is older than the minimum it supports.
  *
@@ -145,6 +150,12 @@ export interface ApiRequestOptions {
    */
   readonly challengeOnUnauthenticated?: boolean
   /**
+   * Whether a step-up refusal asks for fresh identity proof and retries once. Defaults to the
+   * session-challenge setting, so sign-in, factor challenges and the startup probe never recursively
+   * challenge themselves. A caller can explicitly opt out of step-up recovery independently.
+   */
+  readonly challengeOnStepUp?: boolean
+  /**
    * The retry key for a command, sent as `Idempotency-Key`.
    *
    * **The caller holds it, this module does not generate it.** A key generated here would be fresh on
@@ -173,7 +184,9 @@ export interface ApiRequestOptions {
  * suspended request should be replayed, and false when they abandoned the dialog — in which case the
  * original 401 is thrown and the screen shows it.
  */
-export type SessionChallengeHandler = (state: SessionState) => Promise<boolean>
+export type SessionChallengeReason = SessionState | 'step-up'
+
+export type SessionChallengeHandler = (reason: SessionChallengeReason) => Promise<boolean>
 
 let challengeHandler: SessionChallengeHandler | null = null
 
@@ -193,7 +206,7 @@ export function setSessionChallengeHandler(handler: SessionChallengeHandler | nu
   challengeInFlight = null
 }
 
-async function runSessionChallenge(state: SessionState): Promise<boolean> {
+async function runSessionChallenge(state: SessionChallengeReason): Promise<boolean> {
   if (challengeHandler === null) {
     return false
   }
@@ -257,7 +270,11 @@ async function readBody<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
-async function send(path: string, options: ApiRequestOptions): Promise<Response> {
+async function send(
+  path: string,
+  options: ApiRequestOptions,
+  body: string | undefined,
+): Promise<Response> {
   const method = options.method ?? 'GET'
   const headers = new Headers({ Accept: 'application/json' })
 
@@ -278,7 +295,7 @@ async function send(path: string, options: ApiRequestOptions): Promise<Response>
     headers.set(IF_MATCH_HEADER, options.ifMatch)
   }
 
-  if (options.body !== undefined) {
+  if (body !== undefined) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -293,13 +310,13 @@ async function send(path: string, options: ApiRequestOptions): Promise<Response>
     // Nothing this client fetches may be served from a cache: every authenticated response is either
     // personal data or a security fact about the moment it was asked for.
     cache: 'no-store',
-    ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+    ...(body === undefined ? {} : { body }),
     ...(options.signal === undefined ? {} : { signal: options.signal }),
   })
 }
 
 /**
- * Sends a request, applying the three interceptor rules, and returns the parsed body.
+ * Sends a request, applying the four interceptor rules, and returns the parsed body.
  *
  * Throws `ApiError` for anything that did not succeed, including a connection that never landed —
  * for which `status` is undefined and the screen shows the `network` cause.
@@ -345,14 +362,20 @@ export async function apiRequestVersioned<T>(
   }
 }
 
-async function exchange(path: string, options: ApiRequestOptions): Promise<Response> {
+async function exchange(path: string, input: ApiRequestOptions): Promise<Response> {
+  // A dialog may remain open while its caller's state changes. Freeze the outgoing decision once:
+  // an idempotency key must never be replayed with a different body or precondition.
+  const options = { ...input }
+  const body = options.body === undefined ? undefined : JSON.stringify(options.body)
   let tokenRefreshed = false
   let reauthenticated = false
+  let stepUpAttempted = false
 
   for (;;) {
+    options.signal?.throwIfAborted()
     let response: Response
     try {
-      response = await send(path, options)
+      response = await send(path, options, body)
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') {
         throw cause
@@ -385,6 +408,19 @@ async function exchange(path: string, options: ApiRequestOptions): Promise<Respo
       // Signing in issues a new pair, so the token in hand is stale by construction.
       const signedBackIn = await runSessionChallenge(sessionState ?? 'expired')
       if (signedBackIn) {
+        forgetAntiforgeryToken()
+        continue
+      }
+    }
+
+    if (
+      response.status === 403 &&
+      problem?.code === STEP_UP_REQUIRED_CODE &&
+      (options.challengeOnStepUp ?? options.challengeOnUnauthenticated ?? true) &&
+      !stepUpAttempted
+    ) {
+      stepUpAttempted = true
+      if (await runSessionChallenge('step-up')) {
         forgetAntiforgeryToken()
         continue
       }
