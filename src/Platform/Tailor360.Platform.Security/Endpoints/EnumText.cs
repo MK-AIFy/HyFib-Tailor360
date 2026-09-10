@@ -1,4 +1,4 @@
-namespace Tailor360.Modules.Customers.Api.Payloads;
+namespace Tailor360.Platform.Security.Endpoints;
 
 /// <summary>Reads an enumeration member from the name a request carried.</summary>
 /// <remarks>
@@ -15,7 +15,7 @@ namespace Tailor360.Modules.Customers.Api.Payloads;
 /// The names are the contract, so the text is matched against the declared names and nothing else.
 /// </para>
 /// </remarks>
-internal static class EnumText
+public static class EnumText
 {
     /// <summary>Reads a member by name, case-insensitively.</summary>
     /// <typeparam name="TEnum">The enumeration.</typeparam>
