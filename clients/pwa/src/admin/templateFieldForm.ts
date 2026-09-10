@@ -1,4 +1,6 @@
 import type { TemplateChoiceOption, TemplateField, TemplateFieldRequest } from './types'
+import { draftToRule, ruleToDraft, validateRule } from './templateRule'
+import type { RuleDraft } from './templateRule'
 import type { MessageKey } from '../i18n/en-IN'
 
 /**
@@ -98,6 +100,8 @@ export interface FieldFormState {
   readonly diagramKey: string
   readonly diagramAlt: string
   readonly options: readonly ChoiceOptionDraft[]
+  /** When the field is asked for, or null when it is always asked for (#95). */
+  readonly rule: RuleDraft | null
 }
 
 /**
@@ -126,6 +130,7 @@ export function blankField(groupName = ''): FieldFormState {
     diagramKey: '',
     diagramAlt: '',
     options: [],
+    rule: null,
   }
 }
 
@@ -156,6 +161,9 @@ export function fieldToForm(field: TemplateField): FieldFormState {
       label: option.label,
       labelTamil: option.labelTamil ?? '',
     })),
+    // The new half of the superseded pair again: `rule` on the response is a rendered English
+    // sentence and is not sendable, and `ruleDefinition` is the structure a builder can edit.
+    rule: ruleToDraft(field.ruleDefinition),
   }
 }
 
@@ -286,8 +294,7 @@ export function toRequest(
     // so that a value set by some later screen survives an edit made here.
     diagramMediaId: existing?.diagramMediaId ?? null,
     // The *definition*, never the rendered English sentence the response carries under this name.
-    // The rule builder is #95; until then a rule already on the field is preserved, not erased.
-    rule: existing?.ruleDefinition ?? null,
+    rule: draftToRule(form.rule),
     options: choice ? form.options.map(toOption) : null,
   }
 }
@@ -379,6 +386,15 @@ export function validateField(
       errors.push({ field: 'inchFraction', messageId: 'admin.field.error.fractionNotPermitted' })
     }
   }
+
+  errors.push(
+    ...validateRule(form.rule, isNew ? key : form.key).map((error) => ({
+      field: 'rule' as const,
+      messageId: error.messageId,
+      ...(error.values === undefined ? {} : { values: error.values }),
+      ...(error.clause === undefined ? {} : { optionIndex: error.clause }),
+    })),
+  )
 
   if (isChoice(form.canonicalUnit)) {
     errors.push(...validateOptions(form.options))

@@ -470,6 +470,51 @@ export const adminEn = {
   'admin.template.column.position': 'Position',
   'admin.field.order.caption':
     'The fields measured in the {name} step, in the order they are measured',
+
+  /* The conditional-visibility rule builder (#95). ---------------------------------------------- */
+  'admin.field.rule': 'When this field is asked for',
+  'admin.field.rule.hint':
+    'Left alone, the field is always asked for. A rule shows or hides it depending on what has already been answered, or on what the customer chose from the design sheet.',
+  'admin.field.rule.none': 'This field is always asked for.',
+  'admin.field.rule.add': 'Add a rule',
+  'admin.field.rule.remove': 'Always ask for this field',
+  'admin.field.rule.effect': 'What the rule does',
+  'admin.field.rule.effect.ShownWhen': 'Ask for it only when',
+  'admin.field.rule.effect.HiddenWhen': 'Do not ask for it when',
+  'admin.field.rule.clauses': 'Any one of these is enough',
+  'admin.field.rule.clause': 'Condition {position}',
+  'admin.field.rule.clause.add': 'Add another condition',
+  'admin.field.rule.clause.remove': 'Remove condition {position}',
+  'admin.field.rule.clause.scope': 'Condition {position}: what to look at',
+  'admin.field.rule.clause.scope.Field': 'Another measurement in this template',
+  'admin.field.rule.clause.scope.DesignSelection':
+    'Something the customer chose on the design sheet',
+  'admin.field.rule.clause.field': 'Condition {position}: which measurement',
+  'admin.field.rule.clause.design': 'Condition {position}: which design choice',
+  'admin.field.rule.clause.design.hint':
+    'Typed, because there is no catalogue of design choices to pick from yet. It arrives with the design-option catalogue.',
+  'admin.field.rule.clause.operator': 'Condition {position}: how to compare',
+  'admin.field.rule.clause.operator.IsAnyOf': 'is one of',
+  'admin.field.rule.clause.operator.Excludes': 'is none of',
+  'admin.field.rule.clause.value': 'Condition {position}, value {index}',
+  'admin.field.rule.clause.value.add': 'Add another value to condition {position}',
+  'admin.field.rule.clause.value.remove': 'Remove value {index} from condition {position}',
+  'admin.field.rule.atLimit':
+    'Six conditions is the most a rule may carry. A rule that needs more is describing something this template should ask as a separate field.',
+  'admin.field.rule.noNesting':
+    'Conditions are joined by “or”, and nothing else. There is no “and”, no “not” and no grouping — deliberately, so a rule always reads as one sentence.',
+  'admin.field.rule.sentence': 'As the shop system reads it',
+  'admin.field.rule.sentence.pending':
+    'The sentence is written by the server and appears here once the field is saved.',
+  'admin.field.rule.error.noClauses':
+    'A rule with no conditions can never ask for this field. Add a condition, or remove the rule.',
+  'admin.field.rule.error.tooManyClauses': 'A rule may carry at most {limit} conditions.',
+  'admin.field.rule.error.operandRequired': 'Say what this condition looks at.',
+  'admin.field.rule.error.operandMalformed':
+    'A measurement key is lower case, starts with a letter, and uses only letters, digits and underscores.',
+  'admin.field.rule.error.readsItself':
+    'A field cannot depend on its own answer: it would be hidden, so it would have no answer, so it would be shown. Point this condition at another measurement.',
+  'admin.field.rule.error.noValues': 'Give this condition at least one value to compare against.',
 } as const
 
 /*
@@ -1253,4 +1298,83 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.field.order.caption':
     'The fields measured in the {name} step, in the order they are measured',
+
+  /* The conditional-visibility rule builder (#95). ---------------------------------------------- */
+  // not translated — awaiting native-speaker review
+  'admin.field.rule': 'When this field is asked for',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.hint':
+    'Left alone, the field is always asked for. A rule shows or hides it depending on what has already been answered, or on what the customer chose from the design sheet.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.none': 'This field is always asked for.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.add': 'Add a rule',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.remove': 'Always ask for this field',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.effect': 'What the rule does',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.effect.ShownWhen': 'Ask for it only when',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.effect.HiddenWhen': 'Do not ask for it when',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clauses': 'Any one of these is enough',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause': 'Condition {position}',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.add': 'Add another condition',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.remove': 'Remove condition {position}',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.scope': 'Condition {position}: what to look at',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.scope.Field': 'Another measurement in this template',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.scope.DesignSelection':
+    'Something the customer chose on the design sheet',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.field': 'Condition {position}: which measurement',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.design': 'Condition {position}: which design choice',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.design.hint':
+    'Typed, because there is no catalogue of design choices to pick from yet. It arrives with the design-option catalogue.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.operator': 'Condition {position}: how to compare',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.operator.IsAnyOf': 'is one of',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.operator.Excludes': 'is none of',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.value': 'Condition {position}, value {index}',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.value.add': 'Add another value to condition {position}',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.clause.value.remove': 'Remove value {index} from condition {position}',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.atLimit':
+    'Six conditions is the most a rule may carry. A rule that needs more is describing something this template should ask as a separate field.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.noNesting':
+    'Conditions are joined by “or”, and nothing else. There is no “and”, no “not” and no grouping — deliberately, so a rule always reads as one sentence.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.sentence': 'As the shop system reads it',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.sentence.pending':
+    'The sentence is written by the server and appears here once the field is saved.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.error.noClauses':
+    'A rule with no conditions can never ask for this field. Add a condition, or remove the rule.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.error.tooManyClauses': 'A rule may carry at most {limit} conditions.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.error.operandRequired': 'Say what this condition looks at.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.error.operandMalformed':
+    'A measurement key is lower case, starts with a letter, and uses only letters, digits and underscores.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.error.readsItself':
+    'A field cannot depend on its own answer: it would be hidden, so it would have no answer, so it would be shown. Point this condition at another measurement.',
+  // not translated — awaiting native-speaker review
+  'admin.field.rule.error.noValues': 'Give this condition at least one value to compare against.',
 }

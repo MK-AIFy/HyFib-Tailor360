@@ -351,6 +351,65 @@ export const MoveStoppedPartWay: Story = {
     }),
 }
 
+const RULED = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000da',
+  key: 'lining_length',
+  label: 'Lining length',
+  groupName: 'Bodice',
+  displayOrder: 1,
+  helpText: 'Only when the blouse is lined.',
+  diagramReference: null,
+  diagramKey: null,
+  diagramAlt: null,
+  rule: 'Shown when the lining is chosen, or when the sleeve style is full.',
+  ruleDefinition: {
+    effect: 'ShownWhen',
+    anyOf: [
+      { scope: 'Field', name: 'has_lining', operator: 'IsAnyOf', values: ['YES'] },
+      { scope: 'DesignSelection', name: 'sleeve_style', operator: 'IsAnyOf', values: ['FULL'] },
+    ],
+  },
+})
+
+const RULE_DRAFT = aTemplateVersion({
+  templateVersionId: '0199bb00-0000-7000-8000-0000000000e8',
+  versionNumber: 7,
+  name: 'Version 7',
+  fields: [aTemplateField(), RULED],
+})
+
+const RULE_TEMPLATE = aMeasurementTemplate({
+  measurementTemplateId: '0199bb00-0000-7000-8000-0000000000f5',
+  versions: [RULE_DRAFT],
+})
+
+/**
+ * The conditional-visibility rule builder (#95).
+ *
+ * Open "Lining length" to see a stored rule: two conditions joined by *or*, one reading another
+ * measurement and one reading a design choice, with the sentence the server rendered beside them.
+ *
+ * The second condition is the case a reviewer should look at. Design selections do not exist at the
+ * counter, so outside an order that condition cannot be read at all — and an undecidable rule
+ * **shows** the field, because hiding on missing information drops a measurement the tailor needs.
+ * A matched condition settles the whole rule even beside one that cannot be read, since the
+ * conditions are joined by *or*.
+ */
+export const RuleBuilder: Story = {
+  render: () =>
+    withAdminApi(
+      <TemplateVersionEditorRoute />,
+      {
+        [`GET ${TEMPLATES}/${RULE_TEMPLATE.measurementTemplateId}`]: () =>
+          storyJson(RULE_TEMPLATE, 'W/"1"'),
+      },
+      {
+        path: '/admin/templates/:templateId/versions/:versionId',
+        at: `/admin/templates/${RULE_TEMPLATE.measurementTemplateId}/versions/${RULE_DRAFT.templateVersionId}`,
+      },
+    ),
+}
+
 /** The 40% text growth the client guide asks every screen to tolerate. */
 export const TextGrowth: Story = {
   ...Fields,

@@ -521,6 +521,184 @@ it('offers no bands at all to a choice field, and none to a count', async () => 
   expect(form.getByText('The range this field accepts')).toBeInTheDocument()
 })
 
+/* The rule builder (#95) ------------------------------------------------------------------------ */
+
+it('says a field is always asked for until somebody says otherwise', async () => {
+  const user = userEvent.setup()
+  const form = within(await openAddForm(user))
+
+  expect(form.getByText('This field is always asked for.')).toBeInTheDocument()
+  expect(form.queryByLabelText('What the rule does')).not.toBeInTheDocument()
+})
+
+it('builds a rule from controls, and never from free text where an operand belongs', async () => {
+  const user = userEvent.setup()
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+
+  // The effect, the comparison and — for a field operand — the operand itself are all chosen.
+  expect(form.getByLabelText('What the rule does')).toBeInTheDocument()
+  expect(form.getByLabelText('Condition 1: what to look at')).toBeInTheDocument()
+  expect(form.getByLabelText('Condition 1: how to compare')).toBeInTheDocument()
+})
+
+it('offers no “and”, no “not” and no grouping, and says so rather than leaving it to be found', async () => {
+  const user = userEvent.setup()
+  const form = within(await openAddForm(user))
+
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+
+  // A screen that offered a control the server rejects would teach an administrator that the
+  // application is unreliable, so the limits are stated where they bite.
+  expect(form.getByText(/Conditions are joined by “or”, and nothing else/)).toBeInTheDocument()
+})
+
+it('stops at six conditions, and says why rather than refusing silently', async () => {
+  const user = userEvent.setup()
+  const form = within(await openAddForm(user))
+
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+  for (let added = 1; added < 6; added += 1) {
+    await user.click(form.getByRole('button', { name: 'Add another condition' }))
+  }
+
+  expect(form.getByLabelText('Condition 6: how to compare')).toBeInTheDocument()
+  expect(form.queryByRole('button', { name: 'Add another condition' })).not.toBeInTheDocument()
+  expect(form.getByText(/Six conditions is the most a rule may carry/)).toBeInTheDocument()
+})
+
+it('types a design operand and says why there is no list to pick from', async () => {
+  const user = userEvent.setup()
+  const form = within(await openAddForm(user))
+
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+  await user.selectOptions(form.getByLabelText('Condition 1: what to look at'), 'DesignSelection')
+
+  // The design option groups are #30 and do not exist: nothing in the API lists one. Offering only
+  // the field scope would silently drop half the language and make an existing design rule
+  // uneditable, so the scope is offered with the reason there is no picker.
+  expect(form.getByLabelText('Condition 1: which design choice')).toBeInTheDocument()
+  expect(form.getByText(/no catalogue of design choices to pick from yet/)).toBeInTheDocument()
+})
+
+it('sends the rule as a structure, never as the sentence the response renders', async () => {
+  const user = userEvent.setup()
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+  await user.selectOptions(form.getByLabelText('Condition 1: what to look at'), 'DesignSelection')
+  await user.type(form.getByLabelText('Condition 1: which design choice'), 'sleeve_style')
+  await user.type(form.getByLabelText('Condition 1, value 1'), 'SLEEVELESS')
+  await user.click(form.getByRole('button', { name: 'Save this field' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(`PUT ${FIELDS}/${FIELD.templateFieldId}`)).toHaveLength(1)
+  })
+
+  const body = transport.callsTo(`PUT ${FIELDS}/${FIELD.templateFieldId}`)[0]?.body as Record<
+    string,
+    unknown
+  >
+
+  expect(body.rule).toEqual({
+    effect: 'ShownWhen',
+    anyOf: [
+      {
+        scope: 'DesignSelection',
+        name: 'sleeve_style',
+        operator: 'IsAnyOf',
+        values: ['SLEEVELESS'],
+      },
+    ],
+  })
+})
+
+it('refuses a field that reads its own answer, before the server is asked', async () => {
+  const user = userEvent.setup()
+  const two = aTemplateField({
+    templateFieldId: '0199bb00-0000-7000-8000-0000000000da',
+    key: 'has_lining',
+    label: 'Has lining',
+    displayOrder: 1,
+  })
+  const version = aTemplateVersion({ fields: [FIELD, two] })
+  const template = aMeasurementTemplate({ versions: [version] })
+  transport.route(`GET ${DETAIL}`, () => versionedResponse(template, 'W/"1"'))
+
+  renderEditor(version.templateVersionId)
+  await screen.findByRole('heading', { name: 'Step: Bodice' })
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+
+  // The operand list is the version's *other* keys, so the field's own is not offered at all —
+  // a field whose visibility depends on its own value can never settle.
+  const operand = form.getByLabelText('Condition 1: which measurement')
+  expect(within(operand).queryByRole('option', { name: 'chest_bust' })).not.toBeInTheDocument()
+  expect(within(operand).getByRole('option', { name: 'has_lining' })).toBeInTheDocument()
+})
+
+it('sends nothing at all for a field whose rule is removed', async () => {
+  const user = userEvent.setup()
+  const withRule = aTemplateField({
+    ruleDefinition: {
+      effect: 'HiddenWhen',
+      anyOf: [{ scope: 'Field', name: 'has_lining', operator: 'IsAnyOf', values: ['NO'] }],
+    },
+    rule: 'Hidden when the lining is not chosen.',
+  })
+  const version = aTemplateVersion({ fields: [withRule] })
+  const template = aMeasurementTemplate({ versions: [version] })
+  const route = `PUT ${DETAIL}/versions/${version.templateVersionId}/fields/${withRule.templateFieldId}`
+
+  transport.route(`GET ${DETAIL}`, () => versionedResponse(template, 'W/"1"'))
+  transport.route(route, () => versionedResponse(template, 'W/"2"'))
+
+  renderEditor(version.templateVersionId)
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+
+  // The stored rule opens as a rule, and the sentence the server rendered is shown beside it so an
+  // administrator can read what they built in words.
+  expect(form.getByText('Hidden when the lining is not chosen.')).toBeInTheDocument()
+
+  await user.click(form.getByRole('button', { name: 'Always ask for this field' }))
+  await user.click(form.getByRole('button', { name: 'Save this field' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(route)).toHaveLength(1)
+  })
+
+  expect((transport.callsTo(route)[0]?.body as Record<string, unknown>).rule).toBeNull()
+})
+
+it('passes axe with the rule builder open', async () => {
+  const user = userEvent.setup()
+  const { container } = renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+  await user.click(form.getByRole('button', { name: 'Add a rule' }))
+  await user.click(form.getByRole('button', { name: 'Add another condition' }))
+
+  // The checklist singles the rule builder out as one of two controls most likely to strand a
+  // keyboard user: every condition has to be addable, editable and removable without a pointer,
+  // and every control's accessible name has to say which condition it belongs to.
+  await expectNoAccessibilityViolations(container)
+  expect(form.getByRole('button', { name: 'Remove condition 2' })).toBeInTheDocument()
+})
+
 /* Grouping and ordering (#104) ---------------------------------------------------------------- */
 
 const SLEEVE = aTemplateField({
