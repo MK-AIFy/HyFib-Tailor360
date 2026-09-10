@@ -25,6 +25,7 @@ import type {
   FieldFormState,
 } from '../../admin/templateFieldForm'
 import { TemplateFieldBands } from './TemplateFieldBands'
+import { TemplateRuleBuilder } from './TemplateRuleBuilder'
 
 import { unitForBands } from '../../design-system/components/forms/measurementRange'
 import type { MeasurementDisplayUnit } from '../../design-system/components/forms/measurement'
@@ -147,6 +148,21 @@ export function TemplateFieldForm(props: TemplateFieldFormProps) {
   const setBandUnit = (next: MeasurementDisplayUnit): void => {
     setChosenUnit(next)
   }
+
+  /**
+   * The rule's refusals, back in the shape the builder reads.
+   *
+   * `validateField` flattens every refusal into one list keyed by control, and a clause index rides
+   * along in the same member an option index uses — so it is unpacked here rather than the builder
+   * being taught the flattened shape.
+   */
+  const ruleErrors = shown
+    .filter((error) => error.field === 'rule')
+    .map((error) => ({
+      messageId: error.messageId,
+      ...(error.values === undefined ? {} : { values: error.values }),
+      ...(error.optionIndex === undefined ? {} : { clause: error.optionIndex }),
+    }))
 
   const bandErrors: Partial<Record<BandKey, string>> = {}
   for (const error of shown) {
@@ -445,6 +461,17 @@ export function TemplateFieldForm(props: TemplateFieldFormProps) {
           </Button>
         </fieldset>
       ) : null}
+
+      <TemplateRuleBuilder
+        controlId={controlId}
+        draft={form.rule}
+        errors={ruleErrors}
+        fieldKeys={otherKeys}
+        onChange={(rule) => {
+          set('rule', rule)
+        }}
+        sentence={existing?.rule ?? null}
+      />
 
       <Checkbox
         id={controlId('isRequired')}
