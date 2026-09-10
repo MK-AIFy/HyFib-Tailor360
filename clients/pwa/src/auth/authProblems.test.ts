@@ -7,6 +7,12 @@ function failure(code: string, extra: Record<string, unknown> = {}): ApiError {
 }
 
 describe('what a failure is allowed to say', () => {
+  it('explains a step-up demand even when the identity question is declined or unavailable', () => {
+    expect(authProblemMessage(failure('security.step-up-required'))).toEqual({
+      id: 'admin.stepUp.body',
+    })
+  })
+
   it('gives a wrong password, an unknown account, a suspended one and a locked one the same sentence', () => {
     // The server answers all of these with `identity.invalid-credentials` and takes the same time
     // over each — down to verifying against a decoy hash on the unknown-account path. A client that

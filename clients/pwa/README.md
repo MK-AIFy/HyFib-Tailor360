@@ -39,6 +39,19 @@ There is no separate API origin. The dev server proxies `/api` and `/health` to
 the reverse proxy — which is what makes session cookies, the anti-forgery header and the content
 security policy behave the same in both places. If a request 502s, the web host is not running.
 
+The shared transport recovers from `403 security.step-up-required` through the session provider's
+identity dialog. It holds the original serialised body, `If-Match` and `Idempotency-Key`, refreshes the
+anti-forgery token after proof, and retries once. Declining, aborting, or a second refusal never causes
+an automatic replay. Concurrent challenges share one dialog. Authentication calls opt out so the
+dialog cannot recursively challenge its own login or factor request. Template lifecycle commands use
+this same recovery; they no longer maintain a separate retry loop.
+
+`AdminStepUp.test.tsx` exercises branch trading, feature settings, staff suspension, role permissions
+and outbox replay through their real screens. Template lifecycle recovery is covered by
+`TemplateScreens.test.tsx`; transport tests cover bounded replay, unchanged request identity,
+cancellation, concurrent requests and ordinary permission refusals. Server permissions and fresh
+factor requirements remain authoritative.
+
 ## Layout
 
 ```

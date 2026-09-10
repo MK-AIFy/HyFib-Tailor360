@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ApiError, setSessionChallengeHandler } from './apiClient'
-import type { SessionState } from './apiClient'
+import type { SessionChallengeReason } from './apiClient'
 import * as api from './authApi'
 import { millisecondsUntilWarning } from './expiry'
 import { ReauthenticationDialog } from './ReauthenticationDialog'
@@ -160,10 +160,12 @@ export function SessionProvider({ children }: SessionProviderProps) {
     return promise
   }, [])
 
-  /* The transport raises this when a request comes back 401. */
+  /* The transport shares one dialog for session expiry and a server-required step-up. */
   useEffect(() => {
-    const handler = (state: SessionState) =>
-      reauthenticate({ reason: state === 'revoked' ? 'revoked' : 'expired' })
+    const handler = (state: SessionChallengeReason) =>
+      reauthenticate({
+        reason: state === 'step-up' ? 'step-up' : state === 'revoked' ? 'revoked' : 'expired',
+      })
 
     setSessionChallengeHandler(handler)
     return () => {
