@@ -53,8 +53,11 @@ not running (`./scripts/dev run` from the repository root).
   against it — so an endpoint whose response changes fails `pnpm typecheck`. Regenerate in the same commit as the
   API change; `pnpm generate:api:check` fails on drift and CI runs it. Never edit `schema.d.ts`.
 - **One transport, `src/auth/apiClient.ts`.** It adds `X-Correlation-Id`, `X-Client-Version` and the anti-forgery
-  header itself, sends the `Idempotency-Key` the caller holds, refetches a refused token once, and re-authenticates
-  in place on a 401. Do not hand-write a second `fetch` wrapper.
+  header itself, sends the `Idempotency-Key` the caller holds, refetches a refused token once, re-authenticates in
+  place on a 401, and renews a stale proof of identity in place on a `403 security.step-up-required`. Both replay
+  the identical request, so the retry key, the precondition and whatever the person typed survive by construction
+  rather than by a screen remembering to preserve them. Do not hand-write a second `fetch` wrapper, and do not
+  answer either refusal at a call site.
 
 ## 3. Components
 
