@@ -373,6 +373,154 @@ it('asks for the description of a diagram only once there is a diagram to descri
   expect(form.getByLabelText('Describe the diagram')).toBeRequired()
 })
 
+it("states a range in the tailor's unit at the field's precision, never in millimetres", async () => {
+  // The fixture is 100 mm to 2000 mm at eighths of an inch. A tailor never sees millimetres
+  // (docs/prd/measurement-templates.md section 2), so a bound quoted in them cannot be checked
+  // against the tape in anybody's hand — which is the only reason to show it.
+  renderEditor()
+
+  const table = within(await screen.findByRole('table'))
+  expect(table.getByText('Expected between 3 7/8 in and 78 3/4 in.')).toBeInTheDocument()
+  expect(table.queryByText(/mm/)).not.toBeInTheDocument()
+})
+
+it('says nothing about the range of a field that accepts any measurement', async () => {
+  const user = userEvent.setup()
+  const form = await openAddForm(user)
+
+  // A new field opens with no bounds, and says which state it is in rather than leaving it to be
+  // read off four empty boxes.
+  expect(within(form).getByText('This field accepts any measurement.')).toBeInTheDocument()
+  expect(within(form).queryByLabelText('Refuse below')).not.toBeInTheDocument()
+})
+
+it('sets both bounds at once, because half a range cannot be sent', async () => {
+  const user = userEvent.setup()
+  const element = await openAddForm(user)
+  const form = within(element)
+
+  await user.click(form.getByRole('button', { name: 'Set a range' }))
+
+  // Each bound is its own group, and the accessible name says which bound as well as which field,
+  // so a screen-reader user landing on the fraction strip knows what they are setting.
+  expect(form.getByRole('group', { name: 'Refuse below' })).toBeInTheDocument()
+  expect(form.getByRole('group', { name: 'Refuse above' })).toBeInTheDocument()
+  expect(form.getByRole('group', { name: 'Ask to confirm below' })).toBeInTheDocument()
+  expect(form.getByRole('group', { name: 'Ask to confirm above' })).toBeInTheDocument()
+})
+
+it('enters inches as a whole number and a fraction, never as a decimal box', async () => {
+  const user = userEvent.setup()
+  const element = await openAddForm(user)
+  const form = within(element)
+
+  await user.click(form.getByRole('button', { name: 'Set a range' }))
+
+  // A tape is divided by halving, so the step is a fraction a person can find on it. A decimal box
+  // would offer 3.19 in, which is not a number anybody can read off a tape.
+  const lower = within(form.getByRole('group', { name: 'Refuse below' }))
+  expect(lower.getByLabelText('Refuse below — whole inches')).toBeInTheDocument()
+
+  // And the strip is a radiogroup, so 14½ in can be set from the keyboard alone.
+  const strip = lower.getByRole('radiogroup', { name: 'Refuse below — fraction of an inch' })
+  expect(within(strip).getByRole('radio', { name: '1/2' })).toBeInTheDocument()
+})
+
+it('sends a bound typed in inches as the millimetres the server stores', async () => {
+  const user = userEvent.setup()
+  transport.route(`POST ${FIELDS}`, () => versionedResponse(TEMPLATE, 'W/"2"'))
+
+  const element = await openAddForm(user)
+  const form = within(element)
+  await fillMinimum(user, element)
+  await user.click(form.getByRole('button', { name: 'Set a range' }))
+
+  const lower = within(form.getByRole('group', { name: 'Refuse below' }))
+  await user.type(lower.getByLabelText('Refuse below — whole inches'), '14')
+  await user.click(lower.getByRole('radio', { name: '1/2' }))
+
+  const upper = within(form.getByRole('group', { name: 'Refuse above' }))
+  await user.type(upper.getByLabelText('Refuse above — whole inches'), '40')
+
+  await user.click(form.getByRole('button', { name: 'Save this field' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(`POST ${FIELDS}`)).toHaveLength(1)
+  })
+
+  const body = transport.callsTo(`POST ${FIELDS}`)[0]?.body as Record<string, unknown>
+
+  // 14 1/2 in is exactly 368.30 mm. Reaching storage as "near it" is the rounding bug this slice
+  // exists to not have.
+  expect(body.minimumMillimetres).toBe(368.3)
+  expect(body.maximumMillimetres).toBe(1016)
+  expect(body.warnBelowMillimetres).toBeNull()
+})
+
+it('refuses a confirmation threshold outside the bounds before the server is asked', async () => {
+  const user = userEvent.setup()
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+
+  // The stored band is 100–2000 mm with thresholds at 200 and 1800. Pushing the lower threshold
+  // under the lower bound makes it unreachable: the value is refused before anybody is asked.
+  const threshold = within(form.getByRole('group', { name: 'Ask to confirm below' }))
+  const whole = threshold.getByLabelText('Ask to confirm below — whole inches')
+  await user.clear(whole)
+  await user.type(whole, '0')
+  await user.click(threshold.getByRole('radio', { name: '0' }))
+
+  await user.click(form.getByRole('button', { name: 'Save this field' }))
+
+  expect(await form.findByRole('button', { name: /never reached/ })).toBeInTheDocument()
+  expect(transport.callsTo(`PUT ${FIELDS}/${FIELD.templateFieldId}`)).toHaveLength(0)
+})
+
+it('clears the thresholds with the bounds, so none is left to be refused', async () => {
+  const user = userEvent.setup()
+  const route = `PUT ${FIELDS}/${FIELD.templateFieldId}`
+  transport.route(route, () => versionedResponse(TEMPLATE, 'W/"2"'))
+
+  renderEditor()
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Edit Chest / bust' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Chest / bust' }))
+  await user.click(form.getByRole('button', { name: 'Accept any measurement' }))
+  await user.click(form.getByRole('button', { name: 'Save this field' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(route)).toHaveLength(1)
+  })
+
+  const body = transport.callsTo(route)[0]?.body as Record<string, unknown>
+
+  // The sentinel, whole: two zeroes and two nulls. A threshold left behind would be refused as
+  // outside the bounds it no longer has.
+  expect(body.minimumMillimetres).toBe(0)
+  expect(body.maximumMillimetres).toBe(0)
+  expect(body.warnBelowMillimetres).toBeNull()
+  expect(body.warnAboveMillimetres).toBeNull()
+})
+
+it('offers no bands at all to a choice field, and none to a count', async () => {
+  const user = userEvent.setup()
+  const element = await openAddForm(user)
+  const form = within(element)
+
+  await user.selectOptions(form.getByLabelText('Stored as'), 'None')
+  expect(form.queryByText('The range this field accepts')).not.toBeInTheDocument()
+  expect(form.queryByRole('button', { name: 'Set a range' })).not.toBeInTheDocument()
+
+  await user.selectOptions(form.getByLabelText('Stored as'), 'Count')
+  // A count has no unit to read a bound in, so the range is there but has no display unit; the
+  // editor still offers it, because a count of hooks may legitimately be bounded.
+  expect(form.getByText('The range this field accepts')).toBeInTheDocument()
+})
+
 it('passes axe with the form open, at the three profiles the guide names', async () => {
   const user = userEvent.setup()
   const { container } = render(

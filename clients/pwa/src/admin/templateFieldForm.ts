@@ -80,6 +80,21 @@ export interface FieldFormState {
   readonly inchFraction: number
   readonly centimetreDecimals: number
   readonly isRequired: boolean
+  /**
+   * The four band numbers, in **canonical millimetres**, or null for a field that declares none.
+   *
+   * Held canonically and converted only at the control, which is the same rule `MeasurementField`
+   * follows: converting once at the boundary is what stops a value drifting by a rounding step every
+   * time somebody opens the form and saves it again.
+   *
+   * The two hard bounds move together. They are not nullable on the wire, and the only way to say
+   * "no bounds" is the `ValidationBands.None` sentinel — exactly `0 / 0 / null / null` — so a
+   * minimum without a maximum is not a state the server can be told about.
+   */
+  readonly minimumMillimetres: number | null
+  readonly maximumMillimetres: number | null
+  readonly warnBelowMillimetres: number | null
+  readonly warnAboveMillimetres: number | null
   readonly diagramKey: string
   readonly diagramAlt: string
   readonly options: readonly ChoiceOptionDraft[]
@@ -104,6 +119,10 @@ export function blankField(groupName = ''): FieldFormState {
     inchFraction: 8,
     centimetreDecimals: 1,
     isRequired: true,
+    minimumMillimetres: null,
+    maximumMillimetres: null,
+    warnBelowMillimetres: null,
+    warnAboveMillimetres: null,
     diagramKey: '',
     diagramAlt: '',
     options: [],
@@ -122,6 +141,12 @@ export function fieldToForm(field: TemplateField): FieldFormState {
     inchFraction: Number(field.inchFraction),
     centimetreDecimals: Number(field.centimetreDecimals),
     isRequired: field.isRequired,
+    // The sentinel reads back as two zeroes; it is "no bounds", not "a field that accepts only
+    // zero", so it opens the form empty rather than with a pair of noughts somebody has to clear.
+    minimumMillimetres: declaredBound(field.minimumMillimetres, field.maximumMillimetres),
+    maximumMillimetres: declaredBound(field.maximumMillimetres, field.minimumMillimetres),
+    warnBelowMillimetres: nullableNumber(field.warnBelowMillimetres),
+    warnAboveMillimetres: nullableNumber(field.warnAboveMillimetres),
     diagramKey: field.diagramKey ?? '',
     diagramAlt: field.diagramAlt ?? '',
     // The new half of the superseded pair. `optionCodes` carries the same codes without their
@@ -132,6 +157,15 @@ export function fieldToForm(field: TemplateField): FieldFormState {
       labelTamil: option.labelTamil ?? '',
     })),
   }
+}
+
+/** One half of the hard bounds, or null when the pair is the no-bounds sentinel. */
+function declaredBound(value: number | string, other: number | string): number | null {
+  return Number(value) === 0 && Number(other) === 0 ? null : Number(value)
+}
+
+function nullableNumber(value: number | string | null): number | null {
+  return value === null ? null : Number(value)
 }
 
 /** Falls back to `Millimetre` for a unit this build does not know, rather than rendering a blank. */
@@ -155,6 +189,29 @@ export function hasPrecision(unit: CanonicalUnit): boolean {
 /** Whether this unit is a choice, and so needs its options listed. */
 export function isChoice(unit: CanonicalUnit): boolean {
   return unit === 'None'
+}
+
+/** The four members of the quad, in the order the editor asks for them. */
+export type BandKey =
+  'minimumMillimetres' | 'warnBelowMillimetres' | 'warnAboveMillimetres' | 'maximumMillimetres'
+
+/** The same four, as a list a screen can iterate and a refusal can be matched against. */
+export const BAND_KEYS: readonly BandKey[] = [
+  'minimumMillimetres',
+  'warnBelowMillimetres',
+  'warnAboveMillimetres',
+  'maximumMillimetres',
+]
+
+/**
+ * Whether this field declares hard bounds.
+ *
+ * The pair moves together, because the wire cannot carry half of it: both bounds are non-nullable,
+ * so a minimum on its own would have to travel beside a maximum of zero, which the server reads as
+ * `minimum > maximum` and refuses.
+ */
+export function hasBounds(form: FieldFormState): boolean {
+  return form.minimumMillimetres !== null || form.maximumMillimetres !== null
 }
 
 /**
@@ -197,6 +254,7 @@ export function toRequest(
 ): TemplateFieldRequest {
   const precision = precisionFor(form)
   const choice = isChoice(form.canonicalUnit)
+  const bounded = hasBounds(form)
   const diagramKey = trimmedOrNull(form.diagramKey)
 
   return {
@@ -209,12 +267,14 @@ export function toRequest(
     inchFraction: precision.inchFraction,
     centimetreDecimals: precision.centimetreDecimals,
     isRequired: form.isRequired,
-    // A choice field has no bands at all and the API nulls them out itself; a numeric field keeps
-    // whatever #103's screen set, or the sentinel when it is new.
-    minimumMillimetres: choice ? 0 : (existing?.minimumMillimetres ?? 0),
-    maximumMillimetres: choice ? 0 : (existing?.maximumMillimetres ?? 0),
-    warnBelowMillimetres: choice ? null : (existing?.warnBelowMillimetres ?? null),
-    warnAboveMillimetres: choice ? null : (existing?.warnAboveMillimetres ?? null),
+    // A choice field has no bands at all and the API nulls them out itself. A numeric field that
+    // declares none sends the sentinel: the two hard bounds are not nullable, so `0 / 0 / null /
+    // null` is the only way to say it, and a warning threshold beside that quad would be refused as
+    // outside the bounds — which is why both warnings go with it rather than surviving on their own.
+    minimumMillimetres: choice ? 0 : (form.minimumMillimetres ?? 0),
+    maximumMillimetres: choice ? 0 : (form.maximumMillimetres ?? 0),
+    warnBelowMillimetres: choice || !bounded ? null : form.warnBelowMillimetres,
+    warnAboveMillimetres: choice || !bounded ? null : form.warnAboveMillimetres,
     helpText: form.helpText.trim(),
     diagramKey,
     // Alternative text is only meaningful with a diagram, and the server refuses a diagram without
@@ -322,6 +382,70 @@ export function validateField(
 
   if (isChoice(form.canonicalUnit)) {
     errors.push(...validateOptions(form.options))
+  } else {
+    errors.push(...validateBands(form))
+  }
+
+  return errors
+}
+
+/**
+ * The band rules, restated from `ValidationBands.Validate`.
+ *
+ * Every one of them exists because a template that breaks it is a template a reviewer *believed*
+ * had a check and does not — a warning band outside the hard bounds is never reached, because the
+ * value is refused before anybody is asked to confirm it. That is worth saying before the round
+ * trip rather than after, since a person has just typed four numbers.
+ */
+function validateBands(form: FieldFormState): readonly FieldFormError[] {
+  const errors: FieldFormError[] = []
+  const { minimumMillimetres: min, maximumMillimetres: max } = form
+  const { warnBelowMillimetres: low, warnAboveMillimetres: high } = form
+
+  if (!hasBounds(form)) {
+    // No bounds is a legitimate state, and so is a field with no warning band. A threshold without
+    // bounds is not: it travels beside the `0 / 0` sentinel and is refused as outside it.
+    if (low !== null || high !== null) {
+      errors.push({
+        field: 'warnBelowMillimetres',
+        messageId: 'admin.field.error.warningWithoutBounds',
+      })
+    }
+    return errors
+  }
+
+  if (min === null) {
+    errors.push({ field: 'minimumMillimetres', messageId: 'admin.field.error.boundsIncomplete' })
+  }
+  if (max === null) {
+    errors.push({ field: 'maximumMillimetres', messageId: 'admin.field.error.boundsIncomplete' })
+  }
+  if (min === null || max === null) {
+    return errors
+  }
+
+  if (min > max) {
+    errors.push({ field: 'minimumMillimetres', messageId: 'admin.field.error.boundsOutOfOrder' })
+    return errors
+  }
+
+  if (low !== null && (low < min || low > max)) {
+    errors.push({
+      field: 'warnBelowMillimetres',
+      messageId: 'admin.field.error.warningOutsideBounds',
+    })
+  }
+  if (high !== null && (high < min || high > max)) {
+    errors.push({
+      field: 'warnAboveMillimetres',
+      messageId: 'admin.field.error.warningOutsideBounds',
+    })
+  }
+  if (low !== null && high !== null && low > high) {
+    errors.push({
+      field: 'warnAboveMillimetres',
+      messageId: 'admin.field.error.warningBandOutOfOrder',
+    })
   }
 
   return errors

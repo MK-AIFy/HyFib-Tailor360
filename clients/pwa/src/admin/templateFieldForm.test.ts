@@ -3,6 +3,7 @@ import { aTemplateField } from './testing/fixtures'
 import {
   blankField,
   fieldToForm,
+  hasBounds,
   hasPrecision,
   isChoice,
   toRequest,
@@ -158,6 +159,141 @@ describe('what the editor refuses before the server is asked', () => {
     const found = validateField(good({ label: 'x'.repeat(121) }), [], true)
     expect(found[0]?.messageId).toBe('admin.field.error.tooLong')
     expect(found[0]?.values).toEqual({ limit: 120 })
+  })
+})
+
+describe('the four band numbers', () => {
+  it('accepts a field that declares none', () => {
+    // A field with no bounds is a legitimate template, not an unfinished one.
+    expect(messages(good())).toEqual([])
+  })
+
+  it('accepts a whole band that is ordered and sits inside itself', () => {
+    expect(
+      messages(
+        good({
+          minimumMillimetres: 100,
+          maximumMillimetres: 2000,
+          warnBelowMillimetres: 200,
+          warnAboveMillimetres: 1800,
+        }),
+      ),
+    ).toEqual([])
+  })
+
+  it.each([
+    ['minimumMillimetres', { minimumMillimetres: 100 }],
+    ['maximumMillimetres', { maximumMillimetres: 2000 }],
+  ])('refuses a range with only its %s set', (_named, bounds) => {
+    // Both bounds are non-nullable on the wire, so half a range would travel beside a zero the
+    // server reads as the other bound — and refuses as out of order.
+    expect(messages(good(bounds))).toContain('admin.field.error.boundsIncomplete')
+  })
+
+  it('refuses a lower bound above the upper one', () => {
+    expect(messages(good({ minimumMillimetres: 2000, maximumMillimetres: 100 }))).toEqual([
+      'admin.field.error.boundsOutOfOrder',
+    ])
+  })
+
+  it.each([
+    ['below', { warnBelowMillimetres: 50 }],
+    ['above', { warnAboveMillimetres: 3000 }],
+  ])('refuses a confirmation threshold outside the bounds — %s', (_named, warning) => {
+    // Unreachable: the value is refused before anybody is asked to confirm it, so a reviewer
+    // believes the template has a confirmation step that it does not.
+    expect(
+      messages(good({ minimumMillimetres: 100, maximumMillimetres: 2000, ...warning })),
+    ).toContain('admin.field.error.warningOutsideBounds')
+  })
+
+  it('refuses a confirmation band that is inside out', () => {
+    expect(
+      messages(
+        good({
+          minimumMillimetres: 100,
+          maximumMillimetres: 2000,
+          warnBelowMillimetres: 1800,
+          warnAboveMillimetres: 200,
+        }),
+      ),
+    ).toContain('admin.field.error.warningBandOutOfOrder')
+  })
+
+  it('refuses a threshold with no bounds to sit inside', () => {
+    // It would travel beside the 0 / 0 sentinel, which is exactly what the server refuses.
+    expect(messages(good({ warnBelowMillimetres: 200 }))).toEqual([
+      'admin.field.error.warningWithoutBounds',
+    ])
+  })
+
+  it('does not ask a choice field about bands it can never have', () => {
+    expect(
+      messages(
+        good({
+          canonicalUnit: 'None',
+          options: [{ code: 'ROUND', label: 'Round', labelTamil: '' }],
+        }),
+      ),
+    ).toEqual([])
+  })
+
+  it('sends what the form holds, in millimetres, unconverted', () => {
+    const request = toRequest(
+      good({
+        minimumMillimetres: 390.5375,
+        maximumMillimetres: 558.8,
+        warnBelowMillimetres: 400,
+        warnAboveMillimetres: 500,
+      }),
+      null,
+      0,
+    )
+
+    expect(request.minimumMillimetres).toBe(390.5375)
+    expect(request.maximumMillimetres).toBe(558.8)
+    expect(request.warnBelowMillimetres).toBe(400)
+    expect(request.warnAboveMillimetres).toBe(500)
+  })
+
+  it('drops a threshold when the bounds it needed are cleared', () => {
+    // The sentinel is set as a whole. A threshold left behind would be refused as outside it, so
+    // the request cannot carry one — whatever the form state happens to be holding.
+    const request = toRequest(
+      good({ warnBelowMillimetres: 200, warnAboveMillimetres: 1800 }),
+      null,
+      0,
+    )
+
+    expect(request.minimumMillimetres).toBe(0)
+    expect(request.maximumMillimetres).toBe(0)
+    expect(request.warnBelowMillimetres).toBeNull()
+    expect(request.warnAboveMillimetres).toBeNull()
+  })
+
+  it('opens the sentinel as empty rather than as a pair of noughts', () => {
+    // Two zeroes mean "any measurement". Loading them as values would show a person a range that
+    // accepts only zero, and make them clear two boxes to say what was already true.
+    const form = fieldToForm(
+      aTemplateField({
+        minimumMillimetres: 0,
+        maximumMillimetres: 0,
+        warnBelowMillimetres: null,
+        warnAboveMillimetres: null,
+      }),
+    )
+
+    expect(form.minimumMillimetres).toBeNull()
+    expect(form.maximumMillimetres).toBeNull()
+    expect(hasBounds(form)).toBe(false)
+  })
+
+  it('opens a real range whose lower bound is zero as a range', () => {
+    const form = fieldToForm(aTemplateField({ minimumMillimetres: 0, maximumMillimetres: 508 }))
+
+    expect(form.minimumMillimetres).toBe(0)
+    expect(form.maximumMillimetres).toBe(508)
+    expect(hasBounds(form)).toBe(true)
   })
 })
 
