@@ -98,31 +98,57 @@ describe('branches', () => {
     expect(screen.getByRole('button', { name: 'Reopen branch' })).toBeInTheDocument()
   })
 
-  it('reads the branch again before closing it, so the version is the one that is true now', async () => {
-    const user = userEvent.setup()
-    const moved = aBranch({ version: 'W/"9"' })
+  it.each([
+    { branch: OPEN, action: 'close', label: 'Close branch' },
+    { branch: CLOSED, action: 'reopen', label: 'Reopen branch' },
+  ])(
+    'uses the rendered version for $action and reloads only when asked after a conflict',
+    async ({ branch, action, label }) => {
+      const user = userEvent.setup()
+      renderScreen(<BranchListRoute />)
+      await screen.findByRole('table')
 
-    transport.route(`GET /api/v1/admin/branches/${OPEN.branchId}`, () =>
-      versionedResponse(moved, moved.version),
-    )
-    transport.route(`POST /api/v1/admin/branches/${OPEN.branchId}/close`, () =>
-      versionedResponse({ ...OPEN, status: 'Closed' }, 'W/"10"'),
-    )
+      // Another administrator edits the branch after this register has rendered.
+      const moved = { ...branch, name: 'Updated synthetic counter', version: 'W/"9"' }
+      transport.route(`GET /api/v1/admin/branches/${branch.branchId}`, () =>
+        versionedResponse(moved, moved.version),
+      )
+      transport.route('GET /api/v1/admin/branches/', () => jsonResponse([moved]))
+      const command = `POST /api/v1/admin/branches/${branch.branchId}/${action}`
+      transport.route(command, () => problemResponse(409, 'identity.concurrent-change'))
 
-    renderScreen(<BranchListRoute />)
-    await screen.findByRole('table')
+      await user.click(screen.getByRole('button', { name: label }))
+      await confirmWith(user, label, 'Reviewed the synthetic branch lease.')
 
-    await user.click(screen.getByRole('button', { name: 'Close branch' }))
-    await confirmWith(user, 'Close branch', 'The lease ended on 30 September.')
+      const sent = transport.callsTo(command)[0]
+      if (sent === undefined) {
+        throw new Error('The trading command was never sent.')
+      }
 
-    const sent = transport.callsTo(`POST /api/v1/admin/branches/${OPEN.branchId}/close`)[0]
-    if (sent === undefined) {
-      throw new Error('The close command was never sent.')
-    }
+      expect(sent.headers.get('If-Match')).toBe(branch.version)
+      expect(sent.body).toEqual({ reason: 'Reviewed the synthetic branch lease.' })
+      expect(sent.headers.get('Idempotency-Key')).not.toBeNull()
+      expect(transport.callsTo(`GET /api/v1/admin/branches/${branch.branchId}`)).toHaveLength(0)
+      const reload = await screen.findByRole('button', { name: 'Reload' })
+      expect(screen.getByRole('alert')).toHaveTextContent('changed')
+      expect(screen.getByText(branch.name)).toBeInTheDocument()
+      expect(transport.callsTo('GET /api/v1/admin/branches/')).toHaveLength(1)
 
-    // The version from the fresh read, not the one the table had been showing.
-    expect(sent.headers.get('If-Match')).toBe('W/"9"')
-  })
+      await user.click(reload)
+      expect(await screen.findByText(moved.name)).toBeInTheDocument()
+      expect(transport.callsTo(command)).toHaveLength(1)
+
+      // Reviewing the newly rendered row is a fresh decision and uses its version.
+      transport.route(command, () => versionedResponse(moved, 'W/"10"'))
+      await user.click(screen.getByRole('button', { name: label }))
+      await confirmWith(user, label, 'Reviewed the changed branch details.')
+      const confirmed = transport.callsTo(command)[1]
+      expect(confirmed?.headers.get('If-Match')).toBe(moved.version)
+      expect(confirmed?.headers.get('Idempotency-Key')).not.toBe(
+        sent.headers.get('Idempotency-Key'),
+      )
+    },
+  )
 
   it('says the branch is refused while people still work there', async () => {
     const user = userEvent.setup()
