@@ -286,7 +286,6 @@ export const adminEn = {
   'admin.template.column.required': 'Required',
   'admin.template.required': 'Required',
   'admin.template.optional': 'Optional',
-  'admin.template.millimetres': '{from}–{to} mm',
   'admin.template.noFields':
     'This version has no fields yet. A version with no fields cannot be published.',
   'admin.template.noVersions':
@@ -421,6 +420,33 @@ export const adminEn = {
     'A stored value is up to 40 characters, upper case, starting with a letter or a digit.',
   'admin.field.error.optionDuplicate': 'Two choices cannot share a stored value.',
   'admin.field.error.optionLabel': 'Give this choice something a tailor can read.',
+
+  /* Bounds and warning thresholds, in a tailor's units (#103). --------------------------------- */
+  'admin.field.bands': 'The range this field accepts',
+  'admin.field.bands.hint':
+    'Left empty, the field accepts any measurement. Filled in, a value outside the hard bounds is refused and a value in the warning band is accepted once a tailor confirms it.',
+  'admin.field.bands.unit': 'Read the range in',
+  'admin.field.bands.unit.in': 'Inches',
+  'admin.field.bands.unit.cm': 'Centimetres',
+  'admin.field.bands.unit.hint':
+    'Only how these four numbers are shown and typed. The measurement is stored the same way either way.',
+  'admin.field.bands.minimum': 'Refuse below',
+  'admin.field.bands.maximum': 'Refuse above',
+  'admin.field.bands.warnBelow': 'Ask to confirm below',
+  'admin.field.bands.warnAbove': 'Ask to confirm above',
+  'admin.field.bands.clear': 'Accept any measurement',
+  'admin.field.bands.declare': 'Set a range',
+  'admin.field.bands.none': 'This field accepts any measurement.',
+  'admin.field.bands.summary': 'Refused outside {minimum} to {maximum}.',
+  'admin.field.bands.warnSummary': 'Confirmed between {below} and {above}.',
+  'admin.field.error.boundsIncomplete':
+    'Give both a lower and an upper bound, or clear them both — the range cannot be half set.',
+  'admin.field.error.boundsOutOfOrder': 'The lower bound has to be below the upper one.',
+  'admin.field.error.warningOutsideBounds':
+    'A confirmation threshold outside the bounds is never reached: the value is refused before anybody is asked.',
+  'admin.field.error.warningBandOutOfOrder': 'The lower threshold has to be below the upper one.',
+  'admin.field.error.warningWithoutBounds':
+    'A confirmation threshold needs a range to sit inside. Set the bounds, or clear the threshold.',
 } as const
 
 /*
@@ -886,8 +912,6 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   // not translated — awaiting native-speaker review
   'admin.template.optional': 'Optional',
   // not translated — awaiting native-speaker review
-  'admin.template.millimetres': '{from}–{to} mm',
-  // not translated — awaiting native-speaker review
   'admin.template.noFields':
     'This version has no fields yet. A version with no fields cannot be published.',
   // not translated — awaiting native-speaker review
@@ -1119,4 +1143,51 @@ export const adminTa: Record<keyof typeof adminEn, string> = {
   'admin.field.error.optionDuplicate': 'Two choices cannot share a stored value.',
   // not translated — awaiting native-speaker review
   'admin.field.error.optionLabel': 'Give this choice something a tailor can read.',
+
+  /* Bounds and warning thresholds, in a tailor's units (#103). --------------------------------- */
+  // not translated — awaiting native-speaker review
+  'admin.field.bands': 'The range this field accepts',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.hint':
+    'Left empty, the field accepts any measurement. Filled in, a value outside the hard bounds is refused and a value in the warning band is accepted once a tailor confirms it.',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.unit': 'Read the range in',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.unit.in': 'Inches',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.unit.cm': 'Centimetres',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.unit.hint':
+    'Only how these four numbers are shown and typed. The measurement is stored the same way either way.',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.minimum': 'Refuse below',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.maximum': 'Refuse above',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.warnBelow': 'Ask to confirm below',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.warnAbove': 'Ask to confirm above',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.clear': 'Accept any measurement',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.declare': 'Set a range',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.none': 'This field accepts any measurement.',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.summary': 'Refused outside {minimum} to {maximum}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.bands.warnSummary': 'Confirmed between {below} and {above}.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.boundsIncomplete':
+    'Give both a lower and an upper bound, or clear them both — the range cannot be half set.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.boundsOutOfOrder': 'The lower bound has to be below the upper one.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.warningOutsideBounds':
+    'A confirmation threshold outside the bounds is never reached: the value is refused before anybody is asked.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.warningBandOutOfOrder': 'The lower threshold has to be below the upper one.',
+  // not translated — awaiting native-speaker review
+  'admin.field.error.warningWithoutBounds':
+    'A confirmation threshold needs a range to sit inside. Set the bounds, or clear the threshold.',
 }

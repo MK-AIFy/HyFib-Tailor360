@@ -21,6 +21,11 @@ import { useAdminResource } from '../../admin/useAdminResource'
 import { blankField, fieldToForm, toRequest, validateField } from '../../admin/templateFieldForm'
 import type { FieldFormState } from '../../admin/templateFieldForm'
 import { TemplateFieldForm } from './TemplateFieldForm'
+import {
+  formatMeasurementRange,
+  unitForBands,
+} from '../../design-system/components/forms/measurementRange'
+import type { CentimetreDecimals, InchFractionStep } from '../../i18n/units'
 import type { MeasurementTemplate, TemplateField } from '../../admin/types'
 
 /**
@@ -103,6 +108,36 @@ export function TemplateVersionEditorRoute() {
   const precondition = held ?? template.value?.version
   const version = value?.versions.find((row) => row.templateVersionId === versionId) ?? null
   const fields = useMemo(() => [...(version?.fields ?? [])], [version])
+
+  /** The band this field accepts, in the unit the version opens in, or undefined when it has none. */
+  const rangeOf = (field: TemplateField): string | undefined => {
+    const unit = unitForBands(
+      {
+        inchFraction: Number(field.inchFraction),
+        centimetreDecimals: Number(field.centimetreDecimals),
+      },
+      version?.defaultDisplayUnit,
+    )
+
+    return unit === undefined
+      ? undefined
+      : formatMeasurementRange(
+          intl,
+          {
+            minimumMillimetres: Number(field.minimumMillimetres),
+            maximumMillimetres: Number(field.maximumMillimetres),
+          },
+          {
+            unit,
+            step: (Number(field.inchFraction) > 0
+              ? Number(field.inchFraction)
+              : 8) as InchFractionStep,
+            decimals: (Number(field.centimetreDecimals) > 0
+              ? Number(field.centimetreDecimals)
+              : 1) as CentimetreDecimals,
+          },
+        )
+  }
 
   const send = async (
     id: string,
@@ -356,6 +391,16 @@ export function TemplateVersionEditorRoute() {
                 }),
             },
             {
+              id: 'range',
+              header: intl.formatMessage({ id: 'admin.template.column.range' }),
+              numeric: true,
+              hideWhenNarrow: true,
+              // The tailor's own unit at the field's own precision (#103). A choice field and a
+              // field carrying the no-bounds sentinel both render nothing, because neither has a
+              // range to state — and "0–0 mm" would read as a field that accepts only zero.
+              cell: (row: TemplateField) => rangeOf(row) ?? '',
+            },
+            {
               id: 'required',
               header: intl.formatMessage({ id: 'admin.template.column.required' }),
               cell: (row: TemplateField) =>
@@ -405,6 +450,7 @@ export function TemplateVersionEditorRoute() {
       {editing === null ? null : (
         <TemplateFieldForm
           busy={busy}
+          defaultDisplayUnit={version.defaultDisplayUnit}
           existing={editing.field}
           form={editing.form}
           onCancel={() => {

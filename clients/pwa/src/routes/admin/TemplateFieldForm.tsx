@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Button } from '../../components/primitives/Button'
 import { Alert } from '../../components/primitives/Alert'
@@ -13,11 +13,21 @@ import {
   INCH_FRACTIONS,
   LIMITS,
   MAXIMUM_CENTIMETRE_DECIMALS,
+  BAND_KEYS,
   hasPrecision,
   isChoice,
   validateField,
 } from '../../admin/templateFieldForm'
-import type { CanonicalUnit, FieldFormError, FieldFormState } from '../../admin/templateFieldForm'
+import type {
+  BandKey,
+  CanonicalUnit,
+  FieldFormError,
+  FieldFormState,
+} from '../../admin/templateFieldForm'
+import { TemplateFieldBands } from './TemplateFieldBands'
+
+import { unitForBands } from '../../design-system/components/forms/measurementRange'
+import type { MeasurementDisplayUnit } from '../../design-system/components/forms/measurement'
 import type { TemplateField } from '../../admin/types'
 import type { MessageKey } from '../../i18n/en-IN'
 
@@ -54,6 +64,8 @@ export interface TemplateFieldFormProps {
   /** Every other key in the version, so a duplicate is refused before the round trip. */
   readonly otherKeys: readonly string[]
   readonly busy: boolean
+  /** The version's default display unit, which decides which unit the bands open in. */
+  readonly defaultDisplayUnit: string
   readonly submissionId: number
   readonly onChange: (form: FieldFormState) => void
   readonly onSubmit: (form: FieldFormState) => void
@@ -61,7 +73,17 @@ export interface TemplateFieldFormProps {
 }
 
 export function TemplateFieldForm(props: TemplateFieldFormProps) {
-  const { form, existing, otherKeys, busy, submissionId, onChange, onSubmit, onCancel } = props
+  const {
+    form,
+    existing,
+    otherKeys,
+    busy,
+    defaultDisplayUnit,
+    submissionId,
+    onChange,
+    onSubmit,
+    onCancel,
+  } = props
   const intl = useIntl()
   const prefix = useId()
 
@@ -100,6 +122,40 @@ export function TemplateFieldForm(props: TemplateFieldFormProps) {
 
   const set = <TKey extends keyof FieldFormState>(key: TKey, value: FieldFormState[TKey]): void => {
     onChange({ ...form, [key]: value })
+  }
+
+  /**
+   * Which units the bands may be read in, and which one is on screen.
+   *
+   * A field declares a precision per unit, and a unit it has no precision for cannot show a bound at
+   * that precision — so the choice is exactly what the field supports. When it supports both, the
+   * version's own default decides which opens, so a reviewer checking a bound against a tape does
+   * not have to convert it in their head first. The choice is presentation only: the four numbers
+   * are held and sent in millimetres either way.
+   */
+  const availableUnits: readonly MeasurementDisplayUnit[] = [
+    ...(form.inchFraction > 0 ? (['in'] as const) : []),
+    ...(form.centimetreDecimals > 0 ? (['cm'] as const) : []),
+  ]
+
+  const [chosenUnit, setChosenUnit] = useState<MeasurementDisplayUnit | null>(null)
+  const bandUnit =
+    chosenUnit !== null && availableUnits.includes(chosenUnit)
+      ? chosenUnit
+      : (unitForBands(form, defaultDisplayUnit) ?? 'in')
+
+  const setBandUnit = (next: MeasurementDisplayUnit): void => {
+    setChosenUnit(next)
+  }
+
+  const bandErrors: Partial<Record<BandKey, string>> = {}
+  for (const error of shown) {
+    if (
+      BAND_KEYS.includes(error.field as BandKey) &&
+      bandErrors[error.field as BandKey] === undefined
+    ) {
+      bandErrors[error.field as BandKey] = messageFor(error)
+    }
   }
 
   return (
@@ -273,10 +329,6 @@ export function TemplateFieldForm(props: TemplateFieldFormProps) {
             required
             value={String(form.centimetreDecimals)}
           />
-
-          <Alert tone="info" live="off">
-            <FormattedMessage id="admin.field.bandsElsewhere" />
-          </Alert>
         </>
       ) : form.canonicalUnit === 'Count' ? (
         <Alert tone="info" live="off">
@@ -286,6 +338,18 @@ export function TemplateFieldForm(props: TemplateFieldFormProps) {
         <Alert tone="info" live="off">
           <FormattedMessage id="admin.field.choiceShape" />
         </Alert>
+      )}
+
+      {isChoice(form.canonicalUnit) ? null : (
+        <TemplateFieldBands
+          available={availableUnits}
+          controlId={controlId}
+          errors={bandErrors}
+          form={form}
+          onChange={onChange}
+          onUnitChange={setBandUnit}
+          unit={bandUnit}
+        />
       )}
 
       {isChoice(form.canonicalUnit) ? (

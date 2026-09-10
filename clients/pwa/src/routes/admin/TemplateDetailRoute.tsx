@@ -23,6 +23,11 @@ import { ADMIN_PERMISSIONS } from '../../admin/adminPermissions'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { useCurrentUser } from '../../auth/useSession'
 import type { MeasurementTemplate, TemplateField, TemplateVersion } from '../../admin/types'
+import {
+  formatMeasurementRange,
+  unitForBands,
+} from '../../design-system/components/forms/measurementRange'
+import type { CentimetreDecimals, InchFractionStep } from '../../i18n/units'
 import type { MessageKey } from '../../i18n/en-IN'
 
 /**
@@ -89,6 +94,41 @@ const STATUS_MESSAGES: Readonly<Record<string, MessageKey>> = {
 
 export function TemplateDetailRoute() {
   const intl = useIntl()
+
+  /**
+   * The band this field accepts, or undefined when it declares none.
+   *
+   * Undefined for a choice field, which has no bands at all, and for a numeric field carrying the
+   * `ValidationBands.None` sentinel — `0 / 0`, which is "any measurement" rather than "only zero".
+   */
+  const rangeOf = (field: TemplateField): string | undefined => {
+    const unit = unitForBands(
+      {
+        inchFraction: Number(field.inchFraction),
+        centimetreDecimals: Number(field.centimetreDecimals),
+      },
+      selected?.defaultDisplayUnit,
+    )
+
+    return unit === undefined
+      ? undefined
+      : formatMeasurementRange(
+          intl,
+          {
+            minimumMillimetres: Number(field.minimumMillimetres),
+            maximumMillimetres: Number(field.maximumMillimetres),
+          },
+          {
+            unit,
+            step: (Number(field.inchFraction) > 0
+              ? Number(field.inchFraction)
+              : 8) as InchFractionStep,
+            decimals: (Number(field.centimetreDecimals) > 0
+              ? Number(field.centimetreDecimals)
+              : 1) as CentimetreDecimals,
+          },
+        )
+  }
   const { templateId } = useParams()
   const { permissions } = useCurrentUser()
 
@@ -564,15 +604,10 @@ export function TemplateDetailRoute() {
                   header: intl.formatMessage({ id: 'admin.template.column.range' }),
                   numeric: true,
                   hideWhenNarrow: true,
-                  // Millimetres, deliberately. Rendering these the way a tailor reads them is #94,
-                  // and a half-conversion here would be a number nobody can check.
-                  cell: (row: TemplateField) =>
-                    row.canonicalUnit === 'None'
-                      ? ''
-                      : intl.formatMessage(
-                          { id: 'admin.template.millimetres' },
-                          { from: row.minimumMillimetres, to: row.maximumMillimetres },
-                        ),
+                  // In the tailor's own unit at the field's own precision (#103). Millimetres are
+                  // never shown to staff, so a bound quoted in them cannot be checked against the
+                  // tape in anybody's hand — which is the only reason to show it.
+                  cell: (row: TemplateField) => rangeOf(row) ?? '',
                 },
                 {
                   id: 'required',

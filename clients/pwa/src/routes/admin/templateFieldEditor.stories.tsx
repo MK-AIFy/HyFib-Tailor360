@@ -188,6 +188,79 @@ export const ChangedSinceRead: Story = {
     }),
 }
 
+const CENTIMETRE_ONLY = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000d5',
+  key: 'shoulder_width',
+  label: 'Shoulder width',
+  groupName: 'Bodice',
+  displayOrder: 4,
+  displayUnits: ['Centimetre'],
+  inchFraction: 0,
+  centimetreDecimals: 2,
+  minimumMillimetres: 250,
+  maximumMillimetres: 600,
+  warnBelowMillimetres: 300,
+  warnAboveMillimetres: 520,
+  helpText: 'Shoulder point to shoulder point, across the back.',
+  diagramReference: null,
+  diagramKey: null,
+  diagramAlt: null,
+})
+
+const UNBOUNDED = aTemplateField({
+  templateFieldId: '0199bb00-0000-7000-8000-0000000000d6',
+  key: 'notes_length',
+  label: 'Any extra length',
+  groupName: 'Finishing',
+  displayOrder: 5,
+  minimumMillimetres: 0,
+  maximumMillimetres: 0,
+  warnBelowMillimetres: null,
+  warnAboveMillimetres: null,
+  helpText: 'Only when the customer asked for extra.',
+  diagramReference: null,
+  diagramKey: null,
+  diagramAlt: null,
+})
+
+const BAND_DRAFT = aTemplateVersion({
+  templateVersionId: '0199bb00-0000-7000-8000-0000000000e6',
+  versionNumber: 5,
+  name: 'Version 5',
+  fields: [aTemplateField(), CENTIMETRE_ONLY, UNBOUNDED],
+})
+
+const BAND_TEMPLATE = aMeasurementTemplate({
+  measurementTemplateId: '0199bb00-0000-7000-8000-0000000000f3',
+  versions: [BAND_DRAFT],
+})
+
+/**
+ * Bounds and thresholds in a tailor's units (#103).
+ *
+ * Three fields, deliberately: one read in inches at eighths, one that declares centimetres only and
+ * to two places, and one that accepts any measurement. The table states each range in the unit the
+ * field is read in — never in millimetres, which a tailor never sees — and the third states nothing
+ * at all, because "0–0 mm" would read as a field that accepts only zero.
+ *
+ * Open a field to see the four controls: inches are a whole-number box plus a fraction strip, both
+ * reachable from the keyboard, and never a decimal box.
+ */
+export const Bands: Story = {
+  render: () =>
+    withAdminApi(
+      <TemplateVersionEditorRoute />,
+      {
+        [`GET ${TEMPLATES}/${BAND_TEMPLATE.measurementTemplateId}`]: () =>
+          storyJson(BAND_TEMPLATE, 'W/"1"'),
+      },
+      {
+        path: '/admin/templates/:templateId/versions/:versionId',
+        at: `/admin/templates/${BAND_TEMPLATE.measurementTemplateId}/versions/${BAND_DRAFT.templateVersionId}`,
+      },
+    ),
+}
+
 /** The 40% text growth the client guide asks every screen to tolerate. */
 export const TextGrowth: Story = {
   ...Fields,
