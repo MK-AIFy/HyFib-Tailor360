@@ -469,6 +469,11 @@ export function TemplateDetailRoute() {
                   { number: row.versionNumber },
                 )}
               </Button>
+              {row.status === 'Draft' ? (
+                <Link to={`/admin/templates/${templateId ?? ''}/versions/${row.templateVersionId}`}>
+                  <FormattedMessage id="admin.field.editor.open" />
+                </Link>
+              ) : null}
               {actionsFor(row).map((action) => (
                 <Button
                   key={action}

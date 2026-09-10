@@ -57,7 +57,7 @@ inches shows `14 1/2 in`. No arithmetic happens twice.
 
 | Rule | Convention | Example |
 | --- | --- | --- |
-| Field key | `lower_snake_case`, ASCII, unique **within a template version**, immutable once the version is published | `front_neck_depth` |
+| Field key | `lower_snake_case`, ASCII, 2 to 60 characters, unique **within a template version**, and never renamed — not even in a draft. A change sends the key back and the server ignores it (`TemplateVersion.SetField`), because a rename through an edit would orphan every value already filed under the old key. The documented rename is a removal and an addition: two audited acts, and the field starts a new history. The draft editor therefore shows the key of an existing field read-only, and says so (#102). | `front_neck_depth` |
 | Shared dictionary | Keys are drawn from the shared dictionary in Section 4 so that the same measurement means the same thing in every template, and so a value can be compared or carried between categories | `chest_bust` means the same in `MT_SALWAR` and `MT_GOWN` |
 | Label | Free text, editable at any time, localisable (`en-IN` plus optional `ta-IN`). **The label may differ from the key**: `blouse_full_length` is labelled "Blouse length" in `MT_BLOUSE_PATTERN` and "Choli length" in `MT_LEHENGA`. | — |
 | Group | Presentation grouping that drives the wizard steps and the printed sheet. Groups are ordered; fields are ordered within a group. | `Bodice`, `Sleeve`, `Neckline`, `Shaping`, `Bottom` |

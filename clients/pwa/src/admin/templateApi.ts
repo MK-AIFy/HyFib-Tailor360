@@ -1,6 +1,6 @@
 import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
-import type { MeasurementTemplate, TemplateValidation } from './types'
+import type { MeasurementTemplate, TemplateFieldRequest, TemplateValidation } from './types'
 
 /**
  * Every call the measurement-template screens make, named for what an administrator is doing.
@@ -124,6 +124,85 @@ export async function commandTemplateVersion(input: {
 }): Promise<VersionedResponse<MeasurementTemplate>> {
   return await apiRequestVersioned<MeasurementTemplate>(
     `${TEMPLATES}/${input.templateId}/versions/${input.versionId}/${input.action}`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * The three field routes, which a draft version's editor is built on (#102).
+ *
+ * ## What they share, and what is surprising about it
+ *
+ * All three demand **both** `Idempotency-Key` and `If-Match`, and all three answer with the *whole*
+ * template — every version, every field — plus a fresh `ETag`. Saving one label returns the lot. The
+ * screen therefore re-renders from the response rather than patching its own copy, which is the only
+ * way the next command's precondition can be right.
+ *
+ * ## Why removal is a `POST` to `/delete`
+ *
+ * So the reason travels in a body like every other command here. A `DELETE` with a body is legal and
+ * widely mishandled, and the reason is what the audit trail is for.
+ */
+export async function addTemplateField(input: {
+  readonly templateId: string
+  readonly versionId: string
+  readonly field: TemplateFieldRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<MeasurementTemplate>> {
+  return await apiRequestVersioned<MeasurementTemplate>(
+    `${TEMPLATES}/${input.templateId}/versions/${input.versionId}/fields`,
+    {
+      method: 'POST',
+      body: input.field,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Replaces a field, keeping its key.
+ *
+ * The key in the body is ignored by the server, deliberately: renaming through an edit would orphan
+ * every value already filed under the old one. The editor offers no key box on an existing field for
+ * the same reason — a control that appears to work and changes nothing is worse than no control.
+ */
+export async function changeTemplateField(input: {
+  readonly templateId: string
+  readonly versionId: string
+  readonly fieldId: string
+  readonly field: TemplateFieldRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<MeasurementTemplate>> {
+  return await apiRequestVersioned<MeasurementTemplate>(
+    `${TEMPLATES}/${input.templateId}/versions/${input.versionId}/fields/${input.fieldId}`,
+    {
+      method: 'PUT',
+      body: input.field,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Removes a field from a draft, with the reason the trail records. */
+export async function removeTemplateField(input: {
+  readonly templateId: string
+  readonly versionId: string
+  readonly fieldId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<MeasurementTemplate>> {
+  return await apiRequestVersioned<MeasurementTemplate>(
+    `${TEMPLATES}/${input.templateId}/versions/${input.versionId}/fields/${input.fieldId}/delete`,
     {
       method: 'POST',
       body: { reason: input.reason },

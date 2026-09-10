@@ -300,6 +300,56 @@ export interface TemplateField {
   readonly options: readonly TemplateChoiceOption[]
 }
 
+/**
+ * A field as the two write routes demand it.
+ *
+ * ## Why this is not `Partial<TemplateField>`
+ *
+ * There is no `PATCH`. Adding and changing share one request type, and **every one of its nineteen
+ * members is required by the generated schema, including the ones that may be null** — so changing a
+ * label means sending all nineteen back, correctly, including the ones the screen editing the label
+ * does not show. `TemplateFieldRequestConforms` in `api/contract.ts` is what makes a drift from those
+ * nineteen a compile error rather than a `400` discovered by a person.
+ *
+ * ## What differs from the response
+ *
+ * The response carries five members this does not — `templateFieldId`, `displayUnits`,
+ * `diagramReference`, and the two superseded ones, `rule` as a rendered English sentence and
+ * `optionCodes`. Read the new pair, send the new pair; the rendered sentence is not sendable, and
+ * `rule` *here* is the definition, not the sentence.
+ *
+ * ## The key
+ *
+ * Sent on an add and **ignored on a change** (`TemplateVersion.cs:276`), because a rename would
+ * orphan every value already filed under the old key. The documented rename is a removal and an
+ * addition, which the trail shows as two acts.
+ */
+export interface TemplateFieldRequest {
+  readonly key: string
+  readonly label: string
+  readonly labelTamil: string | null
+  readonly groupName: string
+  readonly displayOrder: number | string
+  /** `Millimetre`, `Count` or `None`. */
+  readonly canonicalUnit: string
+  /** The inch step as a denominator: 8 means eighths. Zero for no inch display. */
+  readonly inchFraction: number | string
+  readonly centimetreDecimals: number | string
+  readonly isRequired: boolean
+  readonly minimumMillimetres: number | string
+  readonly maximumMillimetres: number | string
+  readonly warnBelowMillimetres: number | string | null
+  readonly warnAboveMillimetres: number | string | null
+  readonly helpText: string
+  readonly diagramKey: string | null
+  readonly diagramAlt: string | null
+  /** Accepted, and nothing can yet produce one: the Media module maps no endpoints (#31). */
+  readonly diagramMediaId: string | null
+  /** The definition, never the rendered sentence the response carries under the same name. */
+  readonly rule: TemplateRule | null
+  readonly options: readonly TemplateChoiceOption[] | null
+}
+
 /** One version of a template. `fields` is null on the list, which does not carry them. */
 export interface TemplateVersion {
   readonly templateVersionId: string

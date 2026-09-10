@@ -15,6 +15,7 @@ import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
 import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
+import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
@@ -218,6 +219,17 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.templatesEdit}>
                     <TemplateDetailRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // The draft editor, on an address of its own: a version is a thing a person works
+                // *in* here rather than looks at, over several minutes and across an interruption,
+                // so it survives a reload and can be shared with a colleague (#102).
+                path: 'templates/:templateId/versions/:versionId',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.templatesEdit}>
+                    <TemplateVersionEditorRoute />
                   </RequirePermission>
                 ),
               },
