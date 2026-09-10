@@ -54,7 +54,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         var published = await owner.PostAsync(
             $"/api/v1/catalog/versions/{version}/publish",
             new { reason = "The owner workshop approved the gown line." },
-            Key());
+            await VersionKeyAsync(owner, version));
 
         published.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -95,7 +95,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         var published = await owner.PostAsync(
             $"/api/v1/catalog/versions/{version}/publish",
             new { reason = "Trying to publish before the price list exists." },
-            Key());
+            await VersionKeyAsync(owner, version));
 
         published.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
@@ -129,7 +129,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         var published = await owner.PostAsync(
             $"/api/v1/catalog/versions/{version}/publish",
             new { reason = "The category is reviewed; its rates follow next week." },
-            Key());
+            await VersionKeyAsync(owner, version));
 
         published.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -165,13 +165,13 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/publish",
                 new { reason = "Approved at the owner workshop." },
-                Key()))
+                await VersionKeyAsync(owner, version)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var edited = await owner.PutAsync(
             $"/api/v1/catalog/versions/{version}/categories/{category}",
             CategoryBody(Code("LEHENGA"), [HomeBranch], name: "Lehenga renamed"),
-            Key());
+            await VersionKeyAsync(owner, version));
 
         edited.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await CodeOfAsync(edited)).ShouldBe("catalog.version-not-editable");
@@ -186,7 +186,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
                 displayOrder = 3,
                 reason = "The counter reads 'bridal' to customers; the label now matches.",
             },
-            Key());
+            await VersionKeyAsync(owner, version));
 
         corrected.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -212,7 +212,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/publish",
                 new { reason = "Approved at the owner workshop." },
-                Key()))
+                await VersionKeyAsync(owner, version)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // A correction is the single mutation a published version admits, so the reason is the only
@@ -223,7 +223,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
             var refusedCategory = await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/categories/{category}/presentation",
                 Presentation("Kurta — renamed", reason),
-                Key());
+                await VersionKeyAsync(owner, version));
 
             refusedCategory.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
             (await CodeOfAsync(refusedCategory)).ShouldBe("catalog.value-required");
@@ -231,7 +231,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
             var refusedService = await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/service-types/{service}/presentation",
                 Presentation("Stitching — renamed", reason),
-                Key());
+                await VersionKeyAsync(owner, version));
 
             refusedService.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
             (await CodeOfAsync(refusedService)).ShouldBe("catalog.value-required");
@@ -260,7 +260,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/publish",
                 new { reason = "Approved at the owner workshop." },
-                Key()))
+                await VersionKeyAsync(owner, version)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var scope = fixture.Services.CreateScope();
@@ -340,7 +340,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{first}/publish",
                 new { reason = "First publication." },
-                Key()))
+                await VersionKeyAsync(owner, first)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var second = await CloneAsync(owner, first, "Second");
@@ -348,7 +348,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         var publishedSecond = await owner.PostAsync(
             $"/api/v1/catalog/versions/{second}/publish",
             new { reason = "Second publication, superseding the first." },
-            Key());
+            await VersionKeyAsync(owner, second));
 
         publishedSecond.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -380,13 +380,13 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/publish",
                 new { reason = "First time." },
-                Key()))
+                await VersionKeyAsync(owner, version)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var again = await owner.PostAsync(
             $"/api/v1/catalog/versions/{version}/publish",
             new { reason = "Second time." },
-            Key());
+            await VersionKeyAsync(owner, version));
 
         again.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await CodeOfAsync(again)).ShouldBe("catalog.version-not-publishable");
@@ -406,13 +406,13 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/publish",
                 new { reason = "Published." },
-                Key()))
+                await VersionKeyAsync(owner, version)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         (await owner.PostAsync(
                 $"/api/v1/catalog/versions/{version}/retire",
                 new { reason = "Closing the saree line for the season." },
-                Key()))
+                await VersionKeyAsync(owner, version)))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var counter = await ReaderAsync("cat-retire-read", "203.0.113.209");
@@ -463,7 +463,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         (await drafter.PostAsync(
                 $"/api/v1/catalog/versions/{version}/publish",
                 new { reason = "Not mine to do." },
-                Key()))
+                await VersionKeyAsync(drafter, version)))
             .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
@@ -531,6 +531,132 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         second.ServiceTypeCount.ShouldBe(18);
     }
 
+    private static int _preconditionClientNumber;
+
+    [Theory]
+    [InlineData("category-add")]
+    [InlineData("category-edit")]
+    [InlineData("category-delete")]
+    [InlineData("service-add")]
+    [InlineData("service-edit")]
+    [InlineData("service-delete")]
+    [InlineData("category-presentation")]
+    [InlineData("service-presentation")]
+    [InlineData("publish")]
+    [InlineData("retire")]
+    public async Task EveryExistingVersionCommandRequiresTheRevisionTheAdministratorRead(string operation)
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync(
+            "cat-precondition", $"2001:db8:89::{Interlocked.Increment(ref _preconditionClientNumber):x}");
+        var version = await DraftAsync(owner, "Preconditions");
+        var categoryCode = Code($"CHECK_{operation.Replace('-', '_').ToUpperInvariant()}");
+        var category = await AddCategoryAsync(owner, version, categoryCode, [HomeBranch]);
+        var service = await AddServiceAsync(
+            owner, version, category, "STITCHING", [HomeBranch], complete: false, allowIncomplete: true);
+        var published = operation is "retire" or "category-presentation" or "service-presentation";
+        var root = $"/api/v1/catalog/versions/{version}";
+
+        if (published)
+        {
+            using var publication = await owner.PostAsync(
+                $"{root}/publish", new { reason = "Review complete." }, await VersionKeyAsync(owner, version));
+            publication.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        // Capture the first administrator's screen, then let a second screen change the aggregate.
+        // Never re-read this token before the stale request: doing so would hide the defect.
+        var originalHeaders = await VersionKeyAsync(owner, version);
+        var originalTag = originalHeaders.Single(header => header.Name == "If-Match").Value;
+        using var otherEdit = published
+            ? await owner.PostAsync(
+                $"{root}/categories/{category}/presentation",
+                Presentation("Reviewed by a colleague", "Correct the display label."), originalHeaders)
+            : await owner.PutAsync(
+                $"{root}/categories/{category}",
+                CategoryBody(categoryCode, [HomeBranch], name: "Reviewed by a colleague"), originalHeaders);
+        otherEdit.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var before = await owner.GetAsync(root);
+        var beforeBody = await before.Content.ReadAsStringAsync(Token);
+        var currentTag = before.Headers.ETag.ShouldNotBeNull().ToString();
+        currentTag.ShouldNotBe(originalTag);
+
+        object serviceBody = new
+        {
+            code = operation == "service-add" ? "ADDITIONAL" : "STITCHING",
+            name = "Reviewed service",
+            expectedDurationDays = 7,
+            allowIncomplete = true,
+            branchIds = new[] { HomeBranch },
+            reason = "Reviewed change.",
+        };
+        var (path, body, replace, expectedStatus) = operation switch
+        {
+            "category-add" => ($"{root}/categories", CategoryBody(Code("NEW"), [HomeBranch]), false,
+                HttpStatusCode.Created),
+            "category-edit" => ($"{root}/categories/{category}",
+                CategoryBody(categoryCode, [HomeBranch], name: "Reviewed update"), true, HttpStatusCode.OK),
+            "category-delete" => ($"{root}/categories/{category}/delete",
+                (object)new { reason = "Remove the category." }, false, HttpStatusCode.NoContent),
+            "service-add" => ($"{root}/categories/{category}/service-types", serviceBody, false,
+                HttpStatusCode.Created),
+            "service-edit" => ($"{root}/service-types/{service}", serviceBody, true, HttpStatusCode.OK),
+            "service-delete" => ($"{root}/service-types/{service}/delete",
+                (object)new { reason = "Remove the service." }, false, HttpStatusCode.NoContent),
+            "category-presentation" => ($"{root}/categories/{category}/presentation",
+                Presentation("Reviewed category label", "Correct the label."), false, HttpStatusCode.OK),
+            "service-presentation" => ($"{root}/service-types/{service}/presentation",
+                Presentation("Reviewed service label", "Correct the label."), false, HttpStatusCode.OK),
+            "publish" => ($"{root}/publish", (object)new { reason = "Publish the reviewed draft." }, false,
+                HttpStatusCode.OK),
+            "retire" => ($"{root}/retire", (object)new { reason = "Retire the reviewed version." }, false,
+                HttpStatusCode.OK),
+            _ => throw new ArgumentOutOfRangeException(nameof(operation)),
+        };
+
+        Task<HttpResponseMessage> SendAsync((string Name, string Value)[] headers)
+            => replace ? owner.PutAsync(path, body, headers) : owner.PostAsync(path, body, headers);
+
+        using var missing = await SendAsync(Key());
+        missing.StatusCode.ShouldBe(HttpStatusCode.PreconditionRequired);
+        (await CodeOfAsync(missing)).ShouldBe("concurrency.if-match-required");
+
+        using var malformed = await SendAsync([.. Key(), ("If-Match", "unquoted")]);
+        malformed.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await CodeOfAsync(malformed)).ShouldBe("concurrency.if-match-invalid");
+
+        using var stale = await SendAsync([.. Key(), ("If-Match", originalTag)]);
+        stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await CodeOfAsync(stale)).ShouldBe("catalog.version-changed");
+
+        using var unchanged = await owner.GetAsync(root);
+        unchanged.Headers.ETag.ShouldNotBeNull().ToString().ShouldBe(currentTag);
+        (await unchanged.Content.ReadAsStringAsync(Token)).ShouldBe(beforeBody,
+            "a rejected precondition cannot change the tree, its presentation or its lifecycle");
+
+        var validHeaders = new (string Name, string Value)[]
+        {
+            ("Idempotency-Key", Guid.CreateVersion7().ToString()),
+            ("If-Match", currentTag),
+        };
+        using var accepted = await SendAsync(validHeaders);
+        accepted.StatusCode.ShouldBe(expectedStatus);
+        var acceptedBody = await accepted.Content.ReadAsStringAsync(Token);
+
+        // Even though the successful command has now made its tag stale, a transport retry must
+        // replay that command's result rather than execute it again or reject the already-used tag.
+        using var after = await owner.GetAsync(root);
+        var afterTag = after.Headers.ETag.ShouldNotBeNull().ToString();
+        afterTag.ShouldNotBe(currentTag);
+        using var replay = await SendAsync(validHeaders);
+        replay.StatusCode.ShouldBe(expectedStatus);
+        (await replay.Content.ReadAsStringAsync(Token)).ShouldBe(acceptedBody);
+        using var afterReplay = await owner.GetAsync(root);
+        afterReplay.Headers.ETag.ShouldNotBeNull().ToString().ShouldBe(afterTag);
+    }
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     /// <summary>
@@ -540,6 +666,18 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
     /// </summary>
     private static (string Name, string Value)[] Key()
         => [("Idempotency-Key", Guid.CreateVersion7().ToString())];
+
+    // This helper establishes the starting state of a test, not a production UI's precondition.
+    // Conflict regressions below explicitly keep the tag from the earlier screen read.
+    private static async Task<(string Name, string Value)[]> VersionKeyAsync(
+        AdministrationHarness.AdministratorClient client, Guid version)
+    {
+        using var read = await client.GetAsync($"/api/v1/catalog/versions/{version}");
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+        read.Headers.ETag.ShouldNotBeNull();
+
+        return [.. Key(), ("If-Match", read.Headers.ETag.ToString())];
+    }
 
     private static Guid HomeBranch => SessionTestData.HomeBranchId;
 
@@ -590,7 +728,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
         var response = await client.PostAsync(
             $"/api/v1/catalog/versions/{version}/categories",
             CategoryBody(code, branches, parentId: parentId),
-            Key());
+            await VersionKeyAsync(client, version));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
@@ -636,7 +774,7 @@ public sealed class CatalogEndpointTests(WebApplicationFixture fixture)
                 branchIds = branches,
                 reason = (string?)null,
             },
-            Key());
+            await VersionKeyAsync(client, version));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 

@@ -8507,7 +8507,7 @@
     },
     "/api/v1/catalog/versions/{versionId}": {
       "get": {
-        "description": "The administrator's preview, and the same call whatever the version's status: a retired version reads exactly as it did, which is what makes a two-year-old job card render. The ETag is the token a publication must be made against.",
+        "description": "The administrator's preview, and the same call whatever the version's status: a retired version reads exactly as it did, which is what makes a two-year-old job card render. The ETag is the token every change to this version must be made against.",
         "operationId": "GetCatalogVersion",
         "parameters": [
           {
@@ -8662,6 +8662,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -8789,6 +8799,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -8902,6 +8922,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -9021,6 +9051,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -9157,6 +9197,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -9269,6 +9319,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -9380,6 +9440,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -9513,6 +9583,16 @@
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
           },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -9625,6 +9705,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -9743,6 +9833,16 @@
           },
           "426": {
             "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

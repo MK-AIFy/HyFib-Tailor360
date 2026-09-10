@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Tailor360.Modules.Catalog.Api.Payloads;
 using Tailor360.Modules.Catalog.Application.Catalogue;
+using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Multitenancy;
 using Tailor360.Platform.Security.Authorisation;
 using Tailor360.Platform.Security.Endpoints;
@@ -151,7 +152,7 @@ public static class CatalogVersionEndpoints
             .WithDescription(
                 "The administrator's preview, and the same call whatever the version's status: a "
                 + "retired version reads exactly as it did, which is what makes a two-year-old job "
-                + "card render. The ETag is the token a publication must be made against.")
+                + "card render. The ETag is the token every change to this version must be made against.")
             .RequirePermission(CatalogPermissions.Edit, BranchScope.Organisation)
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithRequestTimeout(RequestTimeoutPolicies.Read);
@@ -196,6 +197,7 @@ public static class CatalogVersionEndpoints
                     new AddCategoryCommand(
                         versionId,
                         caller.Context.OrganisationId,
+                        Precondition(context),
                         request.ParentCategoryId,
                         request.ToDetails(),
                         caller.UserId),
@@ -217,6 +219,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.CategoryAddedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         catalog.MapPut("/versions/{versionId:guid}/categories/{categoryId:guid}", async Task<IResult> (
@@ -232,6 +235,7 @@ public static class CatalogVersionEndpoints
                     new EditCategoryCommand(
                         versionId,
                         caller.Context.OrganisationId,
+                        Precondition(context),
                         categoryId,
                         request.ParentCategoryId,
                         request.ToDetails(),
@@ -254,6 +258,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.CategoryChangedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         catalog.MapPost(
@@ -271,6 +276,7 @@ public static class CatalogVersionEndpoints
                         new RemoveCategoryCommand(
                             versionId,
                             caller.Context.OrganisationId,
+                            Precondition(context),
                             categoryId,
                             request?.Reason,
                             caller.UserId),
@@ -291,6 +297,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.CategoryRemovedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
     }
 
@@ -311,6 +318,7 @@ public static class CatalogVersionEndpoints
                         new AddServiceTypeCommand(
                             versionId,
                             caller.Context.OrganisationId,
+                            Precondition(context),
                             categoryId,
                             request.ToDetails(),
                             caller.UserId),
@@ -333,6 +341,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.ServiceTypeAddedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         catalog.MapPut(
@@ -350,6 +359,7 @@ public static class CatalogVersionEndpoints
                         new EditServiceTypeCommand(
                             versionId,
                             caller.Context.OrganisationId,
+                            Precondition(context),
                             serviceTypeId,
                             request.ToDetails(),
                             request.Reason,
@@ -367,6 +377,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.ServiceTypeChangedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         catalog.MapPost(
@@ -384,6 +395,7 @@ public static class CatalogVersionEndpoints
                         new RemoveServiceTypeCommand(
                             versionId,
                             caller.Context.OrganisationId,
+                            Precondition(context),
                             serviceTypeId,
                             request?.Reason,
                             caller.UserId),
@@ -400,6 +412,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.ServiceTypeRemovedAction)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
     }
 
@@ -430,6 +443,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.LabelCorrectedAction, reasonRequired: true)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
         catalog.MapPost(
@@ -452,6 +466,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.LabelCorrectedAction, reasonRequired: true)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
     }
 
@@ -464,14 +479,12 @@ public static class CatalogVersionEndpoints
                 ICurrentUser caller,
                 CancellationToken cancellationToken) =>
             {
-                context.Request.TryGetIfMatch(out var expected);
-
                 var result = await handler.PublishAsync(
                     new PublishCatalogVersionCommand(
                         versionId,
                         caller.Context.OrganisationId,
                         request?.Reason ?? string.Empty,
-                        expected.Version is { Length: > 0 } ? expected : null,
+                        Precondition(context),
                         caller.UserId),
                     cancellationToken);
 
@@ -511,6 +524,7 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.PublishedAction, reasonRequired: true)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
     private static void MapRetire(RouteGroupBuilder catalog)
@@ -526,6 +540,7 @@ public static class CatalogVersionEndpoints
                     new RetireCatalogVersionCommand(
                         versionId,
                         caller.Context.OrganisationId,
+                        Precondition(context),
                         request?.Reason ?? string.Empty,
                         caller.UserId),
                     cancellationToken);
@@ -547,7 +562,13 @@ public static class CatalogVersionEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(CatalogHandler.RetiredAction, reasonRequired: true)
             .RequireIdempotency()
+            .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
+    // RequireIfMatch rejects absent and malformed headers before these handlers run. The empty
+    // fallback fails closed if a handler is ever invoked without that filter.
+    private static EntityTag Precondition(HttpContext context)
+        => context.Request.TryGetIfMatch(out var expected) ? expected : new EntityTag(string.Empty);
 
     private static async Task<IResult> CorrectAsync(
         CatalogHandler handler,
@@ -565,6 +586,7 @@ public static class CatalogVersionEndpoints
             new CorrectCatalogPresentationCommand(
                 versionId,
                 caller.Context.OrganisationId,
+                Precondition(context),
                 categoryId,
                 serviceTypeId,
                 request.ToPresentation(),
