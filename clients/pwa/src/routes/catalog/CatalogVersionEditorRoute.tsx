@@ -897,11 +897,11 @@ export function CatalogVersionEditorRoute() {
           }}
           onConfirm={remove}
           open
+          problem={<AuthProblemAlert failure={failure} />}
           tier="reason"
           title={intl.formatMessage({ id: 'catalog.remove.title' })}
         >
           {intl.formatMessage({ id: 'catalog.remove.body' })}
-          <AuthProblemAlert failure={failure} />
         </ConfirmDialog>
       )}
 
@@ -917,11 +917,11 @@ export function CatalogVersionEditorRoute() {
           }}
           onConfirm={publish}
           open
+          problem={<AuthProblemAlert failure={failure} />}
           tier="reason"
           title={intl.formatMessage({ id: 'catalog.publish.title' })}
         >
           {intl.formatMessage({ id: 'catalog.publish.body' })}
-          <AuthProblemAlert failure={failure} />
         </ConfirmDialog>
       ) : null}
 
@@ -937,11 +937,11 @@ export function CatalogVersionEditorRoute() {
           }}
           onConfirm={retire}
           open
+          problem={<AuthProblemAlert failure={failure} />}
           tier="reason"
           title={intl.formatMessage({ id: 'catalog.retire.title' })}
         >
           {intl.formatMessage({ id: 'catalog.retire.body' })}
-          <AuthProblemAlert failure={failure} />
         </ConfirmDialog>
       ) : null}
     </section>

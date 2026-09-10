@@ -321,6 +321,55 @@ describe('ConfirmDialog — everywhere', () => {
     expect(getByRole('dialog').textContent).toMatch(/⟦.+⟧/)
   })
 
+  it('carries a refusal inside the dialog, where the person who confirmed is looking', () => {
+    // The dialog is modal. An alert rendered behind it is under the backdrop and outside the focus
+    // trap, so a person who confirmed something that was refused would see a dialog that appeared to
+    // do nothing — and a screen reader would be told nothing at all.
+    const { getByRole } = renderWithProviders(
+      <ConfirmDialog
+        {...base}
+        onConfirm={() => undefined}
+        problem={<p role="alert">That version has moved on. Read it again.</p>}
+        tier="reason"
+      >
+        The job stops and the fabric is returned.
+      </ConfirmDialog>,
+    )
+
+    const dialog = getByRole('dialog')
+
+    expect(dialog).toContainElement(getByRole('alert'))
+  })
+
+  it('keeps what the person typed when the refusal arrives, so a retry is one press', async () => {
+    // A retry after a conflict reuses the same idempotency key, and the reason is what the audit
+    // trail will carry. A dialog that cleared either would make the retry a re-typing.
+    const { getByRole, rerender } = renderWithProviders(
+      <ConfirmDialog {...base} onConfirm={() => undefined} tier="reason">
+        The job stops and the fabric is returned.
+      </ConfirmDialog>,
+    )
+
+    await userEvent.type(
+      getByRole('textbox', { name: 'Reason' }),
+      'The customer changed their mind.',
+    )
+
+    rerender(
+      <ConfirmDialog
+        {...base}
+        onConfirm={() => undefined}
+        problem={<p role="alert">That version has moved on.</p>}
+        tier="reason"
+      >
+        The job stops and the fabric is returned.
+      </ConfirmDialog>,
+    )
+
+    expect(getByRole('textbox', { name: 'Reason' })).toHaveValue('The customer changed their mind.')
+    expect(getByRole('alert')).toBeInTheDocument()
+  })
+
   it('has no accessibility violations in any tier', async () => {
     const reason = renderWithProviders(
       <ConfirmDialog {...base} irreversible onConfirm={() => undefined} tier="reason">

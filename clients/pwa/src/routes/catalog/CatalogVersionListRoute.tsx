@@ -115,7 +115,9 @@ export function CatalogVersionListRoute() {
         </Alert>
       )}
 
-      <AuthProblemAlert failure={failure ?? versions.failure} />
+      <AuthProblemAlert
+        failure={starting === null ? (failure ?? versions.failure) : versions.failure}
+      />
 
       {published === undefined && rows.length > 0 ? (
         <Alert live="polite" tone="warning">
@@ -197,6 +199,7 @@ export function CatalogVersionListRoute() {
           }}
           onConfirm={start}
           open
+          problem={<AuthProblemAlert failure={failure} />}
           tier="reason"
           title={intl.formatMessage({ id: 'catalog.draft.title' })}
         >

@@ -52,6 +52,20 @@ export interface ConfirmDialogProps {
   readonly typedPhrase?: string
   /** The confirmation is in flight. Keeps the control focusable and swallows a second press. */
   readonly busy?: boolean
+  /**
+   * The refusal the last confirmation got, rendered inside the dialog.
+   *
+   * It belongs here and not on the screen behind, because this dialog is modal: an alert rendered
+   * behind it sits under the backdrop and outside the focus trap, so a person who confirmed
+   * something that was refused would see a dialog that appeared to do nothing, and a screen reader
+   * would be told nothing at all. Passing the rendered alert rather than the thrown value keeps this
+   * component out of the transport's problem vocabulary — the screen already owns how a refusal is
+   * put into words.
+   *
+   * The screen keeps the dialog open on a refusal, which is also what keeps the reason the person
+   * typed and the retry key the next attempt must reuse.
+   */
+  readonly problem?: ReactNode
   /** Overrides the detected shell — a story, a test, or a layout that already knows. */
   readonly shellKind?: ShellKind
 }
@@ -93,6 +107,7 @@ export function ConfirmDialog({
   irreversible = false,
   typedPhrase,
   busy = false,
+  problem,
   shellKind,
 }: ConfirmDialogProps) {
   const intl = useIntl()
@@ -164,6 +179,8 @@ export function ConfirmDialog({
       title={title}
       {...(shellKind === undefined ? {} : { shellKind })}
     >
+      {problem === undefined ? null : <div className="confirm-dialog__problem">{problem}</div>}
+
       {needsReason ? (
         <TextArea
           description={intl.formatMessage({ id: 'dialogs.reason.description' }, { action })}
