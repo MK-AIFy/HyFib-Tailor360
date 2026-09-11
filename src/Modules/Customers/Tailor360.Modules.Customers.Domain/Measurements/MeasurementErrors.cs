@@ -306,6 +306,196 @@ public static class MeasurementErrors
         "That code already names a measurement template in this organisation. Codes identify a template to the "
         + "catalogue, so each one belongs to exactly one.");
 
+    /* Capture — what a value may be, and what a draft may do (issue #121). ---------------------------- */
+
+    /// <summary>A number was supplied for a field that is chosen.</summary>
+    /// <param name="key">The field.</param>
+    public static Error ValueIsNotMeasured(string key) => Error.Validation(
+        "measurements.value-is-not-measured",
+        "This field is chosen from a list rather than measured, so it takes an option and not a number.",
+        key);
+
+    /// <summary>An option was supplied for a field that is measured.</summary>
+    /// <param name="key">The field.</param>
+    public static Error ValueIsNotAChoice(string key) => Error.Validation(
+        "measurements.value-is-not-a-choice",
+        "This field is measured rather than chosen, so it takes a number and not an option.",
+        key);
+
+    /// <summary>An option code the template version does not offer.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="code">The code that was sent.</param>
+    public static Error ChoiceNotOffered(string key, string code) => Error.Validation(
+        "measurements.choice-not-offered",
+        $"'{code}' is not one of the choices this field offers on the version being captured against.",
+        key);
+
+    /// <summary>A unit the field does not accept.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="unit">The unit that was used.</param>
+    public static Error UnitNotOffered(string key, DisplayUnit unit) => Error.Validation(
+        "measurements.unit-not-offered",
+        $"This field is not measured in {unit.ToString().ToLowerInvariant()}s.",
+        key);
+
+    /// <summary>A value that is not on the field's own step.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="unit">The unit it was entered in.</param>
+    /// <remarks>
+    /// A tape reads to a fraction of an inch or a tenth of a centimetre. A value between two steps was not read
+    /// off a tape, so it is a typing mistake or a unit mistake, and either is worth refusing at confirmation.
+    /// </remarks>
+    public static Error ValueOffStep(string key, DisplayUnit unit) => Error.Validation(
+        "measurements.value-off-step",
+        $"That is not a value this field can be read to in {unit.ToString().ToLowerInvariant()}s. Round it to the "
+        + "nearest step the field offers.",
+        key);
+
+    /// <summary>A value outside the field's hard bounds.</summary>
+    /// <param name="key">The field.</param>
+    public static Error ValueOutOfBounds(string key) => Error.Validation(
+        "measurements.value-out-of-bounds",
+        "That measurement is outside what this field can hold. Check the tape and the unit.",
+        key);
+
+    /// <summary>An unusual value nobody accepted.</summary>
+    /// <param name="key">The field.</param>
+    /// <remarks>
+    /// Not a refusal of the number — the confirmation band never refuses (<c>ValidationBands</c>). It is a refusal
+    /// of a confirmation that never asked: an unusual measurement may be recorded, but somebody has to have said
+    /// so, because that acknowledgement is what the trail carries.
+    /// </remarks>
+    public static Error ValueNeedsAcknowledgement(string key) => Error.Validation(
+        "measurements.value-needs-acknowledgement",
+        "That measurement is unusual for this field. It can be recorded, but somebody has to confirm they meant "
+        + "it.",
+        key);
+
+    /// <summary>A value for a field the template version does not have.</summary>
+    /// <param name="key">The field that was sent.</param>
+    public static Error UnknownField(string key) => Error.Validation(
+        "measurements.unknown-field",
+        "The template version being captured against has no such field. It may have been removed since the draft "
+        + "was started; read the version again.",
+        key);
+
+    /// <summary>A value sent to the wrong wizard step.</summary>
+    /// <param name="key">The field.</param>
+    /// <param name="groupName">The step it was sent with.</param>
+    /// <remarks>
+    /// A section save replaces its whole step, so accepting a stray field from another one would silently clear
+    /// whatever that step held. Refused rather than merged.
+    /// </remarks>
+    public static Error FieldNotInSection(string key, string groupName) => Error.Validation(
+        "measurements.field-not-in-section",
+        $"That field does not belong to the '{groupName}' step on this template version.",
+        key);
+
+    /// <summary>Two values for one field.</summary>
+    /// <param name="key">The field.</param>
+    public static Error DuplicateValue(string key) => Error.Validation(
+        "measurements.duplicate-value",
+        "That field was answered twice in one request.",
+        key);
+
+    /// <summary>A required field that is shown and was not answered.</summary>
+    /// <param name="key">The field.</param>
+    public static Error MissingRequiredValue(string key) => Error.Validation(
+        "measurements.value-missing",
+        "This field is required on the version being captured against and was not measured.",
+        key);
+
+    /// <summary>The draft cannot become a measurement while something about it is wrong.</summary>
+    /// <remarks>
+    /// One code the client branches on; the findings themselves come back from the check the wizard is already
+    /// asking, so a person is told about every wrong field at once rather than one per press.
+    /// </remarks>
+    public static readonly Error ConfirmationValidationFailed = Error.Validation(
+        "measurements.confirmation-validation-failed",
+        "These measurements cannot be confirmed yet. Check the fields the wizard has marked and try again.");
+
+    /// <summary>The measurement being reused is another customer's, or another garment's.</summary>
+    /// <remarks>
+    /// Refused rather than filtered, because a screen showing only numbers cannot tell a person that half of
+    /// them came from somebody else.
+    /// </remarks>
+    public static readonly Error ReuseSourceDoesNotMatch = Error.Validation(
+        "measurements.reuse-source-does-not-match",
+        "Those measurements were taken for a different customer or a different template, so they cannot be "
+        + "reused here.");
+
+    /// <summary>The draft was already turned into a version.</summary>
+    /// <remarks>
+    /// INV-MSR-02. A conflict rather than a second version: a retried confirmation whose answer was lost must
+    /// reach the version it already made, and never make another.
+    /// </remarks>
+    public static readonly Error DraftAlreadyConfirmed = Error.Conflict(
+        "measurements.draft-already-confirmed",
+        "These measurements have already been confirmed. Nothing was recorded twice; open the version they became.");
+
+    /// <summary>The draft is past the moment it stops being work in progress.</summary>
+    public static readonly Error DraftExpired = Error.Conflict(
+        "measurements.draft-expired",
+        "This draft is too old to confirm. Measurements go stale, so start again rather than record numbers "
+        + "nobody can vouch for.");
+
+    /// <summary>The draft was changed by somebody else since it was read.</summary>
+    /// <remarks>
+    /// Drafts are shared within a branch: two people may be measuring one customer between them. Last-writer-wins
+    /// would silently drop half of a garment's measurements.
+    /// </remarks>
+    public static readonly Error DraftChanged = Error.Conflict(
+        "measurements.draft-changed",
+        "Somebody else on this branch changed these measurements since they were read. Read them again and make "
+        + "the change against what is there now.");
+
+    /// <summary>This branch is already measuring that customer against that template.</summary>
+    /// <remarks>
+    /// A branch measures one garment at a time against one template. Two open drafts would leave two people each
+    /// filling in half of a different one, and the tailor receiving whichever was confirmed last.
+    /// </remarks>
+    public static readonly Error DraftAlreadyOpen = Error.Conflict(
+        "measurements.draft-already-open",
+        "This branch is already measuring that customer against that template. Open the measurements that are "
+        + "already under way rather than starting a second set.");
+
+    /// <summary>The caller is not working at a branch, so there is nowhere to file the measuring.</summary>
+    /// <remarks>
+    /// Measurements are taken where the customer is standing, and a draft belongs to the branch measuring. There
+    /// is no sensible default: filing one under an arbitrary branch would put a garment on the wrong counter's
+    /// list and hide it from the one actually measuring.
+    /// </remarks>
+    public static readonly Error BranchRequired = Error.Validation(
+        "measurements.branch-required",
+        "Measuring belongs to a branch, and this session is not working at one. Sign in at the branch taking the "
+        + "measurements.");
+
+    /// <summary>No draft of that identity in this organisation.</summary>
+    public static readonly Error DraftNotFound = Error.NotFound(
+        "measurements.draft-not-found",
+        "No measurement draft of that identity was found.");
+
+    /// <summary>No confirmed version of that identity in this organisation.</summary>
+    public static readonly Error MeasurementNotFound = Error.NotFound(
+        "measurements.measurement-not-found",
+        "No confirmed measurements of that identity were found.");
+
+    /// <summary>The customer has not consented to their measurements being kept.</summary>
+    /// <remarks>
+    /// INV-MSR-05, checked at confirmation rather than at draft time for the same reason as INV-MSR-04: a draft is
+    /// not yet a record of anything. A consent withdrawn while a garment was being measured stops the record from
+    /// being made, which is the whole point of the consent.
+    /// </remarks>
+    public static readonly Error MeasurementConsentMissing = Error.Conflict(
+        "measurements.consent-missing",
+        "This customer has not agreed to their measurements being kept. Record the agreement first; nothing was "
+        + "stored.");
+
+    /// <summary>A draft was started against a template version nothing may be captured against.</summary>
+    public static readonly Error TemplateVersionNotPublished = Error.Conflict(
+        "measurements.template-version-not-published",
+        "Measurements are only ever captured against a published template version. This one is not published.");
+
     /// <summary>Retirement would leave work in progress with no template to render through.</summary>
     public static readonly Error RetirementWouldStrandOrders = Error.Conflict(
         "measurements.retirement-would-strand-orders",

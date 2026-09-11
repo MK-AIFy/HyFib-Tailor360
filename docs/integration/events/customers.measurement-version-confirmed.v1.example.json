@@ -1,0 +1,14 @@
+{
+  "eventId": "019bd6d4-6a53-7e94-8d3b-7e8f9a0b1c23",
+  "occurredAt": "2026-09-09T06:02:33.1250000+00:00",
+  "aggregateId": "019bd6d3-5941-7a85-9e4c-8f9a0b1c2d34",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf80-1a21-7c32-95d7-6f8a9b0c1d2e",
+  "customerId": "019bd0c1-2b32-7d43-86e8-7a9b0c1d2e3f",
+  "templateId": "019bd4a0-7b22-7a53-96e4-2f3a4b5c6d7e",
+  "templateVersionId": "019bd5b1-6c13-7f84-8d25-3a4b5c6d7e8f",
+  "versionNumber": 2,
+  "correctsVersionId": null,
+  "eventType": "customers.measurement-version-confirmed.v1",
+  "schemaVersion": 1
+}

@@ -21,6 +21,7 @@ using Tailor360.Platform.Abstractions.Ports;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
+using Tailor360.Platform.Security.Authorisation;
 
 namespace Tailor360.Modules.Customers.Infrastructure;
 
@@ -38,6 +39,14 @@ namespace Tailor360.Modules.Customers.Infrastructure;
 /// record gets created. So the record's routes declare
 /// <c>TouchesNoBranchOwnedResource</c> citing that document, and visibility is enforced inside the
 /// search query, where it belongs.
+/// </para>
+/// <para>
+/// A <strong>measurement draft</strong> is the exception, and it is the opposite shape rather than a change of
+/// mind: it is half a garment, shared within the branch measuring it, and another branch writing to it would be
+/// overwriting numbers taken with a tape somebody else is holding. So drafts get a resolver and the customer
+/// still does not. A <em>confirmed</em> measurement goes back to the customer's shape — it is a fact about a
+/// person the whole organisation serves, and a garment measured at one branch and stitched at another is the
+/// ordinary case rather than an exception.
 /// </para>
 /// </remarks>
 public static class CustomersModuleServiceCollectionExtensions
@@ -92,6 +101,20 @@ public static class CustomersModuleServiceCollectionExtensions
                 + "CustomerExport enforces on a copy of somebody's personal data.")
             .ValidateOnStart();
 
+        // How long a garment stays half-measured before its draft stops being worth confirming (issue #121).
+        // Validated on start for the same reason the export lifetime is: a draft that expired while somebody was
+        // still holding the tape, or one that let a month-old measurement be confirmed as today's, would both be
+        // quiet wrong answers about evidence.
+        services.AddOptions<MeasurementCaptureOptions>()
+            .Bind(configuration.GetSection(MeasurementCaptureOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(
+                options => options.IsLifetimeUsable,
+                "Customers:MeasurementCapture:DraftLifetime must be between one hour and thirty days: shorter "
+                + "expires a draft while a garment is still being measured, and longer lets a stale measurement "
+                + "be confirmed as today's.")
+            .ValidateOnStart();
+
         // The module's published surface. Registered here rather than in each consuming module so
         // that the only way to reach a customer fact is through the contract the boundary allows
         // (ARCH-004), and so a consumer that forgot to compose this module fails to start rather
@@ -102,6 +125,20 @@ public static class CustomersModuleServiceCollectionExtensions
         services.TryAddScoped<IMeasurementTemplateQuery, MeasurementTemplateQuery>();
 
         services.TryAddScoped<IMeasurementTemplateStore, MeasurementTemplateStore>();
+
+        // Measuring a garment (issue #121). A separate store from the template one because they are
+
+        // read by different people for different reasons: a template is administered a few times a
+
+        // year, and a measurement is taken every day at a counter.
+
+        services.TryAddScoped<IMeasurementCaptureStore, MeasurementCaptureStore>();
+
+        services.TryAddScoped<MeasurementCaptureHandler>();
+
+        // Enumerable, not TryAdd: the platform asks every registered resolver for the kind it answers for, and a
+        // second registration must join the list rather than replace this one.
+        services.AddScoped<IResourceScopeResolver, MeasurementDraftScopeResolver>();
         services.TryAddScoped<MeasurementTemplateHandler>();
         services.TryAddScoped<IMeasurementTemplateReferenceDataSeeder, MeasurementTemplateReferenceDataSeeder>();
 

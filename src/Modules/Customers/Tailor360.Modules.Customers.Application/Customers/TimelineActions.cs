@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using Tailor360.Modules.Customers.Application.Consent;
+using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Customers.Application.Preferences;
 using Tailor360.Platform.Security.Permissions;
 
@@ -76,6 +77,14 @@ public static class TimelineActions
                 new("Consent withdrawn", CustomersPermissions.ReadConsent),
             [PreferenceHandler.ChangedAction] =
                 new("How to contact this customer changed", CustomersPermissions.ReadConsent),
+
+            // Measurements taken is exactly what a customer timeline is for, and it is the only one of the
+            // three capture actions that is evidence — a draft is work in progress that may expire and be
+            // deleted. Gated on the capture permission because a measurement is sensitive personal data under
+            // data-classification.md section 5.3: somebody who may not take measurements should not be told
+            // from a timeline that they exist.
+            [MeasurementCaptureHandler.ConfirmedAction] =
+                new("Measurements taken", CustomersPermissions.CaptureMeasurements),
 
             // A subject-access export is the record of who has seen this person's whole file. Whoever
             // may take one may see that one was taken; nobody else needs to.
