@@ -576,6 +576,57 @@ public sealed class OrderDraftTests
         draft.GarmentsWithoutMeasurements().Count.ShouldBe(1);
     }
 
+    /// <summary>
+    /// The <strong>Measurements needed</strong> queue is built from this value and confirmation refuses a
+    /// garment nobody measured by reading it, so an intent from a cast — which is what a deserialiser produces
+    /// from a number it did not recognise — would be counted as a decision that was never taken, and persisted
+    /// that way.
+    /// </summary>
+    [Fact]
+    public void AMeasurementIntentThatIsNoneOfTheFourIsRefused()
+    {
+        var content = OrderDraftGarmentContent.Create(
+            "blouse",
+            "stitch-new",
+            OrdersTestData.CatalogVersion,
+            designSelectionDraftId: null,
+            (MeasurementIntent)99,
+            measurementVersionId: null,
+            OrdersTestData.Id("measurement-template"),
+            OrdersTestData.DueDate,
+            instructions: null,
+            referenceMediaIds: null);
+
+        content.IsFailure.ShouldBeTrue();
+        content.Error.Code.ShouldBe("orders.value-not-understood");
+        content.Error.Target.ShouldBe("measurementIntent");
+    }
+
+    /// <summary>
+    /// The same hole on the draft's own dependency rows: a kind that is neither of INV-JOB-09's two is carried
+    /// into the confirmation and then enforced by neither gate, so it is refused where it is declared.
+    /// </summary>
+    [Fact]
+    public void ADependencyOfNeitherKindIsRefusedOnADraftToo()
+    {
+        var draft = OrdersTestData.Draft();
+        Add(draft, "first");
+        Add(draft, "second");
+
+        var declared = draft.DeclareDependency(
+            OrdersTestData.Id("second"),
+            OrdersTestData.Id("first"),
+            (JobDependencyKind)99,
+            reason: null,
+            OrdersTestData.Now,
+            OrdersTestData.Actor);
+
+        declared.IsFailure.ShouldBeTrue();
+        declared.Error.Code.ShouldBe("orders.value-not-understood");
+        declared.Error.Target.ShouldBe("kind");
+        draft.FindGarment(OrdersTestData.Id("second"))!.Dependencies.ShouldBeEmpty();
+    }
+
     [Fact]
     public void AReusedMeasurementIsTheDecisionConfirmationActsOn()
     {

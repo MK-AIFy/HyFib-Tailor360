@@ -150,13 +150,20 @@ internal static class OrdersTestData
 
     /// <summary>A design copy to freeze onto a garment job.</summary>
     /// <param name="optionCode">The chosen option, so two garments can differ.</param>
+    /// <param name="categoryKey">
+    /// What the copy says the garment is, so a copy that answers a different garment can be built.
+    /// </param>
+    /// <param name="serviceTypeKey">What the copy says the service is, for the same reason.</param>
     /// <returns>The snapshot.</returns>
-    public static DesignSnapshot Design(string optionCode = "round")
+    public static DesignSnapshot Design(
+        string optionCode = "round",
+        string categoryKey = "blouse",
+        string serviceTypeKey = "stitch-new")
         => DesignSnapshot.Create(
             CatalogVersion,
-            "blouse",
+            categoryKey,
             "Blouse",
-            "stitch-new",
+            serviceTypeKey,
             "Stitch a new garment",
             [
                 DesignSelection.Create(

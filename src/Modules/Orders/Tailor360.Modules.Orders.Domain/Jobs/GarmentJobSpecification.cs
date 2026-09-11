@@ -259,6 +259,15 @@ public sealed record GarmentJobSpecification
             return Result.Failure<GarmentJobDependencySpecification>(OrdersErrors.Required("prerequisite"));
         }
 
+        // INV-JOB-09 names two kinds and enforces them in two different places — start of production for one, the
+        // ready gate and the delivery queue for the other. Both tests for their own named member, so a row whose
+        // kind is neither is accepted, persisted and then silently enforced by nothing at all: the declaration
+        // reads as a promise the shop floor has been given and no gate keeps it.
+        if (!Enum.IsDefined(dependency.Kind))
+        {
+            return Result.Failure<GarmentJobDependencySpecification>(OrdersErrors.NotUnderstood("kind"));
+        }
+
         // A garment that must finish before itself never starts, and a garment delivered with itself binds the
         // queue to a job that can never become ready. Both are screen defects, and neither is recoverable at the
         // gate — by then the order is confirmed and the only remedy is a new one.

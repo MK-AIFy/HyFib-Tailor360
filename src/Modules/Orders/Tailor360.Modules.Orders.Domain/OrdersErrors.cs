@@ -54,6 +54,27 @@ public static class OrdersErrors
         $"That value is longer than the {maximum} characters this field holds.",
         field);
 
+    /// <summary>A value outside the set its field accepts arrived on a public factory.</summary>
+    /// <remarks>
+    /// <para>
+    /// Every choice this module stores is an enumeration, and an enumeration in C# accepts any number a
+    /// cast can produce — which is exactly what a deserialiser does with a value it did not recognise.
+    /// A number outside the named set is not a weaker answer but an uninterpretable one: the two gates,
+    /// the production ordering and the <strong>Measurements needed</strong> queue all test named members,
+    /// so an unnamed one is silently ignored rather than enforced, and it is <em>persisted</em> that way.
+    /// </para>
+    /// <para>
+    /// Generic and field-carrying like <see cref="Required"/> and <see cref="TooLong"/> rather than one
+    /// code per enumeration: a client can only ever act on it in one way, which is to send a value the
+    /// field names. The field travels in the error's target; the value never travels at all.
+    /// </para>
+    /// </remarks>
+    /// <param name="field">The field carrying the value.</param>
+    public static Error NotUnderstood(string field) => Error.Validation(
+        "orders.value-not-understood",
+        "That value is not one this field understands.",
+        field);
+
     /// <summary>A transition that is recorded against a reason arrived without one.</summary>
     /// <remarks>
     /// The transitions that demand one are listed in <c>docs/prd/state-transitions.md</c> section 8:

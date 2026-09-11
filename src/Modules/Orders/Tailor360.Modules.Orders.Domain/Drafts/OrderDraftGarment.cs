@@ -217,6 +217,14 @@ public sealed class OrderDraftGarment
             return Result.Failure(OrdersErrors.DependencyOnItself);
         }
 
+        // INV-JOB-09 names two kinds and enforces them in two different places, each testing for its own named
+        // member. A row whose kind is neither is carried into the confirmation and then kept by no gate at all,
+        // so it is refused where it is declared rather than where it is silently ignored.
+        if (!Enum.IsDefined(kind))
+        {
+            return Result.Failure(OrdersErrors.NotUnderstood("kind"));
+        }
+
         if (_dependencies.Exists(held =>
                 held.PrerequisiteOrderDraftGarmentId == prerequisiteOrderDraftGarmentId
                 && held.Kind == kind))

@@ -588,6 +588,15 @@ public sealed class Order
                 return Result.Failure(OrdersErrors.GarmentJobNotFound);
             }
 
+            // Including that the design copy being frozen in answers the same category and service type the
+            // garment was taken under — the check GarmentJobSpecification.Create makes at confirmation, made
+            // here too so the revision path cannot swap in another garment's design.
+            var permitted = job.CheckRevision(revision);
+            if (permitted.IsFailure)
+            {
+                return permitted;
+            }
+
             applications.Add((job, revision));
         }
 
@@ -973,6 +982,100 @@ public sealed class Order
         if (applied.IsFailure)
         {
             return applied;
+        }
+
+        // The gate runs as the system, so there is no actor to attribute the change to.
+        Touch(now, by: null);
+
+        return RecomputeStatus(aggregation, now);
+    }
+
+    /// <summary>
+    /// Applies a whole evaluation's verdicts, promoting the garments they are about together or not at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is the applying half of INV-JOB-09.</strong> A <c>deliver_together</c> dependency binds its
+    /// garments at the ready gate, and <see cref="ReadyGate.EvaluateSet"/> is what makes that possible: it judges
+    /// every member of the bound set on its own six predicates in one evaluation, so a set whose members all pass
+    /// gets a verdict of ready for every one of them at once. Applying those verdicts one command at a time would
+    /// hand back the problem the set evaluation solved — a refusal on the second garment would leave the first
+    /// promoted, on the delivery queue, and bound to a garment that is not coming.
+    /// </para>
+    /// <para>
+    /// <strong>Every verdict is checked before any is written.</strong> The guards live on the job as
+    /// <c>GarmentJob.CheckReadyGate</c> and are pure, so this can ask them of the whole set first; only then does
+    /// anything move. The single-garment overload is the same thing over a set of one, and neither weakens
+    /// INV-JOB-07 — the only argument either accepts is a <see cref="ReadyGateOutcome"/>, which nothing outside
+    /// this assembly can make.
+    /// </para>
+    /// <para>
+    /// The order's own status is recomputed once, at the end, from the garments as they then stand (SQ-02).
+    /// </para>
+    /// </remarks>
+    /// <param name="outcomes">The gate's verdicts, one per garment it was evaluated for.</param>
+    /// <param name="aggregation">Which jobs the branch dispatch policy requires to be ready (SQ-02).</param>
+    /// <param name="now">The instant, from <c>IClock</c>.</param>
+    /// <returns>Success, or the first reason a verdict could not be applied, with nothing written.</returns>
+    public Result ApplyReadyGate(
+        IReadOnlyCollection<ReadyGateOutcome> outcomes,
+        ReadyAggregation aggregation,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(outcomes);
+
+        var open = EnsureNotTerminal();
+        if (open.IsFailure)
+        {
+            return open;
+        }
+
+        var applications = new List<(GarmentJob Job, ReadyGateOutcome Outcome)>(outcomes.Count);
+        var addressed = new HashSet<Guid>();
+
+        foreach (var outcome in outcomes)
+        {
+            if (outcome is null)
+            {
+                return Result.Failure(OrdersErrors.Required("outcomes"));
+            }
+
+            // Two verdicts about one garment inside a single evaluation cannot both be the gate's answer, and
+            // which of them won would be the order they happened to arrive in.
+            if (!addressed.Add(outcome.GarmentJobId))
+            {
+                return Result.Failure(OrdersErrors.DuplicateGarmentJob("garmentJobId"));
+            }
+
+            var job = FindJob(outcome.GarmentJobId);
+            if (job is null)
+            {
+                return Result.Failure(OrdersErrors.GarmentJobNotFound);
+            }
+
+            var permitted = job.CheckReadyGate(outcome);
+            if (permitted.IsFailure)
+            {
+                return permitted;
+            }
+
+            applications.Add((job, outcome));
+        }
+
+        foreach (var (job, outcome) in applications)
+        {
+            // Cannot fail: the same guards were asked of every one of them above, and nothing between then and
+            // now can have moved a garment of this order.
+            var applied = job.ApplyReadyGate(outcome, now);
+            if (applied.IsFailure)
+            {
+                return applied;
+            }
+        }
+
+        if (applications.Count == 0)
+        {
+            return Result.Success();
         }
 
         // The gate runs as the system, so there is no actor to attribute the change to.

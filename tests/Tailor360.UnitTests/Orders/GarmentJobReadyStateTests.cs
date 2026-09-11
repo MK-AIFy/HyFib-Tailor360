@@ -29,6 +29,8 @@ public sealed class GarmentJobReadyStateTests
 
     private static readonly Guid Skirt = OrdersTestData.GarmentId(2);
 
+    private static readonly Guid Trousers = OrdersTestData.GarmentId(3);
+
     /* The single writer ------------------------------------------------------------------------- */
 
     /// <summary>
@@ -441,7 +443,226 @@ public sealed class GarmentJobReadyStateTests
         ]);
     }
 
+    /* The bound set ----------------------------------------------------------------------------- */
+
+    /// <summary>
+    /// INV-JOB-09 binds <c>deliver_together</c> garments at the ready gate, and binding means the set becomes
+    /// ready <em>together</em>. Asked of each garment on its own, against the sibling's status, the promise
+    /// deadlocks: each of two garments in production blocks on the other, the gate is the only writer of ready
+    /// (INV-JOB-07), so neither can go first and the parcel can never be dispatched. This is the test that
+    /// fails the day the predicate goes back to reading a sibling's status.
+    /// </summary>
+    [Fact]
+    public void TwoGarmentsBoundTogetherReachReadyTogetherRatherThanWaitingForEachOther()
+    {
+        var order = BoundPair();
+        OrdersTestData.InProduction(order, Blouse);
+        OrdersTestData.InProduction(order, Skirt);
+
+        var outcomes = ReadyGate.EvaluateSet(order, Blouse, BoundFacts(), OrdersTestData.Now);
+
+        outcomes.IsSuccess.ShouldBeTrue();
+        outcomes.Value.Count.ShouldBe(2);
+        outcomes.Value.ShouldAllBe(outcome => outcome.IsReady);
+
+        var applied = order.ApplyReadyGate(
+            outcomes.Value,
+            ReadyAggregation.EveryDeliverableJob,
+            OrdersTestData.Now);
+
+        applied.IsSuccess.ShouldBeTrue();
+        order.Jobs.ShouldAllBe(job => job.Status == GarmentJobStatus.Ready);
+        order.Jobs.ShouldAllBe(job => job.IsReadyForDelivery);
+        order.Status.ShouldBe(OrderStatus.Ready);
+    }
+
+    /// <summary>
+    /// What replaced "the sibling is ready": a sibling blocks on <em>its own</em> failing predicates. The
+    /// reason code is still <c>DependenciesMet</c> naming the sibling's number — section 9.1 has six reason
+    /// codes and this did not make a seventh — and the sibling reports the predicate it is actually failing,
+    /// so the queue screen sends the Tailor Master to the garment that needs work.
+    /// </summary>
+    [Fact]
+    public void ASiblingBlocksOnItsOwnFailingPredicatesRatherThanOnItsStatus()
+    {
+        var order = BoundPair();
+        OrdersTestData.InProduction(order, Blouse);
+        OrdersTestData.InProduction(order, Skirt);
+
+        var outcomes = ReadyGate.EvaluateSet(
+            order,
+            Blouse,
+            BoundFacts(skirt: Inputs(qcPassed: false, partialDeliveryPermitted: false)),
+            OrdersTestData.Now);
+
+        var forBlouse = outcomes.Value.Single(outcome => outcome.GarmentJobId == Blouse);
+        var forSkirt = outcomes.Value.Single(outcome => outcome.GarmentJobId == Skirt);
+
+        var waiting = forBlouse.Blocks.ShouldHaveSingleItem();
+        waiting.Predicate.ShouldBe(ReadyGatePredicate.DependenciesMet);
+        waiting.Reference.ShouldBe(order.FindJob(Skirt)!.JobNumber.Value);
+        forSkirt.Blocks.ShouldHaveSingleItem().Predicate.ShouldBe(ReadyGatePredicate.QcPassed);
+    }
+
+    /// <summary>
+    /// The gate fails closed here as it does on unknown custody: a sibling whose facts nobody gathered cannot
+    /// be shown to have passed its own predicates, so it blocks. A caller that wants the parcel to be able to
+    /// go has to gather the parcel's facts.
+    /// </summary>
+    [Fact]
+    public void ASiblingWhoseFactsWereNotGatheredBlocksRatherThanBeingAssumedToPass()
+    {
+        var order = BoundPair();
+        OrdersTestData.InProduction(order, Blouse);
+        OrdersTestData.InProduction(order, Skirt);
+
+        var outcome = ReadyGate.Evaluate(
+            order,
+            Blouse,
+            Inputs(partialDeliveryPermitted: false),
+            OrdersTestData.Now);
+
+        outcome.Value.IsReady.ShouldBeFalse();
+        var block = outcome.Value.Blocks.ShouldHaveSingleItem();
+        block.Predicate.ShouldBe(ReadyGatePredicate.DependenciesMet);
+        block.Reference.ShouldBe(order.FindJob(Skirt)!.JobNumber.Value);
+    }
+
+    /// <summary>
+    /// "These two go together" said twice over three garments is one promise about three garments. Stopping at
+    /// the garments a row names directly would let the first of a chain go while the last was still being made,
+    /// which is the split parcel INV-JOB-09 exists to prevent.
+    /// </summary>
+    [Fact]
+    public void AParcelBoundInAChainWaitsForEveryGarmentInIt()
+    {
+        var order = BoundChain();
+        OrdersTestData.InProduction(order, Blouse);
+        OrdersTestData.InProduction(order, Skirt);
+        OrdersTestData.InProduction(order, Trousers);
+
+        var outcomes = ReadyGate.EvaluateSet(
+            order,
+            Blouse,
+            new Dictionary<Guid, ReadyGateInputs>
+            {
+                [Blouse] = Inputs(partialDeliveryPermitted: false),
+                [Skirt] = Inputs(partialDeliveryPermitted: false),
+                [Trousers] = Inputs(qcPassed: false, partialDeliveryPermitted: false),
+            },
+            OrdersTestData.Now);
+
+        // The blouse names no dependency on the trousers at all; it reaches them through the skirt.
+        var forBlouse = outcomes.Value.Single(outcome => outcome.GarmentJobId == Blouse);
+        var block = forBlouse.Blocks.ShouldHaveSingleItem();
+        block.Predicate.ShouldBe(ReadyGatePredicate.DependenciesMet);
+        block.Reference.ShouldBe(order.FindJob(Trousers)!.JobNumber.Value);
+    }
+
+    /// <summary>
+    /// Applying the verdicts one at a time would hand back the problem evaluating the set together solved: a
+    /// refusal on the second garment would leave the first promoted, on the delivery queue, and bound to a
+    /// garment that is not coming. Every verdict is checked before any is written.
+    /// </summary>
+    [Fact]
+    public void ABoundSetIsPromotedTogetherOrNotAtAll()
+    {
+        var order = BoundPair();
+        OrdersTestData.InProduction(order, Blouse);
+        OrdersTestData.InProduction(order, Skirt);
+        var outcomes = ReadyGate.EvaluateSet(order, Blouse, BoundFacts(), OrdersTestData.Now);
+
+        // The second garment is withdrawn between the evaluation and the applying.
+        OrdersTestData.CancelledJob(order, Skirt);
+
+        var applied = order.ApplyReadyGate(
+            outcomes.Value,
+            ReadyAggregation.EveryDeliverableJob,
+            OrdersTestData.Now);
+
+        applied.IsFailure.ShouldBeTrue();
+        applied.Error.Code.ShouldBe("orders.job-status-transition-not-allowed");
+        order.FindJob(Blouse)!.Status.ShouldBe(GarmentJobStatus.InProduction);
+        order.FindJob(Blouse)!.IsReadyForDelivery.ShouldBeFalse();
+        order.FindJob(Blouse)!.ReadyStateBlocks.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// A set evaluated without the facts of the garment it was asked about has nothing to say about it, so it
+    /// is refused rather than answered from the domain's own half of the predicates.
+    /// </summary>
+    [Fact]
+    public void TheSetCannotBeEvaluatedWithoutTheNamedGarmentsOwnFacts()
+    {
+        var order = BoundPair();
+        OrdersTestData.InProduction(order, Blouse);
+
+        var outcomes = ReadyGate.EvaluateSet(
+            order,
+            Blouse,
+            new Dictionary<Guid, ReadyGateInputs> { [Skirt] = Inputs() },
+            OrdersTestData.Now);
+
+        outcomes.IsFailure.ShouldBeTrue();
+        outcomes.Error.Code.ShouldBe("orders.value-required");
+    }
+
     /* Applying a verdict ------------------------------------------------------------------------ */
+
+    /// <summary>
+    /// The facts reach the gate from four other modules and two evaluations can finish out of order. A verdict
+    /// older than the one standing on the row is refused, because applying it would promote the garment back on
+    /// facts a newer evaluation has already contradicted — and <c>job_ready_state</c>, not the status, is what
+    /// the dispatch attempt reads (section 4.1). Ready state must never outlive the facts it was computed from.
+    /// </summary>
+    [Fact]
+    public void AnOlderVerdictNeverOverwritesANewerOne()
+    {
+        var order = OrdersTestData.ConfirmedOrder();
+        OrdersTestData.InProduction(order, Blouse);
+        var passed = ReadyGate.Evaluate(order, Blouse, Inputs(), OrdersTestData.Now).Value;
+        var failed = ReadyGate.Evaluate(
+            order,
+            Blouse,
+            Inputs(qcPassed: false),
+            OrdersTestData.Now.AddMinutes(5)).Value;
+        Apply(order, failed, OrdersTestData.Now.AddMinutes(5)).IsSuccess.ShouldBeTrue();
+
+        var applied = Apply(order, passed, OrdersTestData.Now.AddMinutes(6));
+
+        var job = order.Jobs.Single();
+        applied.IsFailure.ShouldBeTrue();
+        applied.Error.Code.ShouldBe("orders.ready-gate-outcome-stale");
+        job.Status.ShouldBe(GarmentJobStatus.InProduction);
+        job.IsReadyForDelivery.ShouldBeFalse();
+        job.ReadyStateBlocks.Select(block => block.Predicate).ShouldBe([ReadyGatePredicate.QcPassed]);
+        job.ReadyStateComputedAt.ShouldBe(OrdersTestData.Now.AddMinutes(5));
+    }
+
+    /// <summary>
+    /// The same rule read the other way round: an older failing verdict arriving after a newer passing one does
+    /// not take a genuinely ready garment off the queue either. Both directions are the one defect.
+    /// </summary>
+    [Fact]
+    public void AnOlderFailingVerdictNeverClearsAValidReadyState()
+    {
+        var order = OrdersTestData.ConfirmedOrder();
+        OrdersTestData.InProduction(order, Blouse);
+        var failed = ReadyGate.Evaluate(order, Blouse, Inputs(qcPassed: false), OrdersTestData.Now).Value;
+        var passed = ReadyGate.Evaluate(order, Blouse, Inputs(), OrdersTestData.Now.AddMinutes(5)).Value;
+        Apply(order, passed, OrdersTestData.Now.AddMinutes(5)).IsSuccess.ShouldBeTrue();
+
+        var applied = Apply(order, failed, OrdersTestData.Now.AddMinutes(6));
+
+        var job = order.Jobs.Single();
+        applied.IsFailure.ShouldBeTrue();
+        applied.Error.Code.ShouldBe("orders.ready-gate-outcome-stale");
+        job.Status.ShouldBe(GarmentJobStatus.Ready);
+        job.IsReadyForDelivery.ShouldBeTrue();
+        job.ReadyStateBlocks.ShouldBeEmpty();
+        job.ReadyStateComputedAt.ShouldBe(OrdersTestData.Now.AddMinutes(5));
+    }
+
 
     /// <summary>
     /// INV-JOB-07: a verdict is about exactly one garment, and applying one garment's verdict to another
@@ -571,6 +792,32 @@ public sealed class GarmentJobReadyStateTests
         inputs.Value.IncompletePhaseCode.ShouldBeNull();
     }
 
+    /// <summary>
+    /// The three values exist so that "no answer" is a third answer rather than a fold into one of the other
+    /// two, and a fourth from a cast would undo that: it is neither reconciled, nor not reconciled, nor the
+    /// honest "we could not establish it" the gate fails closed on.
+    /// </summary>
+    [Fact]
+    public void ACustodyAnswerThatIsNoneOfTheThreeIsRefused()
+    {
+        var inputs = ReadyGateInputs.Create(
+            workflowComplete: true,
+            incompletePhaseCode: null,
+            qcPassed: true,
+            reworkOpen: false,
+            failedQcReference: null,
+            documentationComplete: true,
+            missingEvidenceReference: null,
+            partialDeliveryPermitted: true,
+            custodyGateEnabled: true,
+            (CustodyReconciliation)99,
+            openCustodyCaseReference: null);
+
+        inputs.IsFailure.ShouldBeTrue();
+        inputs.Error.Code.ShouldBe("orders.value-not-understood");
+        inputs.Error.Target.ShouldBe("custody");
+    }
+
     [Fact]
     public void AReferenceLongerThanTheColumnHoldsIsRefusedRatherThanTruncated()
     {
@@ -619,6 +866,56 @@ public sealed class GarmentJobReadyStateTests
             number);
     }
 
+    /// <summary>
+    /// Three garments of one order bound into one parcel by a chain rather than a star: the trousers go with
+    /// the skirt, the skirt goes with the blouse, and nothing names the blouse and the trousers together.
+    /// </summary>
+    private static Order BoundChain()
+    {
+        var number = OrdersTestData.Number();
+
+        return OrdersTestData.ConfirmedOrderOf(
+            [
+                OrdersTestData.Garment(number, jobIndex: 1),
+                OrdersTestData.Garment(
+                    number,
+                    jobIndex: 2,
+                    dependencies:
+                    [
+                        new GarmentJobDependencySpecification(
+                            OrdersTestData.Id("dependency-1"),
+                            Blouse,
+                            JobDependencyKind.DeliverTogether,
+                            Reason: null),
+                    ]),
+                OrdersTestData.Garment(
+                    number,
+                    jobIndex: 3,
+                    dependencies:
+                    [
+                        new GarmentJobDependencySpecification(
+                            OrdersTestData.Id("dependency-2"),
+                            Skirt,
+                            JobDependencyKind.DeliverTogether,
+                            Reason: null),
+                    ]),
+            ],
+            number);
+    }
+
+    /// <summary>
+    /// The facts for both garments of a <see cref="BoundPair"/>, with partial delivery refused so the binding
+    /// is genuinely being read.
+    /// </summary>
+    private static Dictionary<Guid, ReadyGateInputs> BoundFacts(
+        ReadyGateInputs? blouse = null,
+        ReadyGateInputs? skirt = null)
+        => new()
+        {
+            [Blouse] = blouse ?? Inputs(partialDeliveryPermitted: false),
+            [Skirt] = skirt ?? Inputs(partialDeliveryPermitted: false),
+        };
+
     /// <summary>Gate facts carrying a reference for every predicate, so a block can be read back.</summary>
     private static ReadyGateInputs Inputs(
         bool workflowComplete = true,
@@ -649,6 +946,13 @@ public sealed class GarmentJobReadyStateTests
 
         return ReadyGate.Evaluate(order, Blouse, inputs, OrdersTestData.Now).Value.Blocks;
     }
+
+    private static Result Apply(Order order, ReadyGateOutcome outcome, DateTimeOffset at)
+        => order.ApplyReadyGate(
+            outcome.GarmentJobId,
+            outcome,
+            ReadyAggregation.EveryDeliverableJob,
+            at);
 
     private static Result Hold(Order order, Guid garmentJobId)
         => order.Hold(
