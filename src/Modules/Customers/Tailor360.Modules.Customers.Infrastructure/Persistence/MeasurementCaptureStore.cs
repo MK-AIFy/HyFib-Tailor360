@@ -60,6 +60,24 @@ public sealed class MeasurementCaptureStore(CustomersDbContext context) : IMeasu
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<MeasurementVersion>> ListVersionsAsync(
+        Guid customerId,
+        Guid? templateId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+        // No tracking: this is the one read on this store that never precedes a write, and it is the widest —
+        // every measurement a customer has, each with its values. Tracking them would fill the change tracker for
+        // a request that saves nothing.
+        => await context.MeasurementVersions
+            .AsNoTracking()
+            .Where(version => version.CustomerId == customerId
+                              && version.OrganisationId == organisationId
+                              && (templateId == null || version.TemplateId == templateId))
+            .OrderByDescending(version => version.TakenAt)
+            .ThenByDescending(version => version.VersionNumber)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public void Add(MeasurementDraft draft) => context.MeasurementDrafts.Add(draft);
 
     /// <inheritdoc />

@@ -139,6 +139,11 @@ public static class CustomersModuleServiceCollectionExtensions
         // Enumerable, not TryAdd: the platform asks every registered resolver for the kind it answers for, and a
         // second registration must join the list rather than replace this one.
         services.AddScoped<IResourceScopeResolver, MeasurementDraftScopeResolver>();
+
+        // The published read of a confirmed measurement (#122). Registered here for the same reason the customer
+        // contracts are: the only way to reach one from another module is the contract the boundary allows, and a
+        // consumer that forgot to compose this module fails to start rather than on the first call.
+        services.TryAddScoped<IMeasurementSnapshotQuery, MeasurementSnapshotQuery>();
         services.TryAddScoped<MeasurementTemplateHandler>();
         services.TryAddScoped<IMeasurementTemplateReferenceDataSeeder, MeasurementTemplateReferenceDataSeeder>();
 

@@ -2122,6 +2122,74 @@
         ],
         "type": "object"
       },
+      "MeasurementComparisonPayload": {
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/MeasurementSummaryPayload"
+          },
+          "before": {
+            "$ref": "#/components/schemas/MeasurementSummaryPayload"
+          },
+          "changedCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "differences": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementDifferencePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "before",
+          "after",
+          "differences",
+          "changedCount"
+        ],
+        "type": "object"
+      },
+      "MeasurementDifferencePayload": {
+        "properties": {
+          "after": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MeasurementValuePayload"
+              }
+            ]
+          },
+          "before": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MeasurementValuePayload"
+              }
+            ]
+          },
+          "change": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "change",
+          "before",
+          "after"
+        ],
+        "type": "object"
+      },
       "MeasurementDraftPayload": {
         "properties": {
           "branchId": {
@@ -2211,6 +2279,87 @@
           "code",
           "field",
           "message"
+        ],
+        "type": "object"
+      },
+      "MeasurementSummaryPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "correctsVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fieldCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reusedFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "takenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "takenBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "measurementVersionId",
+          "measurementTemplateId",
+          "templateVersionId",
+          "versionNumber",
+          "takenAt",
+          "takenBy",
+          "branchId",
+          "reason",
+          "reusedFromVersionId",
+          "correctsVersionId",
+          "fieldCount"
         ],
         "type": "object"
       },
@@ -12398,6 +12547,76 @@
         "x-tailor360-rate-limit": "default-user"
       }
     },
+    "/api/v1/customers/measurements/{beforeId}/compare/{afterId}": {
+      "get": {
+        "description": "Matched on the field key rather than on field identity, because a template version mints new identifiers for every field it carries — so two measurements taken against different versions would otherwise read as every field dropped and re-added. A renamed field therefore reads as one dropped and one added, which is what a rename is once values are filed under a key. Two measurements of different customers or different templates are refused rather than compared.",
+        "operationId": "CompareMeasurements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "beforeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "afterId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementComparisonPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "What changed between two of a customer's measurements, oldest first.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/customers/measurements/{measurementVersionId}": {
       "get": {
         "description": "It renders through the template version it was captured under, forever, which is what makes a two-year-old job card readable. It carries no entity tag, because there is no edit to make a precondition for.",
@@ -12456,6 +12675,68 @@
           "Customers"
         ],
         "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/measurements/{measurementVersionId}/sheet": {
+      "get": {
+        "description": "The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because \"who looked at my measurements\" is a question she may ask and the answer has to be somewhere a person can find.",
+        "operationId": "ReadMeasurementSheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "measurementVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read a customer's measurements as a tailor reads them.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement.sheet.read",
+        "x-tailor360-authorisation": "permission:measurements.read_sheet",
         "x-tailor360-rate-limit": "default-user"
       }
     },
@@ -13339,6 +13620,78 @@
         "x-tailor360-audit": "customers.customer.export-downloaded",
         "x-tailor360-authorisation": "permission:customers.export",
         "x-tailor360-rate-limit": "export-heavy"
+      }
+    },
+    "/api/v1/customers/{customerId}/measurements": {
+      "get": {
+        "description": "Without the values: a list is for choosing which measurement to reuse or compare, and the choice is made on the date, who took it and whether it corrected something. Every one rather than the latest, because offering only the newest would make reuse mean reuse the last one.",
+        "operationId": "ListCustomerMeasurements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "templateId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeasurementSummaryPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Every measurement a customer has, newest first.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "default-user"
       }
     },
     "/api/v1/customers/{customerId}/merge": {

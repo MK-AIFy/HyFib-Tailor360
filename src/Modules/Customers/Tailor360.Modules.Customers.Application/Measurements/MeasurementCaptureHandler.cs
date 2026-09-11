@@ -57,6 +57,9 @@ public sealed class MeasurementCaptureHandler(
     /// <summary>Measurements became a confirmed, immutable version.</summary>
     public const string ConfirmedAction = "customers.measurement.confirmed";
 
+    /// <summary>Somebody read a customer's measurements as a sheet. A sensitive read (INV-MSR-06).</summary>
+    public const string SheetReadAction = "customers.measurement.sheet.read";
+
     /// <summary>
     /// Starts measuring, or hands back the measuring already under way.
     /// </summary>
@@ -356,6 +359,95 @@ public sealed class MeasurementCaptureHandler(
             : Result.Success(found);
     }
 
+    /// <summary>A customer's confirmed measurements, newest first.</summary>
+    /// <remarks>
+    /// Every one, not the latest: choosing which to reuse is a decision somebody makes from a list with dates on
+    /// it, and offering only the newest would make "reuse" mean "reuse the last one".
+    /// </remarks>
+    /// <param name="customerId">The customer.</param>
+    /// <param name="templateId">The template, or null for every template.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The measurements, newest first.</returns>
+    public async Task<IReadOnlyList<MeasurementVersion>> ListAsync(
+        Guid customerId,
+        Guid? templateId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+        => await store.ListVersionsAsync(customerId, templateId, organisationId, cancellationToken);
+
+    /// <summary>Compares two of a customer's measurements, oldest first.</summary>
+    /// <param name="beforeId">The older measurement.</param>
+    /// <param name="afterId">The newer measurement.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Every field either holds, or the reason they could not be compared.</returns>
+    public async Task<Result<MeasurementComparisonResult>> CompareAsync(
+        Guid beforeId,
+        Guid afterId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await store.FindVersionAsync(beforeId, organisationId, cancellationToken);
+        var after = await store.FindVersionAsync(afterId, organisationId, cancellationToken);
+
+        if (before is null || after is null)
+        {
+            return Result.Failure<MeasurementComparisonResult>(MeasurementErrors.MeasurementNotFound);
+        }
+
+        var differences = MeasurementComparison.Compare(before, after);
+
+        return differences.IsFailure
+            ? Result.Failure<MeasurementComparisonResult>(differences.Error)
+            : Result.Success(new MeasurementComparisonResult(before, after, differences.Value));
+    }
+
+    /// <summary>
+    /// Reads one measurement as a sheet, and records that somebody did.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// INV-MSR-06: reading a sheet is a sensitive read and is audited <strong>explicitly</strong>, here in the
+    /// handler, rather than left to the request log. The distinction matters because a page view says a route was
+    /// called and this says a named person's measurements were looked at — which is the question asked after the
+    /// fact, and the one a request log cannot answer once it has rolled over.
+    /// </para>
+    /// <para>
+    /// The entry is written <em>after</em> the read succeeds. An entry for a read that was refused would record an
+    /// access that never happened, and the trail is believed.
+    /// </para>
+    /// </remarks>
+    /// <param name="measurementVersionId">The measurement.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The measurement, or the reason it could not be read.</returns>
+    public async Task<Result<MeasurementVersion>> ReadSheetAsync(
+        Guid measurementVersionId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        var found = await store.FindVersionAsync(measurementVersionId, organisationId, cancellationToken);
+
+        if (found is null)
+        {
+            return Result.Failure<MeasurementVersion>(MeasurementErrors.MeasurementNotFound);
+        }
+
+        await CustomerAudit.RecordAsync(
+            audit,
+            SheetReadAction,
+            found.CustomerId,
+            $"Measurement {found.VersionNumber} was read as a sheet. It carries "
+            + $"{found.Values.Count} value(s); none of them is recorded here.",
+            reason: null,
+            before: null,
+            after: null,
+            cancellationToken);
+
+        return Result.Success(found);
+    }
+
     /// <summary>Pre-fills a fresh draft from an earlier measurement of the same template.</summary>
     /// <remarks>
     /// Values whose field is no longer on the published version are dropped rather than carried: the draft is
@@ -478,3 +570,12 @@ public sealed class MeasurementCaptureHandler(
             : Result.Success((draft, version));
     }
 }
+
+/// <summary>Two measurements and what differs between them.</summary>
+/// <param name="Before">The older measurement.</param>
+/// <param name="After">The newer measurement.</param>
+/// <param name="Differences">Every field either holds, in key order.</param>
+public sealed record MeasurementComparisonResult(
+    MeasurementVersion Before,
+    MeasurementVersion After,
+    IReadOnlyList<MeasurementDifference> Differences);

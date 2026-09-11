@@ -63,6 +63,25 @@ public interface IMeasurementCaptureStore
         Guid templateId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// A customer's confirmed measurements against one template, newest first.
+    /// </summary>
+    /// <remarks>
+    /// Every version, not the latest. Choosing which to reuse is a decision a person makes from a list with dates
+    /// on it, and a list that showed only the newest would make "reuse" mean "reuse the last one", which is the
+    /// silent reuse #28 forbids.
+    /// </remarks>
+    /// <param name="customerId">The customer.</param>
+    /// <param name="templateId">The template, or null for every template.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The measurements, newest first.</returns>
+    Task<IReadOnlyList<MeasurementVersion>> ListVersionsAsync(
+        Guid customerId,
+        Guid? templateId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Adds a new draft to the context.</summary>
     /// <param name="draft">The draft.</param>
     void Add(MeasurementDraft draft);

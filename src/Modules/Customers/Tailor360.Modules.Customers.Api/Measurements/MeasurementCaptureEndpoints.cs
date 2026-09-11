@@ -267,6 +267,104 @@ public static class MeasurementCaptureEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithRequestTimeout(RequestTimeoutPolicies.Read);
 
+        customers.MapGet("/{customerId:guid}/measurements", async Task<IResult> (
+                MeasurementCaptureHandler handler,
+                ICurrentUser caller,
+                Guid customerId,
+                Guid? templateId,
+                CancellationToken cancellationToken) =>
+            {
+                var versions = await handler.ListAsync(
+                    customerId, templateId, caller.Context.OrganisationId, cancellationToken);
+
+                return Results.Ok(versions.Select(MeasurementSummaryPayload.From).ToArray());
+            })
+            .Produces<MeasurementSummaryPayload[]>(StatusCodes.Status200OK)
+            .WithName("ListCustomerMeasurements")
+            .WithSummary("Every measurement a customer has, newest first.")
+            .WithDescription(
+                "Without the values: a list is for choosing which measurement to reuse or compare, and the choice "
+                + "is made on the date, who took it and whether it corrected something. Every one rather than the "
+                + "latest, because offering only the newest would make reuse mean reuse the last one.")
+            .RequirePermission(CustomersPermissions.CaptureMeasurements, BranchScope.AssignedBranches)
+            .TouchesNoBranchOwnedResource(
+                "The route names a customer, and a customer is organisation-wide: "
+                + "docs/prd/workflows/branch-scenarios.md section 3.2 places the record organisation-wide with "
+                + "branch-scoped visibility, which is why no route in this module scopes to a customer. The rows "
+                + "carry no measurement at all, only dates, identifiers and a field count.",
+                "#122")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
+        customers.MapGet(
+                "/measurements/{beforeId:guid}/compare/{afterId:guid}", async Task<IResult> (
+                    HttpContext context,
+                    MeasurementCaptureHandler handler,
+                    ICurrentUser caller,
+                    Guid beforeId,
+                    Guid afterId,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await handler.CompareAsync(
+                        beforeId, afterId, caller.Context.OrganisationId, cancellationToken);
+
+                    return result.IsFailure
+                        ? Problems.From(result.Error, context)
+                        : Results.Ok(MeasurementComparisonPayload.From(result.Value));
+                })
+            .Produces<MeasurementComparisonPayload>(StatusCodes.Status200OK)
+            .WithName("CompareMeasurements")
+            .WithSummary("What changed between two of a customer's measurements, oldest first.")
+            .WithDescription(
+                "Matched on the field key rather than on field identity, because a template version mints new "
+                + "identifiers for every field it carries — so two measurements taken against different versions "
+                + "would otherwise read as every field dropped and re-added. A renamed field therefore reads as "
+                + "one dropped and one added, which is what a rename is once values are filed under a key. Two "
+                + "measurements of different customers or different templates are refused rather than compared.")
+            .RequirePermission(CustomersPermissions.CaptureMeasurements, BranchScope.AssignedBranches)
+            .TouchesNoBranchOwnedResource(
+                "Both measurements are confirmed records about a customer, and are organisation-wide for the "
+                + "reason the single measurement read gives (#121): a garment measured at one branch and stitched "
+                + "at another is the ordinary case. The comparison refuses two measurements of different "
+                + "customers, so it cannot be used to read across one.",
+                "#122")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
+        customers.MapGet("/measurements/{measurementVersionId:guid}/sheet", async Task<IResult> (
+                HttpContext context,
+                MeasurementCaptureHandler handler,
+                ICurrentUser caller,
+                Guid measurementVersionId,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.ReadSheetAsync(
+                    measurementVersionId, caller.Context.OrganisationId, cancellationToken);
+
+                return result.IsFailure
+                    ? Problems.From(result.Error, context)
+                    : Results.Ok(MeasurementVersionPayload.From(result.Value));
+            })
+            .Produces<MeasurementVersionPayload>(StatusCodes.Status200OK)
+            .WithName("ReadMeasurementSheet")
+            .WithSummary("Read a customer's measurements as a tailor reads them.")
+            .WithDescription(
+                "The measurements and nothing else about the customer — no name, no telephone number, no address "
+                + "— which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read "
+                + "(INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, "
+                + "because \"who looked at my measurements\" is a question she may ask and the answer has to be "
+                + "somewhere a person can find.")
+            .RequirePermission(CustomersPermissions.ReadMeasurementSheet, BranchScope.AssignedBranches)
+            .TouchesNoBranchOwnedResource(
+                "A confirmed measurement is a fact about a customer and is organisation-wide for the reason #121 "
+                + "gives. What narrows this route is the permission rather than the branch: "
+                + "measurements.read_sheet is held by fewer people than measurements.capture, and the read is "
+                + "audited by name.",
+                "#122")
+            .Audited(MeasurementCaptureHandler.SheetReadAction)
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
         return customers;
     }
 
