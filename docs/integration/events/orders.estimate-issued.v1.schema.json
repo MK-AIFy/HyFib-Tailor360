@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.estimate-issued.v1.schema.json",
+  "title": "orders.estimate-issued.v1",
+  "description": "A priced estimate was issued against an open draft. An estimate is a quote and not a stage of the order: it is never posted and never consumes an invoice number (INV-ORD-04), so a consumer that treated this as a receivable would be treating a quotation as a debt. The payload carries no money at all — a price snapshot is Confidential under docs/nfr/data-classification.md section 2.1 and section 3 admits Confidential data to an integration event only for an approved subscriber, of which there is none; #42 reads the priced result through IOrderSnapshotQuery and recalculates. There is no estimate-superseded and no estimate-converted event: a reissue is already announced by orders.order-revised.v1's supersededEstimateId and a conversion by orders.order-confirmed.v1's estimateId.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "orderDraftId",
+    "estimateNumber",
+    "issuedOn",
+    "validUntil",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the estimate was issued, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The estimate this event announces. It is the thing the event is about, so it is the thing per-aggregate ordering is preserved against — the same choice customers.measurement-version-confirmed.v1 makes with the version it confirms."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the estimate belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch that issued it, and whose sequence the number came from. Never null: branch scope is evaluated and never inferred, so an estimate with no branch could not have been numbered honestly."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer it was quoted to. An identifier and nothing more — no name, no telephone number, no address (docs/nfr/data-classification.md section 5.2). A consumer that must name the person asks ICustomerSnapshotQuery, which re-authorises the read and masks what the caller may not see."
+    },
+    "orderDraftId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The draft that was priced. An estimate is a snapshot of a draft and not of an order, because there is no order yet; the draft is what a confirmation that follows is keyed on."
+    },
+    "estimateNumber": {
+      "type": "string",
+      "description": "The human reference, E-<branch>-<FY>-000001 (docs/architecture/conventions.md section 3.2). A display number a person quotes over the counter, and never a lookup key — every reference is by aggregateId."
+    },
+    "issuedOn": {
+      "type": "string",
+      "format": "date",
+      "description": "The branch-local date it was issued on, already evaluated in the branch timezone (docs/architecture/conventions.md section 2.2)."
+    },
+    "validUntil": {
+      "type": "string",
+      "format": "date",
+      "description": "The branch-local date it stops being honourable. The one fact on an estimate that decays, and never earlier than issuedOn."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.estimate-issued.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

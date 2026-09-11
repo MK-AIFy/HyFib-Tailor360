@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.garment-job-created.v1.schema.json",
+  "title": "orders.garment-job-created.v1",
+  "description": "One garment of a confirmed order came into being — one of these per garment, raised inside the same confirmation as orders.order-confirmed.v1, which is what makes INV-ORD-01 expressible. The payload carries no customerId (a garment event does not need one; Reporting joins through orderId, and section 3.1 prefers projecting a personal reference away), no measurement in any form (section 5.4: never in a report, an analytical export or an integration event payload — not the values, not the template, not the version, not a count), no design selections or garment instructions (free text; the labels are on IOrderSnapshotQuery), no reference media identifiers (section 5.5, and rule 3.1.3 — media is never given a URL) and no price (Confidential). It carries no dependencies either: SQ-07 and SQ-08 in state-transitions.md section 10 are unsettled, and a frozen copy of deliver_together parcel membership would publish an undecided product rule.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "garmentJobNumber",
+    "jobIndex",
+    "categoryKey",
+    "serviceTypeKey",
+    "workflowDefinitionId",
+    "dueDate",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the order was confirmed, in UTC. The same instant for every garment of it."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The garment job. Choosing the garment rather than the order is deliberate: every later job-scoped event uses the same aggregate, so the outbox orders creation before production, hold, resume, reschedule, ready and cancellation for that garment."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the garment belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch the order was taken at, and whose workshop makes the garment."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order this garment is part of."
+    },
+    "garmentJobNumber": {
+      "type": "string",
+      "description": "The human reference, J-<branch>-<FY>-000001-01 (docs/architecture/conventions.md section 3.2). What a tailor reads off a rack tag, and never a lookup key."
+    },
+    "jobIndex": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The garment's one-based position within its order."
+    },
+    "categoryKey": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The stitching category, by its stable key. Reporting #45 projects the pipeline and the category mix from it. The key travels and the label does not: a label is display text that may be re-worded, and IOrderSnapshotQuery carries it for anything that prints."
+    },
+    "serviceTypeKey": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The service type within that category, by its stable key."
+    },
+    "workflowDefinitionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The workflow this garment will be made under. Confirmation records the definition and instantiates nothing; the version is resolved and pinned at start-production (INV-JOB-02)."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The garment's own promised date, branch-local. The promise a workshop queue is ordered by, and the one #45 measures promised-against-actual turnaround from."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.garment-job-created.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

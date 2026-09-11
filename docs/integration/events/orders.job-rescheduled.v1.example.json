@@ -1,0 +1,13 @@
+{
+  "eventId": "019bd66c-6077-7d98-92a9-182930415263",
+  "occurredAt": "2026-09-11T10:24:02.8870000+00:00",
+  "aggregateId": "019bd63b-6294-7e3c-9f57-607182930415",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "orderId": "019bd63b-5183-7d2b-8e46-5f6071829304",
+  "garmentJobNumber": "J-CBE01-2627-000001-01",
+  "dueDate": "2026-09-28",
+  "previousDueDate": "2026-09-25",
+  "eventType": "orders.job-rescheduled.v1",
+  "schemaVersion": 1
+}

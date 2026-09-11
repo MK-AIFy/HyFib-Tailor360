@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.job-rescheduled.v1.schema.json",
+  "title": "orders.job-rescheduled.v1",
+  "description": "A garment's promised date moved. previousDueDate is the field this event exists for: Reporting #45 measures promised-against-actual turnaround, which is meaningless without knowing which promise moved. Only the garment's date moves — the command does not touch the order's own promised date, so a consumer must not infer one from this event. The reason is mandatory to the command and withheld from the payload: renegotiating a promise honestly means saying why, and the free text saying why is what a member of staff typed about a named person's garment. No actor either — audit (ARCH-008) is the authority on who.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "garmentJobNumber",
+    "dueDate",
+    "previousDueDate",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the rescheduling was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The garment job, ordered behind its orders.garment-job-created.v1."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the garment belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch whose workshop is making it."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the garment belongs to."
+    },
+    "garmentJobNumber": {
+      "type": "string",
+      "description": "The human reference, so a rack tag can be named."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The new promised date. A branch-local date, already evaluated in the branch timezone against the branch working calendar by the caller (docs/architecture/conventions.md section 2.2)."
+    },
+    "previousDueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The promise that was replaced, branch-local on the same terms. The due date is the one fact the domain overwrites in place, so a projection that missed an earlier message cannot reconstruct it — which is why it is published, and why the caller reads it before the transition rather than after."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.job-rescheduled.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

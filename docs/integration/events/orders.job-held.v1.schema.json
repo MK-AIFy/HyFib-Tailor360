@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.job-held.v1.schema.json",
+  "title": "orders.job-held.v1",
+  "description": "Work on a garment was suspended. SQ-09 in docs/prd/state-transitions.md section 10 is what a consumer has to know before acting on it: a hold closes the ready state of THIS garment and of no other. A deliver_together partner left standing at ready stays at ready and stays on the delivery queue, and the promise is kept at the door instead — a handover that would strand a live partner is refused at the scan. The alternative, closing the whole parcel's gate on one member's hold, would make a hold a writer of another garment's ready state, which INV-JOB-07 forbids. SQ-09 is proposed and not settled, so a consumer must not infer anything about any other garment from this event and asks IOrderSnapshotQuery at handover. The payload carries the code and not the free-text reason, and neither the approver nor the actor: the hold policy and who signed it off are staff personal data under data-classification section 5.15, and audit (ARCH-008) is the authority on who.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "garmentJobNumber",
+    "reasonCode",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the hold was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The garment job, ordered behind its orders.garment-job-created.v1."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the garment belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch whose workshop holds it."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the garment belongs to."
+    },
+    "garmentJobNumber": {
+      "type": "string",
+      "description": "The human reference, so a rack tag can be named."
+    },
+    "reasonCode": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The configured hold reason, by its code. Never null and never blank — the command refuses a hold without one — and deliberately not constrained to a fixed set: the vocabulary is branch configuration, reviewed under open decision OD-10 in docs/prd/assumptions-and-open-decisions.md and seeded by issue #34, not an enumeration this contract may freeze. The value in the example file is a placeholder, not a code this system issues, and a subscriber that hard-codes it has hard-coded nothing. Never free text."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.job-held.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

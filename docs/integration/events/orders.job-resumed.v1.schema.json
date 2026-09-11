@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.job-resumed.v1.schema.json",
+  "title": "orders.job-resumed.v1",
+  "description": "A held garment went back to being made — the thinnest of the eleven Orders payloads, and deliberately so. There is no reason code, because the command takes free text and no configured code at all, and inventing one would be inventing a vocabulary. A resume never moves the promised date: time lost on hold is renegotiated openly through orders.job-rescheduled.v1, so a consumer must not infer a new due date from this event. And a resume never declares the garment ready — it clears the ready state, and the gate recomputation that follows is what decides (INV-JOB-07), so a consumer waits for orders.job-ready-for-delivery.v1 rather than reading readiness out of this.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "garmentJobNumber",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the resume was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The garment job, ordered behind the orders.job-held.v1 it answers."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the garment belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch whose workshop resumed it."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the garment belongs to."
+    },
+    "garmentJobNumber": {
+      "type": "string",
+      "description": "The human reference, so a rack tag can be named."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.job-resumed.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

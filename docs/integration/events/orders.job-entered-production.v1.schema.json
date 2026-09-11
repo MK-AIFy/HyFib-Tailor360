@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.job-entered-production.v1.schema.json",
+  "title": "orders.job-entered-production.v1",
+  "description": "A garment started being made, and the workflow version was pinned. That pinning is what the payload exists to announce: a consumer reporting on how a garment was actually made needs the version that was in force, not whichever is current when it asks. The satisfied finish_before prerequisites the command was checked against are not published — they are an application input the domain verifies and does not store, a fact about the call rather than about the garment. Phase state is not published either: it is issue #33's, and an event lands with the issue that raises it.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "garmentJobNumber",
+    "workflowDefinitionId",
+    "workflowVersionId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When production started, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The garment job, ordered behind its orders.garment-job-created.v1."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the garment belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch whose workshop is making it."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the garment belongs to."
+    },
+    "garmentJobNumber": {
+      "type": "string",
+      "description": "The human reference, so a rack tag can be named."
+    },
+    "workflowDefinitionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The workflow definition recorded at confirmation. Repeated here so a consumer need not join back to the creation event to answer the commonest question about this one."
+    },
+    "workflowVersionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The version pinned at this moment, which never migrates: a later published workflow version does not move a running job, and an order revision is refused from here on (INV-JOB-02). Never null and never the empty uuid — the command refuses one and pins the version before returning."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.job-entered-production.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

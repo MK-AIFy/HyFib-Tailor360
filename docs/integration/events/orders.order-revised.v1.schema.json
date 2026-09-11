@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.order-revised.v1.schema.json",
+  "title": "orders.order-revised.v1",
+  "description": "A confirmed order was revised. A revision is refused once any garment has entered production (INV-JOB-02), so this event never contradicts a pinned workflow version and carries no workflow field. It carries no totals and no configuration version identifiers (Confidential; Billing reads them through IOrderSnapshotQuery and recalculates), and not the revision reason — free text a member of staff typed, which conventions.md section 5.5 does not admit and which the erasure workflow has to be able to reach. Whether the module also republishes orders.order-confirmed.v1 alongside this event is an implementation choice: that event carries revisionNumber at v1 precisely so a republication needs no new major.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "orderNumber",
+    "revisionId",
+    "revisionNumber",
+    "dueDate",
+    "supersededEstimateId",
+    "revisedGarmentJobIds",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the revision was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order, so a revision is ordered against the confirmation it revises and against every later revision."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the order belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch the order was taken at."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer the order is for. An identifier and nothing more."
+    },
+    "orderNumber": {
+      "type": "string",
+      "description": "The human reference. Unchanged by a revision: the order is the same order."
+    },
+    "revisionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The revision record this event announces — the 'on whose authority' handle, exactly the role customers.customer-merged.v1 gives its merge identifier. Who revised, when and why stays in Orders."
+    },
+    "revisionNumber": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "The order's revision number after this change. Two or higher, because revision one is the confirmation itself."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The order's promised date as at this revision, branch-local."
+    },
+    "supersededEstimateId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "The outstanding estimate this revision supersedes, or null where there was none."
+    },
+    "revisedGarmentJobIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "Every garment the revision touched. Billing #42 must invalidate a draft invoice covering them and Reporting #45 must re-read them, which is why they are named here rather than left to a re-read of the whole order. Empty is possible — a revision may move only the order's own promised date."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.order-revised.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}
