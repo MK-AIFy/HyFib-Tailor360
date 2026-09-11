@@ -226,3 +226,113 @@ public sealed record MeasurementCheckPayload(
             draftId, findings.Count == 0, [.. findings.Select(MeasurementFindingPayload.From)]);
     }
 }
+
+/// <summary>
+/// One of a customer's measurements, as a list shows it.
+/// </summary>
+/// <remarks>
+/// <strong>No values.</strong> A list is for choosing which measurement to reuse or compare, and the choice is
+/// made on the date, who took it and whether it corrected something — not on the numbers. Carrying the values
+/// would put every measurement a customer has ever had into a response somebody only wanted a list from, which
+/// <c>docs/nfr/data-classification.md</c> section 5.2 calls the field-level minimisation this product owes.
+/// </remarks>
+/// <param name="MeasurementVersionId">Its identity.</param>
+/// <param name="MeasurementTemplateId">The template it answers.</param>
+/// <param name="TemplateVersionId">The template version it renders through.</param>
+/// <param name="VersionNumber">Which measurement this is for that customer and template.</param>
+/// <param name="TakenAt">When it was taken, in UTC. What a person chooses on.</param>
+/// <param name="TakenBy">Who took it. The other thing a person chooses on.</param>
+/// <param name="BranchId">The branch it was taken at.</param>
+/// <param name="Reason">Why, where one was given.</param>
+/// <param name="ReusedFromVersionId">The measurement its values were pre-filled from, or null.</param>
+/// <param name="CorrectsVersionId">The measurement it replaces, or null.</param>
+/// <param name="FieldCount">How many values it holds, so a list can say "eleven measurements" without them.</param>
+public sealed record MeasurementSummaryPayload(
+    Guid MeasurementVersionId,
+    Guid MeasurementTemplateId,
+    Guid TemplateVersionId,
+    int VersionNumber,
+    DateTimeOffset TakenAt,
+    Guid? TakenBy,
+    Guid BranchId,
+    string? Reason,
+    Guid? ReusedFromVersionId,
+    Guid? CorrectsVersionId,
+    int FieldCount)
+{
+    /// <summary>Renders one measurement as a list row.</summary>
+    /// <param name="version">The measurement.</param>
+    /// <returns>The payload.</returns>
+    public static MeasurementSummaryPayload From(MeasurementVersion version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+
+        return new MeasurementSummaryPayload(
+            version.Id,
+            version.TemplateId,
+            version.TemplateVersionId,
+            version.VersionNumber,
+            version.TakenAt,
+            version.TakenBy,
+            version.BranchId,
+            version.Reason,
+            version.ReusedFromVersionId,
+            version.CorrectsVersionId,
+            version.Values.Count);
+    }
+}
+
+/// <summary>One field, as it stood in each of two measurements.</summary>
+/// <param name="Key">The field key.</param>
+/// <param name="Change"><c>Unchanged</c>, <c>Changed</c>, <c>Added</c> or <c>Dropped</c>.</param>
+/// <param name="Before">What the older measurement held, or null when it did not hold this field.</param>
+/// <param name="After">What the newer measurement held, or null when it does not hold this field.</param>
+public sealed record MeasurementDifferencePayload(
+    string Key,
+    string Change,
+    MeasurementValuePayload? Before,
+    MeasurementValuePayload? After)
+{
+    /// <summary>Renders one difference.</summary>
+    /// <param name="difference">The difference.</param>
+    /// <returns>The payload.</returns>
+    public static MeasurementDifferencePayload From(MeasurementDifference difference)
+    {
+        ArgumentNullException.ThrowIfNull(difference);
+
+        return new MeasurementDifferencePayload(
+            difference.Key,
+            difference.Change.ToString(),
+            difference.Before is null ? null : MeasurementValuePayload.From(difference.Before),
+            difference.After is null ? null : MeasurementValuePayload.From(difference.After));
+    }
+}
+
+/// <summary>What changed between two of a customer's measurements.</summary>
+/// <param name="Before">The older measurement, as a list row.</param>
+/// <param name="After">The newer measurement, as a list row.</param>
+/// <param name="Differences">Every field either holds, in key order.</param>
+/// <param name="ChangedCount">How many fields differ, so a screen can say so without counting.</param>
+public sealed record MeasurementComparisonPayload(
+    MeasurementSummaryPayload Before,
+    MeasurementSummaryPayload After,
+    IReadOnlyList<MeasurementDifferencePayload> Differences,
+    int ChangedCount)
+{
+    /// <summary>Renders a comparison.</summary>
+    /// <param name="result">What the comparison found.</param>
+    /// <returns>The payload.</returns>
+    public static MeasurementComparisonPayload From(MeasurementComparisonResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var differences = result.Differences.Select(MeasurementDifferencePayload.From).ToArray();
+
+        return new MeasurementComparisonPayload(
+            MeasurementSummaryPayload.From(result.Before),
+            MeasurementSummaryPayload.From(result.After),
+            differences,
+            differences.Count(difference =>
+                !string.Equals(difference.Change, nameof(MeasurementChange.Unchanged), StringComparison.Ordinal)));
+    }
+}

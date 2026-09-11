@@ -9,6 +9,7 @@ using Tailor360.Modules.Customers.Application.Measurements;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Measurements;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
+using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Security.Permissions;
 
 namespace Tailor360.IntegrationTests.Customers;
@@ -225,6 +226,281 @@ public sealed class MeasurementCaptureEndpointTests(WebApplicationFixture fixtur
         // A branch measures one garment at a time against one template. Two open drafts would leave two people
         // each filling in half of a different one.
         second.ShouldBe(first);
+    }
+
+    [Fact]
+    public async Task ReusesAnEarlierMeasurementAndSaysWhereTheNumbersCameFrom()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // The acceptance criterion is that reuse is *visibly* confirmed against its source. A pre-filled form
+        // that does not say where the numbers came from is the silent reuse #28 forbids.
+        using var counter = await CounterAsync("msr-reuse", "203.0.113.236");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("REUSE");
+        var first = await StartAsync(counter, customerId, templateId);
+
+        await SaveBodiceAsync(counter, first, inches: 36m);
+
+        var confirmed = await ConfirmAsync(counter, first);
+        confirmed.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        using var measurement = JsonDocument.Parse(await confirmed.Content.ReadAsStringAsync(Token));
+        var sourceId = measurement.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var reused = await counter.PostAsync(
+            Drafts,
+            new
+            {
+                customerId,
+                measurementTemplateId = templateId,
+                reuseFromVersionId = sourceId,
+            },
+            Key());
+
+        reused.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        using var draft = JsonDocument.Parse(await reused.Content.ReadAsStringAsync(Token));
+
+        draft.RootElement.GetProperty("reusedFromVersionId").GetGuid().ShouldBe(sourceId);
+
+        // Pre-filled, so the tailor is checking numbers rather than re-measuring from scratch.
+        var value = draft.RootElement.GetProperty("values").EnumerateArray().Single();
+        value.GetProperty("key").GetString().ShouldBe("chest_bust");
+        value.GetProperty("millimetres").GetDecimal().ShouldBe(914.4m);
+    }
+
+    [Fact]
+    public async Task RefusesToReuseAnotherCustomerMeasurements()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // Invisible on a screen showing only numbers, which is exactly why it is refused rather than filtered.
+        using var counter = await CounterAsync("msr-wrongreuse", "203.0.113.237");
+
+        var mine = await CustomerAsync();
+        var theirs = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("WRONGREUSE");
+
+        var draftId = await StartAsync(counter, theirs, templateId);
+        await SaveBodiceAsync(counter, draftId, inches: 34m);
+
+        var confirmed = await ConfirmAsync(counter, draftId);
+        confirmed.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        using var measurement = JsonDocument.Parse(await confirmed.Content.ReadAsStringAsync(Token));
+        var theirVersionId = measurement.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var refused = await counter.PostAsync(
+            Drafts,
+            new
+            {
+                customerId = mine,
+                measurementTemplateId = templateId,
+                reuseFromVersionId = theirVersionId,
+            },
+            Key());
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        using var problem = JsonDocument.Parse(await refused.Content.ReadAsStringAsync(Token));
+        problem.RootElement.GetProperty("code").GetString()
+            .ShouldBe("measurements.reuse-source-does-not-match");
+    }
+
+    [Fact]
+    public async Task CorrectsAMeasurementByMakingANewOneAndLeavesTheOldReadable()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-correct", "203.0.113.238");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("CORRECT");
+
+        var firstDraft = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, firstDraft, inches: 36m);
+
+        using var firstBody = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, firstDraft)).Content.ReadAsStringAsync(Token));
+        var originalId = firstBody.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var secondDraft = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, secondDraft, inches: 37m);
+
+        var corrected = await counter.PostAsync(
+            $"{Drafts}/{secondDraft}/confirm",
+            new
+            {
+                reason = "The first was taken over a jacket.",
+                correctsVersionId = originalId,
+            },
+            [.. Key(), ("If-Match", await TagAsync(counter, secondDraft))]);
+
+        corrected.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        using var body = JsonDocument.Parse(await corrected.Content.ReadAsStringAsync(Token));
+
+        body.RootElement.GetProperty("correctsVersionId").GetGuid().ShouldBe(originalId);
+        body.RootElement.GetProperty("versionNumber").GetInt32().ShouldBe(2);
+
+        // INV-MSR-01: the corrected one stays readable and still renders its own values. A garment cut to it
+        // last week was cut to those numbers, whatever the correction says now.
+        var original = await counter.GetAsync($"/api/v1/customers/measurements/{originalId}");
+        original.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var kept = JsonDocument.Parse(await original.Content.ReadAsStringAsync(Token));
+        kept.RootElement.GetProperty("values").EnumerateArray().Single()
+            .GetProperty("millimetres").GetDecimal().ShouldBe(914.4m);
+    }
+
+    [Fact]
+    public async Task RefusesACorrectionWithNoReason()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // A record of a change to confirmed evidence without a reason is a record of nothing.
+        using var counter = await CounterAsync("msr-noreason", "203.0.113.239");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("NOREASON");
+
+        var firstDraft = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, firstDraft, inches: 36m);
+
+        using var firstBody = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, firstDraft)).Content.ReadAsStringAsync(Token));
+        var originalId = firstBody.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var secondDraft = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, secondDraft, inches: 37m);
+
+        var refused = await counter.PostAsync(
+            $"{Drafts}/{secondDraft}/confirm",
+            new { reason = (string?)null, correctsVersionId = originalId },
+            [.. Key(), ("If-Match", await TagAsync(counter, secondDraft))]);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task ComparesTwoMeasurementsAndListsThemWithoutTheirValues()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-compare", "203.0.113.240");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("COMPARE");
+
+        var firstDraft = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, firstDraft, inches: 36m);
+
+        using var firstBody = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, firstDraft)).Content.ReadAsStringAsync(Token));
+        var beforeId = firstBody.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var secondDraft = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, secondDraft, inches: 37m);
+
+        using var secondBody = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, secondDraft)).Content.ReadAsStringAsync(Token));
+        var afterId = secondBody.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var compared = await counter.GetAsync(
+            $"/api/v1/customers/measurements/{beforeId}/compare/{afterId}");
+
+        compared.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var comparison = JsonDocument.Parse(await compared.Content.ReadAsStringAsync(Token));
+
+        comparison.RootElement.GetProperty("changedCount").GetInt32().ShouldBe(1);
+
+        var difference = comparison.RootElement.GetProperty("differences").EnumerateArray().Single();
+        difference.GetProperty("key").GetString().ShouldBe("chest_bust");
+        difference.GetProperty("change").GetString().ShouldBe("Changed");
+        difference.GetProperty("before").GetProperty("millimetres").GetDecimal().ShouldBe(914.4m);
+        difference.GetProperty("after").GetProperty("millimetres").GetDecimal().ShouldBe(939.8m);
+
+        var listed = await counter.GetAsync(
+            $"/api/v1/customers/{customerId}/measurements?templateId={templateId}");
+
+        listed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var list = JsonDocument.Parse(await listed.Content.ReadAsStringAsync(Token));
+        var rows = list.RootElement.EnumerateArray().ToArray();
+
+        rows.Length.ShouldBe(2);
+
+        // Newest first, because that is the order somebody choosing what to reuse reads in.
+        rows[0].GetProperty("versionNumber").GetInt32().ShouldBe(2);
+
+        // And no values at all: a list is for choosing on the date and who took it.
+        foreach (var row in rows)
+        {
+            row.TryGetProperty("values", out _).ShouldBeFalse();
+            row.GetProperty("fieldCount").GetInt32().ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task ReadsASheetCarryingNothingAboutTheCustomerButHerMeasurements()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-sheet", "203.0.113.241");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("SHEET");
+        var draftId = await StartAsync(counter, customerId, templateId);
+
+        await SaveBodiceAsync(counter, draftId, inches: 36m);
+
+        using var confirmed = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, draftId)).Content.ReadAsStringAsync(Token));
+        var versionId = confirmed.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        // The person who took the measurement cannot print it. measurements.read_sheet is a narrower grant on
+        // purpose: a sheet is the widest audience a measurement gets, so the right to produce one is held by
+        // fewer people than the right to take one, and the two are separate keys rather than one.
+        (await counter.GetAsync($"/api/v1/customers/measurements/{versionId}/sheet"))
+            .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        using var printer = await AdministrationHarness.AdministratorAsync(
+            fixture,
+            "msr-print",
+            "203.0.113.242",
+            CustomersPermissions.ReadMeasurementSheet);
+
+        var sheet = await printer.GetAsync($"/api/v1/customers/measurements/{versionId}/sheet");
+
+        sheet.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var text = await sheet.Content.ReadAsStringAsync(Token);
+
+        using var body = JsonDocument.Parse(text);
+        body.RootElement.GetProperty("values").GetArrayLength().ShouldBe(1);
+
+        // A tailor holding a printed sheet is the widest audience any measurement gets. Asserted rather than
+        // eyeballed: no contact field of any name reaches this payload.
+        foreach (var forbidden in new[]
+                 {
+                     "displayName", "nativeName", "phoneE164", "alternatePhoneE164", "email", "addressLine",
+                     "city", "postalCode",
+                 })
+        {
+            text.ShouldNotContain(forbidden, Case.Insensitive);
+        }
+
+        // INV-MSR-06: the access is recorded explicitly, not left to a request log that rolls over.
+        using var scope = fixture.Services.CreateScope();
+        var audit = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        (await audit.AuditEvents.CountAsync(
+            entry => entry.EntityId == customerId
+                     && entry.Action == MeasurementCaptureHandler.SheetReadAction,
+            Token)).ShouldBe(1);
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;

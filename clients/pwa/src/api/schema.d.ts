@@ -1384,6 +1384,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/measurements/{beforeId}/compare/{afterId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What changed between two of a customer's measurements, oldest first.
+         * @description Matched on the field key rather than on field identity, because a template version mints new identifiers for every field it carries — so two measurements taken against different versions would otherwise read as every field dropped and re-added. A renamed field therefore reads as one dropped and one added, which is what a rename is once values are filed under a key. Two measurements of different customers or different templates are refused rather than compared.
+         */
+        get: operations["CompareMeasurements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/measurements/{measurementVersionId}": {
         parameters: {
             query?: never;
@@ -1396,6 +1416,26 @@ export interface paths {
          * @description It renders through the template version it was captured under, forever, which is what makes a two-year-old job card readable. It carries no entity tag, because there is no edit to make a precondition for.
          */
         get: operations["GetMeasurement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurements/{measurementVersionId}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a customer's measurements as a tailor reads them.
+         * @description The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because "who looked at my measurements" is a question she may ask and the answer has to be somewhere a person can find.
+         */
+        get: operations["ReadMeasurementSheet"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1554,6 +1594,26 @@ export interface paths {
          *     Answers 404 `customers.export-expired` once the copy has gone, which happens when it expires or when a newer export replaces it. The record that the export existed remains; only the copy of the data is destroyed.
          */
         get: operations["DownloadCustomerExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{customerId}/measurements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every measurement a customer has, newest first.
+         * @description Without the values: a list is for choosing which measurement to reuse or compare, and the choice is made on the date, who took it and whether it corrected something. Every one rather than the latest, because offering only the newest would make reuse mean reuse the last one.
+         */
+        get: operations["ListCustomerMeasurements"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2167,6 +2227,19 @@ export interface components {
             /** Format: uuid */
             measurementDraftId: string;
         };
+        MeasurementComparisonPayload: {
+            after: components["schemas"]["MeasurementSummaryPayload"];
+            before: components["schemas"]["MeasurementSummaryPayload"];
+            /** Format: int32 */
+            changedCount: number | string;
+            differences: components["schemas"]["MeasurementDifferencePayload"][];
+        };
+        MeasurementDifferencePayload: {
+            after: null | components["schemas"]["MeasurementValuePayload"];
+            before: null | components["schemas"]["MeasurementValuePayload"];
+            change: string;
+            key: string;
+        };
         MeasurementDraftPayload: {
             /** Format: uuid */
             branchId: string;
@@ -2194,6 +2267,29 @@ export interface components {
             code: string;
             field: null | string;
             message: string;
+        };
+        MeasurementSummaryPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            correctsVersionId: null | string;
+            /** Format: int32 */
+            fieldCount: number | string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            /** Format: uuid */
+            measurementVersionId: string;
+            reason: null | string;
+            /** Format: uuid */
+            reusedFromVersionId: null | string;
+            /** Format: date-time */
+            takenAt: string;
+            /** Format: uuid */
+            takenBy: null | string;
+            /** Format: uuid */
+            templateVersionId: string;
+            /** Format: int32 */
+            versionNumber: number | string;
         };
         MeasurementTemplatePayload: {
             code: string;
@@ -7460,7 +7556,66 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    CompareMeasurements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                beforeId: string;
+                afterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementComparisonPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     GetMeasurement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                measurementVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementVersionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ReadMeasurementSheet: {
         parameters: {
             query?: never;
             header?: never;
@@ -7984,6 +8139,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListCustomerMeasurements: {
+        parameters: {
+            query?: {
+                templateId?: string;
+            };
+            header?: never;
+            path: {
+                customerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementSummaryPayload"][];
                 };
             };
             400: components["responses"]["BadRequest"];

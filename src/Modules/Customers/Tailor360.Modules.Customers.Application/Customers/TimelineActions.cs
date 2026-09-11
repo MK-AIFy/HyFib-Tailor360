@@ -86,6 +86,13 @@ public static class TimelineActions
             [MeasurementCaptureHandler.ConfirmedAction] =
                 new("Measurements taken", CustomersPermissions.CaptureMeasurements),
 
+            // A sensitive read (INV-MSR-06), and therefore on the timeline rather than only in the trail: "who
+            // looked at her measurements" is a question a customer may ask, and the answer has to be somewhere a
+            // person can find. Gated on the sheet permission, which is narrower than capture: whoever may read a
+            // sheet may see that one was read; nobody else needs to.
+            [MeasurementCaptureHandler.SheetReadAction] =
+                new("Measurements read", CustomersPermissions.ReadMeasurementSheet),
+
             // A subject-access export is the record of who has seen this person's whole file. Whoever
             // may take one may see that one was taken; nobody else needs to.
             [CustomerExportHandler.GeneratedAction] =

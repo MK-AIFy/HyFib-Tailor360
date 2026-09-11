@@ -414,6 +414,17 @@ public static class MeasurementErrors
         "measurements.confirmation-validation-failed",
         "These measurements cannot be confirmed yet. Check the fields the wizard has marked and try again.");
 
+    /// <summary>Two measurements that cannot meaningfully be compared.</summary>
+    /// <remarks>
+    /// A chest measured for a blouse and a chest measured for a salwar kameez are the same word and not the same
+    /// measurement: the bands, the precision and the point the tape starts from all belong to the template. A
+    /// comparison across customers is worse still.
+    /// </remarks>
+    public static readonly Error ComparisonSubjectsDoNotMatch = Error.Validation(
+        "measurements.comparison-subjects-do-not-match",
+        "Those two measurements are of different customers or different templates, so there is nothing to "
+        + "compare between them.");
+
     /// <summary>The measurement being reused is another customer's, or another garment's.</summary>
     /// <remarks>
     /// Refused rather than filtered, because a screen showing only numbers cannot tell a person that half of
