@@ -553,6 +553,7 @@ public sealed class GarmentJobTests
         var delivered = order.ConfirmDelivery(
             Shirt,
             ReadyAggregation.EveryDeliverableJob,
+            partialDeliveryPermitted: false,
             OrdersTestData.Now.AddDays(2),
             OrdersTestData.Actor);
 
@@ -577,6 +578,7 @@ public sealed class GarmentJobTests
         var delivered = order.ConfirmDelivery(
             Shirt,
             ReadyAggregation.EveryDeliverableJob,
+            partialDeliveryPermitted: false,
             OrdersTestData.Now.AddDays(2),
             OrdersTestData.Actor);
 
@@ -599,6 +601,7 @@ public sealed class GarmentJobTests
         var again = order.ConfirmDelivery(
             Shirt,
             ReadyAggregation.EveryDeliverableJob,
+            partialDeliveryPermitted: false,
             OrdersTestData.Now.AddDays(3),
             OrdersTestData.Id("another-delivery-person"));
 
@@ -866,6 +869,49 @@ public sealed class GarmentJobTests
         revised.IsFailure.ShouldBeTrue();
         revised.Error.Code.ShouldBe("orders.garment-job-not-found");
         order.FindJob(Shirt)!.Design.ShouldBeSameAs(frozen);
+        order.RevisionNumber.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A revision replaces the frozen design copy while <c>CategoryKey</c> and <c>ServiceTypeKey</c> — the row
+    /// a workboard filters and a report groups by — are immutable after confirmation, so the revision path can
+    /// create exactly the disagreement <see cref="GarmentJobSpecification.Create"/> refuses at confirmation:
+    /// the workboard classifying the row as one garment while the frozen job card describes another. INV-JOB-01
+    /// then makes it permanent, so it is refused here for the same reason and with the same code.
+    /// </summary>
+    [Theory]
+    [InlineData("categoryKey")]
+    [InlineData("serviceTypeKey")]
+    public void ARevisionCannotSwapInAnotherGarmentsDesign(string field)
+    {
+        var order = OrdersTestData.ConfirmedOrder();
+        var frozen = order.FindJob(Shirt)!.Design;
+
+        var revised = order.Revise(
+            OrdersTestData.Id("revision-2"),
+            "The customer changed the neckline.",
+            OrdersTestData.Price(2600m),
+            OrdersTestData.DueDate,
+            [
+                GarmentJobRevision.Create(
+                    Shirt,
+                    OrdersTestData.Measurements(),
+                    OrdersTestData.Design(
+                        "square",
+                        categoryKey: field == "categoryKey" ? "shirt" : "blouse",
+                        serviceTypeKey: field == "serviceTypeKey" ? "alteration" : "stitch-new"),
+                    OrdersTestData.Price(2600m),
+                    OrdersTestData.DueDate).Value,
+            ],
+            supersededEstimateId: null,
+            OrdersTestData.Now.AddHours(2),
+            OrdersTestData.Actor);
+
+        revised.IsFailure.ShouldBeTrue();
+        revised.Error.Code.ShouldBe("orders.design-snapshot-not-for-this-garment");
+        revised.Error.Target.ShouldBe(field);
+        order.FindJob(Shirt)!.Design.ShouldBeSameAs(frozen);
+        order.FindJob(Shirt)!.CategoryKey.ShouldBe("blouse");
         order.RevisionNumber.ShouldBe(1);
     }
 

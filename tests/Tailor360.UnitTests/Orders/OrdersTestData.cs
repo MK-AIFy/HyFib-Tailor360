@@ -150,13 +150,20 @@ internal static class OrdersTestData
 
     /// <summary>A design copy to freeze onto a garment job.</summary>
     /// <param name="optionCode">The chosen option, so two garments can differ.</param>
+    /// <param name="categoryKey">
+    /// What the copy says the garment is, so a copy that answers a different garment can be built.
+    /// </param>
+    /// <param name="serviceTypeKey">What the copy says the service is, for the same reason.</param>
     /// <returns>The snapshot.</returns>
-    public static DesignSnapshot Design(string optionCode = "round")
+    public static DesignSnapshot Design(
+        string optionCode = "round",
+        string categoryKey = "blouse",
+        string serviceTypeKey = "stitch-new")
         => DesignSnapshot.Create(
             CatalogVersion,
-            "blouse",
+            categoryKey,
             "Blouse",
-            "stitch-new",
+            serviceTypeKey,
             "Stitch a new garment",
             [
                 DesignSelection.Create(
@@ -380,19 +387,26 @@ internal static class OrdersTestData
     }
 
     /// <summary>Hands one garment job over at the door.</summary>
+    /// <remarks>
+    /// Under the same branch policy <see cref="GateInputs"/> defaults to — one that permits partial delivery —
+    /// so a fixture that wants one garment of a <c>deliver_together</c> parcel delivered gets it, and a test
+    /// about the binding at the door states <c>partialDeliveryPermitted: false</c> and says so out loud.
+    /// </remarks>
     /// <param name="order">The order the garment belongs to.</param>
     /// <param name="garmentJobId">The garment.</param>
     /// <param name="aggregation">Which jobs the branch dispatch policy requires to be ready (SQ-02).</param>
+    /// <param name="partialDeliveryPermitted">The branch policy permits a sibling to go on its own.</param>
     /// <returns>The same order.</returns>
     public static Order Delivered(
         Order order,
         Guid garmentJobId,
-        ReadyAggregation aggregation = ReadyAggregation.EveryDeliverableJob)
+        ReadyAggregation aggregation = ReadyAggregation.EveryDeliverableJob,
+        bool partialDeliveryPermitted = true)
     {
         ArgumentNullException.ThrowIfNull(order);
 
         Ready(order, garmentJobId, aggregation);
-        Ensure(order.ConfirmDelivery(garmentJobId, aggregation, Now, Actor));
+        Ensure(order.ConfirmDelivery(garmentJobId, aggregation, partialDeliveryPermitted, Now, Actor));
 
         return order;
     }

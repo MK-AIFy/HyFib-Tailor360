@@ -129,6 +129,15 @@ public sealed record ReadyGateInputs
         CustodyReconciliation custody,
         string? openCustodyCaseReference)
     {
+        // The type exists to make "no answer" a third answer rather than a fold into one of the other two, and a
+        // fourth value outside the enumeration would undo that: it is neither reconciled, nor not reconciled, nor
+        // the honest "we could not establish it" the gate fails closed on. Refused rather than treated as unknown,
+        // because a caller that sent it does not know what it sent.
+        if (!Enum.IsDefined(custody))
+        {
+            return Result.Failure<ReadyGateInputs>(OrdersErrors.NotUnderstood("custody"));
+        }
+
         var phase = Reference(incompletePhaseCode, "incompletePhaseCode");
         if (phase.IsFailure)
         {

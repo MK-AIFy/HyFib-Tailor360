@@ -107,6 +107,30 @@ public sealed class JobDependencyTests
         declared.Error.Code.ShouldBe("orders.dependency-on-itself");
     }
 
+    /// <summary>
+    /// INV-JOB-09 names two kinds and enforces each in its own place, both testing for their own named member.
+    /// A cast is all it takes to produce a third, and a cast is exactly what a deserialiser does with a number
+    /// it did not recognise — so such a row would be accepted, persisted, and then kept by no gate at all:
+    /// production ordering would ignore it and so would the ready gate, while the job card showed a promise
+    /// nothing enforces.
+    /// </summary>
+    [Fact]
+    public void ADependencyOfNeitherKindIsRefusedRatherThanSilentlyIgnored()
+    {
+        var declared = Specification(
+            [
+                new GarmentJobDependencySpecification(
+                    OrdersTestData.Id("dependency-1"),
+                    Blouse,
+                    (JobDependencyKind)99,
+                    null),
+            ]);
+
+        declared.IsFailure.ShouldBeTrue();
+        declared.Error.Code.ShouldBe("orders.value-not-understood");
+        declared.Error.Target.ShouldBe("kind");
+    }
+
     [Fact]
     public void TheSamePrerequisiteAndKindCannotBeDeclaredTwice()
     {

@@ -302,6 +302,42 @@ public sealed class OrderRevisionTests
         order.FindJob(OrdersTestData.GarmentId(1))!.Price.ShouldBe(wasPricedAt);
     }
 
+    /// <summary>
+    /// INV-ORD-01 wants the whole set to move or none of it, so <c>GarmentJob.CheckRevision</c> is asked of
+    /// every garment before any is applied — the category and service type included. A revision whose second
+    /// garment carries a design copy answering a different category is therefore refused whole, and the first
+    /// garment keeps the snapshots it was confirmed with rather than being left re-priced against a revision
+    /// that never happened.
+    /// </summary>
+    [Fact]
+    public void ARevisionIsRefusedWholeWhenOneGarmentSwapsInAnotherGarmentsDesign()
+    {
+        var order = OrdersTestData.ConfirmedOrder(garments: 2);
+        var frozenPrice = order.FindJob(OrdersTestData.GarmentId(1))!.Price;
+        var frozenDesign = order.FindJob(OrdersTestData.GarmentId(1))!.Design;
+
+        var refused = Revise(
+            order,
+            garments:
+            [
+                GarmentRevision(OrdersTestData.GarmentId(1), 900m),
+                GarmentJobRevision.Create(
+                    OrdersTestData.GarmentId(2),
+                    OrdersTestData.Measurements(),
+                    OrdersTestData.Design("square", categoryKey: "shirt"),
+                    OrdersTestData.Price(900m),
+                    OrdersTestData.DueDate).Value,
+            ]);
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("orders.design-snapshot-not-for-this-garment");
+        refused.Error.Target.ShouldBe("categoryKey");
+        order.RevisionNumber.ShouldBe(Order.FirstRevisionNumber);
+        order.FindJob(OrdersTestData.GarmentId(1))!.Price.ShouldBe(frozenPrice);
+        order.FindJob(OrdersTestData.GarmentId(1))!.Design.ShouldBeSameAs(frozenDesign);
+        order.FindJob(OrdersTestData.GarmentId(2))!.CategoryKey.ShouldBe("blouse");
+    }
+
     [Fact]
     public void ARevisionNamingOneGarmentTwiceIsRefused()
     {

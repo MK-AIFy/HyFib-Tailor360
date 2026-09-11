@@ -245,6 +245,7 @@ public sealed class OrderCancellationTests
         var delivered = order.ConfirmDelivery(
             garment,
             ReadyAggregation.EveryDeliverableJob,
+            partialDeliveryPermitted: false,
             Later,
             OrdersTestData.Actor);
 
