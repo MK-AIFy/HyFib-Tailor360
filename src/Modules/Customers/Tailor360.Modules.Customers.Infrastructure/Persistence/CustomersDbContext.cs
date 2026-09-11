@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Customers;
 using Tailor360.Modules.Customers.Domain.Deduplication;
@@ -82,6 +83,12 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
     /// <summary>Every field of every version.</summary>
     public DbSet<TemplateField> TemplateFields => Set<TemplateField>();
 
+    /// <summary>Garments being measured. Work in progress, shared within a branch, and expiring.</summary>
+    public DbSet<MeasurementDraft> MeasurementDrafts => Set<MeasurementDraft>();
+
+    /// <summary>What customers measured. Append-only, because INV-MSR-01 says a version is never edited.</summary>
+    public DbSet<MeasurementVersion> MeasurementVersions => Set<MeasurementVersion>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,6 +105,7 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
         ConfigureDuplicateCandidates(modelBuilder);
         ConfigureExports(modelBuilder);
         ConfigureMeasurementTemplates(modelBuilder);
+        ConfigureMeasurementCapture(modelBuilder);
     }
 
     /// <summary>The index that holds "at most one published version per measurement template".</summary>
@@ -112,6 +120,21 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
 
     /// <summary>The unique index over a template's code within its organisation.</summary>
     public const string TemplateCodeIndex = "ux_measurement_templates_organisation_code";
+
+    /// <summary>The unique index over a customer's measurement version numbers for one template.</summary>
+    /// <remarks>
+    /// Named because <c>MeasurementCaptureStore</c> reads it off a failed write: two people confirming
+    /// measurements for one customer in the same instant would otherwise both take the same number, and the
+    /// number is what a person reads to say which measurement is the newer.
+    /// </remarks>
+    public const string MeasurementVersionNumberIndex = "ux_measurement_versions_customer_template_number";
+
+    /// <summary>The index that keeps a branch to one open draft per customer and template.</summary>
+    /// <remarks>
+    /// Partial, on unconsumed rows: a branch measures one garment at a time against one template, and two open
+    /// drafts would leave two people each filling in half of a different one. Every consumed draft is kept.
+    /// </remarks>
+    public const string OneOpenDraftIndex = "ux_measurement_drafts_one_open";
 
     private static void ConfigureCustomers(ModelBuilder modelBuilder)
         => modelBuilder.Entity<Customer>(entity =>
@@ -696,4 +719,118 @@ public sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> opti
             .UsePropertyAccessMode(PropertyAccessMode.Field)
             .AutoInclude();
     }
+    /// <summary>
+    /// The capture side: a draft being measured, and the version it becomes (issue #121).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The values are <strong>owned</strong> by each aggregate rather than shared between them. A value is only
+    /// ever read through the thing that holds it, and one table with two owners would need a discriminator, a
+    /// nullable key per owner, and a constraint to keep exactly one of them set — three ways to get wrong what
+    /// two tables get right by construction.
+    /// </para>
+    /// <para>
+    /// A draft carries the row version and a confirmed version does not. Drafts are shared within a branch and are
+    /// written by two people at once; a confirmed version is written once and never again, so an optimistic token
+    /// on it would guard against a second writer that the append-only trigger already makes impossible.
+    /// </para>
+    /// </remarks>
+    private static void ConfigureMeasurementCapture(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MeasurementDraft>(entity =>
+        {
+            entity.ToTable("measurement_drafts", table => table.HasCheckConstraint(
+                "ck_measurement_drafts_expires_after_it_started", "expires_at > started_at"));
+
+            entity.HasKey(e => e.Id);
+            entity.Ignore(e => e.IsOpen);
+
+            // One open draft per branch, customer and template. Every consumed one is kept, because it is the
+            // other half of the record of how a measurement came to be taken.
+            entity.HasIndex(e => new { e.BranchId, e.CustomerId, e.TemplateId })
+                .IsUnique()
+                .HasFilter("consumed_at IS NULL")
+                .HasDatabaseName(OneOpenDraftIndex);
+
+            // What the retention job sweeps by (INV-MSR-07), and what a counter's "where was I" list reads.
+            entity.HasIndex(e => new { e.OrganisationId, e.ExpiresAt })
+                .HasDatabaseName("ix_measurement_drafts_organisation_expiry");
+
+            entity.OwnsMany(e => e.Values, values =>
+            {
+                values.ToTable("measurement_draft_values");
+                ConfigureValues<MeasurementDraft>(values);
+            });
+
+            UseRowVersion(entity);
+        });
+
+        modelBuilder.Entity<MeasurementVersion>(entity =>
+        {
+            entity.ToTable("measurement_versions", table => table.HasCheckConstraint(
+                "ck_measurement_versions_number_is_positive", "version_number >= 1"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Reason).HasMaxLength(MaximumMeasurementReasonLength);
+
+            // Two people confirming for one customer in the same instant would otherwise both take the same
+            // number, and the number is what a person reads to say which measurement is the newer.
+            entity.HasIndex(e => new { e.CustomerId, e.TemplateId, e.VersionNumber })
+                .IsUnique()
+                .HasDatabaseName(MeasurementVersionNumberIndex);
+
+            // The read behind a sheet and behind "which measurements does this customer have".
+            entity.HasIndex(e => new { e.CustomerId, e.TemplateId, e.TakenAt })
+                .HasDatabaseName("ix_measurement_versions_customer_template_taken");
+
+            entity.OwnsMany(e => e.Values, values =>
+            {
+                values.ToTable("measurement_version_values");
+                ConfigureValues<MeasurementVersion>(values);
+            });
+        });
+
+        modelBuilder.Entity<MeasurementDraft>()
+            .Navigation(draft => draft.Values)
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
+
+        modelBuilder.Entity<MeasurementVersion>()
+            .Navigation(version => version.Values)
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
+    }
+
+    /// <summary>The columns a captured value has, wherever it is held.</summary>
+    /// <remarks>
+    /// <c>millimetres</c> is <c>decimal(12,3)</c>: three decimal places is what <c>UnitConversion</c> rounds a
+    /// stored value to, and a wider column would hold digits no conversion can produce and no tape can read.
+    /// </remarks>
+    private static void ConfigureValues<TOwner>(
+        OwnedNavigationBuilder<TOwner, MeasurementValue> values)
+        where TOwner : class
+    {
+        values.WithOwner();
+        values.Property(value => value.Key)
+            .HasConversion(key => key.Value, value => FieldKey.Create(value).Value)
+            .HasColumnName("field_key")
+            .HasMaxLength(FieldKey.MaximumLength)
+            .IsRequired();
+
+        values.Property(value => value.Millimetres).HasColumnType("decimal(12,3)");
+        values.Property(value => value.Choice).HasMaxLength(ChoiceOption.MaximumCodeLength);
+        values.Property(value => value.EnteredUnit).HasConversion<int>();
+
+        values.Ignore(value => value.IsChoice);
+
+        // Exactly one half of a value is set. The domain refuses the other combinations; this is what holds when
+        // somebody reaches the table, and it is the constraint that keeps a "measurement" from being neither.
+        values.ToTable(table => table.HasCheckConstraint(
+            $"ck_{table.Name}_is_measured_or_chosen",
+            "(millimetres IS NULL) <> (choice IS NULL)"));
+    }
+
+    /// <summary>How long a reason for a measurement may be.</summary>
+    public const int MaximumMeasurementReasonLength = 500;
 }

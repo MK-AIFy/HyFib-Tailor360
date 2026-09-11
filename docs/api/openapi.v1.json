@@ -924,6 +924,28 @@
         ],
         "type": "object"
       },
+      "ConfirmMeasurementsRequest": {
+        "properties": {
+          "correctsVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "correctsVersionId"
+        ],
+        "type": "object"
+      },
       "ConsentAnswerPayload": {
         "properties": {
           "branchId": {
@@ -2077,6 +2099,121 @@
         "type": "object"
       },
       "JsonElement": {},
+      "MeasurementCheckPayload": {
+        "properties": {
+          "confirmable": {
+            "type": "boolean"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementFindingPayload"
+            },
+            "type": "array"
+          },
+          "measurementDraftId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "measurementDraftId",
+          "confirmable",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "MeasurementDraftPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "consumedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "measurementDraftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reusedFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "templateVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementValuePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "measurementDraftId",
+          "customerId",
+          "branchId",
+          "measurementTemplateId",
+          "templateVersionId",
+          "reusedFromVersionId",
+          "startedAt",
+          "updatedAt",
+          "expiresAt",
+          "consumedAt",
+          "values"
+        ],
+        "type": "object"
+      },
+      "MeasurementFindingPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "field": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "field",
+          "message"
+        ],
+        "type": "object"
+      },
       "MeasurementTemplatePayload": {
         "properties": {
           "code": {
@@ -2116,6 +2253,165 @@
           "description",
           "publishedVersionId",
           "versions"
+        ],
+        "type": "object"
+      },
+      "MeasurementValuePayload": {
+        "properties": {
+          "acknowledged": {
+            "type": "boolean"
+          },
+          "choice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enteredUnit": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "millimetres": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "millimetres",
+          "enteredUnit",
+          "choice",
+          "acknowledged"
+        ],
+        "type": "object"
+      },
+      "MeasurementValueRequest": {
+        "properties": {
+          "acknowledged": {
+            "type": "boolean"
+          },
+          "choice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entered": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "key": {
+            "type": "string"
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "entered",
+          "unit",
+          "choice",
+          "acknowledged"
+        ],
+        "type": "object"
+      },
+      "MeasurementVersionPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "correctsVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reusedFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "takenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "takenBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementValuePayload"
+            },
+            "type": "array"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "measurementVersionId",
+          "customerId",
+          "branchId",
+          "measurementTemplateId",
+          "templateVersionId",
+          "versionNumber",
+          "takenAt",
+          "takenBy",
+          "reason",
+          "reusedFromVersionId",
+          "correctsVersionId",
+          "values"
         ],
         "type": "object"
       },
@@ -3176,6 +3472,24 @@
         ],
         "type": "object"
       },
+      "SaveMeasurementSectionRequest": {
+        "properties": {
+          "groupName": {
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementValueRequest"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "groupName",
+          "values"
+        ],
+        "type": "object"
+      },
       "ServiceTypePayload": {
         "properties": {
           "activeFrom": {
@@ -3756,6 +4070,31 @@
           "lastSignInAt",
           "createdAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "StartMeasurementDraftRequest": {
+        "properties": {
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reuseFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerId",
+          "measurementTemplateId",
+          "reuseFromVersionId"
         ],
         "type": "object"
       },
@@ -10110,6 +10449,471 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/customers/measurement-drafts": {
+      "post": {
+        "description": "A branch has at most one open draft per customer and template, so asking twice reaches the first one rather than starting a second set of half-finished measurements. Reusing an earlier measurement pre-fills the values whose fields the published template version still has.",
+        "operationId": "StartMeasurementDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "customerId": "0199c2f0-0000-7000-8000-0000000000b1",
+                "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000f1",
+                "reuseFromVersionId": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StartMeasurementDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementDraftPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start measuring a garment, or pick up the measuring already under way.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement.draft.started",
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-drafts/{draftId}": {
+      "get": {
+        "description": "The entity tag is what a section save sends back as If-Match. Drafts are shared within a branch, so the tag is how two people measuring one garment between them avoid overwriting each other.",
+        "operationId": "GetMeasurementDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read a garment being measured.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/measurement-drafts/{draftId}/check": {
+      "get": {
+        "description": "Changes nothing. It reports every field that would be refused rather than the first, so a person holding a tape is told about all of them at once. Each finding names the field and never the value.",
+        "operationId": "CheckMeasurementDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementCheckPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Ask what stands between a draft and a confirmed measurement.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/measurement-drafts/{draftId}/confirm": {
+      "post": {
+        "description": "The draft is consumed exactly once, so a retry after a lost answer is a conflict rather than a second measurement. Correcting an earlier measurement creates a new one with a reason and leaves the old one readable; it never edits it.",
+        "operationId": "ConfirmMeasurements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "correctsVersionId": "0199c2f0-0000-7000-8000-0000000000e1",
+                "reason": "The shoulder was re-measured after the first fitting."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmMeasurementsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementVersionPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Turn a draft into the immutable record of a measurement.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement.confirmed",
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-drafts/{draftId}/sections": {
+      "post": {
+        "description": "The values replace that step rather than merging into it, which is what lets a value be cleared. Nothing here is checked against the template's ranges: a half-measured garment is a normal state, and the check happens at confirmation.",
+        "operationId": "SaveMeasurementSection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "groupName": "Bodice",
+                "values": [
+                  {
+                    "acknowledged": false,
+                    "choice": null,
+                    "entered": 36.125,
+                    "key": "chest_bust",
+                    "unit": "Inch"
+                  },
+                  {
+                    "acknowledged": false,
+                    "choice": "PUFF",
+                    "entered": null,
+                    "key": "sleeve_style",
+                    "unit": null
+                  }
+                ]
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SaveMeasurementSectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Save one step of the measuring wizard.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-audit": "customers.measurement.section.saved",
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/customers/measurement-templates": {
       "get": {
         "description": "Without the fields: a list screen shows which templates exist, which version of each is published and what is in draft. Read one template to see its field set.",
@@ -11591,6 +12395,67 @@
           "Customers"
         ],
         "x-tailor360-authorisation": "permission:catalog.templates.edit",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/measurements/{measurementVersionId}": {
+      "get": {
+        "description": "It renders through the template version it was captured under, forever, which is what makes a two-year-old job card readable. It carries no entity tag, because there is no edit to make a precondition for.",
+        "operationId": "GetMeasurement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "measurementVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one confirmed measurement.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
         "x-tailor360-rate-limit": "default-user"
       }
     },

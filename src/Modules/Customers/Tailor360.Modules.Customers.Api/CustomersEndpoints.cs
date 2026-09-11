@@ -30,7 +30,8 @@ public static class CustomersEndpoints
             .WithTags(OpenApiTag)
             .MapCustomerEndpoints()
             .MapConsentEndpoints()
-            .MapMeasurementTemplateEndpoints();
+            .MapMeasurementTemplateEndpoints()
+            .MapMeasurementCaptureEndpoints();
 
         return endpoints;
     }

@@ -197,6 +197,13 @@ public sealed class TimelineActionsTests
         MeasurementTemplateHandler.ApprovedAction,
         MeasurementTemplateHandler.PublishedAction,
         MeasurementTemplateHandler.RetiredAction,
+
+        // A draft is work in progress and not evidence: it may expire and be hard-deleted (INV-MSR-07), and a
+        // step saved five times while somebody measures a garment would flood a customer's timeline with
+        // entries that mean nothing once the measurement is confirmed. The confirmation itself is on the
+        // timeline; both of these are still audited by the endpoint filter as requests.
+        MeasurementCaptureHandler.DraftStartedAction,
+        MeasurementCaptureHandler.SectionSavedAction,
     };
 
     private static HashSet<string> Holding(params string[] permissions)

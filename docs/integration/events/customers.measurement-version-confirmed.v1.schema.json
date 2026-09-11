@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/customers.measurement-version-confirmed.v1.schema.json",
+  "title": "customers.measurement-version-confirmed.v1",
+  "description": "A customer's measurements were confirmed against a template version. Published in the same transaction as the version, its values and the consumption of the draft they came from (docs/architecture/invariants.md section 4.3). It carries NO measurement — not one number, not the field keys, not how many there were: measurements are sensitive personal data under docs/nfr/data-classification.md, and an outbox row fans out to every registered handler and is retained, so a payload carrying them would be a second uncontrolled copy in a table nobody thinks of as holding measurements. A consumer that needs the values reads them through the module's own contract, which re-authorises and audits the read. It also does not mean 're-measure anything': a garment job snapshots the version it was confirmed against and does not move when a newer one appears (INV-JOB-01).",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "templateId",
+    "templateVersionId",
+    "versionNumber",
+    "correctsVersionId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the measurements were confirmed, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The measurement version. What a garment job pins, and what a reader asks the module for."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch the measurements were taken at."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer they are about. An identifier and nothing else: no name, no telephone number, no address."
+    },
+    "templateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The template they answer. A catalogue service type references this, never a version of it."
+    },
+    "templateVersionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The template version they were captured against, and render through forever."
+    },
+    "versionNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Which measurement this is for that customer and template. A label a person reads, never a key."
+    },
+    "correctsVersionId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "The version this one corrects, or null when it is not a correction. A consumer showing a customer's history reads it to say 'superseded' rather than 'measured again'."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "customers.measurement-version-confirmed.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

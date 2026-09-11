@@ -582,6 +582,46 @@ public static class PayloadExamples
               "newPassword": "example-passphrase-not-a-real-credential"
             }
             """,
+
+        // Measuring a garment (issue #121). The values are sent as they were typed, with the unit beside
+        // each: the server converts, so a client that rounds differently cannot store a number the server
+        // would never have produced. Every measurement below is synthetic.
+        ["StartMeasurementDraft"] = """
+            {
+              "customerId": "0199c2f0-0000-7000-8000-0000000000b1",
+              "measurementTemplateId": "0199c2f0-0000-7000-8000-0000000000f1",
+              "reuseFromVersionId": null
+            }
+            """,
+
+        ["SaveMeasurementSection"] = """
+            {
+              "groupName": "Bodice",
+              "values": [
+                {
+                  "key": "chest_bust",
+                  "entered": 36.125,
+                  "unit": "Inch",
+                  "choice": null,
+                  "acknowledged": false
+                },
+                {
+                  "key": "sleeve_style",
+                  "entered": null,
+                  "unit": null,
+                  "choice": "PUFF",
+                  "acknowledged": false
+                }
+              ]
+            }
+            """,
+
+        ["ConfirmMeasurements"] = """
+            {
+              "reason": "The shoulder was re-measured after the first fitting.",
+              "correctsVersionId": "0199c2f0-0000-7000-8000-0000000000e1"
+            }
+            """,
     };
 
     /// <summary>The example for an operation, or <see langword="null"/> when none is registered.</summary>

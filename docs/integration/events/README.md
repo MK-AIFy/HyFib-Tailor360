@@ -21,9 +21,10 @@ and one of those disagree, they win and this one is corrected.
 | `catalog.catalog-version-retired.v1` | [schema](catalog.catalog-version-retired.v1.schema.json) | [example](catalog.catalog-version-retired.v1.example.json) | Catalog, on an explicit retirement | #29 |
 | `customers.measurement-template-version-published.v1` | [schema](customers.measurement-template-version-published.v1.schema.json) | [example](customers.measurement-template-version-published.v1.example.json) | Customers, when a template version becomes the one measurements are captured against | #91 |
 | `customers.measurement-template-version-retired.v1` | [schema](customers.measurement-template-version-retired.v1.schema.json) | [example](customers.measurement-template-version-retired.v1.example.json) | Customers, when a template version stops taking new captures | #91 |
+| `customers.measurement-version-confirmed.v1` | [schema](customers.measurement-version-confirmed.v1.schema.json) | [example](customers.measurement-version-confirmed.v1.example.json) | Customers, when a customer's measurements are confirmed against a template version | #121 |
 
 Each is declared as a record in the publishing module's `Contracts` project — the module's published surface — and
-nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the six Customers events and
+nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the seven Customers events and
 `Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones.
 
 ## 2. Naming and versioning
