@@ -665,14 +665,26 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
                 .HasForeignKey(dependency => dependency.GarmentJobId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // RESTRICT on the prerequisite side and CASCADE on the owning side, and the asymmetry is
+            // NO ACTION on the prerequisite side and CASCADE on the owning side, and the asymmetry is
             // deliberate: a job is never deleted, and if one ever were, silently erasing a DIFFERENT job's
             // promise is the last thing anybody would want. The draft table cascades on both sides instead,
             // because RemoveGarment really does withdraw them.
+            //
+            // NO ACTION rather than RESTRICT, and the migration makes the constraint DEFERRABLE INITIALLY
+            // DEFERRED, because RESTRICT is checked immediately and cannot see the end of the statement.
+            // Deleting an order cascades into both garments at once; PostgreSQL evaluated this key against
+            // the prerequisite garment before the dependent garment's own cascade had removed the row naming
+            // it, and refused with 23503 — so an order carrying any declared dependency could not be deleted
+            // at all. Proved on CI by OrdersCascadeTests; a static read could not settle it, which is why the
+            // test was written to be answered rather than to pass.
+            //
+            // Deferring moves the check to COMMIT, which is where the question is actually decidable: by then
+            // either both rows have gone together, or a prerequisite has been deleted while its dependent
+            // survives — and that second case is still refused, which is the guarantee this key exists for.
             entity.HasOne<GarmentJob>()
                 .WithMany()
                 .HasForeignKey(dependency => dependency.PrerequisiteGarmentJobId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             entity.HasIndex(e => new { e.GarmentJobId, e.PrerequisiteGarmentJobId, e.Kind })
                 .IsUnique()

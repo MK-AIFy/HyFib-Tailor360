@@ -1797,7 +1797,7 @@ namespace Tailor360.Modules.Orders.Infrastructure.Migrations
                     b.HasOne("Tailor360.Modules.Orders.Domain.Jobs.GarmentJob", null)
                         .WithMany()
                         .HasForeignKey("PrerequisiteGarmentJobId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
                         .HasConstraintName("fk_job_dependencies_garment_jobs_prerequisite_garment_job_id");
                 });

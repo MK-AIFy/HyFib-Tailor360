@@ -22,10 +22,11 @@ namespace Tailor360.IntegrationTests.Orders;
 /// trigger did — so the agreement is exactly the thing worth a test.
 /// </para>
 /// <para>
-/// <strong>One of these is an open question rather than a settled expectation</strong>, and it is marked where
-/// it is. <c>job_dependencies</c> holds two foreign keys into <c>garment_jobs</c>, one cascading and one
-/// restricting, and <c>docs/dev/migrations.md</c> records that a static read could not settle whether a garment
-/// that is another garment's prerequisite aborts the cascade. This is where that gets settled.
+/// <strong>One of these was an open question rather than a settled expectation.</strong>
+/// <c>job_dependencies</c> holds two foreign keys into <c>garment_jobs</c>, one cascading and one guarding the
+/// prerequisite, and <c>docs/dev/migrations.md</c> records that a static read could not settle whether a garment
+/// that is another garment's prerequisite aborts the cascade. It did; the key is deferred now, and the pair of
+/// tests below hold both halves of what the deferral has to mean.
 /// </para>
 /// </remarks>
 [Trait("Category", "Integration")]
@@ -66,26 +67,27 @@ public sealed class OrdersCascadeTests(WebApplicationFixture fixture)
     }
 
     /// <summary>
-    /// <strong>The open question, and this test is the answer to it rather than a statement of it.</strong>
+    /// <strong>The question the register could not settle from a static read, and the test that settled it.</strong>
     /// </summary>
     /// <remarks>
     /// <para>
     /// <c>job_dependencies</c> carries <c>garment_job_id</c> with <c>ON DELETE CASCADE</c> and
-    /// <c>prerequisite_garment_job_id</c> with <c>ON DELETE RESTRICT</c>, and the asymmetry is deliberate: a
-    /// garment somebody is waiting for must not be taken from under them. The cascade from <c>orders</c> deletes
-    /// every garment of the order in one statement, and PostgreSQL then fires the referential triggers of each
-    /// deleted row in turn — so whether the prerequisite's <c>RESTRICT</c> check runs before or after the
-    /// dependent garment's own <c>CASCADE</c> has removed the row decides whether the delete completes or aborts
-    /// with <c>restrict_violation</c>. <c>docs/dev/migrations.md</c> says in as many words that a review could
-    /// not settle it without a database, and that it is reachable only from a hard delete, which no business
-    /// path performs.
+    /// <c>prerequisite_garment_job_id</c> with a key of its own, and the asymmetry is deliberate: a garment
+    /// somebody is waiting for must not be taken from under them. The cascade from <c>orders</c> deletes every
+    /// garment of the order in one statement, and PostgreSQL fires each deleted row's referential triggers in
+    /// turn — so whether the prerequisite's check runs before or after the dependent garment's own cascade has
+    /// removed the row decides whether the delete completes or aborts. <c>docs/dev/migrations.md</c> says in as
+    /// many words that a review could not settle it without a database.
     /// </para>
     /// <para>
-    /// <strong>If this fails, the failure is the finding and not a defect in the test.</strong> It would mean an
-    /// order carrying a <c>finish_before</c> or <c>deliver_together</c> binding cannot be hard-deleted at all,
-    /// which is a fact the retention design and the register row both need — and the fix is a change to the
-    /// migration (a deferred constraint, or <c>NO ACTION DEFERRABLE INITIALLY DEFERRED</c> on the prerequisite
-    /// arm), not to this file.
+    /// <strong>It did abort, and the schema changed rather than this test.</strong> The first CI run of this file
+    /// answered with <c>23503: update or delete on table "garment_jobs" violates foreign key constraint
+    /// "fk_job_dependencies_garment_jobs_prerequisite_garment_job_id"</c> — an <c>ON DELETE RESTRICT</c> arm
+    /// evaluated against the prerequisite before the dependent garment's cascade had removed the row naming it,
+    /// which meant an order carrying any declared dependency could not be hard-deleted at all. The key is now
+    /// <c>NO ACTION DEFERRABLE INITIALLY DEFERRED</c>, which moves the check to <c>COMMIT</c>, where the question
+    /// is decidable. <see cref="RefusesToDeleteAGarmentThatAnotherSurvivingGarmentIsWaitingFor"/> is the half
+    /// that proves the deferral gave nothing away.
     /// </para>
     /// </remarks>
     /// <returns>A task that completes when the question has been asked of a real PostgreSQL.</returns>
@@ -105,7 +107,8 @@ public sealed class OrdersCascadeTests(WebApplicationFixture fixture)
             "garment one is garment two's prerequisite, and both go in the same cascade; a refusal here is "
             + "fk_job_dependencies_garment_jobs_prerequisite_garment_job_id being evaluated before the "
             + "dependent garment's own cascade removed the row, which means an order carrying a declared "
-            + "dependency cannot be hard-deleted at all (docs/dev/migrations.md, InitialOrdersSchema)");
+            + "dependency cannot be hard-deleted at all — the state this branch was in until that key was "
+            + "made DEFERRABLE INITIALLY DEFERRED (docs/dev/migrations.md, InitialOrdersSchema)");
 
         (await OrdersHarness.CountAsync(fixture, "garment_jobs", "order_id", confirmed.Id)).ShouldBe(0);
         (await OrdersHarness.CountAsync(
@@ -159,6 +162,38 @@ public sealed class OrdersCascadeTests(WebApplicationFixture fixture)
 
         (await OrdersHarness.CountAsync(fixture, "measurement_snapshots", "garment_job_id", staying)).ShouldBe(1);
         (await OrdersHarness.CountAsync(fixture, "orders", "id", confirmed.Id)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RefusesToDeleteAGarmentThatAnotherSurvivingGarmentIsWaitingFor()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // The guarantee the prerequisite key exists for, and the one the deferral must not have given away.
+        // fk_job_dependencies_garment_jobs_prerequisite_garment_job_id is NO ACTION DEFERRABLE INITIALLY
+        // DEFERRED so that a whole-order cascade can take both garments together; deferring moves the check to
+        // COMMIT rather than removing it, and at COMMIT this case is still a garment removed from under a
+        // promise somebody else is waiting on. It is the negative half of the test above it, and without it the
+        // deferral would read as "the key was weakened until the cascade stopped complaining".
+        var confirmed = await OrdersHarness.ConfirmAsync(
+            fixture, OrdersHarness.BranchCode("WAI"), garments: 2, bindSecondGarmentToFirst: true);
+
+        var prerequisite = confirmed.Jobs.Single(job => job.JobIndex == 1).Id;
+
+        var refused = await OrdersHarness.RefusedAsync(
+            fixture, "DELETE FROM orders.garment_jobs WHERE id = {0}", prerequisite);
+
+        refused.SqlState.ShouldBe(PostgresErrorCodes.ForeignKeyViolation);
+        refused.ConstraintName.ShouldBe("fk_job_dependencies_garment_jobs_prerequisite_garment_job_id");
+
+        // Refused at COMMIT means the whole statement's work is rolled back, frozen copies included — so the
+        // garment is still there rather than half gone, which is the difference between a deferred check and no
+        // check at all.
+        (await OrdersHarness.CountAsync(fixture, "garment_jobs", "id", prerequisite)).ShouldBe(1);
+        (await OrdersHarness.CountAsync(fixture, "measurement_snapshots", "garment_job_id", prerequisite))
+            .ShouldBe(1);
+        (await OrdersHarness.CountAsync(
+            fixture, "job_dependencies", "prerequisite_garment_job_id", prerequisite)).ShouldBe(1);
     }
 
     [Fact]

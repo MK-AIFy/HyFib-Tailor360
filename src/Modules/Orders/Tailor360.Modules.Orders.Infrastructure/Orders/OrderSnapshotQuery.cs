@@ -1,3 +1,4 @@
+using System.Data;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Modules.Orders.Contracts.Orders;
@@ -150,42 +151,88 @@ public sealed class OrderSnapshotQuery(OrdersDbContext context) : IOrderSnapshot
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <strong>Every statement below reads one snapshot, which is what makes this one read rather than three
+    /// that can disagree.</strong> The answer is composed from three statements — <see cref="GetAsync"/> is
+    /// two of them — and PostgreSQL's default <c>READ COMMITTED</c> takes a fresh snapshot at the start of
+    /// <em>each</em> statement, grouped into a transaction or not. A revision committing while this ran would
+    /// therefore hand Billing revision <em>n</em>'s state and revision number beside revision <em>n+1</em>'s
+    /// amounts, or an order total from one revision beside garment totals from another. <c>Order.Revise</c>
+    /// rewrites <c>orders.totals_*</c> and every <c>garment_jobs.price_*</c> in one transaction, so the rows
+    /// never disagree on disk; only a reader taking three snapshots can see them do so, and an invoice raised
+    /// from a mismatched pair is an invoice for the wrong amount. This is the cross-module money read —
+    /// <c>docs/architecture/module-ownership.md</c> section 5.8 has Billing converting an order into an invoice
+    /// through it — and the contract promises the state arrives with the money "so that eligibility and
+    /// money are judged from one read of one aggregate rather than from two reads that can disagree".
+    /// </para>
+    /// <para>
+    /// <strong>The isolation level is the fix; the transaction is only how it is asked for.</strong>
+    /// <c>REPEATABLE READ</c> fixes the snapshot at the first statement of the transaction and shows every later
+    /// statement in it exactly that one. Nothing here writes, so it takes no row lock and cannot lose a
+    /// serialisation race — PostgreSQL raises <c>40001</c> at this level only against a write — and the
+    /// whole cost is one <c>BEGIN</c> and one <c>COMMIT</c> around statements that were being run anyway.
+    /// </para>
+    /// <para>
+    /// <strong>A single statement was the alternative, and what it would cost the state reads is what ruled it
+    /// out.</strong> <c>PriceSnapshot</c> is a complex property, so <c>orders.totals_*</c> already sits in the
+    /// order's own row and <c>garment_jobs.price_*</c> in each garment's, and one statement per table could
+    /// carry state and money together. But <see cref="GetAsync"/> and <see cref="JobProjection"/> are shared
+    /// with the reads that must never receive an amount — Custody's dispatch scan, Reporting's
+    /// reconciliation — so folding the money in would either put a Confidential field on the wire for them
+    /// (<c>docs/nfr/data-classification.md</c> section 5.7) or need a second copy of both projections kept in
+    /// step by hand, which is the disagreement <see cref="JobProjection"/> exists to prevent. Collapsing all
+    /// three statements into one costs more again: it is the order joined to its garments joined to their
+    /// dependencies, which is the Cartesian product <see cref="JobsOfAsync"/> gives its own reasons for
+    /// refusing.
+    /// </para>
+    /// <para>
+    /// <strong><see cref="GetAsync"/> is left exactly as it was</strong>, which is the constraint that shaped
+    /// the choice. The callers that read state alone are the majority and must not begin paying for a
+    /// transaction only Billing needs, so the level is asked for here, on the one method that answers with
+    /// money.
+    /// </para>
+    /// <para>
+    /// <strong>An ambient transaction is joined rather than nested.</strong> The context is scoped and shared,
+    /// and a confirmation-participant hook (<c>src/Modules/CLAUDE.md</c> section 2) reads through this contract
+    /// from inside <c>OrderStore.InConfirmationTransactionAsync</c>'s transaction. Opening a second transaction
+    /// throws, and so does starting an execution strategy while one is open; the caller's transaction is the
+    /// snapshot those reads belong to in any case.
+    /// </para>
+    /// </remarks>
     public async Task<PricedOrderSnapshot?> GetPricedAsync(
         Guid orderId,
         IReadOnlyCollection<string> callerPermissions,
         CancellationToken cancellationToken = default)
     {
+        // callerPermissions is validated here and read by nothing after it, exactly as the contract's own
+        // remarks instruct: no key in the Orders catalogue separates reading an order from reading its money,
+        // and coining one would decide OD-13. It is taken now so that the mask, when the decision lands, changes
+        // behaviour inside this module and nowhere else.
         ArgumentNullException.ThrowIfNull(callerPermissions);
 
-        var order = await GetAsync(orderId, cancellationToken);
-
-        if (order is null)
+        if (context.Database.CurrentTransaction is not null)
         {
-            return null;
+            return await PricedAsync(orderId, cancellationToken);
         }
 
-        var totals = await context.Orders
-            .AsNoTracking()
-            .Where(one => one.Id == orderId)
-            .Select(one => one.Totals)
-            .FirstOrDefaultAsync(cancellationToken);
+        // The connection retries on a transient failure, and a transaction opened outside the strategy would be
+        // rejected by EF for exactly that reason — the constraint OrderStore records at its own transaction.
+        var strategy = context.Database.CreateExecutionStrategy();
 
-        var jobTotals = await context.GarmentJobs
-            .AsNoTracking()
-            .Where(one => one.OrderId == orderId)
-            .OrderBy(one => one.JobIndex)
-            .Select(one => new JobPriceRow(one.Id, one.Price))
-            .ToListAsync(cancellationToken);
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await context.Database.BeginTransactionAsync(
+                IsolationLevel.RepeatableRead, cancellationToken);
 
-        // TotalsIncluded is true on every answer and callerPermissions is read by nothing, exactly as the
-        // contract's own remarks instruct: no key in the Orders catalogue separates reading an order from reading
-        // its money, and coining one would decide OD-13. The parameter is taken now so that the mask, when the
-        // decision lands, changes behaviour inside this module and nowhere else.
-        return new PricedOrderSnapshot(
-            order,
-            TotalsIncluded: true,
-            totals is null ? null : TotalsOf(totals),
-            [.. jobTotals.Select(row => new GarmentJobPricedTotals(row.GarmentJobId, TotalsOf(row.Price)))]);
+            var priced = await PricedAsync(orderId, cancellationToken);
+
+            // Committed rather than rolled back although nothing was written. The two are the same thing to
+            // PostgreSQL here, and a rollback in the log of a read that succeeded reads as though it had not.
+            await transaction.CommitAsync(cancellationToken);
+
+            return priced;
+        });
     }
 
     /// <summary>Where an order stands, as the published set names it.</summary>
@@ -369,6 +416,44 @@ public sealed class OrderSnapshotQuery(OrdersDbContext context) : IOrderSnapshot
             .OrderBy(job => job.JobIndex)
             .Select(JobProjection)
             .ToListAsync(cancellationToken);
+
+    /// <summary>Composes the priced answer, on the snapshot its caller has already fixed.</summary>
+    /// <remarks>
+    /// Separate from <see cref="GetPricedAsync"/> so that the transaction is opened in exactly one place and
+    /// these three statements cannot be run outside it by a later edit that only meant to add a column.
+    /// </remarks>
+    /// <param name="orderId">The order.</param>
+    /// <param name="cancellationToken">Cancels the reads.</param>
+    /// <returns>The priced snapshot, or null when no order has that identity.</returns>
+    private async Task<PricedOrderSnapshot?> PricedAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        var order = await GetAsync(orderId, cancellationToken);
+
+        if (order is null)
+        {
+            return null;
+        }
+
+        var totals = await context.Orders
+            .AsNoTracking()
+            .Where(one => one.Id == orderId)
+            .Select(one => one.Totals)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var jobTotals = await context.GarmentJobs
+            .AsNoTracking()
+            .Where(one => one.OrderId == orderId)
+            .OrderBy(one => one.JobIndex)
+            .Select(one => new JobPriceRow(one.Id, one.Price))
+            .ToListAsync(cancellationToken);
+
+        // TotalsIncluded is true on every answer, for the reason GetPricedAsync's argument check records.
+        return new PricedOrderSnapshot(
+            order,
+            TotalsIncluded: true,
+            totals is null ? null : TotalsOf(totals),
+            [.. jobTotals.Select(row => new GarmentJobPricedTotals(row.GarmentJobId, TotalsOf(row.Price)))]);
+    }
 
     /// <summary>The columns one order's published state is built from. Carries no amount.</summary>
     private sealed record OrderRow(

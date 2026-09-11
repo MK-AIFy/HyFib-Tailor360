@@ -1,11 +1,13 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
 using Tailor360.Modules.Orders.Application.Abstractions;
 using Tailor360.Modules.Orders.Domain.DisplayNumbers;
+using Tailor360.Modules.Orders.Domain.Drafts;
 using Tailor360.Modules.Orders.Domain.Estimates;
 using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Modules.Orders.Domain.Orders;
@@ -95,6 +97,14 @@ internal static class OrdersHarness
 
     /// <summary>The measurement template the frozen copy names as its provenance.</summary>
     public static readonly Guid MeasurementTemplate = Guid.Parse("0199d000-0000-7000-8000-0000000000c6");
+
+    /// <summary>The customer's measurement version a draft reuses and a garment job freezes a copy of.</summary>
+    /// <remarks>
+    /// Named once because two things have to agree about it: the draft's garment section says which version it
+    /// is reusing, and the copy frozen onto the garment job at confirmation says which version it came from. A
+    /// fixture that spelled the identifier twice could let them drift apart without any test noticing.
+    /// </remarks>
+    public static readonly Guid MeasurementVersion = Guid.Parse("0199d000-0000-7000-8000-0000000000d1");
 
     /// <summary>The template version the frozen copy was taken against.</summary>
     public static readonly Guid MeasurementTemplateVersion = Guid.Parse("0199d000-0000-7000-8000-0000000000c7");
@@ -222,7 +232,7 @@ internal static class OrdersHarness
     /// <returns>The snapshot.</returns>
     public static MeasurementSnapshot Measurements(decimal chestMillimetres = 860m, int versionNumber = 1)
         => MeasurementSnapshot.Create(
-            Guid.Parse("0199d000-0000-7000-8000-0000000000d1"),
+            MeasurementVersion,
             MeasurementTemplate,
             MeasurementTemplateVersion,
             versionNumber,
@@ -286,6 +296,13 @@ internal static class OrdersHarness
     /// <c>job_dependencies</c> whose prerequisite is another garment of the same order (INV-JOB-09).
     /// </param>
     /// <param name="subtotal">The order-level subtotal, in rupees.</param>
+    /// <param name="orderDraftId">
+    /// The draft the confirmation consumed, where the caller has written one. Left to a fresh identifier
+    /// otherwise, which is what every test that only wants an order on disk wants: <c>orders.order_draft_id</c>
+    /// carries no foreign key, deliberately, so an order can stand without the draft row existing. A test about
+    /// the confirmation transaction is the one that needs the two to name each other, because that is how a
+    /// confirmation whose answer was lost is recognised afterwards.
+    /// </param>
     /// <returns>The order, not yet written.</returns>
     public static Order Build(
         string branchCode,
@@ -294,7 +311,8 @@ internal static class OrdersHarness
         Guid? estimateId = null,
         Guid? orderId = null,
         bool bindSecondGarmentToFirst = false,
-        decimal subtotal = DefaultSubtotal)
+        decimal subtotal = DefaultSubtotal,
+        Guid? orderDraftId = null)
     {
         var number = Number(branchCode, sequence);
         var ids = new List<Guid>(garments);
@@ -345,7 +363,7 @@ internal static class OrdersHarness
             Branch,
             Customer,
             number,
-            Guid.CreateVersion7(),
+            orderDraftId ?? Guid.CreateVersion7(),
             estimateId,
             DueDate,
             "Synthetic order note recorded by an integration test.",
@@ -381,7 +399,9 @@ internal static class OrdersHarness
         var order = Build(
             branchCode, garments, sequence, estimateId, orderId: null, bindSecondGarmentToFirst, subtotal);
 
-        (await StoreAsync(fixture, order)).IsSuccess.ShouldBeTrue();
+        var stored = await StoreAsync(fixture, order);
+
+        stored.IsSuccess.ShouldBeTrue($"the fixture's order was refused by the store: {stored.Error.Code}");
 
         return order;
     }
@@ -402,6 +422,116 @@ internal static class OrdersHarness
         return await store.SaveAsync(Token);
     }
 
+    /// <summary>Builds an open draft with one decided garment section, without writing it.</summary>
+    /// <remarks>
+    /// The least draft <c>OrderDraft.Consume</c> accepts, and no more: one garment, its measurements decided by
+    /// reuse, and a lifetime that has not run out at <see cref="Now"/>. Everything else a draft can hold belongs
+    /// to the intake commands, and a confirmation-transaction test that arranged it would be asserting the
+    /// intake rules by accident.
+    /// </remarks>
+    /// <param name="orderDraftId">Identity to give it, where the caller needs a known one.</param>
+    /// <returns>The draft, not yet written.</returns>
+    public static OrderDraft BuildDraft(Guid? orderDraftId = null)
+    {
+        var draft = OrderDraft.Start(
+            orderDraftId ?? Guid.CreateVersion7(),
+            Organisation,
+            Branch,
+            Customer,
+            Now,
+            OrderDraft.DefaultLifetime,
+            Actor);
+
+        draft.IsSuccess.ShouldBeTrue($"the fixture's draft was refused: {draft.Error.Code}");
+
+        var content = OrderDraftGarmentContent.Create(
+            CategoryKey,
+            ServiceTypeKey,
+            CatalogVersion,
+            designSelectionDraftId: null,
+            MeasurementIntent.ReuseVersion,
+            MeasurementVersion,
+            MeasurementTemplate,
+            DueDate,
+            instructions: null,
+            referenceMediaIds: null);
+
+        content.IsSuccess.ShouldBeTrue($"the fixture's garment section was refused: {content.Error.Code}");
+
+        var added = draft.Value.AddGarment(Guid.CreateVersion7(), content.Value, Now, Actor);
+
+        added.IsSuccess.ShouldBeTrue($"the fixture's garment section was refused: {added.Error.Code}");
+
+        return draft.Value;
+    }
+
+    /// <summary>Starts a draft and writes it through the real <c>OrderDraftStore</c>.</summary>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="orderDraftId">Identity to give it, where the caller needs a known one.</param>
+    /// <returns>The draft as it was sent.</returns>
+    public static async Task<OrderDraft> StartAsync(WebApplicationFixture fixture, Guid? orderDraftId = null)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var draft = BuildDraft(orderDraftId);
+
+        using var scope = fixture.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IOrderDraftStore>();
+
+        store.Add(draft);
+
+        var stored = await store.SaveAsync(Token);
+
+        stored.IsSuccess.ShouldBeTrue($"the fixture's draft was refused by the store: {stored.Error.Code}");
+
+        return draft;
+    }
+
+    /// <summary>Reads one draft back through the real <c>OrderDraftStore</c>, from a scope of its own.</summary>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="orderDraftId">The draft.</param>
+    /// <returns>The draft as the database holds it, or null.</returns>
+    public static async Task<OrderDraft?> FindDraftAsync(WebApplicationFixture fixture, Guid orderDraftId)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IOrderDraftStore>();
+
+        return await store.FindAsync(orderDraftId, Organisation, Token);
+    }
+
+    /// <summary>
+    /// An <see cref="OrdersDbContext"/> configured exactly as the module composes it, plus one interceptor.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>The options are the composed ones and not a second copy.</strong> Two of these tests have to
+    /// watch what happens <em>between</em> the statements of one operation, and an interceptor can only be
+    /// attached while the options are being built — which the module already did, at start-up. Copying the
+    /// options by hand would quietly drop whatever the registration does and has not been copied:
+    /// <c>EnableRetryOnFailure</c> above all, which is the setting both tests exist because of.
+    /// <c>DbContextOptionsBuilder&lt;T&gt;</c> takes the built options and adds to them, so what is under test
+    /// is the module's own configuration with one observer on it.
+    /// </para>
+    /// <para>
+    /// The scope has to outlive the context: the options carry the application service provider EF resolves its
+    /// own services from, and that is this scope's.
+    /// </para>
+    /// </remarks>
+    /// <param name="scope">A scope that lives at least as long as the context.</param>
+    /// <param name="interceptor">The observer to attach.</param>
+    /// <returns>The context. The caller disposes it.</returns>
+    public static OrdersDbContext ObservedContext(IServiceScope scope, IInterceptor interceptor)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+
+        var composed = scope.ServiceProvider.GetRequiredService<DbContextOptions<OrdersDbContext>>();
+
+        return new OrdersDbContext(
+            new DbContextOptionsBuilder<OrdersDbContext>(composed).AddInterceptors(interceptor).Options);
+    }
+
     /// <summary>Issues an estimate through the real <c>EstimateStore</c>.</summary>
     /// <param name="fixture">The hosted application.</param>
     /// <param name="branchCode">The branch code the estimate number is composed from.</param>
@@ -416,7 +546,9 @@ internal static class OrdersHarness
     {
         var estimate = BuildEstimate(branchCode, sequence, estimateId);
 
-        (await StoreAsync(fixture, estimate)).IsSuccess.ShouldBeTrue();
+        var stored = await StoreAsync(fixture, estimate);
+
+        stored.IsSuccess.ShouldBeTrue($"the fixture's estimate was refused by the store: {stored.Error.Code}");
 
         return estimate;
     }
@@ -505,17 +637,23 @@ internal static class OrdersHarness
         WebApplicationFixture fixture,
         Guid orderId,
         Guid garmentJobId)
-        => (await MutateAsync(
-                fixture,
-                orderId,
-                order => order.StartProduction(
-                    garmentJobId,
-                    WorkflowVersion,
-                    [],
-                    ReadyAggregation.EveryDeliverableJob,
-                    Now.AddHours(1),
-                    Actor)))
-            .IsSuccess.ShouldBeTrue();
+    {
+        var started = await MutateAsync(
+            fixture,
+            orderId,
+            order => order.StartProduction(
+                garmentJobId,
+                WorkflowVersion,
+                [],
+                ReadyAggregation.EveryDeliverableJob,
+                Now.AddHours(1),
+                Actor));
+
+        // A garment with a finish_before prerequisite needs that prerequisite named as satisfied, and this
+        // passes none — so a caller arranging a bound pair starts the prerequisite, never the garment waiting
+        // on it. The refusal is reported rather than swallowed so that the mistake reads as itself.
+        started.IsSuccess.ShouldBeTrue($"production could not be started: {started.Error.Code}");
+    }
 
     /// <summary>
     /// Re-prices every garment of an order and appends a revision, which is the one path that legitimately

@@ -92,8 +92,12 @@ public sealed class OrdersImmutabilityTests(WebApplicationFixture fixture)
         var branchCode = OrdersHarness.BranchCode("RVS");
         var confirmed = await OrdersHarness.ConfirmAsync(fixture, branchCode, garments: 2);
 
-        (await OrdersHarness.ReviseAsync(fixture, confirmed, subtotal: 13_000.00m, chestMillimetres: 900m))
-            .IsSuccess.ShouldBeTrue("the revision the two immutability triggers are written to permit");
+        var revised = await OrdersHarness.ReviseAsync(
+            fixture, confirmed, subtotal: 13_000.00m, chestMillimetres: 900m);
+
+        revised.IsSuccess.ShouldBeTrue(
+            "the revision the two immutability triggers are written to permit was refused: "
+            + revised.Error.Code);
 
         var loaded = (await FindAsync(confirmed.Id)).ShouldNotBeNull();
 

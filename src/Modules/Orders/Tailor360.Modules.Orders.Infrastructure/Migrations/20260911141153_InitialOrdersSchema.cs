@@ -476,7 +476,7 @@ namespace Tailor360.Modules.Orders.Infrastructure.Migrations
                         principalSchema: "orders",
                         principalTable: "garment_jobs",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.NoAction);
                 });
 
             migrationBuilder.CreateTable(
@@ -848,13 +848,36 @@ namespace Tailor360.Modules.Orders.Infrastructure.Migrations
                 FOR EACH ROW EXECUTE FUNCTION orders.order_revisions_append_only();
                 """);
 
+            // Entity Framework has no fluent way to declare a foreign key DEFERRABLE, so the constraint it
+            // emitted above is altered here. NO ACTION is checked at the end of the statement and, deferred,
+            // at COMMIT; RESTRICT is checked immediately and cannot be deferred at all.
+            //
+            // Why it has to be deferred: deleting an order cascades into every garment job in one statement.
+            // Where garment two declares garment one as its `finish_before` prerequisite, PostgreSQL evaluated
+            // this key against garment one before garment two's own cascade had removed the row naming it, and
+            // refused with 23503 - so an order carrying any declared dependency could not be deleted at all.
+            // That was proved on CI by OrdersCascadeTests; no static reading of the schema settled it.
+            //
+            // Deferring moves the check to COMMIT, where the question is actually decidable: by then either
+            // both rows have gone together, which is the whole-order cascade, or a prerequisite has been
+            // deleted while its dependent survives - and that is still refused, which is the guarantee this
+            // key exists for. Nothing else in this schema defers, so the two-phase behaviour is confined to
+            // the one constraint that needs it.
+            migrationBuilder.Sql("""
+                ALTER TABLE orders.job_dependencies
+                    ALTER CONSTRAINT fk_job_dependencies_garment_jobs_prerequisite_garment_job_id
+                    DEFERRABLE INITIALLY DEFERRED;
+                """);
+
             // INV-JOB-09 calls a dependency a promise the shop floor has been given. GarmentJob publishes no
             // withdraw and JobDependency no mutator; this is the database saying the same thing - while the
             // garment it was declared on is still there. The same reading as order_revisions_append_only
             // above: the row is declared ON DELETE CASCADE from orders.garment_jobs, and a promise about a
             // garment cannot outlive the garment. The prerequisite side is a different question answered by
             // a different mechanism - fk_job_dependencies_garment_jobs_prerequisite_garment_job_id is
-            // ON DELETE RESTRICT, so the garment somebody is waiting for cannot be taken from under them.
+            // ON DELETE NO ACTION and DEFERRABLE INITIALLY DEFERRED, so the garment somebody is waiting for
+            // cannot be taken from under them - checked at COMMIT, which is the only point at which that
+            // question is decidable while a whole order is being removed in one statement.
             migrationBuilder.Sql("""
                 CREATE FUNCTION orders.job_dependencies_append_only()
                 RETURNS trigger

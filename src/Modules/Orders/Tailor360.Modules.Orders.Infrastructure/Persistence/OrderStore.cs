@@ -121,6 +121,34 @@ public sealed class OrderStore(OrdersDbContext context, ISequenceAllocator seque
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// <strong>The transaction belongs to the execution strategy, because an ambiguous commit must not be
+    /// replayed as a second confirmation.</strong> This used to hand <c>strategy.ExecuteAsync</c> a plain
+    /// delegate that opened and committed its own transaction, and a retrying strategy replays a delegate
+    /// whenever the call fails transiently — including when the connection dropped while PostgreSQL was
+    /// acknowledging the <c>COMMIT</c>, which is a commit that succeeded and an answer that was lost. The replay
+    /// then found the draft already consumed and answered <c>DraftNotFound</c>: the counter was told the
+    /// confirmation had failed while the order, its garment jobs, its frozen snapshots and its outbox rows all
+    /// existed. A customer's order taken and then denied, and INV-ORD-01 — "the order, every garment job,
+    /// every snapshot, the barcode identity and the outbox message commit together, or nothing does" — read
+    /// backwards by the one caller entitled to trust it.
+    /// </para>
+    /// <para>
+    /// <c>ExecuteInTransactionAsync</c> is EF's answer and is what this now uses: it owns the transaction, and
+    /// when the failure arrives <em>while the commit is being made</em> it asks
+    /// <see cref="ConfirmationCommittedAsync"/> whether the work is in fact there before deciding to retry. A
+    /// verified commit is reported as the success it was; an unverified one is replayed from nothing, which is
+    /// what <see cref="DetachReadsAndFailedAttempts"/> exists to make safe.
+    /// </para>
+    /// <para>
+    /// <strong>The price is that a refusal leaves this operation by throwing.</strong> EF commits as soon as the
+    /// operation returns, so a <c>Result.Failure</c> returned from inside it would commit whatever the callback
+    /// had already saved; throwing is the only way to abandon a transaction EF began.
+    /// <see cref="ConfirmationRefusedException"/> travels exactly as far as the <c>catch</c> below and the port
+    /// answers with the <c>Result</c> it promises — the refusal reaches nobody as an exception.
+    /// </para>
+    /// </remarks>
     public async Task<Result<TOutcome>> InConfirmationTransactionAsync<TOutcome>(
         Guid orderDraftId,
         Guid? estimateId,
@@ -132,93 +160,167 @@ public sealed class OrderStore(OrdersDbContext context, ISequenceAllocator seque
 
         // Captured before the first attempt and before anything below detaches anything: these are the outbox
         // rows the command had already published into this scope, and they belong to the unit of work the
-        // confirmation is about to commit. See DetachReadsAndFailedAttempts.
+        // confirmation is about to commit. Added and nothing else — an outbox row that is already Unchanged
+        // was written by an earlier save in this scope, is in the database, and inserting it again would be a
+        // duplicate key rather than a rescued event. See DetachReadsAndFailedAttempts.
         var published = context.ChangeTracker
             .Entries<OutboxMessage>()
+            .Where(entry => entry.State == EntityState.Added)
             .Select(entry => entry.Entity)
             .ToHashSet();
 
-        // The connection retries on a transient failure, and a retry replays this whole delegate. An explicit
+        // The connection retries on a transient failure, and a retry replays the whole operation. An explicit
         // transaction opened outside the strategy would be rejected by EF for exactly that reason.
         var strategy = context.Database.CreateExecutionStrategy();
 
-        return await strategy.ExecuteAsync(async () =>
+        try
         {
-            DetachReadsAndFailedAttempts(published);
+            return await strategy.ExecuteInTransactionAsync(
+                token => AttemptConfirmationAsync(
+                    orderDraftId, estimateId, organisationId, confirm, published, token),
+                token => ConfirmationCommittedAsync(orderDraftId, organisationId, token),
+                cancellationToken);
+        }
+        catch (ConfirmationRefusedException refused)
+        {
+            return Result.Failure<TOutcome>(refused.Error);
+        }
+    }
 
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+    /// <summary>One attempt at a confirmation, inside the transaction the execution strategy opened for it.</summary>
+    /// <remarks>
+    /// Everything this refuses, it refuses by throwing <see cref="ConfirmationRefusedException"/>, for the
+    /// reason <see cref="InConfirmationTransactionAsync"/> records: the transaction is EF's and a returned
+    /// failure would be committed. Nothing else about the sequence has changed.
+    /// </remarks>
+    /// <typeparam name="TOutcome">What the confirmation produces.</typeparam>
+    /// <param name="orderDraftId">The draft being confirmed.</param>
+    /// <param name="estimateId">The estimate being converted, or null.</param>
+    /// <param name="organisationId">The tenant the caller is acting within.</param>
+    /// <param name="confirm">The decision, given the locked draft and the locked estimate.</param>
+    /// <param name="published">The outbox rows this scope had published before the first attempt.</param>
+    /// <param name="cancellationToken">Cancels the attempt.</param>
+    /// <returns>What the callback produced.</returns>
+    /// <exception cref="ConfirmationRefusedException">The confirmation was refused and must roll back.</exception>
+    private async Task<Result<TOutcome>> AttemptConfirmationAsync<TOutcome>(
+        Guid orderDraftId,
+        Guid? estimateId,
+        Guid organisationId,
+        Func<OrderDraft, Estimate?, CancellationToken, Task<Result<TOutcome>>> confirm,
+        HashSet<OutboxMessage> published,
+        CancellationToken cancellationToken)
+    {
+        DetachReadsAndFailedAttempts(published);
 
-            // A fixed order, written down so that it cannot drift: the draft first, then the estimate. Two
-            // confirmations racing over the same pair queue instead of deadlocking only because both take them
-            // this way round. No two rows of the SAME table are locked together here, which is why there is no
-            // equivalent of CustomerStore.InPostgresOrder — that is the pattern to copy the day one is.
-            await LockDraftAsync(orderDraftId, cancellationToken);
+        // A fixed order, written down so that it cannot drift: the draft first, then the estimate. Two
+        // confirmations racing over the same pair queue instead of deadlocking only because both take them
+        // this way round. No two rows of the SAME table are locked together here, which is why there is no
+        // equivalent of CustomerStore.InPostgresOrder — that is the pattern to copy the day one is.
+        await LockDraftAsync(orderDraftId, cancellationToken);
 
-            if (estimateId is { } lockedEstimateId)
+        if (estimateId is { } lockedEstimateId)
+        {
+            await LockEstimateAsync(lockedEstimateId, cancellationToken);
+        }
+
+        // Scoped by organisation, like every other read on the three ports. It used to read by identity
+        // alone, on the argument that the command had already evaluated the organisation when it decided the
+        // draft was confirmable — an argument the detach above undoes, because a unit of work that starts
+        // from nothing has to start the tenancy check from nothing too. Confirmation is also the one command
+        // that spans three aggregates, so it is the worst place to leave the boundary resting on a callback
+        // remembering to call Estimate.Convert, whose orderDraftId check was the only thing tying the draft
+        // and the estimate to one organisation. IOrderDraftStore states the rule this now keeps: "the
+        // organisation is the tenant boundary and is never the caller's to assert past."
+        var draft = await DraftWithGarmentsAsync(orderDraftId, organisationId, cancellationToken);
+
+        if (draft is null)
+        {
+            throw new ConfirmationRefusedException(OrdersErrors.DraftNotFound);
+        }
+
+        Estimate? estimate = null;
+
+        if (estimateId is { } namedEstimateId)
+        {
+            estimate = await context.Estimates.FirstOrDefaultAsync(
+                one => one.Id == namedEstimateId && one.OrganisationId == organisationId,
+                cancellationToken);
+
+            if (estimate is null)
             {
-                await LockEstimateAsync(lockedEstimateId, cancellationToken);
+                throw new ConfirmationRefusedException(OrdersErrors.EstimateNotFound);
             }
+        }
 
-            // Scoped by organisation, like every other read on the three ports. It used to read by identity
-            // alone, on the argument that the command had already evaluated the organisation when it decided the
-            // draft was confirmable — an argument the detach above undoes, because a unit of work that starts
-            // from nothing has to start the tenancy check from nothing too. Confirmation is also the one command
-            // that spans three aggregates, so it is the worst place to leave the boundary resting on a callback
-            // remembering to call Estimate.Convert, whose orderDraftId check was the only thing tying the draft
-            // and the estimate to one organisation. IOrderDraftStore states the rule this now keeps: "the
-            // organisation is the tenant boundary and is never the caller's to assert past."
-            var draft = await DraftWithGarmentsAsync(orderDraftId, organisationId, cancellationToken);
+        Result<TOutcome> outcome;
 
-            if (draft is null)
-            {
-                await transaction.RollbackAsync(cancellationToken);
+        try
+        {
+            outcome = await confirm(draft, estimate, cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The callback saves inside this transaction and its own store call already turns this into a
+            // result. Caught here as well because a confirmation writes more than one aggregate, and a raw
+            // exception escaping would be a 500 for two counters confirming at once.
+            throw new ConfirmationRefusedException(OrdersErrors.ConcurrentChange);
+        }
 
-                return Result.Failure<TOutcome>(OrdersErrors.DraftNotFound);
-            }
+        if (outcome.IsFailure)
+        {
+            throw new ConfirmationRefusedException(outcome.Error);
+        }
 
-            Estimate? estimate = null;
+        return outcome;
+    }
 
-            if (estimateId is { } namedEstimateId)
-            {
-                estimate = await context.Estimates.FirstOrDefaultAsync(
-                    one => one.Id == namedEstimateId && one.OrganisationId == organisationId,
+    /// <summary>Whether a confirmation whose commit was ambiguous did in fact commit.</summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Two facts together, because either alone is true of something that is not this
+    /// confirmation.</strong> A consumed draft on its own is equally true of a draft an earlier confirmation
+    /// consumed, so a replay of a confirmation that had genuinely failed could read it as its own success. An
+    /// order on its own cannot be looked for at all, because the attempt that lost its answer never told anybody
+    /// which order it minted — the draft is the only identity both sides hold, which is what
+    /// <c>OrderSnapshot.OrderDraftId</c> means by "how an idempotent re-confirmation is recognised". Together
+    /// they are decisive: <c>OrderDraft.Consume</c> refuses a draft that is not open, so exactly one
+    /// confirmation can ever move a draft from open to consumed, and an order standing against that same draft
+    /// is the work of the attempt that moved it. Both are read within the organisation, because every other read
+    /// on this port is.
+    /// </para>
+    /// <para>
+    /// <strong>It is consulted only after an ambiguous commit.</strong> EF asks it when the failure arrived
+    /// while the transaction was being committed <em>and</em> the exception is one the strategy treats as
+    /// transient; a <see cref="ConfirmationRefusedException"/> is neither, so a refusal never reaches it. The two
+    /// statements run outside any transaction of ours, on a connection EF reopens if the commit took the last
+    /// one with it, and neither is served by an index — <c>orders</c> carries none over
+    /// <c>order_draft_id</c>. That is deliberate: an index exists for a query, and the only query is this one,
+    /// which runs at most once per confirmation and only after a failure that has already happened.
+    /// </para>
+    /// </remarks>
+    /// <param name="orderDraftId">The draft the confirmation consumed.</param>
+    /// <param name="organisationId">The tenant the caller is acting within.</param>
+    /// <param name="cancellationToken">Cancels the verification.</param>
+    /// <returns>True when the draft is consumed and an order stands against it.</returns>
+    private async Task<bool> ConfirmationCommittedAsync(
+        Guid orderDraftId,
+        Guid organisationId,
+        CancellationToken cancellationToken)
+    {
+        var consumed = await context.OrderDrafts
+            .AsNoTracking()
+            .AnyAsync(
+                draft => draft.Id == orderDraftId
+                    && draft.OrganisationId == organisationId
+                    && draft.ConsumedAt != null,
+                cancellationToken);
+
+        return consumed
+            && await context.Orders
+                .AsNoTracking()
+                .AnyAsync(
+                    order => order.OrderDraftId == orderDraftId && order.OrganisationId == organisationId,
                     cancellationToken);
-
-                if (estimate is null)
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-
-                    return Result.Failure<TOutcome>(OrdersErrors.EstimateNotFound);
-                }
-            }
-
-            Result<TOutcome> outcome;
-
-            try
-            {
-                outcome = await confirm(draft, estimate, cancellationToken);
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                // The callback saves inside this transaction and its own store call already turns this into a
-                // result. Caught here as well because a confirmation writes more than one aggregate, and a raw
-                // exception escaping would be a 500 for two counters confirming at once.
-                await transaction.RollbackAsync(cancellationToken);
-
-                return Result.Failure<TOutcome>(OrdersErrors.ConcurrentChange);
-            }
-
-            if (outcome.IsFailure)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-
-                return outcome;
-            }
-
-            await transaction.CommitAsync(cancellationToken);
-
-            return outcome;
-        });
     }
 
     /// <summary>
@@ -240,10 +342,19 @@ public sealed class OrderStore(OrdersDbContext context, ISequenceAllocator seque
     /// outbox row was never written, the event never sent, and nothing reported that it had gone.
     /// </para>
     /// <para>
-    /// <strong>A retry is the other half.</strong> <c>strategy.ExecuteAsync</c> replays the whole delegate after
-    /// a transient failure has rolled the transaction back, so the rows a failed attempt published are dropped
-    /// here as well: they were never committed, and carrying them into the next attempt would publish each event
-    /// twice. Keeping the set captured before the first attempt is what tells the two apart.
+    /// <strong>A retry is the other half.</strong> <c>ExecuteInTransactionAsync</c> replays the whole attempt
+    /// after a transient failure has rolled the transaction back, so the rows a failed attempt published are
+    /// dropped here as well: they were never committed, and carrying them into the next attempt would publish
+    /// each event twice. Keeping the set captured before the first attempt is what tells the two apart.
+    /// </para>
+    /// <para>
+    /// <strong>And keeping a row is not the same as leaving it alone</strong>, which is the half that was
+    /// missing. A rolled-back attempt whose <c>SaveChangesAsync</c> had already succeeded leaves every entity it
+    /// saved <c>Unchanged</c> — acceptance happens on the save, not on the commit — so a preserved outbox
+    /// row would be carried into the retry in a state that inserts nothing. The retry would commit the order
+    /// and lose the event announcing it: the same class of defect as the <c>ChangeTracker.Clear()</c> one above,
+    /// reached from the other side. The rows this keeps are therefore put back to <c>Added</c>, which is the
+    /// state they were captured in.
     /// </para>
     /// </remarks>
     /// <param name="published">The outbox rows that were already on the tracker when the confirmation began.</param>
@@ -253,11 +364,35 @@ public sealed class OrderStore(OrdersDbContext context, ISequenceAllocator seque
         {
             if (entry.Entity is OutboxMessage message && published.Contains(message))
             {
+                // Put back to Added rather than left where the last attempt left it. SaveChangesAsync accepts
+                // every tracked entity the moment it succeeds, which is before the commit is even attempted, so
+                // a row that entered this method as Added comes out of a rolled-back attempt as Unchanged —
+                // and an Unchanged row is written by no later save. The retry would then commit the order and
+                // silently drop the event that announces it, which is the defect ChangeTracker.Clear() caused
+                // arriving by the other door. Setting the state of a row that is still Added changes nothing.
+                entry.State = EntityState.Added;
+
                 continue;
             }
 
             entry.State = EntityState.Detached;
         }
+    }
+
+    /// <summary>Carries a refusal out of one confirmation attempt so that its transaction is abandoned.</summary>
+    /// <remarks>
+    /// <strong>No refusal reaches a caller as an exception.</strong> This exists for the few lines between the
+    /// throw inside <see cref="AttemptConfirmationAsync"/> and the catch inside
+    /// <see cref="InConfirmationTransactionAsync"/>, which is why it is private: there is no other code that
+    /// could catch it, and no code outside this file that should have to know the transaction is abandoned this
+    /// way. The message is the error's own code — a stable identifier and never the prose a trigger or a
+    /// validator wrote about a named person.
+    /// </remarks>
+    /// <param name="error">The refusal to answer with.</param>
+    private sealed class ConfirmationRefusedException(Error error) : Exception(error.Code)
+    {
+        /// <summary>The refusal this carries.</summary>
+        public Error Error { get; } = error;
     }
 
     /// <summary>The one query that loads a whole order.</summary>
