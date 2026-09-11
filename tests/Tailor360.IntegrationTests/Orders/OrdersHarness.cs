@@ -51,13 +51,26 @@ namespace Tailor360.IntegrationTests.Orders;
 /// </remarks>
 internal static class OrdersHarness
 {
-    /// <summary>The instant the fixtures are built at, in the branch timezone's offset.</summary>
+    /// <summary>The instant the fixtures are built at. UTC, because that is the only offset that persists.</summary>
     /// <remarks>
+    /// <para>
     /// Fixed rather than taken from <c>IClock</c>: every Orders aggregate takes the instant as a parameter
     /// (ARCH-014), so a fixed value is all the clock these fixtures need, and a stored instant can then be
     /// asserted exactly rather than within a window.
+    /// </para>
+    /// <para>
+    /// <strong>The offset has to be zero.</strong> Every instant column is <c>timestamptz</c>
+    /// (<c>docs/architecture/conventions.md</c> section 2.1, "stored in <strong>UTC</strong>"), and Npgsql
+    /// refuses to write a <c>DateTimeOffset</c> carrying any other offset — "only offset 0 (UTC) is supported".
+    /// The unit fixtures can and do use the branch offset, because nothing there reaches a database; these
+    /// cannot. This is the same moment as <c>11:05 +05:30</c>, which is the same calendar day either way, so no
+    /// business date moves with it. It is also what production actually produces: <c>SystemClock.UtcNow</c>
+    /// returns <c>DateTimeOffset.UtcNow</c>, so a non-UTC instant never reaches a store by any real path — the
+    /// branch timezone is applied when a <em>date</em> is derived, through <c>IClock.TodayIn</c>, and never to
+    /// the instant itself.
+    /// </para>
     /// </remarks>
-    public static readonly DateTimeOffset Now = new(2026, 5, 7, 11, 5, 0, TimeSpan.FromHours(5.5));
+    public static readonly DateTimeOffset Now = new(2026, 5, 7, 5, 35, 0, TimeSpan.Zero);
 
     /// <summary>The promised date every fixture confirms against.</summary>
     public static readonly DateOnly DueDate = new(2026, 5, 21);
