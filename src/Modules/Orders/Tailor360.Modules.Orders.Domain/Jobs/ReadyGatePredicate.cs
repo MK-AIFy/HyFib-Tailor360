@@ -24,9 +24,14 @@ public enum ReadyGatePredicate
     NoOpenHold = 3,
 
     /// <summary>
-    /// <c>deliver_together</c> siblings are ready, unless the branch policy permits partial delivery (INV-JOB-09,
-    /// issue #48).
+    /// Every other garment of the <c>deliver_together</c> parcel has met its own predicates in the same
+    /// evaluation, unless the branch policy permits partial delivery (INV-JOB-09, issue #48).
     /// </summary>
+    /// <remarks>
+    /// Worded as section 9.1 words it since the amendment that unblocked a bound pair: read as "the sibling's
+    /// status is ready", the predicate depended on its own output and deadlocked any parcel of two or more. What
+    /// the block names is unchanged — the sibling's job number.
+    /// </remarks>
     DependenciesMet = 4,
 
     /// <summary>

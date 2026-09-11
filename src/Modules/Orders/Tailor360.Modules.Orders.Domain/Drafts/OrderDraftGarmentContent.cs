@@ -187,6 +187,16 @@ public sealed record OrderDraftGarmentContent
             return Result.Failure<OrderDraftGarmentContent>(OrdersErrors.Required("catalogVersionId"));
         }
 
+        // An intent that is none of the four is not a weaker plan but an uninterpretable one: the
+        // **Measurements needed** queue is built from this value and confirmation refuses a garment nobody
+        // measured by reading it, so an unnamed member would be counted as decided and would be persisted that
+        // way. A value outside the enumeration reaches here only from a cast, and a cast is exactly what a
+        // deserialiser does with a number it did not recognise.
+        if (!Enum.IsDefined(measurementIntent))
+        {
+            return Result.Failure<OrderDraftGarmentContent>(OrdersErrors.NotUnderstood("measurementIntent"));
+        }
+
         var reusedVersion = Identifier(measurementVersionId);
 
         if (measurementIntent is MeasurementIntent.ReuseVersion)

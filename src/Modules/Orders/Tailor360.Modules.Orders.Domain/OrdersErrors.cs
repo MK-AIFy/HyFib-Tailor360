@@ -54,6 +54,27 @@ public static class OrdersErrors
         $"That value is longer than the {maximum} characters this field holds.",
         field);
 
+    /// <summary>A value outside the set its field accepts arrived on a public factory.</summary>
+    /// <remarks>
+    /// <para>
+    /// Every choice this module stores is an enumeration, and an enumeration in C# accepts any number a
+    /// cast can produce — which is exactly what a deserialiser does with a value it did not recognise.
+    /// A number outside the named set is not a weaker answer but an uninterpretable one: the two gates,
+    /// the production ordering and the <strong>Measurements needed</strong> queue all test named members,
+    /// so an unnamed one is silently ignored rather than enforced, and it is <em>persisted</em> that way.
+    /// </para>
+    /// <para>
+    /// Generic and field-carrying like <see cref="Required"/> and <see cref="TooLong"/> rather than one
+    /// code per enumeration: a client can only ever act on it in one way, which is to send a value the
+    /// field names. The field travels in the error's target; the value never travels at all.
+    /// </para>
+    /// </remarks>
+    /// <param name="field">The field carrying the value.</param>
+    public static Error NotUnderstood(string field) => Error.Validation(
+        "orders.value-not-understood",
+        "That value is not one this field understands.",
+        field);
+
     /// <summary>A transition that is recorded against a reason arrived without one.</summary>
     /// <remarks>
     /// The transitions that demand one are listed in <c>docs/prd/state-transitions.md</c> section 8:
@@ -630,6 +651,79 @@ public static class OrdersErrors
         "orders.ready-gate-outcome-for-another-job",
         "That ready-for-delivery result was worked out for a different garment.",
         "garmentJobId");
+
+    /// <summary>
+    /// A ready-for-delivery result was applied without the rest of the <c>deliver_together</c> parcel it was
+    /// worked out inside.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// INV-JOB-09: a <c>deliver_together</c> dependency binds its garments at the ready gate and in the delivery
+    /// queue, so the parcel moves together or not at all. <c>ReadyGate.EvaluateSet</c> judges every member in one
+    /// evaluation and records the rest of the parcel on each verdict; applying one of them on its own, while a
+    /// partner stands somewhere else, is half a parcel on the delivery queue bound to a garment still being made.
+    /// </para>
+    /// <para>
+    /// Not a refusal of the verdict itself, which may be perfectly good — it is a refusal to record it apart from
+    /// the garments it was reached with. The remedy is to apply the whole evaluation. The message names the
+    /// garment job number, which is operational data printed on a job card and is not personal data.
+    /// </para>
+    /// </remarks>
+    /// <param name="boundGarmentJobNumber">The garment that goes to the customer with this one.</param>
+    public static Error ReadyGateWouldSplitParcel(string boundGarmentJobNumber) => Error.Conflict(
+        "orders.ready-gate-parcel-split",
+        $"Garment {boundGarmentJobNumber} goes to the customer with this one, so its ready-for-delivery "
+        + "result has to be worked out and recorded in the same step.");
+
+    /// <summary>
+    /// A garment was handed over while a garment it was promised to travel with is not ready to go with it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// INV-JOB-09's second half. <see cref="ReadyGateWouldSplitParcel"/> refuses a verdict recorded apart from
+    /// the parcel it was reached inside; this refuses the handover itself, which is a different moment and a
+    /// different remedy. A parcel promoted together can still come apart afterwards — a hold, and then a resume,
+    /// close one garment's ready state and no other's — and by the time the split shows it is not a verdict that
+    /// needs working out again but a garment that has to wait for its partner, or a branch decision to let it go
+    /// without one.
+    /// </para>
+    /// <para>
+    /// Its own code rather than <c>orders.ready-gate-parcel-split</c> because nothing here is wrong with the
+    /// ready gate: both verdicts are current and correct, and telling the delivery staff at the door to have a
+    /// ready-for-delivery result worked out again would send them to fix something that is not broken. A garment
+    /// job number is operational data printed on a job card and is not personal data.
+    /// </para>
+    /// </remarks>
+    /// <param name="boundGarmentJobNumber">The garment that would be left behind.</param>
+    public static Error DeliveryWouldSplitParcel(string boundGarmentJobNumber) => Error.Conflict(
+        "orders.delivery-would-split-parcel",
+        $"Garment {boundGarmentJobNumber} goes to the customer with this one and is not ready yet, so this "
+        + "garment cannot be handed over on its own.");
+
+    /// <summary>
+    /// One <c>deliver_together</c> parcel was evaluated under two different branch dispatch policies.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Whether partial delivery is permitted is a property of the <em>branch</em> — <c>whole_order</c>,
+    /// <c>per_job</c> or <c>exception</c>, issue #48 — and not of a garment, so it is the same answer for every
+    /// garment of one parcel. Supplied per garment because <c>ReadyGate.ReadyGateInputs</c> carries the facts for
+    /// one garment, and a caller that answered it differently for two members of one parcel got an incoherent
+    /// parcel the domain then honoured: the member marked partial carried no binding at all, so its verdict could
+    /// be recorded on its own while its partner still stood in production.
+    /// </para>
+    /// <para>
+    /// A separate refusal from <see cref="ReadyGateWouldSplitParcel"/> because it is a different situation said
+    /// at a different moment: that one refuses to <em>record</em> half a parcel, and this one refuses to
+    /// <em>work out</em> a parcel under two policies at once. Nothing is evaluated and nothing is written; the
+    /// remedy is to gather the branch's policy once and supply it for the whole parcel.
+    /// </para>
+    /// </remarks>
+    public static Error DispatchPolicyNotShared { get; } = Error.Validation(
+        "orders.dispatch-policy-not-shared",
+        "Every garment that goes to the customer together is worked out under one branch delivery policy. "
+        + "This evaluation carries two.",
+        "partialDeliveryPermitted");
 
     /* Status wording ---------------------------------------------------------------------------- */
 

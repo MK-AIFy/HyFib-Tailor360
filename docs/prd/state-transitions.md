@@ -106,6 +106,7 @@ stateDiagram-v2
     Confirmed --> Confirmed : revise before production
     Confirmed --> InProduction : first garment job starts production
     Confirmed --> Cancelled : cancel order
+    InProduction --> InProduction : one garment handed over, others still owed
     InProduction --> Ready : every deliverable job passes the ready gate
     InProduction --> Cancelled : cancel order
     Ready --> InProduction : rework or accepted alteration reopens a job
@@ -129,6 +130,7 @@ stateDiagram-v2
 | In production | Every deliverable job passes the ready-for-delivery gate | Ready | The gate alone (system) | All gate predicates pass for the job set the branch dispatch policy requires — `whole_order`, `per_job` or `exception` (issue #48) | `JobReadyForDelivery` per job; delivery queue entries; customer status notification where consented | `orders.ready_state_changed` | The gate is the only writer of ready state. A staff member cannot mark an order ready; a failing predicate returns its own reason code to the queue screen |
 | Ready or In production | Rework opened, hold opened or alteration accepted | In production | Tailor Master, Branch Manager | See sections 3.1 and 3.2 | Gate recomputation closes the ready state; queue entry withdrawn | `orders.ready_state_changed` | A job already dispatched cannot be pulled back by a gate recomputation; the remedy is a failed or returned delivery (see section 4) |
 | Ready | Doorstep delivery confirmed — **IRREVERSIBLE** | Delivered | Delivery Staff (`custody.confirm_delivery`) | A valid, unexpired dispatch authorisation exists; the order is not cancelled; custody is unchanged since dispatch; recipient confirmation captured by OTP or signature per branch policy | `DeliveryConfirmed`; delivery receipt document; customer notification; feedback invitation on the consented channel | `custody.confirm_delivery` | Confirmation is never silently skipped. A confirmation replayed from the offline queue is re-validated server-side and a conflict is surfaced rather than absorbed. `DeliveryFailed` and `DeliveryReturned` create the compensating custody transfer back to the branch and reopen the queue entry |
+| In production | Doorstep delivery confirmed for one garment — **IRREVERSIBLE** | In production (unchanged) | Delivery Staff (`custody.confirm_delivery`) | Everything the `Ready` row above requires, asked of the **garment**, and the order itself still open — a cancelled or closed order refuses every handover. Reachable while the order's dispatch policy is `whole_order`, which is the aggregation that keeps the order at `in_production` while one garment stands `ready` beside another still being made; under `per_job` the same facts read the order as `ready`, so the row above applies instead. The garment must also be free to travel alone: unbound, or its `deliver_together` binding waived at the scan (issue #48) | `DeliveryConfirmed`; delivery receipt document; customer notification; feedback invitation on the consented channel | `custody.confirm_delivery` | The order stays `in_production`: the garment that kept it out of `ready` is still outstanding after the handover, so this row can never be the one that reaches `delivered` — the last garment still owed is handed over from `ready`, by the row above. A garment that is not itself `ready` is refused as a garment, and a live `deliver_together` partner left behind is refused with `orders.delivery-would-split-parcel` exactly as above |
 | Delivered | Post-delivery alteration accepted — **REASON** | In production | Branch Manager or Tailor Master (`orders.alteration_decide`) | An alteration request exists from staff or from feedback (issue #49); price and due-date decisions taken | New or reopened garment job linked to the original; `AlterationDecided`; billing adjustment intent as event data | `orders.alteration_decide` | Orders never posts a financial document itself; a chargeable alteration travels to Billing as an intent on the event (issue #42). The original job's history is never rewritten |
 | Delivered | Closure rule satisfied | Closed | System | See open question **SQ-01** — the closure trigger is not fixed by the plan | `JobClosed` per job | `orders.close` | Until SQ-01 is decided, `closed` is documented but not implemented as an automatic transition; a delivered order remains `delivered` and is fully reportable in that state |
 | Draft, Confirmed, In production or Ready | Cancel order — **REASON** | Cancelled | Branch Manager or Owner (`orders.cancel`) | Not in a prohibited financial, stock or custody state; a configured reason code chosen | `OrderCancelled`; cancellation credit intent to Billing; reservations released as ledger `release` entries; customer material return recorded | `orders.cancel` | Cancellation is **blocked, not forced**, while a prohibited state stands — for example recognised value on a posted invoice, unreturned customer material, or a garment in another custodian's hands. The compensating flows run first (see [`exceptions.md`](exceptions.md) EX-08). The prohibited-state list is fixed by issue #34 |
@@ -220,11 +222,11 @@ stateDiagram-v2
 | In production | **Record QC result** — **IRREVERSIBLE** | (unchanged) | Tailor Master or the checklist's responsible role (`orders.record_qc`) | A published QC checklist version resolves for the category and service type; required evidence media are `ready` | Immutable `qc_results` row embedding a copy of the criteria evaluated, defect codes and evidence; `QcRecorded` | `orders.record_qc` | A QC result is never edited. A mistaken result is superseded by a new result, and both remain visible on the timeline. A fail leaves the ready gate closed |
 | In production | QC fail opens rework — **REASON** | (unchanged) | Tailor Master (`orders.open_rework`) | The latest QC result is a fail with at least one defect code | `rework_tasks` row naming the phase to return to; `ReworkOpened`; workload and due-date impact surfaced | `orders.open_rework` | Rework never deletes history: the failed QC result, the original assignment and the original phase timings all stay. Repeated rework on one job is surfaced on the quality dashboard |
 | In production | Rework complete | (unchanged) | Tailor, then Tailor Master | The rework task's phases are complete | `ReworkCompleted`; the job returns to QC | `orders.complete_rework` | The ready gate stays closed until a **new** QC result passes; a rework does not inherit the previous pass |
-| In production or Ready | **Hold** — **REASON** | On hold | Branch Manager or Tailor Master (`orders.hold`) | A configured hold reason code; approval per the hold policy | `holds` row; `JobHeld`; the ready gate closes; the hold appears on the overdue-hold dashboard | `orders.hold` | An overdue hold raises `HoldOverdue` once per job and condition. Time on hold is visible on the job so the promised date can be renegotiated honestly |
+| In production or Ready | **Hold** — **REASON** | On hold | Branch Manager or Tailor Master (`orders.hold`) | A configured hold reason code; approval per the hold policy | `holds` row; `JobHeld`; the ready gate closes **on this garment and on no other** (**SQ-09**); the hold appears on the overdue-hold dashboard | `orders.hold` | An overdue hold raises `HoldOverdue` once per job and condition. Time on hold is visible on the job so the promised date can be renegotiated honestly. A `deliver_together` partner left standing at `ready` is held at the door instead, by the delivery row below |
 | On hold | Resume — **REASON** | In production | Branch Manager or Tailor Master (`orders.resume`) | The hold's blocking condition is recorded as resolved | `JobResumed`; gate recomputation | `orders.resume` | Resuming does not silently move the due date; a new date is a separate reschedule with its own reason and customer communication |
 | In production or On hold | Reschedule the promised date — **REASON** | (unchanged) | Branch Manager (`orders.reschedule`) | A new date evaluated in the branch timezone against the branch working calendar | `JobRescheduled`; customer notification on the consented channel | `orders.reschedule` | Due-soon and overdue conditions are re-evaluated; each condition is raised exactly once per job and cleared on completion |
 | In production | Ready gate passes | Ready | The gate alone (system) | `WorkflowComplete`, `QcPassed` with no open rework, `DocumentationComplete`, `NoOpenHold`, `DependenciesMet` and `CustodyReconciled` all true | `ready_state` materialised; `JobReadyForDelivery`; delivery queue entry | `orders.ready_state_changed` | Every predicate returns its own reason code, shown on the queue. `CustodyReconciled` is treated as blocked while custody state is unknown and the custody gate is enabled — the gate **fails closed** |
-| Ready | Delivery confirmed — **IRREVERSIBLE** | Delivered | Delivery Staff | See section 4 | `DeliveryConfirmed` | `custody.confirm_delivery` | A `deliver_together` dependency binds sibling jobs at the queue unless the branch policy permits partial delivery |
+| Ready | Delivery confirmed — **IRREVERSIBLE** | Delivered | Delivery Staff | See section 4, and every live garment of this one's `deliver_together` parcel is itself ready — unless the branch policy in force at the scan permits partial delivery | `DeliveryConfirmed` | `custody.confirm_delivery` | A `deliver_together` dependency binds sibling jobs at the queue unless the branch policy permits partial delivery; a handover that would strand one is refused with `orders.delivery-would-split-parcel`, naming the garment left behind. A cancelled or already delivered sibling has left the parcel and is not waited for (**SQ-08**) |
 | Delivered | Alteration requested and accepted — **REASON** | In production | Branch Manager or Tailor Master (`orders.alteration_decide`) | Request recorded from staff or from feedback through `IAlterationRequests.Open(...)`; price and due-date decisions taken and communicated | `AlterationRequested`, `AlterationDecided`; new or reopened job linked to the original; billing adjustment intent | `orders.alteration_decide` | A rejected alteration is also recorded with its reason and communicated; it is never left silent |
 | Confirmed, In production, On hold or Ready | Cancel job — **REASON** | Cancelled | Branch Manager or Owner (`orders.cancel_job`) | Not in a prohibited financial, stock or custody state | `JobCancelled`; reservation release; label invalidation where the garment does not exist | `orders.cancel_job` | Cancelling every job of an order does not by itself cancel the order — see **SQ-04** |
 
@@ -408,17 +410,83 @@ OD-13; until that approval, treat the column as the plan's proposal, not as a se
 
 ### 9.1 Ready-for-delivery gate
 
-The gate is the **only** writer of `garment_jobs.ready_state`. It is recomputed on every workflow, QC, hold,
-dependency and custody event, and each predicate returns its own reason code to the screen.
+**Only this gate can open `garment_jobs.ready_state`** (INV-JOB-07). A hold, a resume and a cancellation each
+close it on the one garment they are about, and nothing else writes it at all — so no route makes it true except
+this one. It is recomputed on every workflow, QC, hold, dependency and custody event, and each predicate returns
+its own reason code to the screen.
 
 | Predicate | True when | Blocking reason surfaced |
 | --- | --- | --- |
-| `WorkflowComplete` | Every non-skippable phase of the pinned workflow version is complete | The named incomplete phase |
-| `QcPassed` | The latest QC result is a pass and no rework task is open | Failed criteria and defect codes |
-| `DocumentationComplete` | Every piece of evidence the workflow or checklist requires is present and `ready` | The missing evidence |
-| `NoOpenHold` | No `holds` row is open on the job | The hold reason and its age |
-| `DependenciesMet` | `deliver_together` siblings are ready, unless the branch policy permits partial delivery | The sibling job number |
-| `CustodyReconciled` | `ICustodyStateQuery` reports a consistent custodian with no open case | The open reconciliation case; **unknown counts as blocked** |
+| `WorkflowComplete` | The garment has entered production and carries a pinned workflow version, and every non-skippable phase of that version is complete. A garment with no pinned version has no phases to have completed and cannot satisfy this, whatever facts are supplied | The named incomplete phase |
+| `QcPassed` | The latest QC result is a pass and no rework task is open | The failed QC result, as the one reference a block carries rather than a list of criteria and defect codes |
+| `DocumentationComplete` | Every piece of evidence the workflow or checklist requires is present and `ready` | What is missing, as the one reference a block carries rather than a list of every missing piece |
+| `NoOpenHold` | No `holds` row is open on the job | The hold reason code. How long the hold has stood is read from the job's own `holds` row; a block carries one reference, and the free-text reason is never one of them (security rule 7) |
+| `DependenciesMet` | Every other garment of the `deliver_together` parcel has met its own predicates in the same evaluation. A garment whose facts were not supplied has not met them and blocks — the gate fails closed — unless it already stands at `ready`, which is this gate's own last verdict rather than a caller's claim and needs no facts supplied again. Waived where the branch policy permits partial delivery. That is the branch's single answer, and it is checked across the facts of **one** evaluation — answered two ways there, the evaluation is refused with `orders.dispatch-policy-not-shared` — but nothing compares two evaluations, so it is a property of a call and not of the parcel's life; see "One parcel, one branch dispatch policy" below | The sibling job number |
+| `CustodyReconciled` | `ICustodyStateQuery` reports a consistent custodian with no open case, or the branch has the custody gate switched off and the predicate is not asked | The open reconciliation case; while the custody gate is enabled, **unknown counts as blocked** |
+
+**The unit of evaluation is the parcel, not the garment.** Where a garment is bound by `deliver_together` and the
+branch policy has not waived the binding, the whole parcel is evaluated in one pass and **is promoted whole or not
+at all**: a command that would leave one member standing at `ready` while a live partner is left short of it is
+refused with `orders.ready-gate-parcel-split`, whether that partner is missing from the command or carried in it
+with a verdict of blocked. A partner that *will* stand at `ready` once the command is written satisfies it without
+being re-applied, whether this command says so or the partner already does — nothing is left behind, because it is
+already there. Under the waiver no parcel is recorded on the verdicts at all, so there is none to keep whole and
+each garment stands on its own.
+
+**The refusal runs in one direction, and it is not free.** A verdict that *closes* a member's gate is recorded on
+its own, whatever its partners are standing at — the one exception being a command that carries a closure for one
+member and a promotion for a bound partner together, which is refused whole, because a command is applied
+atomically or not at all. The closure is recorded by presenting it on its own. Closing a gate only ever takes a garment off the delivery queue, and half
+a parcel is a garment left standing *on* it, so no closure can split one. Refused in both directions, the guard
+inverted: a QC failure recomputed for the garment that failed — the only garment a QC result is about — was
+refused because its partner stood at `ready`, so the garment that failed QC stayed `ready` and stayed
+dispatchable. What the surviving refusal costs is the waiting. A garment that passes all five of the predicates it
+answers for itself is not promoted while a live partner is still being made; the evaluation that judges them
+together gives it a `DependenciesMet` block naming that partner, it does not reach the delivery queue, and the
+parcel moves at the pace of its slowest member. A caller that applies one garment of a parcel at a time promotes
+none of it and is told so; the remedy is to evaluate the parcel as a set and record the whole evaluation in one
+command.
+
+**And the parcel is held again at the delivery queue.** INV-JOB-09 names two places — a `deliver_together`
+dependency "binds jobs at the ready gate **and in the delivery queue**" — and the gate is only the first, because
+a parcel can come apart after the gate has spoken. A hold closes the ready state of the garment it is taken on and
+of no other, and so does a recomputation that closes one member's gate on its own, so a parcel promoted together
+comes apart the moment one member is held or fails QC; resuming returns that member to `in_production` rather than
+to `ready`, and its partners stay at `ready` and on the queue. That is what makes the second place load-bearing
+rather than a restatement of the first. Section 3.2's delivery row is therefore enforced where it is written:
+handing over a garment while a live garment of its `deliver_together` parcel is not itself ready is refused with
+`orders.delivery-would-split-parcel`, unless the branch policy in force at the scan permits partial delivery. A
+garment that has left the parcel — cancelled, or already handed over — is not waited for (**SQ-08**, interim),
+which is what lets a wholly ready parcel go to the customer one garment after another. What neither refusal does
+is take the rest of the parcel off the queue when one member is held or has its own gate closed; whether it should
+is **SQ-09**, and it is not settled.
+
+**One parcel, one branch dispatch policy.** Whether partial delivery is permitted is the branch's answer
+(`whole_order`, `per_job` or `exception`, issue #48) and not a property of a garment, so facts that permit it for
+one member of a parcel and refuse it for another **within one evaluation** are refused outright: a parcel bound at
+one end and loose at the other is one the gate would let the loose end leave on its own. The gate holds no memory
+between evaluations and cannot compare one call's facts with another's, so a caller that answers for one branch
+two ways across two separate evaluations can still record one garment of a parcel on its own — what then stops
+that garment reaching the customer is the branch policy read again at the door. And a garment nobody is making
+holds no verdict at all: an evaluation of a parcel reaches none about a cancelled garment and the applying side
+records none, so a recomputation that runs over the parcel applies nothing to it rather than failing (**SQ-08**,
+interim). Asked about a cancelled garment on its own, the one-garment evaluation says so, with
+`orders.job-status-transition-not-allowed`, rather than returning a verdict nothing could accept.
+
+**`DependenciesMet` was amended on 2026-09-11.** It read "`deliver_together` siblings are ready", which made the
+predicate depend on its own output: nothing but this gate can make `ready_state` true (INV-JOB-07), so of two
+bound garments both in production and both passing all six of their own predicates, each blocked on the other,
+neither could go first, and no parcel of two or more could ever be dispatched. INV-JOB-09 — "a `deliver_together`
+dependency binds jobs at the ready gate and in the delivery queue" — is the authority over the predicate's
+wording, and the reading that satisfies it is the one in the table: every garment of the parcel is judged on **its
+own** predicates, all of them in the same evaluation, and the parcel becomes ready together. Nothing else changed.
+There are still six predicates, the reason code is still `DependenciesMet`, and it still names the sibling job
+number; only *when* it is raised has changed.
+
+Three consequences of that reading are **not** settled by INV-JOB-09 and must not be presented as though they
+were. They are recorded as **SQ-07**, **SQ-08** and **SQ-09** in section 10: whether a parcel is the transitive
+closure of the relation, whether a cancelled or delivered garment is still a member of one, and whether closing
+one member's gate closes the ready state of the rest.
 
 ### 9.2 Dispatch gate
 
@@ -457,6 +525,9 @@ pull request that settles each one. None of them may be presented anywhere as se
 | **SQ-04** | Whether cancelling every garment job of an order also cancels the order | Proposed, to be confirmed: it does not. Order cancellation stays an explicit, separately authorised and reasoned command because its financial consequences differ | Plan Section 11 with issue #34 | Business owner | 2026-09-04 |
 | **SQ-05** | Whether `billing.cancel_invoice`, `orders.cancel` and `orders.cancel_job` should carry `RequiresStepUp` | Proposed, to be confirmed: they are not in issue #24's initial flagged set; this document recommends adding invoice cancellation to it | OD-13 permission matrix | Business owner | 2026-09-04 |
 | **SQ-06** | Whether a draft invoice may be discarded, and whether that is a deletion or a status | Proposed, to be confirmed: a draft is abandoned rather than deleted, leaving an audit row; no number has been allocated so nothing is lost | Plan Section 11 with issue #42 | Business owner with the accountant | 2026-09-04 |
+| **SQ-07** | Whether a `deliver_together` parcel is the transitive closure of the relation — is a garment bound to a second, which is bound to a third, one parcel of three? | Proposed, to be confirmed: it is. "These two go together" said twice over three garments is read as one promise about three garments, because stopping at the garments a row names directly would let the first go while the third was still being made. INV-JOB-09 says only that the dependency binds jobs at the ready gate and says nothing about transitivity | Plan Section 11 with issues #34 and #48 | Business owner | 2026-09-11 |
+| **SQ-08** | Whether a cancelled or delivered garment is still a member of the `deliver_together` parcel it was declared into | Proposed, to be confirmed: it is not — it is neither a member nor a step between two other members, whichever garment the gate is recomputed from. Nobody is making a cancelled garment and a delivered one has gone, so binding the parcel to it would leave the finished garments unable to reach the customer at all. The consequence to confirm is that **a garment leaving the parcel releases the rest of it**, by either route: cancelling one garment releases a set the customer was promised together, and so does handing one of them over — which is the same reading that lets a wholly ready parcel go to the customer one garment after another, and that lets the two ends of a chain separate once the garment between them has gone | Plan Section 11 with issues #34 and #48 | Business owner | 2026-09-11 |
+| **SQ-09** | Whether closing one garment's gate on a promoted `deliver_together` parcel should also close the ready state of the rest of it — does the whole parcel come off the delivery queue when one member is held, resumed, cancelled, or recomputed to a verdict of blocked? | Proposed, to be confirmed: it does not. A hold, a resume, a cancellation and a gate recomputation each close the ready state of the garment they are about and of no other, so its partners stay at `ready` and on the queue, and the promise is kept at the door instead: handing one of them over while a live partner is not ready is refused. The consequence to confirm is that the queue shows a garment as ready which cannot in fact be handed over until its partner returns. The alternative — closing the whole parcel's gate on one hold — is a parcel that disappears from the queue on one member's hold and has to be put back by a recomputation nobody triggers, and it would make a hold a writer of another garment's ready state, which is what INV-JOB-07 forbids | Plan Section 11 with issues #34 and #48 | Business owner | 2026-09-11 |
 
 ---
 

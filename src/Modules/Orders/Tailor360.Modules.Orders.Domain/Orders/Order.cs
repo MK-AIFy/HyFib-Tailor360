@@ -203,7 +203,18 @@ public sealed class Order
     public Guid? UpdatedBy { get; private set; }
 
     /// <summary>The garment jobs, in job-index order. Never empty on a confirmed order.</summary>
-    public IReadOnlyCollection<GarmentJob> Jobs => _jobs;
+    /// <remarks>
+    /// <strong>Published as a collection that cannot be written to.</strong> The backing list handed out
+    /// behind an <c>IReadOnlyCollection</c> is one a cast undoes, and this list is not only what a caller
+    /// reads: <see cref="DeliverTogetherSiblingsOf"/> and <see cref="DeliverTogetherParcelOf"/> walk it, and
+    /// they are the single definition of "the parcel" that both halves of INV-JOB-09 are enforced against. A
+    /// <c>Remove</c> through the cast would take a garment out of its parcel without cancelling it or
+    /// delivering it — nothing fabricated, both guards disarmed — so the mutation is refused here, exactly as
+    /// <see cref="ReadyGateOutcome.BoundWith"/> refuses it. A view over the aggregate's own list rather than a
+    /// snapshot of it, because what is guarded against is a caller writing to the order, not a caller reading
+    /// it a moment later.
+    /// </remarks>
+    public IReadOnlyCollection<GarmentJob> Jobs => _jobs.AsReadOnly();
 
     /// <summary>Every priced position this order has held, oldest first.</summary>
     public IReadOnlyCollection<OrderRevision> Revisions => _revisions;
@@ -588,6 +599,15 @@ public sealed class Order
                 return Result.Failure(OrdersErrors.GarmentJobNotFound);
             }
 
+            // Including that the design copy being frozen in answers the same category and service type the
+            // garment was taken under — the check GarmentJobSpecification.Create makes at confirmation, made
+            // here too so the revision path cannot swap in another garment's design.
+            var permitted = job.CheckRevision(revision);
+            if (permitted.IsFailure)
+            {
+                return permitted;
+            }
+
             applications.Add((job, revision));
         }
 
@@ -680,6 +700,12 @@ public sealed class Order
         if (open.IsFailure)
         {
             return open;
+        }
+
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
         }
 
         if (workflowVersionId == Guid.Empty)
@@ -778,6 +804,12 @@ public sealed class Order
             return open;
         }
 
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
+        }
+
         var coded = Coded(reasonCode, out var trimmedReasonCode);
         if (coded.IsFailure)
         {
@@ -833,6 +865,12 @@ public sealed class Order
         if (open.IsFailure)
         {
             return open;
+        }
+
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
         }
 
         var reasoned = Reasoned(reason, out var trimmedReason);
@@ -936,6 +974,19 @@ public sealed class Order
     /// Nothing is lost by refusing. A cancelled order's gate reasons are history, not a screen somebody is
     /// working from, and <see cref="RecomputeStatus"/> already declines to recompute a terminal order.
     /// </para>
+    /// <para>
+    /// <strong>One garment, but never half a parcel.</strong> A garment bound to nothing is the
+    /// overwhelmingly common case and is exactly what this overload is for. A garment that <em>is</em> bound
+    /// <c>deliver_together</c> carries the rest of its parcel on the verdict itself
+    /// (<see cref="ReadyGateOutcome.BoundWith"/>), and a verdict of <em>ready</em> applied here is refused
+    /// with <c>OrdersErrors.ReadyGateWouldSplitParcel</c> unless every live partner already stands at
+    /// <see cref="GarmentJobStatus.Ready"/> — INV-JOB-09 held by the domain rather than by the caller
+    /// remembering to use the set overload. The remedy for that refusal is
+    /// <see cref="ApplyReadyGate(IReadOnlyCollection{ReadyGateOutcome}, ReadyAggregation, DateTimeOffset)"/>
+    /// over the whole evaluation. A verdict that <em>closes</em> this garment's gate needs no partner's
+    /// agreement and is recorded on its own, which is what a QC failure, a custody case or a missing document
+    /// recomputed for one garment is (<see cref="ParcelPresented"/>).
+    /// </para>
     /// </remarks>
     /// <param name="garmentJobId">The job the outcome was evaluated for.</param>
     /// <param name="outcome">The gate's verdict.</param>
@@ -956,6 +1007,12 @@ public sealed class Order
             return open;
         }
 
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
+        }
+
         // A verdict reached for one garment says nothing about another. Applying it across jobs would
         // make a garment ready on evidence that was never about it.
         if (outcome.GarmentJobId != garmentJobId)
@@ -963,16 +1020,120 @@ public sealed class Order
             return Result.Failure(OrdersErrors.ReadyGateOutcomeForAnotherJob);
         }
 
-        var job = FindJob(garmentJobId);
-        if (job is null)
+        // One garment is a set of one, and the set overload is where every rule about applying a verdict
+        // lives — including the one that refuses to record half a bound parcel. Kept as a delegation rather
+        // than a second copy so the two routes cannot drift apart, which is exactly how the single-garment
+        // route came to carry no binding at all.
+        return ApplyReadyGate([outcome], aggregation, now);
+    }
+
+    /// <summary>
+    /// Applies a whole evaluation's verdicts, promoting the garments they are about together or not at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is the applying half of INV-JOB-09.</strong> A <c>deliver_together</c> dependency binds its
+    /// garments at the ready gate, and <see cref="ReadyGate.EvaluateSet"/> is what makes that possible: it judges
+    /// every member of the bound set on its own six predicates in one evaluation, so a set whose members all pass
+    /// gets a verdict of ready for every one of them at once. Applying those verdicts one command at a time would
+    /// hand back the problem the set evaluation solved — a refusal on the second garment would leave the first
+    /// promoted, on the delivery queue, and bound to a garment that is not coming.
+    /// </para>
+    /// <para>
+    /// <strong>Every verdict is checked before any is written.</strong> The guards live on the job as
+    /// <c>GarmentJob.CheckReadyGate</c> and are pure, so this can ask them of the whole set first; only then does
+    /// anything move. The single-garment overload is the same thing over a set of one — it delegates here — and
+    /// neither weakens INV-JOB-07: the only argument either accepts is a <see cref="ReadyGateOutcome"/>, which
+    /// nothing outside this assembly can make.
+    /// </para>
+    /// <para>
+    /// <strong>And a parcel is promoted whole or not at all.</strong> Each verdict names the rest of the bound
+    /// set it was reached inside, so a command that would promote one member while a live partner is left short
+    /// of <c>ready</c> is refused with <c>OrdersErrors.ReadyGateWouldSplitParcel</c> — see
+    /// <see cref="ParcelPresented"/> — whether that partner is missing from the command or carried in it with a
+    /// verdict of blocked. A partner already standing at <c>ready</c>, and a partner that has left the parcel,
+    /// are both satisfied. Demotions are not refused for a partner's sake at all: they take a garment off the
+    /// delivery queue, and no parcel is split by that.
+    /// </para>
+    /// <para>
+    /// The order's own status is recomputed once, at the end, from the garments as they then stand (SQ-02).
+    /// </para>
+    /// </remarks>
+    /// <param name="outcomes">The gate's verdicts, one per garment it was evaluated for.</param>
+    /// <param name="aggregation">Which jobs the branch dispatch policy requires to be ready (SQ-02).</param>
+    /// <param name="now">The instant, from <c>IClock</c>.</param>
+    /// <returns>Success, or the first reason a verdict could not be applied, with nothing written.</returns>
+    public Result ApplyReadyGate(
+        IReadOnlyCollection<ReadyGateOutcome> outcomes,
+        ReadyAggregation aggregation,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(outcomes);
+
+        var open = EnsureNotTerminal();
+        if (open.IsFailure)
         {
-            return Result.Failure(OrdersErrors.GarmentJobNotFound);
+            return open;
         }
 
-        var applied = job.ApplyReadyGate(outcome, now);
-        if (applied.IsFailure)
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
         {
-            return applied;
+            return policy;
+        }
+
+        var applications = new List<(GarmentJob Job, ReadyGateOutcome Outcome)>(outcomes.Count);
+        var addressed = new Dictionary<Guid, ReadyGateOutcome>(outcomes.Count);
+
+        foreach (var outcome in outcomes)
+        {
+            if (outcome is null)
+            {
+                return Result.Failure(OrdersErrors.Required("outcomes"));
+            }
+
+            // Two verdicts about one garment inside a single evaluation cannot both be the gate's answer, and
+            // which of them won would be the order they happened to arrive in.
+            if (!addressed.TryAdd(outcome.GarmentJobId, outcome))
+            {
+                return Result.Failure(OrdersErrors.DuplicateGarmentJob("garmentJobId"));
+            }
+
+            var job = FindJob(outcome.GarmentJobId);
+            if (job is null)
+            {
+                return Result.Failure(OrdersErrors.GarmentJobNotFound);
+            }
+
+            var permitted = job.CheckReadyGate(outcome);
+            if (permitted.IsFailure)
+            {
+                return permitted;
+            }
+
+            applications.Add((job, outcome));
+        }
+
+        var whole = ParcelPresented(applications, addressed);
+        if (whole.IsFailure)
+        {
+            return whole;
+        }
+
+        foreach (var (job, outcome) in applications)
+        {
+            // Cannot fail: the same guards were asked of every one of them above, and nothing between then and
+            // now can have moved a garment of this order.
+            var applied = job.ApplyReadyGate(outcome, now);
+            if (applied.IsFailure)
+            {
+                return applied;
+            }
+        }
+
+        if (applications.Count == 0)
+        {
+            return Result.Success();
         }
 
         // The gate runs as the system, so there is no actor to attribute the change to.
@@ -985,19 +1146,43 @@ public sealed class Order
     /// Records the doorstep handover of one garment job.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Irreversible (state-transitions.md section 7). Custody owns the preconditions — a valid unexpired
     /// dispatch authorisation, an unchanged custodian, the recipient confirmation — and has checked them
     /// before this is called; what Orders owns is that the job was ready and that the order's status
     /// follows. A failed or returned delivery is a compensating custody transfer, never an undo of this.
+    /// </para>
+    /// <para>
+    /// <strong>And that the parcel is not split at the door.</strong> INV-JOB-09 says a
+    /// <c>deliver_together</c> dependency binds its garments "at the ready gate <em>and in the delivery
+    /// queue</em>", and section 3.2's delivery row says the same. Only the first half was ever built: the gate
+    /// promoted a parcel together, and then a hold on one member — which closes that member's ready state and
+    /// nobody else's — left its partner standing at ready, on the queue, and handed over on its own. That is a
+    /// garment at the customer's door while the garment it was promised to travel with is still being made,
+    /// which is the sentence the binding exists to prevent, so it is refused here with
+    /// <c>OrdersErrors.DeliveryWouldSplitParcel</c> — see <see cref="ParcelTravelsTogether"/>.
+    /// </para>
+    /// <para>
+    /// It belongs on the order rather than on the garment because the promise is about garments, plural: a
+    /// <see cref="GarmentJob"/> cannot see its siblings, and Custody's preconditions are about this one
+    /// garment's chain of custody and are a different question, already answered by the time this is called.
+    /// </para>
     /// </remarks>
     /// <param name="garmentJobId">The job handed over.</param>
     /// <param name="aggregation">Which jobs the branch dispatch policy requires to be ready (SQ-02).</param>
+    /// <param name="partialDeliveryPermitted">
+    /// The branch policy permits a <c>deliver_together</c> sibling to go on its own (issue #48), read at the
+    /// scan as the ready gate reads it. A parameter and not stored state for the reason
+    /// <see cref="ReadyAggregation"/> is one: it is branch configuration in force now, not when the order was
+    /// taken.
+    /// </param>
     /// <param name="now">The instant, from <c>IClock</c>.</param>
     /// <param name="by">The actor.</param>
     /// <returns>Success, or the reason the transition was refused.</returns>
     public Result ConfirmDelivery(
         Guid garmentJobId,
         ReadyAggregation aggregation,
+        bool partialDeliveryPermitted,
         DateTimeOffset now,
         Guid? by = null)
     {
@@ -1007,10 +1192,30 @@ public sealed class Order
             return open;
         }
 
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
+        }
+
         var job = FindJob(garmentJobId);
         if (job is null)
         {
             return Result.Failure(OrdersErrors.GarmentJobNotFound);
+        }
+
+        // This garment's own answer first, and asked without writing anything: a garment that is on hold is
+        // refused because it is on hold, not because of the company it keeps.
+        var deliverable = job.CheckDelivery();
+        if (deliverable.IsFailure)
+        {
+            return deliverable;
+        }
+
+        var whole = ParcelTravelsTogether(job, partialDeliveryPermitted);
+        if (whole.IsFailure)
+        {
+            return whole;
         }
 
         var delivered = job.ConfirmDelivery(now, by);
@@ -1065,6 +1270,12 @@ public sealed class Order
         if (open.IsFailure)
         {
             return open;
+        }
+
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
         }
 
         var coded = Coded(reasonCode, out var trimmedReasonCode);
@@ -1242,6 +1453,67 @@ public sealed class Order
     }
 
     /// <summary>
+    /// The whole <c>deliver_together</c> parcel one garment is bound into, itself excluded: the connected
+    /// component of the relation over the garments the order still owes, in job-number order.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>One definition of "the parcel", read by both halves of INV-JOB-09.</strong>
+    /// <c>ReadyGate.EvaluateSet</c> reads it to decide which garments are judged in one evaluation, and
+    /// <see cref="ConfirmDelivery"/> reads it to refuse a handover that would strand a partner. Written once
+    /// here rather than twice, because SQ-07 and SQ-08 are both unsettled and a parcel that meant one thing at
+    /// the gate and another at the door would be two interim positions pretending to be one.
+    /// </para>
+    /// <para>
+    /// <strong>Closed under the relation</strong> — a garment bound to a second which is bound to a third is
+    /// one parcel of three (<strong>SQ-07</strong>, interim), because stopping at the garments a row names
+    /// directly would let the first go while the third was still being made.
+    /// </para>
+    /// <para>
+    /// <strong>And only over the garments the order still owes.</strong> A garment that is no longer
+    /// deliverable — cancelled, or already handed over — is neither a member nor a step between two members
+    /// (<strong>SQ-08</strong>, interim). That holds of the named garment too: one that has left has no parcel
+    /// of its own, so this is empty for it rather than naming garments still in the shop.
+    /// </para>
+    /// </remarks>
+    /// <param name="garmentJobId">The garment whose parcel is wanted.</param>
+    /// <returns>
+    /// The garments bound to it, empty when it is bound to none, is not on this order, or is no longer
+    /// deliverable.
+    /// </returns>
+    public IReadOnlyList<GarmentJob> DeliverTogetherParcelOf(Guid garmentJobId)
+    {
+        var job = FindJob(garmentJobId);
+
+        if (job is null || !job.IsDeliverable)
+        {
+            return [];
+        }
+
+        var parcel = new List<GarmentJob>();
+        var seen = new HashSet<Guid> { job.Id };
+        var frontier = new Queue<GarmentJob>();
+        frontier.Enqueue(job);
+
+        while (frontier.Count > 0)
+        {
+            foreach (var sibling in DeliverTogetherSiblingsOf(frontier.Dequeue().Id))
+            {
+                if (sibling.IsDeliverable && seen.Add(sibling.Id))
+                {
+                    parcel.Add(sibling);
+                    frontier.Enqueue(sibling);
+                }
+            }
+        }
+
+        parcel.Sort(static (left, right)
+            => string.CompareOrdinal(left.JobNumber.Value, right.JobNumber.Value));
+
+        return parcel;
+    }
+
+    /// <summary>
     /// Recomputes the derived status from the garment jobs.
     /// </summary>
     /// <remarks>
@@ -1269,12 +1541,24 @@ public sealed class Order
     /// </remarks>
     /// <param name="aggregation">Which jobs the branch dispatch policy requires to be ready (SQ-02).</param>
     /// <param name="now">The instant, from <c>IClock</c>.</param>
-    /// <returns>Success. The recomputation has no refusal of its own.</returns>
+    /// <returns>
+    /// Success, or <c>OrdersErrors.NotUnderstood</c> for a dispatch policy this module does not name — which a
+    /// terminal order never reports, because there is nothing for the policy to decide about one.
+    /// </returns>
     public Result RecomputeStatus(ReadyAggregation aggregation, DateTimeOffset now)
     {
+        // Asked after the terminal short-circuit and not before it, which is the order every command above
+        // uses: the status a terminal order is in is the answer whatever the policy says, and refusing it for
+        // a value nothing was going to read would be this one type giving two answers to one question.
         if (Status is OrderStatus.Cancelled or OrderStatus.Closed)
         {
             return Result.Success();
+        }
+
+        var policy = Understood(aggregation);
+        if (policy.IsFailure)
+        {
+            return policy;
         }
 
         // Recorded the first time it becomes true rather than only on the in-production branch: a job
@@ -1435,6 +1719,183 @@ public sealed class Order
         settled.Add(garmentJobId);
 
         return false;
+    }
+
+    /// <summary>
+    /// Refuses a branch dispatch policy that is none of the ones this module names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// SQ-02's answer arrives as an argument rather than as stored state, so it crosses a public command
+    /// boundary seven times and <see cref="RecomputeStatus"/> an eighth — and an enumeration in C# accepts
+    /// any number a cast can produce, which is what a deserialiser does with a value it did not recognise.
+    /// </para>
+    /// <para>
+    /// An unnamed value is not a weaker answer but an uninterpretable one.
+    /// <see cref="IsReadySetSatisfied"/> tests for one named member and reads everything else as the other,
+    /// so a branch whose dispatch policy nobody recognised would silently get the conservative rule and
+    /// never be told which rule it got. Asked before anything is written, so the refusal is a refusal and
+    /// not a half-applied command.
+    /// </para>
+    /// </remarks>
+    /// <param name="aggregation">The value the caller supplied.</param>
+    /// <returns>Success, or <c>OrdersErrors.NotUnderstood</c>.</returns>
+    private static Result Understood(ReadyAggregation aggregation)
+        => Enum.IsDefined(aggregation)
+            ? Result.Success()
+            : Result.Failure(OrdersErrors.NotUnderstood("aggregation"));
+
+    /// <summary>
+    /// Whether these verdicts would leave a garment on the delivery queue without the parcel it travels with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is INV-JOB-09 on the applying side, and it is a domain guarantee rather than a caller
+    /// convention.</strong> <c>ReadyGate.EvaluateSet</c> reaches an independent verdict for every member of
+    /// a bound parcel, and each verdict records the rest of that parcel in
+    /// <see cref="ReadyGateOutcome.BoundWith"/>. Without this, one member's verdict could be applied on its
+    /// own — leaving a garment promoted, on the delivery queue and dispatchable, while the garment it was
+    /// promised to travel with stood in production. That split is what the binding exists to prevent, and
+    /// before the parcel was evaluated as a set it was unreachable only because the old predicate deadlocked
+    /// the parcel instead.
+    /// </para>
+    /// <para>
+    /// <strong>And it refuses in one direction only.</strong> What splits a parcel is a garment left standing
+    /// at <c>ready</c> with a live partner that is not, so that is what is refused. Closing a member's gate
+    /// only ever takes a garment <em>off</em> the delivery queue and can leave no half parcel standing on it,
+    /// so it is never refused for the company the garment keeps. Refusing it did real harm: a QC failure
+    /// recomputed for the garment that failed — which is what <c>docs/prd/state-transitions.md</c> section 9.1
+    /// says a QC event causes — was refused while its partner stood at ready, so the garment that failed QC
+    /// stayed at <c>ready</c> and stayed dispatchable. The guard written to stop half a parcel leaving was
+    /// what kept a failed garment on the queue.
+    /// </para>
+    /// <para>
+    /// <strong>Being in the command is not being answered for.</strong> The question is where each partner
+    /// will stand once this command has been written, and there are two ways to know: a partner the command
+    /// carries a verdict for will stand where <em>that</em> verdict puts it, and a partner it does not will
+    /// stand where it already does. Read that way, a partner already at ready satisfies a verdict of ready
+    /// without being re-applied — nothing is left behind, because it is already there — and one command still
+    /// cannot promote a garment while holding its partner back, because the promotion is the half this
+    /// refusal reads. A partner that is no longer deliverable is not in the parcel at all (SQ-08, interim),
+    /// so it is neither waited for nor answered for, which is the same reading the gate itself takes when it
+    /// builds the set.
+    /// </para>
+    /// <para>
+    /// <strong>What it does not do is close the partners' gates as well.</strong> A verdict recorded here
+    /// takes the one garment off the queue and leaves its partners standing at <c>ready</c>, exactly as
+    /// <c>GarmentJob.Hold</c> does. Whether the rest of a promoted parcel should come off with it is
+    /// <strong>SQ-09</strong>, which is not settled and is not this guard's to settle; the promise is kept at
+    /// the door instead (<see cref="ParcelTravelsTogether"/>).
+    /// </para>
+    /// </remarks>
+    /// <param name="applications">The verdicts about to be written, with the jobs they are about.</param>
+    /// <param name="addressed">Every garment this command carries a verdict for, by the verdict it carries.</param>
+    /// <returns>Success, or <c>OrdersErrors.ReadyGateWouldSplitParcel</c> naming the garment left behind.</returns>
+    private Result ParcelPresented(
+        List<(GarmentJob Job, ReadyGateOutcome Outcome)> applications,
+        Dictionary<Guid, ReadyGateOutcome> addressed)
+    {
+        foreach (var (_, outcome) in applications)
+        {
+            foreach (var boundWith in outcome.BoundWith)
+            {
+                var partner = FindJob(boundWith);
+                if (partner is null)
+                {
+                    return Result.Failure(OrdersErrors.GarmentJobNotFound);
+                }
+
+                // A garment that is no longer deliverable has left the parcel (SQ-08, interim): there is
+                // nothing to leave behind and nothing to disagree with.
+                if (!partner.IsDeliverable)
+                {
+                    continue;
+                }
+
+                // Where the partner stands once this command has been written — its own verdict when the
+                // command carries one, and where it already stands when it does not.
+                var partnerWillBeReady = addressed.TryGetValue(boundWith, out var theirs)
+                    ? theirs.IsReady
+                    : partner.IsReadyForDelivery;
+
+                // One direction. A verdict that would leave this garment on the delivery queue while a live
+                // partner is not there with it is the split; a verdict that takes this garment off the queue
+                // splits nothing, whatever its partners are doing.
+                if (outcome.IsReady && !partnerWillBeReady)
+                {
+                    return Result.Failure(OrdersErrors.ReadyGateWouldSplitParcel(partner.JobNumber.Value));
+                }
+            }
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether this garment can be handed over without stranding a garment it was promised to travel with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>This is INV-JOB-09's second half — the delivery queue — and it is the only place it is
+    /// kept.</strong> <see cref="ParcelPresented"/> holds the parcel together while the gate writes ready
+    /// state, but ready state does not stay where the gate left it: <c>GarmentJob.Hold</c>,
+    /// <c>GarmentJob.Resume</c> and <c>GarmentJob.Cancel</c> each close one garment's gate and no other's, so a
+    /// parcel promoted together could be taken apart by a hold on one member and the survivor handed over
+    /// alone. The gate cannot prevent that — the split happens after it has spoken — so the promise is kept
+    /// again at the door, against the garments as they then stand.
+    /// </para>
+    /// <para>
+    /// <strong>What is asked is that every live partner is itself ready</strong>, not that it goes out in the
+    /// same command. A handover is one garment at a time by construction — Custody authorises one chain of
+    /// custody — and two garments that are both ready are handed over one after the other, the first leaving
+    /// the parcel as it goes (SQ-08, interim). A partner that has left the parcel, cancelled or already
+    /// delivered, is not waited for at all.
+    /// </para>
+    /// <para>
+    /// <strong>The branch's waiver still waives it.</strong> Where the branch policy permits partial delivery
+    /// the garments were never bound (issue #48): the gate waives <c>DependenciesMet</c> and records no parcel
+    /// on the verdict, and this refusal has to agree with it or the waiver would hold at the gate and fail at
+    /// the door. The policy is read at the scan, as it is read at the gate, which is also why a parcel bound in
+    /// one evaluation and waived in another — facts the gate cannot compare across two calls — still cannot be
+    /// split at the door while the branch's answer today is that garments travel together.
+    /// </para>
+    /// <para>
+    /// <see cref="ReadyAggregation"/> is deliberately not consulted. <c>AnyDeliverableJob</c> loosens which
+    /// garments the <em>order's status</em> waits for; it says nothing about what one customer was promised
+    /// together, and reading it as the waiver would let a branch that hands garments over as they finish break
+    /// a <c>deliver_together</c> promise it never waived.
+    /// </para>
+    /// <para>
+    /// <strong>What this does not do is take the partner off the queue.</strong> A garment whose partner is
+    /// held stays at <c>ready</c> with its own gate open, and is refused only when somebody tries to hand it
+    /// over. Whether a hold on one member should instead close the whole parcel's ready state is a question
+    /// about what the customer was promised rather than an engineering one, and it is recorded as
+    /// <strong>SQ-09</strong> in state-transitions.md section 10, unsettled.
+    /// </para>
+    /// </remarks>
+    /// <param name="job">The garment being handed over, already known to be ready itself.</param>
+    /// <param name="partialDeliveryPermitted">The branch policy permits a sibling to go on its own.</param>
+    /// <returns>
+    /// Success, or <c>OrdersErrors.DeliveryWouldSplitParcel</c> naming the garment that would be stranded.
+    /// </returns>
+    private Result ParcelTravelsTogether(GarmentJob job, bool partialDeliveryPermitted)
+    {
+        if (partialDeliveryPermitted)
+        {
+            return Result.Success();
+        }
+
+        foreach (var partner in DeliverTogetherParcelOf(job.Id))
+        {
+            // The materialised verdict and not the status, which is the same question ParcelPresented asks of a
+            // partner it is not writing: job_ready_state is what the delivery queue is built from (section 4.1).
+            if (!partner.IsReadyForDelivery)
+            {
+                return Result.Failure(OrdersErrors.DeliveryWouldSplitParcel(partner.JobNumber.Value));
+            }
+        }
+
+        return Result.Success();
     }
 
     private static bool IsReadySetSatisfied(List<GarmentJob> live, ReadyAggregation aggregation)

@@ -286,7 +286,7 @@ two-digit job index.
 | INV-JOB-06 | A failed QC opens rework; the job returns to production without losing history and the ready gate stays closed while any rework is open. | Ready gate predicate |
 | INV-JOB-07 | `ready_state` is written by the **ready-for-delivery gate alone**, never by a screen, a scan handler or an operator. The gate combines workflow complete, QC passed with no open rework, documentation complete, no open hold, dependencies met and custody reconciled, and each predicate returns a reason code. | Single writer; architecture test on the write path |
 | INV-JOB-08 | A design revision is refused once the workflow marks the design frozen; before that it records reason, price delta and due-date delta, shown before approval. | Command precondition |
-| INV-JOB-09 | A `finish_before` dependency blocks the dependent job's first phase; a `deliver_together` dependency binds jobs at the ready gate and in the delivery queue. | Gate predicate, delivery queue query |
+| INV-JOB-09 | A `finish_before` dependency blocks the dependent job's first phase; a `deliver_together` dependency binds jobs at the ready gate and in the delivery queue. | Gate predicate; the parcel asked for again at handover, because a hold closes one member's gate and not its partners' (state-transitions.md **SQ-09**); delivery queue query |
 | INV-JOB-10 | A confirmed job has exactly one **active** barcode identity at all times. | Partial unique index in Custody (INV-BID-02) |
 
 **Transactional boundary.** The job with its phases, assignments, QC results, rework tasks and holds. `ready_state` is

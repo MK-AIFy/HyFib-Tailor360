@@ -281,7 +281,8 @@ public sealed class GarmentJob
     public Guid? UpdatedBy { get; private set; }
 
     /// <summary>
-    /// The gate's materialised outcome. Written by <see cref="ApplyReadyGate"/> and by nothing else
+    /// The gate's materialised outcome. Made <see langword="true" /> by <see cref="ApplyReadyGate"/> and by
+    /// nothing else; <see cref="Hold"/>, <see cref="Resume"/> and <see cref="Cancel"/> only ever close it
     /// (INV-JOB-07).
     /// </summary>
     public bool IsReadyForDelivery { get; private set; }
@@ -302,7 +303,18 @@ public sealed class GarmentJob
     public IReadOnlyList<Guid> ReferenceMediaIds => _referenceMediaIds;
 
     /// <summary>What this job waits for, or is delivered with (INV-JOB-09).</summary>
-    public IReadOnlyCollection<JobDependency> Dependencies => _dependencies;
+    /// <remarks>
+    /// <para>
+    /// A view rather than the backing list, for the same reason <c>Order.Jobs</c> is one: these rows are what
+    /// <c>Order.DeliverTogetherParcelOf</c> walks to work out a parcel, so both the ready gate's split guard and
+    /// the handover's <c>ParcelTravelsTogether</c> rest on them. Published as the list itself, a cast and a
+    /// <c>Clear</c> from outside this assembly would dissolve a <c>deliver_together</c> binding and let a garment
+    /// be handed over while the garment it was promised to travel with is still being made — which is the whole
+    /// of what INV-JOB-09 exists to prevent. What is guarded against is a caller writing to the job, not reading
+    /// it a moment later, so a view is enough and a copy per call is not needed.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyCollection<JobDependency> Dependencies => _dependencies.AsReadOnly();
 
     /// <summary>
     /// True once the job has left <see cref="GarmentJobStatus.Confirmed"/>, whatever it has done since.
@@ -340,6 +352,17 @@ public sealed class GarmentJob
     /// </summary>
     public bool IsDeliverable => Status is not (
         GarmentJobStatus.Cancelled or GarmentJobStatus.Delivered or GarmentJobStatus.Closed);
+
+    /// <summary>
+    /// True once the garment has physically left the shop, whether or not SQ-01 has since closed the job.
+    /// </summary>
+    /// <remarks>
+    /// What <see cref="ApplyReadyGate"/> reads to leave a delivered job exactly as it stands: the handover is
+    /// irreversible (state-transitions.md section 7), so a recomputation can neither pull the garment back nor
+    /// rewrite the ready state it was dispatched under.
+    /// </remarks>
+    internal bool HasGoneToTheCustomer
+        => Status is GarmentJobStatus.Delivered or GarmentJobStatus.Closed;
 
     /// <summary>The prerequisites of one kind, as identifiers.</summary>
     /// <param name="kind">Which relationship to read.</param>
@@ -395,6 +418,46 @@ public sealed class GarmentJob
     /// <returns>Success, or the reason the revision was refused.</returns>
     internal Result Revise(GarmentJobRevision revision, DateTimeOffset now, Guid? by)
     {
+        var permitted = CheckRevision(revision);
+        if (permitted.IsFailure)
+        {
+            return permitted;
+        }
+
+        Measurements = revision.Measurements;
+        Design = revision.Design;
+        Price = revision.Price;
+        DueDate = revision.DueDate;
+        Touch(now, by);
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether this revision may replace the job's snapshots, asked without changing anything.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="Revise"/> so <c>Order.Revise</c> can resolve and check every garment before it
+    /// applies any of them: a revision refused halfway through would leave the order half re-priced, and INV-ORD-01
+    /// wants the whole set to move or none of it.
+    /// </para>
+    /// <para>
+    /// <strong>The category and service type are checked here as well as at confirmation.</strong>
+    /// <see cref="GarmentJobSpecification.Create"/> refuses a garment whose row and frozen design copy disagree
+    /// about what the garment is, and a revision replaces that design copy while
+    /// <see cref="CategoryKey"/> and <see cref="ServiceTypeKey"/> — the row a workboard filters and a report groups
+    /// by — are immutable after confirmation. Without the same check the revision path could swap in another
+    /// garment's design, and the disagreement it created would be the permanent one INV-JOB-01 makes permanent:
+    /// the workboard classifying the row as one garment while the job card renders another, with no command able
+    /// to correct either side. INV-ORD-03 draws the same line — a revision names a job that exists, it never
+    /// re-points what that job <em>is</em>.
+    /// </para>
+    /// </remarks>
+    /// <param name="revision">The re-validated and re-priced position.</param>
+    /// <returns>Success, or the reason the revision would be refused.</returns>
+    internal Result CheckRevision(GarmentJobRevision revision)
+    {
         ArgumentNullException.ThrowIfNull(revision);
 
         // A revision addressed to a different job would silently re-snapshot the wrong garment; the order locates
@@ -409,11 +472,15 @@ public sealed class GarmentJob
             return Result.Failure(OrdersErrors.RevisionRefusedAfterProduction);
         }
 
-        Measurements = revision.Measurements;
-        Design = revision.Design;
-        Price = revision.Price;
-        DueDate = revision.DueDate;
-        Touch(now, by);
+        if (!string.Equals(CategoryKey, revision.Design.CategoryKey, StringComparison.Ordinal))
+        {
+            return Result.Failure(OrdersErrors.DesignSnapshotNotForThisGarment("categoryKey"));
+        }
+
+        if (!string.Equals(ServiceTypeKey, revision.Design.ServiceTypeKey, StringComparison.Ordinal))
+        {
+            return Result.Failure(OrdersErrors.DesignSnapshotNotForThisGarment("serviceTypeKey"));
+        }
 
         return Result.Success();
     }
@@ -516,8 +583,14 @@ public sealed class GarmentJob
         HeldBy = by;
 
         // The reason code and never the sentence: a block travels to a queue screen, and section 9.1's
-        // blocking reason for this predicate is "the hold reason and its age".
-        RecordReadyState(false, [new ReadyGateBlock(ReadyGatePredicate.NoOpenHold, code.Value)], now);
+        // blocking reason for this predicate is the hold reason code. The sentence is on the row for whoever
+        // opens the garment, and it is free text somebody typed about a customer's garment (security rule 7).
+        //
+        // What this does NOT do is close the gate on the garments this one was promised to travel with: their
+        // ready state stands and they stay on the queue, and INV-JOB-09 is kept at the door instead, where
+        // Order.ConfirmDelivery refuses to hand one of them over while this one is held. Whether the whole
+        // parcel should come off the queue the moment one member is held is SQ-09, and it is not settled.
+        RecordReadyState(false, [ReadyGateBlock.Of(ReadyGatePredicate.NoOpenHold, code.Value)], now);
         Touch(now, by);
 
         return Result.Success();
@@ -612,8 +685,8 @@ public sealed class GarmentJob
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The only thing that can make <see cref="IsReadyForDelivery"/> true, and — with <see cref="Hold"/> and
-    /// <see cref="Resume"/>, which only ever close it — one of the three writers of
+    /// The only thing that can make <see cref="IsReadyForDelivery"/> true, and — with <see cref="Hold"/>,
+    /// <see cref="Resume"/> and <see cref="Cancel"/>, which only ever close it — one of the four writers of
     /// <see cref="ReadyStateComputedAt"/> and <see cref="ReadyStateBlocks"/> (INV-JOB-07). It moves
     /// <see cref="GarmentJobStatus.InProduction"/> to <see cref="GarmentJobStatus.Ready"/> when the verdict is
     /// ready, and <see cref="GarmentJobStatus.Ready"/> back to <see cref="GarmentJobStatus.InProduction"/> when it
@@ -634,39 +707,26 @@ public sealed class GarmentJob
     /// it was dispatched under would destroy the evidence of why it was dispatched. A cancelled job is refused
     /// outright, because a verdict about a garment nobody is making says nothing at all.
     /// </para>
+    /// <para>
+    /// <strong>And a verdict older than the standing one is refused too</strong>, which is the same rule said
+    /// about time rather than about status. Every guard is in <see cref="CheckReadyGate"/>, so the order can ask
+    /// them of a whole bound set before it promotes any of it.
+    /// </para>
     /// </remarks>
     /// <param name="outcome">The verdict, which only <see cref="ReadyGate"/> can have produced.</param>
     /// <param name="now">The instant, from <c>IClock</c>.</param>
     /// <returns>Success, or the reason it was refused.</returns>
     internal Result ApplyReadyGate(ReadyGateOutcome outcome, DateTimeOffset now)
     {
-        ArgumentNullException.ThrowIfNull(outcome);
-
-        if (outcome.GarmentJobId != Id)
+        var permitted = CheckReadyGate(outcome);
+        if (permitted.IsFailure)
         {
-            return Result.Failure(OrdersErrors.ReadyGateOutcomeForAnotherJob);
+            return permitted;
         }
 
-        if (Status is GarmentJobStatus.Cancelled)
-        {
-            return Result.Failure(OrdersErrors.JobStatusTransitionNotAllowed(
-                Status,
-                outcome.IsReady ? GarmentJobStatus.Ready : GarmentJobStatus.InProduction));
-        }
-
-        // Not a refusal: the gate is recomputed on every custody event, and a garment handed over yesterday will
-        // still be recomputed today. Succeeding without a change is what stops that routine recomputation from
-        // rewriting a delivered job's history.
-        if (Status is GarmentJobStatus.Delivered or GarmentJobStatus.Closed)
+        if (HasGoneToTheCustomer)
         {
             return Result.Success();
-        }
-
-        // The gate reads the job's pinned version and its hold when it evaluates, so a ready verdict reaching a
-        // job that is neither in production nor already ready was reached about a job that has moved since.
-        if (outcome.IsReady && Status is not (GarmentJobStatus.InProduction or GarmentJobStatus.Ready))
-        {
-            return Result.Failure(OrdersErrors.ReadyGateOutcomeStale);
         }
 
         RecordReadyState(outcome.IsReady, outcome.Blocks, outcome.EvaluatedAt);
@@ -688,21 +748,103 @@ public sealed class GarmentJob
     }
 
     /// <summary>
+    /// Whether the gate's verdict may be applied to this job, asked without changing anything.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Separate from <see cref="ApplyReadyGate"/> so <c>Order.ApplyReadyGate</c> can check a whole
+    /// <c>deliver_together</c> set before it promotes any of it: a set that is bound at the gate (INV-JOB-09) must
+    /// move together or not at all, and a refusal halfway through would leave half a parcel on the delivery queue.
+    /// Success here on a delivered or closed job means "nothing to do", not "apply it".
+    /// </para>
+    /// <para>
+    /// <strong>An older verdict never overwrites a newer one.</strong> The facts reach the gate from four other
+    /// modules and two evaluations can finish out of order, so the instant a verdict was reached is compared with
+    /// the instant the standing one was: without it, a newer failed-QC verdict could demote the garment and an
+    /// older passing verdict promote it straight back, leaving it dispatchable on facts that are no longer true —
+    /// and the reverse order would clear a valid ready state. Ready state must never outlive the facts it was
+    /// computed from (CI-03), and a verdict older than the one on the row is exactly that. Equal instants are not
+    /// older: a hold and a recomputation inside one transaction share a clock reading, and the recomputation is
+    /// section 3.2's own output of that transition.
+    /// </para>
+    /// </remarks>
+    /// <param name="outcome">The verdict, which only <see cref="ReadyGate"/> can have produced.</param>
+    /// <returns>Success, or the reason it would be refused.</returns>
+    internal Result CheckReadyGate(ReadyGateOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+
+        if (outcome.GarmentJobId != Id)
+        {
+            return Result.Failure(OrdersErrors.ReadyGateOutcomeForAnotherJob);
+        }
+
+        if (Status is GarmentJobStatus.Cancelled)
+        {
+            return Result.Failure(OrdersErrors.JobStatusTransitionNotAllowed(
+                Status,
+                outcome.IsReady ? GarmentJobStatus.Ready : GarmentJobStatus.InProduction));
+        }
+
+        // Not a refusal: the gate is recomputed on every custody event, and a garment handed over yesterday will
+        // still be recomputed today. Succeeding without a change is what stops that routine recomputation from
+        // rewriting a delivered job's history — asked before the staleness questions, because neither of them has
+        // anything to decide about a garment that has left.
+        if (HasGoneToTheCustomer)
+        {
+            return Result.Success();
+        }
+
+        if (ReadyStateComputedAt is { } standing && outcome.EvaluatedAt < standing)
+        {
+            return Result.Failure(OrdersErrors.ReadyGateOutcomeStale);
+        }
+
+        // The gate reads the job's pinned version and its hold when it evaluates, so a ready verdict reaching a
+        // job that is neither in production nor already ready was reached about a job that has moved since.
+        if (outcome.IsReady && Status is not (GarmentJobStatus.InProduction or GarmentJobStatus.Ready))
+        {
+            return Result.Failure(OrdersErrors.ReadyGateOutcomeStale);
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether this garment is itself one that can be handed over, asked without changing anything.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="ConfirmDelivery"/> for the reason <see cref="CheckReadyGate"/> is separate from
+    /// <see cref="ApplyReadyGate"/>: <c>Order.ConfirmDelivery</c> has a second question to ask — whether the
+    /// <c>deliver_together</c> parcel this garment was promised inside would be split by the handover
+    /// (INV-JOB-09) — and the two refusals have to come out in the right order. A garment that is on hold is
+    /// refused because it is on hold, not because of the company it keeps.
+    /// </remarks>
+    /// <returns>Success, or the reason the handover would be refused.</returns>
+    internal Result CheckDelivery()
+        => Status is GarmentJobStatus.Ready
+            ? Result.Success()
+            : Result.Failure(OrdersErrors.JobStatusTransitionNotAllowed(Status, GarmentJobStatus.Delivered));
+
+    /// <summary>
     /// Records the doorstep handover.
     /// </summary>
     /// <remarks>
     /// Permitted from <see cref="GarmentJobStatus.Ready"/> only, and irreversible (section 7). Custody owns every
     /// precondition — a valid unexpired dispatch authorisation, an unchanged chain since dispatch, the recipient's
-    /// OTP or signature — and this call records the result of them, never re-derives them.
+    /// OTP or signature — and this call records the result of them, never re-derives them. What this garment
+    /// cannot see is the rest of its parcel, so INV-JOB-09's delivery-queue half is the order's
+    /// (<c>Order.ConfirmDelivery</c>), asked before this is reached.
     /// </remarks>
     /// <param name="now">The instant, from <c>IClock</c>.</param>
     /// <param name="by">The actor.</param>
     /// <returns>Success, or the reason it was refused.</returns>
     internal Result ConfirmDelivery(DateTimeOffset now, Guid? by)
     {
-        if (Status is not GarmentJobStatus.Ready)
+        var permitted = CheckDelivery();
+        if (permitted.IsFailure)
         {
-            return Result.Failure(OrdersErrors.JobStatusTransitionNotAllowed(Status, GarmentJobStatus.Delivered));
+            return permitted;
         }
 
         Status = GarmentJobStatus.Delivered;

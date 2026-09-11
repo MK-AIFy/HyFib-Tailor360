@@ -90,9 +90,10 @@ totals.
 | Dupatta | `LEHENGA.STITCHING` | Finisher, or the Aari specialist for a border | None | It is frequently added, dropped or sent for a border after the rest is under way |
 
 All three jobs carry `deliver_together`, so the ready gate does not open for any of them until every one of them
-is ready. Whether the dupatta is a garment job in its own right or a declared piece of the skirt job is open
-decision `OD-WF-11`; whether the choli is ordered under `LEHENGA` or under a blouse sub-category when it carries
-Aari work is `OD-WF-12`.
+has met its own predicates — the parcel is evaluated in one pass and becomes ready together
+([`../state-transitions.md`](../state-transitions.md) section 9.1). Whether the dupatta is a garment job in its
+own right or a declared piece of the skirt job is open decision `OD-WF-11`; whether the choli is ordered under
+`LEHENGA` or under a blouse sub-category when it carries Aari work is `OD-WF-12`.
 
 ```mermaid
 flowchart TD
@@ -190,9 +191,9 @@ the three jobs.
 ```mermaid
 flowchart TD
   A[QC recorded per garment job] -->|Tailor Master| B{Result per job}
-  B -->|Choli and dupatta pass| C[Those jobs are individually ready]
+  B -->|Choli and dupatta pass| C[Those jobs meet their own predicates]
   B -->|Skirt fails| D[Failed QC result recorded with defect codes and evidence<br/>rework opened against the skirt job]
-  C -->|Deliver together gate| E[Set held out of the delivery queue<br/>reason code names the skirt job]
+  C -->|Deliver together gate| E[No garment of the set is made ready<br/>each blocks on DependenciesMet naming the skirt job]
   D -->|Tailor| F[Rework performed on the skirt, custody scanned as usual]
   F -->|Tailor Master| G[Re QC recorded as a new result]
   G --> B

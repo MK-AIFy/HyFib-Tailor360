@@ -225,6 +225,87 @@ public sealed class OrderStatusAggregationTests
         order.Status.ShouldBe(OrderStatus.InProduction);
     }
 
+    /// <summary>
+    /// SQ-02's open half arrives as an argument on every command that can move the order's status, so it
+    /// crosses a public boundary eight times and a deserialiser can put any number a cast produces behind
+    /// it. An unnamed value is not a weaker answer but an uninterpretable one, and reading it as the
+    /// conservative rule would give a branch whose dispatch policy nobody recognised a rule it was never
+    /// told about.
+    /// </summary>
+    [Fact]
+    public void ADispatchPolicyThatIsNeitherOfTheTwoIsRefusedRatherThanReadAsTheConservativeOne()
+    {
+        var order = OrdersTestData.ConfirmedOrder(garments: 2);
+
+        var refused = order.RecomputeStatus((ReadyAggregation)99, Later);
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("orders.value-not-understood");
+        refused.Error.Target.ShouldBe("aggregation");
+        order.Status.ShouldBe(OrderStatus.Confirmed);
+    }
+
+    /// <summary>
+    /// Asked at the top of the command rather than at the recomputation it ends with, so an unrecognised
+    /// policy is a refusal and not a garment moved with the order's status left unanswered.
+    /// </summary>
+    [Fact]
+    public void ACommandCarryingADispatchPolicyNobodyNamesChangesNothing()
+    {
+        var order = OrdersTestData.ConfirmedOrder(garments: 2);
+
+        var refused = order.StartProduction(
+            OrdersTestData.GarmentId(1),
+            OrdersTestData.WorkflowVersion,
+            [],
+            (ReadyAggregation)99,
+            Later,
+            OrdersTestData.Actor);
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("orders.value-not-understood");
+        refused.Error.Target.ShouldBe("aggregation");
+        order.FindJob(OrdersTestData.GarmentId(1))!.Status.ShouldBe(GarmentJobStatus.Confirmed);
+        order.FindJob(OrdersTestData.GarmentId(1))!.WorkflowVersionId.ShouldBeNull();
+        order.Status.ShouldBe(OrderStatus.Confirmed);
+        order.ProductionStartedAt.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The recomputation asks its two questions in the order the eight commands that end with it ask theirs: a
+    /// terminal order is left where it stands, and only then is the dispatch policy read. There is nothing for
+    /// the policy to decide about an order at the end of its lifecycle — section 2.1 has no un-cancel — so
+    /// refusing a value nothing was going to read would be one type answering one question two ways, the
+    /// command refusing and the recomputation it ends with succeeding.
+    /// </summary>
+    [Fact]
+    public void ATerminalOrderIsLeftWhereItStandsBeforeTheDispatchPolicyIsRead()
+    {
+        var order = OrdersTestData.ConfirmedOrder(garments: 2);
+        order.Cancel(
+            "customer-withdrew",
+            "The customer withdrew the order at the counter.",
+            [],
+            Later,
+            OrdersTestData.Actor).IsSuccess.ShouldBeTrue();
+
+        var recomputed = order.RecomputeStatus((ReadyAggregation)99, Later);
+
+        var refused = order.CancelJob(
+            OrdersTestData.GarmentId(1),
+            "customer-withdrew",
+            "The customer withdrew this garment at the counter.",
+            [],
+            (ReadyAggregation)99,
+            Later,
+            OrdersTestData.Actor);
+
+        recomputed.IsSuccess.ShouldBeTrue();
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("orders.status-transition-not-allowed");
+        order.Status.ShouldBe(OrderStatus.Cancelled);
+    }
+
     /* Delivered, and what never follows it ------------------------------------------------------- */
 
     [Fact]
@@ -237,6 +318,34 @@ public sealed class OrderStatusAggregationTests
 
         OrdersTestData.Delivered(order, OrdersTestData.GarmentId(2));
         order.Status.ShouldBe(OrderStatus.Delivered);
+    }
+
+    /// <summary>
+    /// <strong>A handover is taken against the garment's status and never against the order's.</strong>
+    /// <c>Order.ConfirmDelivery</c> asks only that this garment stands at <see cref="GarmentJobStatus.Ready"/>,
+    /// so under a branch that releases a garment as it finishes one can be handed over while the order is
+    /// still <see cref="OrderStatus.InProduction"/> — and the order stays there, because the garment that
+    /// kept it out of ready is still outstanding afterwards. That is the row section 2.1 was missing.
+    /// </summary>
+    [Fact]
+    public void AGarmentIsHandedOverWhileTheOrderIsStillInProductionAndTheOrderStaysThere()
+    {
+        var order = OrdersTestData.ConfirmedOrder(garments: 2);
+        OrdersTestData.Ready(order, OrdersTestData.GarmentId(1));
+        OrdersTestData.InProduction(order, OrdersTestData.GarmentId(2));
+        order.Status.ShouldBe(OrderStatus.InProduction);
+
+        var handedOver = order.ConfirmDelivery(
+            OrdersTestData.GarmentId(1),
+            ReadyAggregation.EveryDeliverableJob,
+            partialDeliveryPermitted: true,
+            Later,
+            OrdersTestData.Actor);
+
+        handedOver.IsSuccess.ShouldBeTrue();
+        order.FindJob(OrdersTestData.GarmentId(1))!.Status.ShouldBe(GarmentJobStatus.Delivered);
+        order.Status.ShouldBe(OrderStatus.InProduction);
+        order.DeliveredAt.ShouldBeNull();
     }
 
     [Fact]
