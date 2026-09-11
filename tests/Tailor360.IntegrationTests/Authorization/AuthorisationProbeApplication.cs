@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -875,7 +876,17 @@ public enum SessionStrength
 public sealed record ProbeResult(HttpStatusCode Status, string? Code)
 {
     /// <summary>How a fixture names this outcome.</summary>
-    public override string ToString() => Code is null ? ((int)Status).ToString() : $"{(int)Status} {Code}";
+    /// <remarks>
+    /// <para>
+    /// Formatted invariantly. This string is the name a fixture and an assertion failure carry, so it has to
+    /// read the same on every machine — a status rendered under a locale that groups digits would make the
+    /// authorisation matrix compare unequal against itself on one developer's machine and not another's.
+    /// </para>
+    /// </remarks>
+    public override string ToString()
+        => Code is null
+            ? ((int)Status).ToString(CultureInfo.InvariantCulture)
+            : string.Create(CultureInfo.InvariantCulture, $"{(int)Status} {Code}");
 }
 
 /// <summary>The collection that shares one probe application.</summary>

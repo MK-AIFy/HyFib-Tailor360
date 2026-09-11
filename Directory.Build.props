@@ -10,7 +10,14 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      Globalisation stays on. conventions.md section 2.2 requires that a branch's IANA timezone is resolved
+      through a tz-database-backed API and that a fixed +05:30 offset is never hard-coded. Invariant
+      globalisation drops the ICU data that maps an IANA identifier on Windows, so `Asia/Kolkata` fails to
+      resolve there and `IndiaTimeZone.Instance` throws in its static initialiser — taking the host with it.
+      The runtime images are Debian-based `mcr.microsoft.com/dotnet/aspnet`, which carry ICU already.
+    -->
+    <InvariantGlobalization>false</InvariantGlobalization>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
