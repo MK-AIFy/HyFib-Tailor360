@@ -16,17 +16,23 @@ namespace Tailor360.Modules.Orders.Domain.Jobs;
 /// </para>
 /// <para>
 /// Every reference carried here is <strong>operational data and never personal data</strong>: a phase code, a
-/// defect code, an evidence key, a case reference. Security rule 7 keeps customer names, measurements and contact
-/// details out of anything that reaches a screen's reason line, a log or a trace.
+/// defect code, an evidence <em>kind</em> code, a case number. Security rule 7 keeps customer names, measurements
+/// and contact details out of anything that reaches a screen's reason line, a log or a trace, and security rule 9
+/// keeps an identity off it — an evidence key or a media object identifier is the first half of a link nobody
+/// re-authorised, and evidence images are Sensitive Personal under
+/// <c>docs/nfr/data-classification.md</c> section 5.6. Each of the four is checked against
+/// <see cref="ReadyGateBlock.IsCarriable"/> as it arrives, because each is carried straight through onto a block
+/// and a block is published across a module boundary: a reference refused here is one the caller is told about,
+/// where a reference refused at the boundary would be one a queue screen quietly lost.
 /// </para>
 /// </remarks>
 public sealed record ReadyGateInputs
 {
     /// <summary>
-    /// The longest reference the column holds. Matches <see cref="ReadyGateBlock.MaximumReferenceLength"/>,
+    /// The longest reference a fact may carry. Matches <see cref="ReadyGateBlock.MaximumReferenceLength"/>,
     /// because every reference here is carried straight through onto a block.
     /// </summary>
-    public const int MaximumReferenceLength = 200;
+    public const int MaximumReferenceLength = ReadyGateBlock.MaximumReferenceLength;
 
     private ReadyGateInputs(
         bool workflowComplete,
@@ -176,7 +182,14 @@ public sealed record ReadyGateInputs
             custodyCase.Value));
     }
 
-    /// <summary>Trims a reference to null and checks it against the column that holds it.</summary>
+    /// <summary>
+    /// Trims a reference to null and checks it against what a published block can carry.
+    /// </summary>
+    /// <remarks>
+    /// Length first, so that the caller that sent a sentence is told it is too long rather than told its shape is
+    /// wrong. Everything else is <see cref="ReadyGateBlock.IsCarriable"/>, which is the boundary's own rule and
+    /// is stated once.
+    /// </remarks>
     private static Result<string?> Reference(string? value, string field)
     {
         var trimmed = value?.Trim();
@@ -191,6 +204,8 @@ public sealed record ReadyGateInputs
             return Result.Failure<string?>(OrdersErrors.TooLong(field, MaximumReferenceLength));
         }
 
-        return Result.Success<string?>(trimmed);
+        return ReadyGateBlock.IsCarriable(trimmed)
+            ? Result.Success<string?>(trimmed)
+            : Result.Failure<string?>(OrdersErrors.ReferenceNotCarriable(field));
     }
 }

@@ -399,17 +399,45 @@ cancellation and the ready-for-delivery gate.
 
 | Table | Holds |
 | --- | --- |
-| `order_drafts` | Server-side, branch-shared, expiring work in progress, locked per garment section |
+| `order_drafts`, `order_draft_garments`, `order_draft_garment_dependencies` | Server-side, branch-shared, expiring work in progress, locked per garment section |
 | `estimates` | Priced draft snapshots, `E-…` numbers, validity, issued/superseded/converted |
-| `orders`, `order_revisions` | The confirmed commitment, `O-…` number, customer snapshot, due date, priority, totals |
-| `garment_jobs`, `job_dependencies` | The tracked unit, `J-…` number, `finish_before` and `deliver_together` links |
-| `measurement_snapshots`, `design_snapshots`, `price_snapshots` | Copies frozen at confirmation with provenance ids |
+| `orders`, `order_revisions` | The confirmed commitment, `O-…` number, customer snapshot, due date, totals |
+| `garment_jobs`, `job_dependencies` | The tracked unit, `J-…` number, `finish_before` and `deliver_together` links, the price copy frozen at confirmation, and the ready gate's materialised outcome with its reason codes |
+| `measurement_snapshots`, `design_snapshots` | Copies frozen at confirmation with provenance ids |
 | `workflow_definitions`, `workflow_versions`, `workflow_version_phases` | Configurable process, published versions immutable |
 | `job_phases` | Phase instances with server-timestamped start, pause, resume and completion |
 | `assignments`, `assignee_capabilities` | Allotment with reason; capability and capacity used to validate it |
 | `qc_results`, `qc_result_criteria`, `rework_tasks` | Immutable QC outcomes copying the criteria evaluated; rework state |
 | `alterations`, `holds`, `cancellations` | Post-confirmation exceptions with reason and approval |
-| `job_ready_state` | The gate's materialised outcome and its reason codes |
+
+Four notes on that list, each recorded when the schema was first built rather than left to be discovered:
+
+- **A garment section and its dependencies are rows, not a document.** The row is what a per-section lock is taken
+  on, what the API addresses by identifier, and what the **Measurements needed** queue is a predicate over — and a
+  dependency needs a foreign key, which cannot point into a JSON array.
+- **There is no `price_snapshots` table; the garment job's frozen price copy is `price_…` columns on
+  `garment_jobs`.** The copy is a value object holding nine amounts, each of which is an amount and a currency, and
+  Entity Framework Core 10 cannot nest a two-column value object inside a type mapped to a table of its own. The copy
+  is still frozen: `orders.garment_job_price_is_immutable` refuses a change to exactly those columns once the job
+  leaves `Confirmed`, which is the same rule the `measurement_snapshots` and `design_snapshots` triggers hold
+  (INV-JOB-01). An order's, an estimate's and a revision's totals were always inline and are unchanged.
+- **There is no `job_ready_state` table either; the gate's outcome is `is_ready_for_delivery`,
+  `ready_state_computed_at` and `ready_state_blocks` on `garment_jobs`.** The two facts above collide. A garment
+  job's price copy has to be a complex property, for the reason the note above gives, and Entity Framework Core
+  10.0.11 cannot read an entity that both holds a complex property and is split across two tables: every query
+  that materialises a garment job or reads its price fails at query-compilation time with
+  `InvalidOperationException: Sequence contains more than one element`. The alternatives were measured and each
+  costs more — an owned reference and plain scalar columns are both compatible with entity splitting, but neither
+  can hold a two-column `Money`, so either one is a rewrite of the value object that `orders`, `estimates` and
+  `order_revisions` share. The gate's guarantees keep their database half:
+  `orders.garment_jobs_ready_is_gate_only` still refuses a row inserted already ready (INV-JOB-07), and the two
+  checks a ready row must satisfy — no blocking reasons, and a recorded evaluation — are now ordinary check
+  constraints on `garment_jobs`. The delivery queue gains from the move rather than losing: what was an index over
+  the fragment's key with branch scoping left to a join is now `ix_garment_jobs_ready` over `branch_id` on the one
+  table.
+- **There is no `priority` column on `orders`.** The Domain models no priority and priority has no vocabulary, so
+  the word above describes an intention rather than a column; a column would be a product decision taken in a
+  migration. It is an open decision, not an omission.
 
 **Owned object-storage prefix.** None. Estimate PDFs live under Billing's `documents/` prefix (section 4, rule 2).
 

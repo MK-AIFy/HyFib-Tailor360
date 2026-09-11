@@ -172,6 +172,89 @@ public sealed class EstimateTests
         Enum.GetNames<EstimateStatus>().ShouldNotContain("Expired");
     }
 
+    /* The row can say when it last changed -------------------------------------------------------- */
+
+    /// <summary>
+    /// An estimate is an editable row and carries <c>updated_at</c>/<c>updated_by</c> like one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>src/Modules/CLAUDE.md</c> section 5 is unqualified that a table carries the pair, and this type is
+    /// rewritten by three commands and guarded by <c>xmin</c> — the schema already says it is editable. Without
+    /// the pair the only record that a supersession or a conversion had touched the row was
+    /// <c>platform.audit_events</c>; the row itself could not answer when it last changed, which is the question
+    /// a support call starts from.
+    /// </para>
+    /// <para>
+    /// Each of the three is asserted rather than one standing for the others, because a <c>Touch</c> left off one
+    /// path is exactly the kind of omission that never shows up until the row it affects is the one being asked
+    /// about.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void IssuingStampsTheRowAsChanged()
+    {
+        var estimate = Issue().Value;
+
+        estimate.UpdatedAt.ShouldBe(OrdersTestData.Now);
+        estimate.UpdatedBy.ShouldBe(OrdersTestData.Actor);
+    }
+
+    [Fact]
+    public void SupersedingStampsTheRowAsChanged()
+    {
+        var estimate = OrdersTestData.IssuedEstimate();
+
+        estimate.Supersede(OrdersTestData.Id("estimate-2"), Later, OrdersTestData.Approver)
+            .IsSuccess.ShouldBeTrue();
+
+        estimate.UpdatedAt.ShouldBe(Later);
+        estimate.UpdatedBy.ShouldBe(OrdersTestData.Approver);
+    }
+
+    [Fact]
+    public void ConvertingStampsTheRowAsChanged()
+    {
+        var estimate = OrdersTestData.IssuedEstimate();
+
+        estimate.Convert(OrdersTestData.Id("order"), OrdersTestData.Id("draft"), Later, OrdersTestData.Approver)
+            .IsSuccess.ShouldBeTrue();
+
+        estimate.UpdatedAt.ShouldBe(Later);
+        estimate.UpdatedBy.ShouldBe(OrdersTestData.Approver);
+    }
+
+    /// <summary>
+    /// Recording the artefact stamps the instant and leaves the actor empty, because there is not one.
+    /// </summary>
+    /// <remarks>
+    /// The render completes outside the issuing transaction and nobody performed it. A null
+    /// <c>updated_by</c> means "the system", which is the honest answer here — attributing the render to
+    /// whoever issued the estimate would put a person's identity against something they did not do.
+    /// </remarks>
+    [Fact]
+    public void RecordingTheArtefactStampsTheRowWithoutAnActor()
+    {
+        var estimate = OrdersTestData.IssuedEstimate();
+
+        estimate.RecordArtefact("9f86d081884c7d659a2feaa0c55ad015", Later).IsSuccess.ShouldBeTrue();
+
+        estimate.UpdatedAt.ShouldBe(Later);
+        estimate.UpdatedBy.ShouldBeNull();
+    }
+
+    /// <summary>A refused command leaves the row exactly as it stood, stamp included.</summary>
+    [Fact]
+    public void ARefusedCommandDoesNotStampTheRow()
+    {
+        var estimate = OrdersTestData.IssuedEstimate();
+
+        estimate.Supersede(estimate.Id, Later, OrdersTestData.Approver).IsFailure.ShouldBeTrue();
+
+        estimate.UpdatedAt.ShouldBe(OrdersTestData.Now);
+        estimate.UpdatedBy.ShouldBe(OrdersTestData.Actor);
+    }
+
     /* A reissue supersedes rather than edits ----------------------------------------------------- */
 
     [Fact]

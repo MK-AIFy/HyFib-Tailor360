@@ -1518,9 +1518,16 @@ acceptance criteria, which remain the contract.
   #42 consumes `EstimateIssued` only to prefill an invoice draft.
 - **Confirmation participants**: `Platform.Abstractions.IConfirmationParticipant<TEvent>` per Section 6.2 note 10;
   with none registered, confirmation succeeds and the job card shows "label not yet available".
-- **Read contract**: `Orders.Contracts.IOrderSnapshotQuery.Get(orderId)` → order status, jobs with category/service
-  version, `PricingResult` snapshot and configuration versions, customer snapshot, revision number; consumed by #42
-  (from-order conversion), #43 (dispatch amount attribution) and #45.
+- **Read contract**: `Orders.Contracts.IOrderSnapshotQuery` → `GetAsync(orderId)`, `GetJobAsync(jobId)` and
+  `GetJobsAsync(jobIds)` answer order and garment-job status, category and service keys and labels, the pinned
+  workflow version, due dates, ready state with its block reasons, dependencies and the revision number, and carry
+  **no amount**; `GetPricedAsync(orderId, callerPermissions)` is the one read that answers with the
+  `PricingResult` snapshot and its configuration versions, so a dispatch scan and a workload count never receive
+  Confidential money and the pricing mask **OD-13** unblocks can be applied inside the module without a consumer
+  changing. **No customer snapshot**: Billing takes the bill-to party and the place of supply from
+  `Customers.Contracts.ICustomerSnapshotQuery`, which re-authorises and masks
+  (`docs/architecture/module-ownership.md` section 5.8). Consumed by #42 (from-order conversion), #43 (dispatch
+  amount attribution) and #45.
 - **Revision window**: `POST /orders/{id}/revisions` (`orders.revise`, reason, `If-Match`) is allowed while every
   job is `confirmed` and none has entered production; re-runs validation and pricing, supersedes the estimate,
   records `order_revisions` and republishes `OrderConfirmed` with `revision_number`; after production starts,
@@ -1602,7 +1609,9 @@ acceptance criteria, which remain the contract.
   alone, recomputed on every workflow, QC, hold, dependency and custody event, emitting `JobReadyForDelivery`.
 - **Policies**: cancellation blocked in prohibited financial/stock/custody states (compensating flows required);
   hold/resume/reschedule/reopen with reason and approval; alteration hand-off contract
-  `Orders.Contracts.IAlterationRequests.Open(orderId, jobId, reason, source, caseId)` used by #49.
+  `Orders.Contracts.IAlterationRequests.OpenAsync(orderId, jobId, reasonCode, source, caseId, feedbackId)` used
+  by #49 — a configured reason code and never the words the customer wrote, which stay on the feedback row
+  under `docs/nfr/data-classification.md` section 5.14 with its own erasure path.
 - **Events** (versioned): `qc-recorded`, `rework-opened/closed`, `alteration-requested/decided/completed`,
   `job-held/resumed/rescheduled`, `job-cancelled`, `order-cancelled`, `job-reopened`, `job-ready-for-delivery`;
   billing adjustment intents (cancellation credit, alteration charge) travel as event data for #42/#43; Orders
@@ -2091,7 +2100,7 @@ acceptance criteria, which remain the contract.
 - **Cases**: `service_recovery_cases` (owner, due date, status, contact attempts, resolution code, revised job link,
   closure); creation idempotent on feedback id; closing emits `ServiceRecoveryClosed`, which #47 turns into a
   customer closure confirmation on the preferred consented channel (suppressed and audited when none exists);
-  accepted alteration requests call `Orders.Contracts.IAlterationRequests.Open(...)` (#34) and store the returned
+  accepted alteration requests call `Orders.Contracts.IAlterationRequests.OpenAsync(...)` (#34) and store the returned
   job id; feedback rows are read-only after the edit window and never mutate measurements/design/job history.
 - **Restrictions and reporting**: free text visibility limited by role/branch; rating, response rate, themes,
   alteration rate, resolution time; timeline source for feedback.

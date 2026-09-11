@@ -346,7 +346,7 @@ public sealed class GarmentJobTests
     /// Section 3.2's Hold row lists "the ready gate closes" among the transition's <strong>outputs</strong>,
     /// so the hold closes the materialised state itself rather than leaving it to whenever the application
     /// next recomputes. Nothing in the domain can require that recomputation to happen in the same
-    /// transaction, and <c>job_ready_state</c> — not the status — is what the delivery-team receive scan
+    /// transaction, and the materialised ready state — not the status — is what the delivery-team receive scan
     /// reads (section 4.1): a held garment advertising itself as ready with no reason shown is the drift
     /// CI-03 names. What is written is the gate's own <c>NoOpenHold</c> reason code, which is exactly what
     /// the recomputation then produces.

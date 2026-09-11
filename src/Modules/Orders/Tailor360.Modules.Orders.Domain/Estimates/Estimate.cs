@@ -67,6 +67,8 @@ public sealed class Estimate
         Status = EstimateStatus.Issued;
         IssuedAt = now;
         IssuedBy = by;
+        UpdatedAt = now;
+        UpdatedBy = by;
     }
 
     /// <summary>
@@ -158,6 +160,33 @@ public sealed class Estimate
 
     /// <summary>When the checksum was recorded, in UTC.</summary>
     public DateTimeOffset? ArtefactRecordedAt { get; private set; }
+
+    /// <summary>
+    /// When the estimate was last changed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An estimate is an <strong>editable row</strong>, whatever its append-only lifecycle suggests:
+    /// <see cref="Supersede"/>, <see cref="Convert"/> and <see cref="RecordArtefact"/> each rewrite it, and it
+    /// carries <c>xmin</c> so that two of them racing are a conflict rather than a silent overwrite.
+    /// <c>src/Modules/CLAUDE.md</c> section 5 is unqualified that such a row carries this pair, and without it the
+    /// only record that a supersession or a conversion touched the row was <c>platform.audit_events</c> — the row
+    /// itself could not say when it last changed, which is the one question a support call starts from.
+    /// </para>
+    /// <para>
+    /// Beside <see cref="IssuedAt"/> rather than instead of it. Issue is the business event and is what
+    /// <c>ix_estimates_draft</c> orders by; this is the maintenance fact, and the two answer different questions
+    /// the moment the first supersession happens.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset UpdatedAt { get; private set; }
+
+    /// <summary>Who last changed it, or null where the change was the system's.</summary>
+    /// <remarks>
+    /// Null is a real answer here and not a missing one: <see cref="RecordArtefact"/> is a render completing
+    /// outside the issuing transaction, and no person performed it.
+    /// </remarks>
+    public Guid? UpdatedBy { get; private set; }
 
     /// <summary>Issues a priced estimate against an open draft.</summary>
     /// <param name="id">Identity of the estimate, from <c>IIdGenerator</c>.</param>
@@ -281,6 +310,7 @@ public sealed class Estimate
         SupersededAt = now;
         SupersededBy = by;
         SupersededByEstimateId = supersedingEstimateId;
+        Touch(now, by);
 
         return Result.Success();
     }
@@ -331,6 +361,7 @@ public sealed class Estimate
         ConvertedAt = now;
         ConvertedBy = by;
         ConvertedToOrderId = orderId;
+        Touch(now, by);
 
         return Result.Success();
     }
@@ -368,6 +399,10 @@ public sealed class Estimate
         ArtefactChecksum = digest;
         ArtefactRecordedAt = now;
 
+        // No actor: the render completes outside the issuing transaction and nobody performed it, which is what
+        // a null updated_by means.
+        Touch(now, null);
+
         return Result.Success();
     }
 
@@ -384,6 +419,12 @@ public sealed class Estimate
     /// <returns>True while the date falls inside the validity window.</returns>
     public bool IsValidOn(DateOnly branchLocalDate)
         => branchLocalDate >= IssuedOn && branchLocalDate <= ValidUntil;
+
+    private void Touch(DateTimeOffset now, Guid? by)
+    {
+        UpdatedAt = now;
+        UpdatedBy = by;
+    }
 
     private Result? NotOutstanding()
         => Status switch

@@ -278,7 +278,7 @@ two-digit job index.
 
 | ID | Invariant | Enforced by |
 | --- | --- | --- |
-| INV-JOB-01 | Measurement, design and price snapshots are **immutable after confirmation**. The measurement version id is kept as provenance only. Changing the template, catalogue or price list never changes a confirmed job. | G-8, no write path |
+| INV-JOB-01 | Measurement, design and price snapshots are **immutable once the job leaves `confirmed`**. While every job of the order still stands at `confirmed`, `orders.revise` replaces all three together (INV-ORD-05) — that is the one write path, and it is the whole of it. The measurement version id is kept as provenance only. Changing the template, catalogue or price list never changes a confirmed job. | G-8; `orders.job_snapshots_are_immutable` and `orders.garment_job_price_is_immutable`; no other write path |
 | INV-JOB-02 | The workflow version is resolved and **pinned** at start-production. A later published workflow version never migrates a running job, and an order revision is refused once any job has entered production. | Start-production command |
 | INV-JOB-03 | Phase transitions follow the pinned version's transition graph; start, pause, resume and completion carry server timestamps. | Domain state machine, G-9 |
 | INV-JOB-04 | An assignment requires a valid assignee capability for the job's category and phase. Reassignment is a new row; completions already recorded keep their original attribution. | Assignment validator, append-only assignment history |
@@ -288,6 +288,17 @@ two-digit job index.
 | INV-JOB-08 | A design revision is refused once the workflow marks the design frozen; before that it records reason, price delta and due-date delta, shown before approval. | Command precondition |
 | INV-JOB-09 | A `finish_before` dependency blocks the dependent job's first phase; a `deliver_together` dependency binds jobs at the ready gate and in the delivery queue. | Gate predicate; the parcel asked for again at handover, because a hold closes one member's gate and not its partners' (state-transitions.md **SQ-09**); delivery queue query |
 | INV-JOB-10 | A confirmed job has exactly one **active** barcode identity at all times. | Partial unique index in Custody (INV-BID-02) |
+
+**INV-JOB-01 was amended on 2026-09-11**, in the pull request that added the `orders` schema. It read "immutable
+after confirmation" unqualified, which the schema it is enforced by has never implemented and could not:
+`orders.revise` exists precisely to replace all three frozen copies of every garment, and INV-ORD-05 permits it for
+exactly as long as every job of the order is still `confirmed`. An append-only trigger would have made
+`Order.Revise` fail at the database. The two triggers therefore allow a rewrite while the parent job is `Confirmed`
+and refuse one afterwards, which is what the wording now says. Nothing about the intent changed: republishing the
+catalogue, retiring a design group, renaming an option, changing the price list or capturing a newer measurement
+still never changes a confirmed job, because none of those is `orders.revise`. What changed is that the sentence and
+the schema now say the same thing, which CLAUDE.md section 8 requires of any rule a change implements more weakly
+than its wording.
 
 **Transactional boundary.** The job with its phases, assignments, QC results, rework tasks and holds. `ready_state` is
 recomputed inside the same transaction when the trigger is local (a phase, QC, hold or dependency change) and by an

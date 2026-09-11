@@ -1888,7 +1888,7 @@ public sealed class Order
         foreach (var partner in DeliverTogetherParcelOf(job.Id))
         {
             // The materialised verdict and not the status, which is the same question ParcelPresented asks of a
-            // partner it is not writing: job_ready_state is what the delivery queue is built from (section 4.1).
+            // partner it is not writing: the materialised verdict is what the delivery queue is built from (4.1).
             if (!partner.IsReadyForDelivery)
             {
                 return Result.Failure(OrdersErrors.DeliveryWouldSplitParcel(partner.JobNumber.Value));

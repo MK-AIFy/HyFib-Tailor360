@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
+using Tailor360.Modules.Orders.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Web;
@@ -101,8 +102,19 @@ public sealed class WebApplicationFixture : WebApplicationFactory<WebEntryPoint>
             .UseSnakeCaseNamingConvention()
             .Options;
 
-        await using var catalog = new CatalogDbContext(catalogOptions);
-        await catalog.Database.MigrateAsync();
+        await using (var catalog = new CatalogDbContext(catalogOptions))
+        {
+            await catalog.Database.MigrateAsync();
+        }
+
+        var ordersOptions = new DbContextOptionsBuilder<OrdersDbContext>()
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
+                ModuleDbContext.MigrationsHistoryTable, OrdersDbContext.SchemaName))
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        await using var orders = new OrdersDbContext(ordersOptions);
+        await orders.Database.MigrateAsync();
     }
 }
 
