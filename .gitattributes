@@ -1,0 +1,40 @@
+# Line endings are a property of the repository, not of the machine that cloned it.
+#
+# `.editorconfig` mandates `end_of_line = lf`, and both required CI gates check it:
+# `dotnet format --verify-no-changes` (the first step of the .NET job) and `pnpm format:check`
+# (the first step of the PWA job, Prettier with `"endOfLine": "lf"`). Without this file a clone made
+# with Git's Windows default of `core.autocrlf=true` produces a CRLF working tree, which fails both
+# gates on every file and makes `EnforceCodeStyleInBuild` report IDE0055 across the solution — a
+# breakage that looks like a code defect and is not one.
+#
+# `docs/dev/setup.md` section 2 asks each developer to set `core.autocrlf=false` before cloning.
+# That instruction stays good advice, but nothing enforced it; this file does, for everyone,
+# including a clone made before they read the setup guide.
+
+# Normalise every text file to LF in the working tree, detecting text versus binary automatically.
+* text=auto eol=lf
+
+# Shell scripts must be LF even if a future rule above is relaxed: `scripts/dev` runs under bash in
+# CI and in the devcontainer, and a CRLF shebang line makes the interpreter unfindable.
+*.sh text eol=lf
+scripts/dev text eol=lf
+
+# Windows-only entry points are the one place CRLF is correct: cmd and PowerShell read them natively.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets Git must never translate or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary

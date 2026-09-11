@@ -1,3 +1,4 @@
+using System.Globalization;
 using Shouldly;
 using Tailor360.Platform.Abstractions.Time;
 
@@ -32,6 +33,35 @@ public sealed class FinancialYearTests
     public void ResolvesIndianStandardTime()
         => IndiaTimeZone.Instance.GetUtcOffset(new DateTime(2026, 9, 4, 12, 0, 0, DateTimeKind.Utc))
             .ShouldBe(TimeSpan.FromMinutes(330));
+
+    [Fact]
+    public void ResolvesTheBranchTimezoneFromTheTimezoneDatabaseOnEveryPlatform()
+    {
+        // conventions.md section 2.2: a branch's timezone is an IANA identifier resolved through a
+        // tz-database-backed API, and a fixed +05:30 offset is never hard-coded. Invariant globalisation
+        // drops the ICU data that maps an IANA identifier on Windows, so this resolution fails there while
+        // still passing on Linux — which is exactly the shape of defect this test exists to catch. Asserting
+        // on the identifier rather than the offset keeps it honest: an offset can be faked, a lookup cannot.
+        TimeZoneInfo.TryFindSystemTimeZoneById(IndiaTimeZone.Id, out var resolved).ShouldBeTrue(
+            $"'{IndiaTimeZone.Id}' must resolve from the tz database. If this fails, check that "
+            + "InvariantGlobalization is false in Directory.Build.props.");
+
+        resolved.ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData("en-IN")]
+    [InlineData("ta-IN")]
+    public void ServesTheDeploymentsCulturesAsRealCultures(string locale)
+    {
+        // The two locales the deployment serves (ADR-0003). Under invariant globalisation every culture
+        // collapses to the invariant one, so this would silently pass its name back while formatting
+        // nothing correctly. Comparing against the invariant culture is what detects that collapse.
+        var culture = CultureInfo.GetCultureInfo(locale);
+
+        culture.Name.ShouldBe(locale);
+        culture.LCID.ShouldNotBe(CultureInfo.InvariantCulture.LCID);
+    }
 
     [Fact]
     public void ConvertsAnInstantToTheBranchLocalDate()

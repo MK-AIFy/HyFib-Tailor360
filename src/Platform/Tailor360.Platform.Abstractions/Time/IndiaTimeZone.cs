@@ -9,8 +9,20 @@ public static class IndiaTimeZone
     /// <summary>The IANA identifier for Indian Standard Time.</summary>
     public const string Id = "Asia/Kolkata";
 
-    /// <summary>Indian Standard Time, resolved once.</summary>
-    public static TimeZoneInfo Instance { get; } = TimeZoneInfo.FindSystemTimeZoneById(Id);
+    private static readonly Lazy<TimeZoneInfo> Resolved = new(() => TimeZoneInfo.FindSystemTimeZoneById(Id));
+
+    /// <summary>Indian Standard Time, resolved once, on first use.</summary>
+    /// <remarks>
+    /// <para>
+    /// Resolved lazily rather than in a field initialiser so that the timezone lookup is not folded into this
+    /// type's initialiser. A static field initialiser runs on the first touch of <em>any</em> member, which
+    /// would make <see cref="FinancialYearStarting"/> and <see cref="FinancialYearLabel"/> — pure arithmetic
+    /// that needs no timezone at all — throw on a host whose tz database cannot resolve
+    /// <see cref="Id"/>. Composing a display number carries a financial year, so that coupling would let an
+    /// order number fail to format for want of a timezone.
+    /// </para>
+    /// </remarks>
+    public static TimeZoneInfo Instance => Resolved.Value;
 
     /// <summary>
     /// The Indian financial year containing <paramref name="date"/>, which runs 1 April to 31 March.
