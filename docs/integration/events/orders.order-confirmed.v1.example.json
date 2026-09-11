@@ -1,0 +1,16 @@
+{
+  "eventId": "019bd641-1b21-7d32-9c43-b2c3d4e5f607",
+  "occurredAt": "2026-09-11T05:07:44.1280000+00:00",
+  "aggregateId": "019bd63b-5183-7d2b-8e46-5f6071829304",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "customerId": "019bd63a-1c40-7e82-9a17-2b3c4d5e6f70",
+  "orderNumber": "O-CBE01-2627-000001",
+  "orderDraftId": "019bd63a-2e51-7b09-8c24-3d4e5f607182",
+  "estimateId": "019bd63a-4072-7c1a-9d35-4e5f60718293",
+  "dueDate": "2026-09-25",
+  "garmentJobCount": 2,
+  "revisionNumber": 1,
+  "eventType": "orders.order-confirmed.v1",
+  "schemaVersion": 1
+}

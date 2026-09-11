@@ -1,0 +1,12 @@
+{
+  "eventId": "019bd682-8299-7fba-94cb-304152637485",
+  "occurredAt": "2026-09-11T12:54:51.0930000+00:00",
+  "aggregateId": "019bd63b-73a5-7f4d-8068-718293041526",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "orderId": "019bd63b-5183-7d2b-8e46-5f6071829304",
+  "garmentJobNumber": "J-CBE01-2627-000001-02",
+  "reasonCode": "EXAMPLE-CANCELLATION-REASON-CODE",
+  "eventType": "orders.job-cancelled.v1",
+  "schemaVersion": 1
+}

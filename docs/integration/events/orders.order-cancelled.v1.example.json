@@ -1,0 +1,12 @@
+{
+  "eventId": "019bd68d-93aa-7acb-85dc-415263748596",
+  "occurredAt": "2026-09-11T14:08:36.7710000+00:00",
+  "aggregateId": "019bd63b-5183-7d2b-8e46-5f6071829304",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "customerId": "019bd63a-1c40-7e82-9a17-2b3c4d5e6f70",
+  "orderNumber": "O-CBE01-2627-000001",
+  "reasonCode": "EXAMPLE-CANCELLATION-REASON-CODE",
+  "eventType": "orders.order-cancelled.v1",
+  "schemaVersion": 1
+}

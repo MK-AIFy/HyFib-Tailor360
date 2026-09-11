@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.order-cancelled.v1.schema.json",
+  "title": "orders.order-cancelled.v1",
+  "description": "A confirmed order was cancelled. Cancelling the order does not cancel its garments, and this payload says so by omission: the command does not touch a single garment job, so naming them here would state something the transition did not do. A consumer that needs to know where each garment stands asks IOrderSnapshotQuery; a garment cancelled in its own right has orders.job-cancelled.v1. Only the configured code travels — the free-text cancellation reason is what a member of staff typed about a named person's order, which conventions.md section 5.5 does not admit and which the erasure workflow has to be able to redact. Neither the actor nor the approval travels (audit, ARCH-008, is the authority on who), and neither do the prohibited states the command was checked against: they are the application's input to the decision and not a fact about the order.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "orderNumber",
+    "reasonCode",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the cancellation was recorded, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order, so the cancellation is ordered after everything else about it."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the order belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch the order was taken at."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer the order was for. An identifier and nothing more."
+    },
+    "orderNumber": {
+      "type": "string",
+      "description": "The human reference, so a message about the cancellation can name the order."
+    },
+    "reasonCode": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The configured cancellation reason, by its code. Never null and never blank — the command refuses a cancellation without one — and deliberately not constrained to a fixed set: the vocabulary is branch configuration, reviewed under open decision OD-10 in docs/prd/assumptions-and-open-decisions.md and seeded by issue #34, not an enumeration this contract may freeze. The value in the example file is a placeholder, not a code this system issues, and a subscriber that hard-codes it has hard-coded nothing. Never free text."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.order-cancelled.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

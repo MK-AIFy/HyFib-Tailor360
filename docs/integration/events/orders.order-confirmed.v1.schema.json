@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.order-confirmed.v1.schema.json",
+  "title": "orders.order-confirmed.v1",
+  "description": "A draft became a confirmed order, and the rest of the shop starts from here: Custody allocates a barcode identity per garment inside the same transaction (INV-ORD-01, through the confirmation-participant hook rather than through this event), Billing #42 converts an order to an invoice, Reporting #45 counts a new order into the pipeline, and Notifications tells the customer. The payload carries no totals and none of the three configuration version identifiers — the price snapshot is Confidential and no subscriber is approved for it — no notes (free text a member of staff typed), no priority (named as a column in module-ownership section 5.5 but given no vocabulary by any document) and no actor, on the same line customers.customer-merged.v1 takes.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "orderNumber",
+    "orderDraftId",
+    "estimateId",
+    "dueDate",
+    "garmentJobCount",
+    "revisionNumber",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the order was confirmed, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order. Every order-scoped event that follows — a revision, a cancellation — is ordered against it."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the order belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch that took the order. Never null: branch scope is evaluated and never inferred, and the branch is the sequence key the order number came from."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer the order is for. An identifier and nothing more. Reporting #45 counts new against repeat from it, and Billing #42 starts its bill-to lookup here through ICustomerSnapshotQuery."
+    },
+    "orderNumber": {
+      "type": "string",
+      "description": "The human reference, O-<branch>-<FY>-000001 (docs/architecture/conventions.md section 3.2). A label a person quotes, never a lookup key."
+    },
+    "orderDraftId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The draft that was confirmed. It is how an idempotent confirmation recognises a retry: the same draft confirmed twice is one order, not two."
+    },
+    "estimateId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "The estimate this order was converted from, or null where the counter confirmed without quoting first. Plan #42 carries it as the invoice's source estimate."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The order's promised date, branch-local (docs/architecture/conventions.md section 2.2). A garment may promise its own, which is the date a workshop queue is ordered by."
+    },
+    "garmentJobCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many garments the order was confirmed with, and so how many orders.garment-job-created.v1 events accompany this one. Load-bearing: those events carry the garment as their aggregate, so per-aggregate ordering cannot tell a consumer the set is complete. At least one — an order with no garment is refused."
+    },
+    "revisionNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The revision this confirmation states the order at. One at first confirmation, and higher where the event is republished after a revision. Present at v1 precisely so a republication needs no new major."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.order-confirmed.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

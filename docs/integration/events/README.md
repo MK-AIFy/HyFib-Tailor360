@@ -22,10 +22,22 @@ and one of those disagree, they win and this one is corrected.
 | `customers.measurement-template-version-published.v1` | [schema](customers.measurement-template-version-published.v1.schema.json) | [example](customers.measurement-template-version-published.v1.example.json) | Customers, when a template version becomes the one measurements are captured against | #91 |
 | `customers.measurement-template-version-retired.v1` | [schema](customers.measurement-template-version-retired.v1.schema.json) | [example](customers.measurement-template-version-retired.v1.example.json) | Customers, when a template version stops taking new captures | #91 |
 | `customers.measurement-version-confirmed.v1` | [schema](customers.measurement-version-confirmed.v1.schema.json) | [example](customers.measurement-version-confirmed.v1.example.json) | Customers, when a customer's measurements are confirmed against a template version | #121 |
+| `orders.estimate-issued.v1` | [schema](orders.estimate-issued.v1.schema.json) | [example](orders.estimate-issued.v1.example.json) | Orders, when a priced estimate is issued against an open draft | #32 |
+| `orders.order-confirmed.v1` | [schema](orders.order-confirmed.v1.schema.json) | [example](orders.order-confirmed.v1.example.json) | Orders, when a draft becomes a confirmed order, and again with a higher `revisionNumber` where a revision republishes it | #32 |
+| `orders.garment-job-created.v1` | [schema](orders.garment-job-created.v1.schema.json) | [example](orders.garment-job-created.v1.example.json) | Orders, once per garment of a confirmed order | #32 |
+| `orders.order-revised.v1` | [schema](orders.order-revised.v1.schema.json) | [example](orders.order-revised.v1.example.json) | Orders, on a revision of a confirmed order | #32 |
+| `orders.job-entered-production.v1` | [schema](orders.job-entered-production.v1.schema.json) | [example](orders.job-entered-production.v1.example.json) | Orders, when a garment starts being made and its workflow version is pinned | #32 |
+| `orders.job-held.v1` | [schema](orders.job-held.v1.schema.json) | [example](orders.job-held.v1.example.json) | Orders, when work on a garment is suspended | #32 |
+| `orders.job-resumed.v1` | [schema](orders.job-resumed.v1.schema.json) | [example](orders.job-resumed.v1.example.json) | Orders, when a held garment goes back to being made | #32 |
+| `orders.job-rescheduled.v1` | [schema](orders.job-rescheduled.v1.schema.json) | [example](orders.job-rescheduled.v1.example.json) | Orders, when a garment's promised date moves | #32 |
+| `orders.job-ready-for-delivery.v1` | [schema](orders.job-ready-for-delivery.v1.schema.json) | [example](orders.job-ready-for-delivery.v1.example.json) | Orders, when the ready-for-delivery gate opens on a garment | #32 |
+| `orders.job-cancelled.v1` | [schema](orders.job-cancelled.v1.schema.json) | [example](orders.job-cancelled.v1.example.json) | Orders, on the cancellation of one garment | #32 |
+| `orders.order-cancelled.v1` | [schema](orders.order-cancelled.v1.schema.json) | [example](orders.order-cancelled.v1.example.json) | Orders, on the cancellation of a whole order | #32 |
 
 Each is declared as a record in the publishing module's `Contracts` project — the module's published surface — and
-nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the seven Customers events and
-`Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones.
+nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the seven Customers events,
+`Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones, and
+`Tailor360.Modules.Orders.Contracts.Events` the eleven Orders ones.
 
 ## 2. Naming and versioning
 
@@ -58,7 +70,7 @@ half is a reviewer reading the diff against this section.
 Section 5.5 of `conventions.md` admits **identifiers, codes, statuses, timestamps, amounts and branch codes only**,
 unless the event is classified personal *and* the subscriber is approved for it.
 
-That is stricter than it first looks, and the three events here are the worked example. Consent records and
+That is stricter than it first looks, and the twenty events here are the worked example. Consent records and
 communication preferences are **Personal** under `data-classification.md` section 5.3, whose access row says of the
 module that acts on them: *"Notifications reads it through `IConsentQuery` and never copies it."* An outbox row **is**
 a copy — written to a table, read by every registered handler, outliving the moment it described — so:
@@ -84,9 +96,24 @@ a copy — written to a table, read by every registered handler, outliving the m
   person, which is not one of the admitted kinds and which the erasure workflow has to be able to redact. It stays
   on the merge record. A subscriber showing a merge to somebody asks `ICustomerSnapshotQuery`, which re-authorises
   the read.
+- The **eleven Orders events** withhold four kinds of thing between them, for four different reasons. **No amounts
+  and no tax components**, and none of the catalogue, price-list or tax-configuration version identifiers that
+  only mean anything beside them: a garment job's price snapshot is Confidential under section 2.1, and section 3
+  of `data-classification.md` admits Confidential data to an integration event *"only to a subscriber approved for
+  it"* — no such approval exists. It costs nothing, because #42 and #43 read the priced result through
+  `IOrderSnapshotQuery` and recalculate. **No measurement of any kind** — not a value, not a field key, not the
+  template, not the version, not a count of them — because section 5.4 forbids one in an integration event
+  payload outright. **No customer name or contact**: an order holds only a `customerId`, and a consumer that must
+  name the person asks `ICustomerSnapshotQuery`, which re-authorises and masks. And **no free text a person
+  wrote** — no notes, no hold reason, no cancellation reason, no revision reason, no resume reason. Only the
+  configured reason **code** travels, which section 5.5 admits as a code; the text stays in Orders, where the
+  erasure workflow can reach it. None of the eleven names an **actor**, on the same line
+  `customers.customer-merged.v1` takes: audit (ARCH-008) is the authority on who, and `orders.order-revised.v1`
+  hands a consumer a `revisionId` to quote back instead.
 
-A subscriber that genuinely needs content the payload withholds is a change to **who may access it** under section
-5.3. That is a new major version and an approval — not a field added within this one.
+A subscriber that genuinely needs content the payload withholds is a change to **who may access it** — the handling
+rules of `data-classification.md` section 3 and the "Who may access" row of whichever of sections 5.2 to 5.20 owns
+the field. That is a new major version and an approval — not a field added within this one.
 
 ## 4. Ordering, delivery and duplicates
 

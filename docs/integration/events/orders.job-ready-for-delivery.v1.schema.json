@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/orders.job-ready-for-delivery.v1.schema.json",
+  "title": "orders.job-ready-for-delivery.v1",
+  "description": "The ready-for-delivery gate opened on a garment. It is the gate OPENING and not a routine recomputation: the gate is re-evaluated on every custody event and can demote a garment as readily as promote one, so this event is raised only on the transition from not-ready to ready. There is no not-ready event, and none is listed in module-ownership section 5.5 either — a consumer that wants the current verdict re-reads it. There is no blocks list, because the gate opening means no predicate blocked and the list would always be empty; the reason codes that keep a garment back reach a screen through IOrderSnapshotQuery. And there is no actor, on principle rather than by omission: the gate is the system and not a person (INV-JOB-07), and docs/prd/raci.md row 16 says no role, however senior, declares a garment ready.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "garmentJobNumber",
+    "dueDate",
+    "evaluatedAt",
+    "boundWithGarmentJobIds",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the verdict was applied to the garment, in UTC. Not the instant the verdict was reached — that is evaluatedAt."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The garment job, ordered behind its orders.garment-job-created.v1."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the garment belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch holding it for collection."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the garment belongs to."
+    },
+    "garmentJobNumber": {
+      "type": "string",
+      "description": "The human reference, so a rack tag can be named."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The garment's promised date, branch-local. The delivery queue is ordered by the promise, which is why it travels on the event that puts a garment onto it."
+    },
+    "evaluatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the gate gathered the facts it judged on, in UTC — earlier than or equal to occurredAt, and not the same thing. CI-03 in docs/architecture/invariants.md requires that a ready state never outlives the facts it was computed from, and the domain refuses a verdict older than the one a garment already carries; a consumer needs this instant to make the same comparison rather than trusting arrival order."
+    },
+    "boundWithGarmentJobIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "The rest of the deliver_together parcel this verdict was reached inside, in job-number order. Empty for a garment bound to nothing and empty where the branch policy permits partial delivery. It is the parcel AS THE GATE SAW IT at evaluatedAt and never durable membership: SQ-07, SQ-08 and SQ-09 in state-transitions.md section 10 are all proposed and unsettled, and SQ-09's interim position is precisely that the queue can show a garment as ready which cannot be handed over until its partner returns. The handover check belongs at the door, against IOrderSnapshotQuery, not in a stored copy of this array."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "orders.job-ready-for-delivery.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}
