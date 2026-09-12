@@ -78,6 +78,7 @@ builder.Services.AddHostedService<OutboxDispatcherService>();
 builder.Services.AddHostedService<AuditPartitionMaintenanceService>();
 builder.Services.AddHostedService<CustomerExportPurgeService>();
 builder.Services.AddHostedService<DocumentRenderService>();
+builder.Services.AddHostedService<DispatchExceptionExpiryService>();
 builder.Services.AddSingleton<IHeartbeatMonitor>(sp => sp.GetRequiredService<HeartbeatService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HeartbeatService>());
 

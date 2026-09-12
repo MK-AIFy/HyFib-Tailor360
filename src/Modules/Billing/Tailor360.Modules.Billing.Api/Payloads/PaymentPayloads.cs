@@ -403,3 +403,42 @@ public sealed record InvoiceBalancePayload(
             summary.InvoiceId, summary.InvoiceNumber, summary.Charges, summary.Credits, summary.Debits, summary.Allocated, summary.Refunds, summary.Outstanding, summary.Currency, summary.Status);
     }
 }
+
+/// <summary>A single-use dispatch exception approved for named jobs of an order.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="BranchId">The branch the order belongs to.</param>
+/// <param name="OrderId">The order it covers.</param>
+/// <param name="JobIds">Exactly the garment jobs it covers.</param>
+/// <param name="MaxOutstandingAmount">The most the order may still owe when it is consumed.</param>
+/// <param name="Currency">The currency of the maximum.</param>
+/// <param name="PolicyVersion">The dispatch policy version it was approved under.</param>
+/// <param name="ReasonCode">The configured reason code.</param>
+/// <param name="ApprovedBy">Who approved it.</param>
+/// <param name="ApprovedAt">When.</param>
+/// <param name="ExpiresAt">When it stops being consumable.</param>
+/// <param name="Status">Approved, Consumed or Expired.</param>
+public sealed record DispatchExceptionPayload(
+    Guid Id,
+    Guid BranchId,
+    Guid OrderId,
+    IReadOnlyList<Guid> JobIds,
+    decimal MaxOutstandingAmount,
+    string Currency,
+    string PolicyVersion,
+    string ReasonCode,
+    Guid ApprovedBy,
+    DateTimeOffset ApprovedAt,
+    DateTimeOffset ExpiresAt,
+    string Status)
+{
+    /// <summary>Projects an exception.</summary>
+    public static DispatchExceptionPayload From(DispatchException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return new DispatchExceptionPayload(
+            exception.Id, exception.BranchId, exception.OrderId, [.. exception.JobIds.OrderBy(id => id)],
+            exception.MaxOutstandingAmount.Amount, exception.MaxOutstandingAmount.Currency, exception.PolicyVersion,
+            exception.ReasonCode, exception.ApprovedBy, exception.ApprovedAt, exception.ExpiresAt, exception.Status.ToString());
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "eventId": "019bd6c1-1111-7f2a-9c3d-5e7f8a9b0c1d",
+  "occurredAt": "2026-09-12T20:05:00.0000000+00:00",
+  "aggregateId": "019bd6c1-2222-7f2a-9c3d-5e7f8a9b0c1d",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "orderId": "019bd6c1-3333-7f2a-9c3d-5e7f8a9b0c1d",
+  "approvedBy": "019bd6c1-4444-7f2a-9c3d-5e7f8a9b0c1d",
+  "policyVersion": "1",
+  "maxOutstandingAmount": 500.00,
+  "currency": "INR",
+  "expiresAt": "2026-09-15T20:05:00.0000000+00:00",
+  "eventType": "billing.dispatch-exception-approved.v1",
+  "schemaVersion": 1
+}

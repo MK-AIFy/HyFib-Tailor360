@@ -845,6 +845,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/dispatch-exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a single-use dispatch exception for named jobs of an order.
+         * @description Bound to the order, exactly these garment jobs, a maximum outstanding amount, the dispatch policy version in force and an expiry of at most 72 hours. Refused where the order is not Billing's, is at another branch, or names a job that is not a live job of the order. Consumed exactly once through IDispatchEligibilityQuery, which re-validates the balance, the job set, the policy version, the expiry and that the dispatcher differs from the approver — none of that happens here. Step-up and a reason.
+         */
+        post: operations["ApproveDispatchException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/gst-registrations": {
         parameters: {
             query?: never;
@@ -3367,6 +3387,17 @@ export interface components {
             name: null | string;
             notes: null | string;
         };
+        CreateDispatchExceptionRequest: {
+            /** Format: date-time */
+            expiresAt: string;
+            jobIds: null | string[];
+            /** Format: double */
+            maxOutstandingAmount: number | string;
+            /** Format: uuid */
+            orderId: string;
+            reasonCode: null | string;
+            reasonText: null | string;
+        };
         CreateInvoiceRequest: {
             calculationReference: null | string;
             garmentJobIds: null | string[];
@@ -3727,6 +3758,27 @@ export interface components {
             maximumWithoutApproval: null | number | string;
             reason: null | string;
             saysActive?: boolean;
+        };
+        DispatchExceptionPayload: {
+            /** Format: date-time */
+            approvedAt: string;
+            /** Format: uuid */
+            approvedBy: string;
+            /** Format: uuid */
+            branchId: string;
+            currency: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            jobIds: string[];
+            /** Format: double */
+            maxOutstandingAmount: number | string;
+            /** Format: uuid */
+            orderId: string;
+            policyVersion: string;
+            reasonCode: string;
+            status: string;
         };
         DuplicateCandidatePayload: {
             confidence: string;
@@ -7921,6 +7973,76 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ApproveDispatchException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "expiresAt": "2026-09-15T20:05:00Z",
+                 *       "jobIds": [
+                 *         "0199c000-0000-7000-8000-000000000031",
+                 *         "0199c000-0000-7000-8000-000000000032"
+                 *       ],
+                 *       "maxOutstandingAmount": 500,
+                 *       "orderId": "019bd6c1-3333-7f2a-9c3d-5e7f8a9b0c1d",
+                 *       "reasonCode": "CUSTOMER_TRAVELLING",
+                 *       "reasonText": "Customer is travelling tonight; balance to be settled on return within the week."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CreateDispatchExceptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchExceptionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {

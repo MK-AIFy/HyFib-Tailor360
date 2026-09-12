@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.dispatch-exception-approved.v1.schema.json",
+  "title": "billing.dispatch-exception-approved.v1",
+  "description": "A single-use dispatch exception was approved for named jobs of an order (plan lines 1908-1916, docs/prd/exceptions.md EX-10). Identifiers, the policy version, the approved maximum and the expiry only.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "orderId",
+    "approvedBy",
+    "policyVersion",
+    "maxOutstandingAmount",
+    "currency",
+    "expiresAt",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The dispatch exception."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch the order belongs to."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order it covers."
+    },
+    "approvedBy": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Who approved it."
+    },
+    "policyVersion": {
+      "type": "string",
+      "description": "The dispatch policy version in force when it was approved."
+    },
+    "maxOutstandingAmount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "The most the order may still owe when it is consumed, to the paisa, in currency."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217, INR today (conventions.md section 1.1)."
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it stops being consumable; at most 72 hours after occurredAt."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.dispatch-exception-approved.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

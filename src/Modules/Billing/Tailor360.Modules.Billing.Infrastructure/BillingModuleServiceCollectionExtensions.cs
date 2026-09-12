@@ -94,6 +94,16 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<IReconciliationBatchStore, ReconciliationBatchStore>();
         services.TryAddScoped<ReconciliationHandler>();
 
+        // E09-F03-4: the dispatch eligibility answer and its single-use exception.
+        services.TryAddScoped<IDispatchExceptionStore, DispatchExceptionStore>();
+        services.TryAddScoped<DispatchExceptionHandler>();
+        services.TryAddScoped<IDispatchEligibilityQuery, DispatchEligibilityQuery>();
+        services.AddOptions<DispatchPolicyOptions>()
+            .Bind(configuration.GetSection(DispatchPolicyOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<DispatchPolicyOptions>, DispatchPolicyOptionsValidator>();
+
         // What Billing knows about orders arrives through the outbox, one consumer per event type, each
         // committed with its inbox row by the dispatcher. Enumerable, not TryAdd: the other modules' consumers
         // share the interface.

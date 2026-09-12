@@ -41,6 +41,9 @@ internal static class BillingAudit
     /// <summary>A reconciliation batch.</summary>
     public const string ReconciliationBatchEntity = "billing.reconciliation_batch";
 
+    /// <summary>A dispatch exception.</summary>
+    public const string DispatchExceptionEntity = "billing.dispatch_exception";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,

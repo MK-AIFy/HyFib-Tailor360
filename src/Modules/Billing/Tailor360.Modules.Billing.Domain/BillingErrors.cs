@@ -1,3 +1,4 @@
+using Tailor360.Modules.Billing.Domain.Payments;
 using Tailor360.Modules.Billing.Domain.Tax;
 using Tailor360.Platform.Abstractions.Results;
 
@@ -775,4 +776,63 @@ public static class BillingErrors
     public static readonly Error ReconciliationApprovalBySameUser = Error.Forbidden(
         "billing.reconciliation-approval-by-same-user",
         "A variance is approved by someone other than the cashier who closed the session.");
+
+    /// <summary>A dispatch exception's maximum outstanding amount was zero or negative.</summary>
+    public static readonly Error DispatchExceptionAmountNotPositive = Error.Validation(
+        "billing.dispatch-exception-amount-not-positive",
+        "The maximum outstanding amount is a positive value in rupees.",
+        "maxOutstandingAmount");
+
+    /// <summary>An expiry was not strictly in the future or reached further than the maximum validity.</summary>
+    public static readonly Error DispatchExceptionExpiryNotWellFormed = Error.Validation(
+        "billing.dispatch-exception-expiry-not-well-formed",
+        $"The expiry is in the future and at most {DispatchException.MaximumValidityHours} hours from now.",
+        "expiresAt");
+
+    /// <summary>The dispatch exception named is not one of the organisation's.</summary>
+    public static readonly Error DispatchExceptionNotFound = Error.NotFound(
+        "billing.dispatch-exception-not-found",
+        "No dispatch exception with that identifier belongs to this organisation.");
+
+    /// <summary>The exception has been consumed already.</summary>
+    public static readonly Error DispatchExceptionAlreadyConsumed = Error.Conflict(
+        "billing.dispatch-exception-already-consumed",
+        "This dispatch exception has been consumed already.");
+
+    /// <summary>The exception is past its expiry, whether or not it was ever marked so.</summary>
+    public static readonly Error DispatchExceptionExpired = Error.Conflict(
+        "billing.dispatch-exception-expired",
+        "This dispatch exception has expired.");
+
+    /// <summary>An expiry pass was asked to expire an exception before its expiry.</summary>
+    public static readonly Error DispatchExceptionNotYetDue = Error.Conflict(
+        "billing.dispatch-exception-not-yet-due",
+        "This dispatch exception has not reached its expiry yet.");
+
+    /// <summary>The person consuming the exception is the person who approved it.</summary>
+    public static readonly Error DispatchExceptionApproverIsDispatcher = Error.Forbidden(
+        "billing.dispatch-exception-approver-is-dispatcher",
+        "A dispatch exception is consumed by someone other than the person who approved it.");
+
+    /// <summary>The job set at consumption no longer matches exactly what the exception was approved for.</summary>
+    public static readonly Error DispatchExceptionJobSetChanged = Error.Conflict(
+        "billing.dispatch-exception-job-set-changed",
+        "The garment jobs no longer match exactly what this exception was approved for.");
+
+    /// <summary>The dispatch policy has moved on from the version the exception was approved under.</summary>
+    public static readonly Error DispatchExceptionPolicyVersionChanged = Error.Conflict(
+        "billing.dispatch-exception-policy-version-changed",
+        "The dispatch policy has changed since this exception was approved. Approve a new one under the current policy.");
+
+    /// <summary>The order now owes more than the exception was approved to cover.</summary>
+    public static readonly Error DispatchExceptionBalanceExceeded = Error.Conflict(
+        "billing.dispatch-exception-balance-exceeded",
+        "The order now owes more than this exception was approved to cover.");
+
+    /// <summary>A dispatch exception named a garment job that is not of the order, or is cancelled.</summary>
+    /// <param name="field">The field.</param>
+    public static Error DispatchExceptionJobNotOfOrder(string field) => Error.Validation(
+        "billing.dispatch-exception-job-not-of-order",
+        "Every job named is a live garment job of this order.",
+        field);
 }

@@ -67,3 +67,13 @@ public sealed record RecordRefundRequest(Guid? PaymentId, Guid? InvoiceId, strin
 /// <summary>Approve a cashier session's variance, by someone other than who closed it.</summary>
 /// <param name="Reason">Why the variance is accepted.</param>
 public sealed record ApproveReconciliationRequest(string? Reason);
+
+/// <summary>Approve a single-use dispatch exception for named jobs of an order.</summary>
+/// <param name="OrderId">The order.</param>
+/// <param name="JobIds">Exactly the garment jobs it covers; every one must be a live job of the order.</param>
+/// <param name="MaxOutstandingAmount">The most the order may still owe when it is consumed, in rupees to the paisa.</param>
+/// <param name="ReasonCode">The configured reason code.</param>
+/// <param name="ReasonText">Why, in the approver's own words.</param>
+/// <param name="ExpiresAt">When it stops being consumable; at most 72 hours from now.</param>
+public sealed record CreateDispatchExceptionRequest(
+    Guid OrderId, IReadOnlyList<Guid>? JobIds, decimal MaxOutstandingAmount, string? ReasonCode, string? ReasonText, DateTimeOffset ExpiresAt);

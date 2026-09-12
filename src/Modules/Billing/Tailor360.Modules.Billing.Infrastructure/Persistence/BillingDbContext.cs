@@ -125,6 +125,9 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The reconciliation batches opened at a session's close.</summary>
     public DbSet<ReconciliationBatch> ReconciliationBatches => Set<ReconciliationBatch>();
 
+    /// <summary>The single-use dispatch exceptions approved for named jobs of an order (#164).</summary>
+    public DbSet<DispatchException> DispatchExceptions => Set<DispatchException>();
+
     /// <summary>
     /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
     /// which the invoice's own trigger keeps equal to the parent's status, because a partial index cannot
@@ -186,6 +189,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigureCashierSessions(modelBuilder);
         ConfigurePayments(modelBuilder);
         ConfigureReconciliationBatches(modelBuilder);
+        ConfigureDispatchExceptions(modelBuilder);
         ConfigureOrderFacts(modelBuilder);
         ConfigureInvoices(modelBuilder);
     }
@@ -606,6 +610,38 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
             // Written once at open (Pending or NotRequired), takes exactly one further write (its
             // approval) and no version convention: append-only by trigger (INV-CSH-06), no updated
             // pair, an xmin token as the session itself carries for the same one-transition shape.
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigureDispatchExceptions(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DispatchException>(entity =>
+        {
+            entity.ToTable("dispatch_exceptions");
+            entity.HasKey(exception => exception.Id);
+            entity.Property(exception => exception.PolicyVersion).HasMaxLength(40).IsRequired();
+            entity.Property(exception => exception.ReasonCode).HasMaxLength(DispatchException.MaximumReasonCodeLength).IsRequired();
+            entity.Property(exception => exception.ReasonText).HasMaxLength(DispatchException.MaximumReasonTextLength).IsRequired();
+            entity.Property(exception => exception.Status).HasConversion<int>();
+            ConfigureMoney(entity.ComplexProperty(exception => exception.MaxOutstandingAmount), "max_outstanding_amount");
+            entity.Ignore(exception => exception.JobIds);
+
+            entity.HasIndex(exception => new { exception.OrganisationId, exception.OrderId })
+                .HasDatabaseName("ix_dispatch_exceptions_organisation_order");
+            entity.HasIndex(exception => new { exception.Status, exception.ExpiresAt })
+                .HasDatabaseName("ix_dispatch_exceptions_status_expires_at");
+
+            entity.OwnsMany(exception => exception.Jobs, jobs =>
+            {
+                jobs.ToTable("dispatch_exception_jobs");
+                jobs.WithOwner().HasForeignKey(job => job.DispatchExceptionId);
+                jobs.HasKey(job => new { job.DispatchExceptionId, job.GarmentJobId });
+            });
+            entity.Navigation(exception => exception.Jobs).AutoInclude();
+
+            // Written once at approval, takes exactly one further write — a consumption or an expiry,
+            // moving only that transition's own columns — and is never deleted: it is what a dispatch
+            // authorisation proves it relied on. The same one-transition shape as
+            // `reconciliation_batches_are_the_one_transition()`, explicit SQL in the migration.
             UseRowVersion(entity);
         });
 
