@@ -90,27 +90,14 @@ public sealed class InvoiceHandler(
         }
 
         // The order as it stands now: still confirmed, still this branch's, not revised since the draft was
-        // made, and every garment the draft charges for still live. What was true at drafting is checked
-        // again here, because the outbox may have brought a revision or a cancellation since.
+        // made, and every garment the draft charges for still live. Checked here so the cashier is answered
+        // before a figure is verified, and checked again inside the transaction below over a fact held
+        // against change, because the outbox may bring a revision or a cancellation at any moment.
         var order = await orders.FindAsync(invoice.OrderId, command.OrganisationId, cancellationToken);
-        var checkedOrder = CheckOrder(order, invoice.BranchId);
+        var checkedOrder = CheckOrderForPosting(order, invoice);
         if (checkedOrder.IsFailure)
         {
             return Result.Failure<AdministeredInvoice>(checkedOrder.Error);
-        }
-
-        if (order!.RevisionNumber != invoice.OrderRevisionNumber)
-        {
-            return Result.Failure<AdministeredInvoice>(BillingErrors.OrderRevisedSinceDraft);
-        }
-
-        foreach (var line in invoice.Lines)
-        {
-            var checkedJob = InvoiceLines.CheckJob(line.GarmentJobId, order, $"lines[{line.LineKey}].lineKey");
-            if (checkedJob.IsFailure)
-            {
-                return Result.Failure<AdministeredInvoice>(checkedJob.Error);
-            }
         }
 
         // Recomputed and compared, as the issue asks: the draft's lines are the calculation's, and a draft
@@ -126,14 +113,13 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredInvoice>(BillingErrors.TotalsMismatch);
         }
 
-        var numbering = await NumberingAsync(invoice, cancellationToken);
-        if (numbering.IsFailure)
+        var branch = await BranchAsync(invoice, cancellationToken);
+        if (branch.IsFailure)
         {
-            return Result.Failure<AdministeredInvoice>(numbering.Error);
+            return Result.Failure<AdministeredInvoice>(branch.Error);
         }
 
-        var (branchCode, financialYear, postedOn) = numbering.Value;
-        var scope = DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear);
+        var (branchCode, timeZone) = branch.Value;
 
         // Minted once per command rather than per attempt: it is how a commit whose outcome the connection
         // lost is told apart from a rival's post of the same draft.
@@ -151,6 +137,23 @@ public sealed class InvoiceHandler(
                 return Result.Failure<Invoice>(BillingErrors.InvoiceChanged);
             }
 
+            // The order's fact, held against change until this commits, and checked again over what is held.
+            await orders.LockForReadAsync(fresh.OrderId, token);
+            var current = await orders.FindAsync(fresh.OrderId, command.OrganisationId, token);
+            var stillPostable = CheckOrderForPosting(current, fresh);
+            if (stillPostable.IsFailure)
+            {
+                return Result.Failure<Invoice>(stillPostable.Error);
+            }
+
+            // The instant of posting decides the business date, the financial year and so the sequence: read
+            // once, here, after the locks, so a request that crossed branch-local midnight while it waited is
+            // numbered in the day it actually posts (conventions.md section 2.2).
+            var now = clock.UtcNow;
+            var postedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime);
+            var financialYear = DocumentNumbers.FinancialYearToken(postedOn);
+            var scope = DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear);
+
             var sequence = await invoices.AllocateAsync(DocumentNumbers.InvoiceSequence, scope, token);
             var number = DocumentNumbers.Compose(DocumentNumbers.InvoicePrefix, branchCode, financialYear, sequence);
             if (number.IsFailure)
@@ -158,7 +161,6 @@ public sealed class InvoiceHandler(
                 return Result.Failure<Invoice>(number.Error);
             }
 
-            var now = clock.UtcNow;
             var post = fresh.Post(number.Value, barcode, financialYear, postedOn, now, command.By);
             if (post.IsFailure)
             {
@@ -216,14 +218,13 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredNote>(BillingErrors.CancellationWindowClosed);
         }
 
-        var numbering = await NumberingAsync(invoice, cancellationToken);
-        if (numbering.IsFailure)
+        var branch = await BranchAsync(invoice, cancellationToken);
+        if (branch.IsFailure)
         {
-            return Result.Failure<AdministeredNote>(numbering.Error);
+            return Result.Failure<AdministeredNote>(branch.Error);
         }
 
-        var (branchCode, financialYear, _) = numbering.Value;
-        var scope = DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear);
+        var (branchCode, timeZone) = branch.Value;
         var creditNoteId = ids.NewId();
         var cancelled = await invoices.AppendInTransactionAsync(invoice.Id, creditNoteId, command.OrganisationId, async token =>
         {
@@ -233,14 +234,15 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(BillingErrors.InvoiceNotFound);
             }
 
-            var sequence = await invoices.AllocateAsync(DocumentNumbers.CreditNoteSequence, scope, token);
+            var now = clock.UtcNow;
+            var financialYear = DocumentNumbers.FinancialYearToken(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime));
+            var sequence = await invoices.AllocateAsync(DocumentNumbers.CreditNoteSequence, DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear), token);
             var number = DocumentNumbers.Compose(DocumentNumbers.CreditNotePrefix, branchCode, financialYear, sequence);
             if (number.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
-            var now = clock.UtcNow;
             var cancel = fresh.Cancel(ids.NewId(), creditNoteId, number.Value, command.Reason, now, command.By);
             if (cancel.IsFailure)
             {
@@ -291,14 +293,13 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredNote>(BillingErrors.InvoiceAlreadyCancelled);
         }
 
-        var numbering = await NumberingAsync(invoice, cancellationToken);
-        if (numbering.IsFailure)
+        var branch = await BranchAsync(invoice, cancellationToken);
+        if (branch.IsFailure)
         {
-            return Result.Failure<AdministeredNote>(numbering.Error);
+            return Result.Failure<AdministeredNote>(branch.Error);
         }
 
-        var (branchCode, financialYear, _) = numbering.Value;
-        var scope = DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear);
+        var (branchCode, timeZone) = branch.Value;
         var (sequenceKey, prefix) = command.Kind == AdjustmentNoteKind.Credit
             ? (DocumentNumbers.CreditNoteSequence, DocumentNumbers.CreditNotePrefix)
             : (DocumentNumbers.DebitNoteSequence, DocumentNumbers.DebitNotePrefix);
@@ -311,14 +312,15 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(BillingErrors.InvoiceNotFound);
             }
 
-            var sequence = await invoices.AllocateAsync(sequenceKey, scope, token);
+            var now = clock.UtcNow;
+            var financialYear = DocumentNumbers.FinancialYearToken(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime));
+            var sequence = await invoices.AllocateAsync(sequenceKey, DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear), token);
             var number = DocumentNumbers.Compose(prefix, branchCode, financialYear, sequence);
             if (number.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
-            var now = clock.UtcNow;
             var note = fresh.PostNote(noteId, command.Kind, number.Value, command.Lines, command.Reason, now, command.By);
             if (note.IsFailure)
             {
@@ -366,26 +368,52 @@ public sealed class InvoiceHandler(
         return true;
     }
 
+    /// <summary>What a posted draft asks of the order beyond <see cref="CheckOrder"/>: not revised since the draft, and every garment still live.</summary>
+    private static Result CheckOrderForPosting(OrderFact? order, Invoice invoice)
+    {
+        var checkedOrder = CheckOrder(order, invoice.BranchId);
+        if (checkedOrder.IsFailure)
+        {
+            return checkedOrder;
+        }
+
+        if (order!.RevisionNumber != invoice.OrderRevisionNumber)
+        {
+            return Result.Failure(BillingErrors.OrderRevisedSinceDraft);
+        }
+
+        foreach (var line in invoice.Lines)
+        {
+            var checkedJob = InvoiceLines.CheckJob(line.GarmentJobId, order, $"lines[{line.LineKey}].lineKey");
+            if (checkedJob.IsFailure)
+            {
+                return checkedJob;
+            }
+        }
+
+        return Result.Success();
+    }
+
     /// <summary>
-    /// What a number is drawn under: the branch's code as the register writes it, and the financial year of
-    /// today in the branch's own calendar (<c>docs/architecture/conventions.md</c> section 2.2).
+    /// The branch a number is drawn at: its code as the register writes it, and the calendar the business
+    /// date is read in (<c>docs/architecture/conventions.md</c> section 2.2). The date itself is read at the
+    /// instant of posting, inside the transaction.
     /// </summary>
-    private async Task<Result<(string BranchCode, string FinancialYear, DateOnly Today)>> NumberingAsync(Invoice invoice, CancellationToken cancellationToken)
+    private async Task<Result<(string BranchCode, TimeZoneInfo TimeZone)>> BranchAsync(Invoice invoice, CancellationToken cancellationToken)
     {
         var branch = await branches.FindAsync(invoice.BranchId, cancellationToken);
         if (branch is null || branch.OrganisationId != invoice.OrganisationId)
         {
-            return Result.Failure<(string, string, DateOnly)>(BillingErrors.BranchNotKnown);
+            return Result.Failure<(string, TimeZoneInfo)>(BillingErrors.BranchNotKnown);
         }
 
         var code = DocumentNumbers.NormaliseBranchCode(branch.Code);
         if (code.IsFailure)
         {
-            return Result.Failure<(string, string, DateOnly)>(code.Error);
+            return Result.Failure<(string, TimeZoneInfo)>(code.Error);
         }
 
-        var today = clock.TodayIn(TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId));
-        return Result.Success((code.Value, DocumentNumbers.FinancialYearToken(today), today));
+        return Result.Success((code.Value, TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId)));
     }
 
     /// <summary>Drafts an invoice from an order's stored calculation.</summary>

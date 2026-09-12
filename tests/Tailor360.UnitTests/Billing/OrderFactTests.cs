@@ -184,6 +184,8 @@ public sealed class OrderFactTests
             => Task.FromResult(Facts.Find(fact => fact.OrderId == orderId && fact.OrganisationId == organisationId));
 
         public void Add(OrderFact fact) => Facts.Add(fact);
+
+        public Task LockForReadAsync(Guid orderId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class FixedClock(DateTimeOffset now) : IClock

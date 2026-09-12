@@ -14,4 +14,13 @@ public interface IOrderFactStore
 
     /// <summary>Adds a fact to the context.</summary>
     void Add(OrderFact fact);
+
+    /// <summary>
+    /// Holds the order's fact against change for the rest of the current transaction (a share lock), so a
+    /// revision or a cancellation arriving through the outbox waits until the posting that read the fact
+    /// has committed. Outside a transaction it throws.
+    /// </summary>
+    /// <param name="orderId">The order.</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    Task LockForReadAsync(Guid orderId, CancellationToken cancellationToken = default);
 }
