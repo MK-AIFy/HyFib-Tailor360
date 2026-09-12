@@ -76,8 +76,11 @@ description of "forbidden" changes one place and one line of the diff.
 Successes are declared, not derived. A minimal-API handler whose branches return `IResult` publishes no
 response type at all, so an endpoint says what it returns with `.Produces<T>(status)`; the
 `success-response-schema` rule fails an operation that documents a success with no schema, and fails one
-that documents a body on `204`. Without it the document describes every failure precisely and every
-success as the word "OK", which is the state a generated client cannot be built from.
+that documents a body on `204`. A streamed document — a rendered invoice — is declared with
+`.Produces<Stream>(status, "application/pdf")` and passes as a binary body under its own media type; a non-JSON
+success whose schema does not say "bytes" fails like one with no schema. Without the rule the document describes
+every failure precisely and every success as the word "OK", which is the state a generated client cannot be built
+from.
 
 ### 1.3 The annotations
 
@@ -137,7 +140,7 @@ They are kept in step by the table below. **A rule added to one and not the othe
 | 401 and 403 are published together or not at all | `problem-response-pairing` | — |
 | Every error is `application/problem+json` | `problem-media-type` | `problem-details-media-type` |
 | Every error references the shared error schema | `problem-schema` | `problem-details-shared-schema` |
-| Every success that returns a body documents its schema, and `204` documents none | `success-response-schema`, `success-response-body` | `success-response-schema` |
+| Every success that returns a body documents its schema — JSON, or a binary body under its media type — and `204` documents none | `success-response-schema`, `success-response-body` | `success-response-content`, `success-response-schema`, `success-response-binary` |
 | Every request body carries an example | `request-example` | `request-body-example` |
 | Every path is under `/api/v1/`, except `/api/version` | `path-prefix`, `path-version` | `versioned-path` |
 | A deprecated operation names its replacement | `deprecation-names-replacement` | — |

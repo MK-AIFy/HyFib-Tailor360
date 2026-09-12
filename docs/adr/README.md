@@ -32,6 +32,7 @@ also lists ADR-0000, which is not a decision about the system but the decision a
 | 0011 | [`0011-reporting-read-models.md`](0011-reporting-read-models.md) | Serving reports from rebuildable projections with checkpoints and reconciliation, never as the authoritative source of financial, stock, workflow or custody state | Accepted — 2026-09-04 | Plan 2.2, 4.3 |
 | 0012 | [`0012-integration-ports-and-adapters.md`](0012-integration-ports-and-adapters.md) | Reaching external systems only through ports, with replaceable adapters confined to `Integration.Infrastructure` and a strict outbound policy | Accepted — 2026-09-04 | D20, D15, D16 |
 | 0013 | [`0013-caching.md`](0013-caching.md) | Caching only in process, only with explicit invalidation, and never authoritatively | Accepted — 2026-09-04 | D21 |
+| 0014 | [`0014-document-rendering-and-object-storage.md`](0014-document-rendering-and-object-storage.md) | QuestPDF behind `IPdfRenderer`, ZXing.Net behind `IBarcodeRenderer`, MinIO's client behind `IObjectStorage`, and a logging print queue until the print bridge | Proposed — 2026-09-12 | D15, D4 |
 
 Records 0001 to 0007 and the template were issued in the first batch of issue #18; records 0008 to 0013 complete
 the same issue and the same Wave 0 baseline. Every record listed here is in force.

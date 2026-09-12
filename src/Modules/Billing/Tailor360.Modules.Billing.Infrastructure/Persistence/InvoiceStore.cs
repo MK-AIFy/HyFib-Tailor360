@@ -166,6 +166,28 @@ public sealed class InvoiceStore(BillingDbContext context, ITransactionalSequenc
     }
 
     /// <inheritdoc />
+    public async Task<(Invoice Invoice, AdjustmentNote Note)?> FindNoteAsync(Guid noteId, Guid organisationId, CancellationToken cancellationToken = default)
+    {
+        var invoiceId = await context.AdjustmentNotes.AsNoTracking().IgnoreAutoIncludes()
+            .Where(note => note.Id == noteId && note.OrganisationId == organisationId)
+            .Select(note => (Guid?)note.InvoiceId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (invoiceId is not { } id)
+        {
+            return null;
+        }
+
+        var invoice = await FindAsync(id, organisationId, cancellationToken);
+        var note = invoice?.Notes.FirstOrDefault(candidate => candidate.Id == noteId);
+        return invoice is not null && note is not null ? (invoice, note) : null;
+    }
+
+    /// <inheritdoc />
+    public async Task<Invoice?> FindByBarcodeAsync(string barcodePayload, Guid organisationId, CancellationToken cancellationToken = default)
+        => await context.Invoices
+            .SingleOrDefaultAsync(invoice => invoice.BarcodePayload == barcodePayload && invoice.OrganisationId == organisationId, cancellationToken);
+
+    /// <inheritdoc />
     public void Add(Invoice invoice) => context.Invoices.Add(invoice);
 
     /// <inheritdoc />

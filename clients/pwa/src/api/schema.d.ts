@@ -741,6 +741,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/barcodes/{payload}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve an I- barcode payload to the invoice it was printed on.
+         * @description For a caller working in the branch that issued the invoice. Another branch's invoice, another organisation's, a payload whose check character does not hold and a payload of nothing all read alike as not found: the lookup confirms the existence of nothing it does not show. The payload's namespace, check character and branch are re-validated here on every call.
+         */
+        get: operations["ResolveInvoiceBarcode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/gst-registrations": {
         parameters: {
             query?: never;
@@ -908,6 +928,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/invoices/{invoiceId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream the rendered invoice.
+         * @description The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is re-authorised in branch scope on every call, and the access is written to the audit trail against the invoice. Not available until the worker has rendered the document.
+         */
+        get: operations["DownloadInvoiceDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/notes/{noteId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream the rendered credit or debit note.
+         * @description As the invoice's document: re-authorised in branch scope through the invoice, audited against the invoice.
+         */
+        get: operations["DownloadNoteDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/invoices/{invoiceId}/post": {
         parameters: {
             query?: never;
@@ -922,6 +982,26 @@ export interface paths {
          * @description The draft's figures are recomputed from the calculation it was drafted from and must match; the number is drawn under the sequence lock in the transaction that freezes the row, so two posts at one branch are numbered one after the other and a post that fails returns its number. A replay of the same Idempotency-Key answers the original. After posting, nothing about the invoice changes: it is cancelled by its compensating record.
          */
         post: operations["PostInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the rendered invoice to the branch's print queue.
+         * @description Through the print-queue port; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).
+         */
+        post: operations["PrintInvoice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2668,6 +2748,22 @@ export interface components {
             entries: components["schemas"]["AuditEntryPayload"][];
             nextCursor: null | string;
         };
+        BarcodeResolutionPayload: {
+            /** Format: uuid */
+            branchId: string;
+            cancelled: boolean;
+            currency: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: string;
+            /** Format: uuid */
+            orderId: string;
+            status: string;
+        };
         BillingFindingPayload: {
             code: string;
             message: string;
@@ -3950,6 +4046,14 @@ export interface components {
             taxInclusive: boolean;
             totals: components["schemas"]["PricedDocumentTotalsPayload"];
         };
+        PrintInvoiceRequest: {
+            /** Format: int32 */
+            copies: null | number | string;
+        };
+        PrintJobPayload: {
+            /** Format: uuid */
+            printJobId: string;
+        };
         /**
          * Problem details
          * @description RFC 9457 problem details. Every failure is reported in this shape, and never as a stack trace, an exception message or a bare status code.
@@ -4245,6 +4349,8 @@ export interface components {
             name: string;
             notes: null | string;
         };
+        /** Format: binary */
+        Stream: string;
         TaxCodePayload: {
             active: boolean;
             classification: string;
@@ -6876,6 +6982,35 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    ResolveInvoiceBarcode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payload: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BarcodeResolutionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     ListGstRegistrations: {
         parameters: {
             query?: never;
@@ -7578,6 +7713,65 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    DownloadInvoiceDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["Stream"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DownloadNoteDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+                noteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["Stream"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     PostInvoice: {
         parameters: {
             query?: never;
@@ -7648,6 +7842,71 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PrintInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "copies": 1
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["PrintInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintJobPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

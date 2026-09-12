@@ -29,7 +29,7 @@ public sealed class AdjustmentNote
         // The persistence layer materialises instances through this constructor.
     }
 
-    private AdjustmentNote(Guid id, Invoice invoice, AdjustmentNoteKind kind, string number, string reason, DateTimeOffset now, Guid? by)
+    private AdjustmentNote(Guid id, Invoice invoice, AdjustmentNoteKind kind, string number, string reason, DateOnly postedOn, DateTimeOffset now, Guid? by)
     {
         Id = id;
         InvoiceId = invoice.Id;
@@ -38,6 +38,7 @@ public sealed class AdjustmentNote
         Kind = kind;
         Number = number;
         Reason = reason;
+        PostedOn = postedOn;
         PostedAt = now;
         PostedBy = by;
         Totals = new InvoiceTotals(Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero);
@@ -67,6 +68,9 @@ public sealed class AdjustmentNote
     /// <summary>The note's totals: the taxable value, the tax by component, and the sum.</summary>
     public InvoiceTotals Totals { get; private set; } = null!;
 
+    /// <summary>The branch-local date it was posted on, which the document prints and the financial year is read from.</summary>
+    public DateOnly PostedOn { get; private set; }
+
     /// <summary>When it was posted.</summary>
     public DateTimeOffset PostedAt { get; private set; }
 
@@ -86,6 +90,7 @@ public sealed class AdjustmentNote
     /// <param name="number">The number allocated for it.</param>
     /// <param name="lines">The garment jobs and the taxable value each relieves or adds.</param>
     /// <param name="reason">Why.</param>
+    /// <param name="postedOn">The branch-local date.</param>
     /// <param name="now">When.</param>
     /// <param name="by">Who.</param>
     internal static Result<AdjustmentNote> Post(
@@ -95,6 +100,7 @@ public sealed class AdjustmentNote
         string number,
         IReadOnlyList<AdjustmentNoteLineRequest> lines,
         string reason,
+        DateOnly postedOn,
         DateTimeOffset now,
         Guid? by)
     {
@@ -106,7 +112,7 @@ public sealed class AdjustmentNote
             return Result.Failure<AdjustmentNote>(BillingErrors.LinesRequired);
         }
 
-        var note = new AdjustmentNote(id, invoice, kind, number, reason, now, by);
+        var note = new AdjustmentNote(id, invoice, kind, number, reason, postedOn, now, by);
         var number1 = 0;
         var seen = new HashSet<Guid>();
         foreach (var request in lines)
@@ -142,11 +148,11 @@ public sealed class AdjustmentNote
     }
 
     /// <summary>The credit note a cancellation posts: every line of the invoice, whole, and the invoice's own totals.</summary>
-    internal static AdjustmentNote ForCancellation(Guid id, Invoice invoice, string number, string reason, DateTimeOffset now, Guid? by)
+    internal static AdjustmentNote ForCancellation(Guid id, Invoice invoice, string number, string reason, DateOnly postedOn, DateTimeOffset now, Guid? by)
     {
         ArgumentNullException.ThrowIfNull(invoice);
 
-        var note = new AdjustmentNote(id, invoice, AdjustmentNoteKind.Credit, number, reason, now, by);
+        var note = new AdjustmentNote(id, invoice, AdjustmentNoteKind.Credit, number, reason, postedOn, now, by);
         var number1 = 0;
         foreach (var line in invoice.Lines)
         {

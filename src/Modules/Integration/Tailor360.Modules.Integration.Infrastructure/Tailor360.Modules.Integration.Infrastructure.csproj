@@ -3,6 +3,16 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="QuestPDF" />
+    <PackageReference Include="ZXing.Net" />
+    <PackageReference Include="Minio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The document fonts, under the SIL Open Font License beside them (ADR-0014). -->
+    <EmbeddedResource Include="Fonts\NotoSans.ttf" />
+    <EmbeddedResource Include="Fonts\NotoSansTamil.ttf" />
+    <None Include="Fonts\OFL.txt" />
   </ItemGroup>
 
   <ItemGroup>

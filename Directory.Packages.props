@@ -45,6 +45,19 @@
     <PackageVersion Include="Fido2.AspNet" Version="4.0.1" />
   </ItemGroup>
 
+  <ItemGroup Label="Documents and object storage (ADR-0014)">
+    <!--
+      QuestPDF renders the statutory documents behind IPdfRenderer under its Community licence, which the
+      record checks against the licence's revenue threshold; ZXing.Net computes the Code 128 bar pattern
+      behind IBarcodeRenderer (the core package, with no image library: the bars are drawn by QuestPDF);
+      Minio talks to the S3-compatible object store behind IObjectStorage. All three are referenced by
+      Integration.Infrastructure only (ARCH-009).
+    -->
+    <PackageVersion Include="QuestPDF" Version="2026.8.0" />
+    <PackageVersion Include="ZXing.Net" Version="0.16.11" />
+    <PackageVersion Include="Minio" Version="6.0.5" />
+  </ItemGroup>
+
   <ItemGroup Label="Validation and tooling">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
