@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -186,5 +186,58 @@ describe('taking a payment — form validation', () => {
     const { container } = renderAt(PATH)
     await screen.findByLabelText('Amount')
     await expectNoAccessibilityViolations(container)
+  })
+
+  // Codex review, PR #217: clicking "Take another payment" used to clear only the form fields, so
+  // the balance read before the just-recorded payment stayed on screen — a cashier could quick-fill
+  // and record the same, now-settled, full balance again, creating an unintended advance.
+  it('reloads the balance before offering another payment, hiding the stale figure meanwhile', async () => {
+    const user = userEvent.setup()
+    let balanceCalls = 0
+    // A plain `let` closed over inside the responder below defeats TypeScript's narrowing (it
+    // proves the variable can never be reassigned before its later, optional call, which is wrong
+    // at runtime); a mutable holder object sidesteps that.
+    const secondBalance: { resolve: (() => void) | null } = { resolve: null }
+
+    transport.route(`GET ${BALANCE}`, () => {
+      balanceCalls += 1
+      if (balanceCalls === 1) {
+        return jsonResponse(anOrderBalance())
+      }
+      return new Promise<Response>((resolve) => {
+        secondBalance.resolve = () => {
+          resolve(jsonResponse(anOrderBalance({ outstanding: 0 })))
+        }
+      })
+    })
+
+    renderAt(PATH)
+
+    await user.click(
+      await screen.findByRole('button', { name: `Full balance (${formatters.formatMoney(309)})` }),
+    )
+    await user.click(screen.getByRole('radio', { name: 'Cash' }))
+    await user.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    await screen.findByText('Payment recorded')
+
+    await user.click(screen.getByRole('button', { name: 'Take another payment' }))
+
+    expect(transport.callsTo(`GET ${BALANCE}`)).toHaveLength(2)
+    // The reload is still in flight: the pre-payment full balance must not be offered again.
+    expect(
+      screen.queryByRole('button', { name: `Full balance (${formatters.formatMoney(309)})` }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('Loading the order’s balance…')).toBeInTheDocument()
+
+    secondBalance.resolve?.()
+
+    await waitFor(() => {
+      expect(screen.getByText('Nothing is outstanding on this order.')).toBeInTheDocument()
+    })
+    expect(
+      screen.queryByRole('button', { name: `Full balance (${formatters.formatMoney(309)})` }),
+    ).not.toBeInTheDocument()
   })
 })

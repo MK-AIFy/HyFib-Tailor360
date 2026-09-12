@@ -41,6 +41,17 @@ function parseJobIds(text: string): readonly string[] {
  * the order and its jobs in front of them at the counter or on the phone with the branch — types or
  * pastes the job references this exception is bound to; the server refuses any that do not belong
  * to a live job of the order (`billing.dispatch-exception-job-not-of-order`).
+ *
+ * ## A known gap in the balance read (Codex review, PR #217)
+ *
+ * `getOrderBalance` is read behind `payments.record`, and the permission matrix does not grant that
+ * to the Owner — the only role this screen is for (`billing.approve_dispatch_exception`,
+ * `docs/security/permission-matrix.md`). No other read this role holds answers an order's balance;
+ * `IDispatchEligibilityQuery` is a `Billing.Contracts` query for Custody's dispatch scan (#37), not
+ * an HTTP endpoint. Until a server-side change adds one — a new read, or widening this one's
+ * permission — the Owner sees the generic forbidden state below rather than the pre-filled balance,
+ * and must enter the maximum outstanding amount from what they already know about the order. This
+ * is a server-side gap, not something this screen can close on its own.
  */
 export function DispatchExceptionApprovalRoute() {
   const intl = useIntl()
@@ -52,6 +63,17 @@ export function DispatchExceptionApprovalRoute() {
   const balance = useAdminResource(`dispatch-balance:${orderId}`, async (signal) =>
     orderId === '' ? null : await getOrderBalance(orderId, signal),
   )
+
+  /**
+   * `balance.value` for the order this screen is looking at *right now*, or null when there is
+   * none yet. `useAdminResource` deliberately keeps the previous order's balance on screen while a
+   * new order's read is in flight (its own documented design, not changed here), so a plain
+   * `balance.value !== null` check would let order A's balance answer for order B the moment the
+   * reference field changes. Comparing the loaded balance's own `orderId` is what tells the two
+   * apart (Codex review, PR #217).
+   */
+  const currentBalance =
+    balance.value !== null && balance.value.orderId === orderId ? balance.value : null
 
   const [jobsText, setJobsText] = useState('')
   const [maxOutstandingOverride, setMaxOutstandingOverride] = useState<number | undefined>(
@@ -73,7 +95,21 @@ export function DispatchExceptionApprovalRoute() {
   const jobIds = parseJobIds(jobsText)
   const maxOutstanding =
     maxOutstandingOverride ??
-    (balance.value === null ? undefined : Number(balance.value.outstanding))
+    (currentBalance === null ? undefined : Number(currentBalance.outstanding))
+
+  /**
+   * Order-A-specific state must not survive a switch to order B — a maximum quick-filled or typed
+   * against one order must never be submitted for another. Resetting it here, rather than only
+   * clearing it on submit, is what stops `complete()` from reusing the old value the instant the
+   * order reference changes (Codex review, PR #217): with the override gone and `currentBalance`
+   * already `null` for the new, not-yet-loaded order, `maxOutstanding` is `undefined` and the form
+   * refuses to open its confirmation until either the fresh balance loads or the person re-enters an
+   * allowance for the order actually named in `orderId`.
+   */
+  const handleOrderIdChange = (value: string): void => {
+    setOrderId(value)
+    setMaxOutstandingOverride(undefined)
+  }
 
   /**
    * The expiry actually offered, fixed the moment the confirmation opens rather than recomputed
@@ -182,22 +218,22 @@ export function DispatchExceptionApprovalRoute() {
             id="dispatch-order"
             label={intl.formatMessage({ id: 'billing.dispatch.order.label' })}
             name="orderId"
-            onValueChange={setOrderId}
+            onValueChange={handleOrderIdChange}
             required
             value={orderId}
           />
 
           <AuthProblemAlert failure={balance.failure} />
-          {orderId === '' ? null : balance.loading ? (
-            <LoadingState what={intl.formatMessage({ id: 'billing.dispatch.balance.loading' })} />
-          ) : balance.value === null ? null : (
+          {orderId === '' ? null : currentBalance !== null ? (
             <Alert live="off" tone="warning">
               {intl.formatMessage(
                 { id: 'billing.dispatch.balance.outstanding' },
-                { amount: formatters.formatMoney(balance.value.outstanding) },
+                { amount: formatters.formatMoney(currentBalance.outstanding) },
               )}
             </Alert>
-          )}
+          ) : balance.failure === null ? (
+            <LoadingState what={intl.formatMessage({ id: 'billing.dispatch.balance.loading' })} />
+          ) : null}
 
           <TextArea
             description={intl.formatMessage({ id: 'billing.dispatch.jobs.hint' })}

@@ -4,6 +4,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
+import { useCurrentUser } from '../../auth/useSession'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
 import { billingProblemCode } from '../../billing/billingProblems'
 import {
@@ -13,6 +14,7 @@ import {
   openCashierSession,
 } from '../../billing/billingApi'
 import {
+  COIN_DENOMINATIONS,
   NOTE_DENOMINATIONS,
   countedCashTotal,
   emptyCashCount,
@@ -53,14 +55,23 @@ export function CashierSessionRoute() {
   const intl = useIntl()
   const network = useNetworkState()
   const formatters = getFormatters()
+  const currentUser = useCurrentUser()
 
   // An array, never `CashierSession | null`: `useAdminResource`'s own `null` means "not read yet",
   // so a resource whose honest answer can be null needs a value type that has no null of its own —
   // an empty array is "read, and there is none", which is a fact rather than a wait.
+  //
+  // The list is every open session at the branch, newest first, not just the caller's own — a
+  // branch running more than one cashier at once always has more than one. Matching `cashierId`
+  // against the signed-in user is what picks out this cashier's session rather than whichever
+  // colleague's happens to be newest (Codex review, PR #217).
   const openSessions = useAdminResource('cashier-session-open', (signal) =>
     listCashierSessions('Open', signal),
   )
-  const openSession = { ...openSessions, value: openSessions.value?.[0] ?? null }
+  const openSession = {
+    ...openSessions,
+    value: openSessions.value?.find((session) => session.cashierId === currentUser.userId) ?? null,
+  }
   const modes = useAdminResource('payment-modes-for-close', (signal) =>
     listAvailablePaymentModes(signal),
   )
@@ -113,6 +124,15 @@ export function CashierSessionRoute() {
       ...current,
       notes: current.notes.map((note) =>
         note.denomination === denomination ? { ...note, quantity } : note,
+      ),
+    }))
+  }
+
+  const setCoinQuantity = (denomination: number, quantity: number): void => {
+    setCount((current) => ({
+      ...current,
+      coins: current.coins.map((coin) =>
+        coin.denomination === denomination ? { ...coin, quantity } : coin,
       ),
     }))
   }
@@ -303,21 +323,29 @@ export function CashierSessionRoute() {
               </div>
             ))}
 
-            <NumericStepper
-              decimalPlaces={2}
-              description={intl.formatMessage({ id: 'billing.cashier.close.coins.hint' })}
-              id="cashier-coins"
-              inputMode="decimal"
-              label={intl.formatMessage({ id: 'billing.cashier.close.coins.label' })}
-              min={0}
-              name="coinsValue"
-              onValueChange={(coinsValue) => {
-                setCount((current) => ({ ...current, coinsValue }))
-              }}
-              showRangeHint={false}
-              unit={{ symbol: '₹', label: intl.formatMessage({ id: 'units.rupee.label' }) }}
-              value={count.coinsValue}
-            />
+            <h3>
+              <FormattedMessage id="billing.cashier.close.coins" />
+            </h3>
+            {COIN_DENOMINATIONS.map((denomination) => (
+              <div className="billing__count-row" key={denomination}>
+                <NumericStepper
+                  id={`cashier-coin-${String(denomination)}`}
+                  label={intl.formatMessage(
+                    { id: 'billing.cashier.close.coin.label' },
+                    { denomination },
+                  )}
+                  min={0}
+                  name={`coin-${String(denomination)}`}
+                  onValueChange={(quantity) => {
+                    setCoinQuantity(denomination, quantity)
+                  }}
+                  showRangeHint={false}
+                  value={
+                    count.coins.find((coin) => coin.denomination === denomination)?.quantity ?? 0
+                  }
+                />
+              </div>
+            ))}
 
             <p className="billing__total">
               {intl.formatMessage(

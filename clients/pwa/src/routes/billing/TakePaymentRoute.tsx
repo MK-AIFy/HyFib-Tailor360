@@ -47,9 +47,20 @@ export function TakePaymentRoute() {
   const orderId = params.get('orderId') ?? ''
   const orderNumber = params.get('orderNumber') ?? orderId
 
-  const balance = useAdminResource(`order-balance:${orderId}`, (signal) =>
-    getOrderBalance(orderId, signal),
-  )
+  // Set while a reload's read is in flight, and cleared the moment it settles — success or failure
+  // alike. `useAdminResource` deliberately keeps the previous balance on screen while a reload is in
+  // flight (its own documented design, not changed here), so without this the screen would keep
+  // showing — and letting the person quick-fill — the balance from *before* the payment that was
+  // just recorded, until the fresh read happened to land (Codex review, PR #217).
+  const [awaitingFreshBalance, setAwaitingFreshBalance] = useState(false)
+
+  const balance = useAdminResource(`order-balance:${orderId}`, async (signal) => {
+    try {
+      return await getOrderBalance(orderId, signal)
+    } finally {
+      setAwaitingFreshBalance(false)
+    }
+  })
   const modes = useAdminResource('payment-modes', (signal) => listAvailablePaymentModes(signal))
 
   const [amount, setAmount] = useState<number | undefined>(undefined)
@@ -67,7 +78,8 @@ export function TakePaymentRoute() {
   const [result, setResult] = useState<Payment | null>(null)
 
   const chosenMode = (modes.value ?? []).find((mode) => mode.code === modeCode)
-  const outstanding = balance.value === null ? undefined : Number(balance.value.outstanding)
+  const outstanding =
+    balance.value === null || awaitingFreshBalance ? undefined : Number(balance.value.outstanding)
   const isCash = chosenMode?.code === 'CASH'
   const change =
     isCash && amount !== undefined && tendered !== undefined ? tendered - amount : undefined
@@ -129,6 +141,10 @@ export function TakePaymentRoute() {
     setReference('')
     setTendered(undefined)
     setIncomplete(false)
+    // The balance a payment was just recorded against is now out of date — reload it, and hide the
+    // stale figure (and the quick-fill button it drives) until the fresh one lands.
+    setAwaitingFreshBalance(true)
+    balance.reload()
   }
 
   if (orderId === '') {
@@ -180,7 +196,7 @@ export function TakePaymentRoute() {
         <>
           <AuthProblemAlert failure={balance.failure} />
 
-          {balance.loading ? (
+          {balance.loading || awaitingFreshBalance ? (
             <LoadingState what={intl.formatMessage({ id: 'billing.payment.balance.loading' })} />
           ) : balance.value === null ? null : (
             <Alert

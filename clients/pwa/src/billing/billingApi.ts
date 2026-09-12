@@ -136,41 +136,55 @@ export async function listInvoices(input: {
  * The branch's posted invoices with money still owed against them.
  *
  * There is no `ListInvoices`-style aggregate for this — `GetOrderBalance` answers one order at a
- * time — so this reads a page of the branch's posted invoices and asks each invoice's order for its
- * balance, keeping only the invoice's own line where it still shows an outstanding amount. A branch
- * runs a bounded number of open invoices at once, so the fan-out is small; a true aggregate read is
- * a reasonable follow-up once this list needs to grow past one page.
+ * time — so this reads every page of the branch's posted invoices, following `nextCursor` until the
+ * server answers null, and asks each invoice's order for its balance, keeping only the invoice's
+ * own line where it still shows an outstanding amount. Stopping at the first page (as this once did)
+ * silently dropped every older outstanding invoice past the first fifty — a branch could even read
+ * as fully settled while an older invoice still owed money. A branch runs a bounded number of open
+ * invoices at once, so the fan-out per page is small; a true aggregate read is a reasonable
+ * follow-up once this list needs to grow past a few pages.
  */
 export async function listOutstandingBalances(
   signal?: AbortSignal,
 ): Promise<readonly OutstandingBalanceRow[]> {
-  const page = await listInvoices({
-    status: 'Posted',
-    limit: 50,
-    ...(signal === undefined ? {} : { signal }),
-  })
+  const rows: OutstandingBalanceRow[] = []
+  let cursor: string | undefined
 
-  const rows = await Promise.all(
-    page.invoices.map(async (invoice): Promise<OutstandingBalanceRow | null> => {
-      const order = await getOrderBalance(invoice.orderId, signal)
-      const line = order.invoices.find((candidate) => candidate.invoiceId === invoice.invoiceId)
-      if (line === undefined || Number(line.outstanding) <= 0) {
-        return null
-      }
-      return {
-        invoiceId: invoice.invoiceId,
-        invoiceNumber: invoice.invoiceNumber,
-        orderId: invoice.orderId,
-        orderNumber: invoice.orderNumber,
-        customerDisplayName: invoice.customerDisplayName,
-        grandTotal: invoice.grandTotal,
-        outstanding: line.outstanding,
-        currency: line.currency,
-      }
-    }),
-  )
+  for (;;) {
+    const page = await listInvoices({
+      status: 'Posted',
+      limit: 50,
+      ...(cursor === undefined ? {} : { cursor }),
+      ...(signal === undefined ? {} : { signal }),
+    })
 
-  return rows.filter((row): row is OutstandingBalanceRow => row !== null)
+    const pageRows = await Promise.all(
+      page.invoices.map(async (invoice): Promise<OutstandingBalanceRow | null> => {
+        const order = await getOrderBalance(invoice.orderId, signal)
+        const line = order.invoices.find((candidate) => candidate.invoiceId === invoice.invoiceId)
+        if (line === undefined || Number(line.outstanding) <= 0) {
+          return null
+        }
+        return {
+          invoiceId: invoice.invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
+          orderId: invoice.orderId,
+          orderNumber: invoice.orderNumber,
+          customerDisplayName: invoice.customerDisplayName,
+          grandTotal: invoice.grandTotal,
+          outstanding: line.outstanding,
+          currency: line.currency,
+        }
+      }),
+    )
+
+    rows.push(...pageRows.filter((row): row is OutstandingBalanceRow => row !== null))
+
+    if (page.nextCursor === null) {
+      return rows
+    }
+    cursor = page.nextCursor
+  }
 }
 
 /* The cashier session. ------------------------------------------------------------------------- */

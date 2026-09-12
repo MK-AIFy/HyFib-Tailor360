@@ -125,12 +125,11 @@ export const billingEn = {
   'billing.cashier.status.expected': 'Expected: {amount}',
   'billing.cashier.close.title': 'Close the session',
   'billing.cashier.close.body':
-    'Count every note and the coin tray, and enter what each other payment mode counted to. The session closes against what you enter here, and it cannot be recorded twice.',
+    'Count every note and every coin, and enter what each other payment mode counted to. The session closes against what you enter here, and it cannot be recorded twice.',
   'billing.cashier.close.notes': 'Notes',
   'billing.cashier.close.note.label': '₹{denomination} notes',
-  'billing.cashier.close.coins.label': 'Coins (total value)',
-  'billing.cashier.close.coins.hint':
-    'Counted as one figure — on a coin-counting scale or by hand — rather than face value by face value.',
+  'billing.cashier.close.coins': 'Coins',
+  'billing.cashier.close.coin.label': '₹{denomination} coins',
   'billing.cashier.close.cashTotal': 'Cash counted: {amount}',
   'billing.cashier.close.modeTotals': 'Other payment modes',
   'billing.cashier.close.mode.label': '{mode} counted',
@@ -456,16 +455,15 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
   'billing.cashier.close.title': 'Close the session',
   // not translated — awaiting native-speaker review
   'billing.cashier.close.body':
-    'Count every note and the coin tray, and enter what each other payment mode counted to. The session closes against what you enter here, and it cannot be recorded twice.',
+    'Count every note and every coin, and enter what each other payment mode counted to. The session closes against what you enter here, and it cannot be recorded twice.',
   // not translated — awaiting native-speaker review
   'billing.cashier.close.notes': 'Notes',
   // not translated — awaiting native-speaker review
   'billing.cashier.close.note.label': '₹{denomination} notes',
   // not translated — awaiting native-speaker review
-  'billing.cashier.close.coins.label': 'Coins (total value)',
+  'billing.cashier.close.coins': 'Coins',
   // not translated — awaiting native-speaker review
-  'billing.cashier.close.coins.hint':
-    'Counted as one figure — on a coin-counting scale or by hand — rather than face value by face value.',
+  'billing.cashier.close.coin.label': '₹{denomination} coins',
   // not translated — awaiting native-speaker review
   'billing.cashier.close.cashTotal': 'Cash counted: {amount}',
   // not translated — awaiting native-speaker review

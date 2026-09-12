@@ -21,6 +21,18 @@ import './billing.css'
  * closed it. `payments.approve_reconciliation` carries step-up and a reason
  * (`docs/security/permission-matrix.md`); `approveReconciliation` in `billingApi.ts` already asks
  * for the challenge on every call, so this screen's job is the reason and the confirmation.
+ *
+ * ## A known gap in the session read (Codex review, PR #217)
+ *
+ * `getCashierSession` is read behind `payments.session`. `payments.approve_reconciliation` is
+ * granted to the Owner as well as the Branch Manager (`docs/security/permission-matrix.md`), but
+ * `payments.session` is not — so an Owner who holds only the approval permission is refused this
+ * read with a 403, and never sees the variance or its mode lines to approve. There is no separate
+ * read for the batch (`ReconciliationEndpoints.cs`: "the batch itself is read back on the session's
+ * own payload — there is no separate read route for it"), so no client-only change restores the
+ * screen for that caller; it needs a server-side decision — widening this read's permission, or a
+ * dedicated reconciliation read under `payments.approve_reconciliation` — which is outside this
+ * client pull request's scope.
  */
 export function ReconciliationApprovalRoute() {
   const intl = useIntl()

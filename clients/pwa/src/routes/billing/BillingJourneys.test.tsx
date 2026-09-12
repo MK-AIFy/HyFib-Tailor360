@@ -154,16 +154,21 @@ describe('the cashier-close journey', () => {
     await user.type(await screen.findByLabelText('Opening float'), '2000')
     await user.click(screen.getByRole('button', { name: 'Open session' }))
 
-    // Once open, the count sheet appears — every note face value, the coins, and the branch's
-    // other payment modes.
+    // Once open, the count sheet appears — every note face value, every coin face value, and the
+    // branch's other payment modes.
     await screen.findByLabelText('₹2000 notes')
     await user.type(screen.getByLabelText('₹2000 notes'), '2')
     await user.type(screen.getByLabelText('₹10 notes'), '35')
-    await user.type(screen.getByLabelText('Coins (total value)'), '0')
+    // A mixed coin tray — ₹5, ₹2 and ₹1 coins counted separately, as the server's own
+    // `CashDenominations.All` requires (Codex review, PR #217): a lump aggregate value is not a
+    // denomination it recognises, and was refused with `billing.denomination-not-known`.
+    await user.type(screen.getByLabelText('₹5 coins'), '3')
+    await user.type(screen.getByLabelText('₹2 coins'), '10')
+    await user.type(screen.getByLabelText('₹1 coins'), '5')
     await user.type(screen.getByLabelText('UPI counted'), '0')
     await user.type(screen.getByLabelText('Card counted'), '0')
 
-    expect(screen.getByText(`Cash counted: ${formatters.formatMoney(4350)}`)).toBeInTheDocument()
+    expect(screen.getByText(`Cash counted: ${formatters.formatMoney(4390)}`)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Close session' }))
     const dialog = await screen.findByRole('dialog')
@@ -177,6 +182,9 @@ describe('the cashier-close journey', () => {
       denominations: [
         { denomination: 2000, quantity: 2 },
         { denomination: 10, quantity: 35 },
+        { denomination: 5, quantity: 3 },
+        { denomination: 2, quantity: 10 },
+        { denomination: 1, quantity: 5 },
       ],
       modeTotals: [
         { modeCode: 'CARD', counted: 0 },
@@ -185,6 +193,11 @@ describe('the cashier-close journey', () => {
       reason: null,
     })
     expect(closed?.headers.get('Idempotency-Key')).toMatch(/[0-9a-f-]{36}/)
+    // Every denomination sent is one the server's `CashDenominations.All` actually recognises.
+    const sentBody = closed?.body as { readonly denominations: readonly { denomination: number }[] }
+    for (const line of sentBody.denominations) {
+      expect([2000, 500, 200, 100, 50, 20, 10, 5, 2, 1]).toContain(line.denomination)
+    }
   })
 
   it('asks for a reason only once the server says the variance needs one, then closes', async () => {
