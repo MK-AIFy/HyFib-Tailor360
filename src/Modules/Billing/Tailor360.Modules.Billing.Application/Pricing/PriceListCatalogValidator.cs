@@ -37,7 +37,9 @@ public sealed class PriceListCatalogValidator(IPriceListStore store) : ICatalogD
         var linkedServices = candidate.ServiceTypes.Where(service => service.PriceListItemCode is not null).ToArray();
         var linkedOptions = candidate.DesignGroups
             .SelectMany(group => group.Options
-                .Where(option => option.PriceListItemCode is not null)
+                // A retired option is not offered, and its code is history; the reverse query (what the
+                // published catalogue names) reads active options only, and this side must agree with it.
+                .Where(option => option.Active && option.PriceListItemCode is not null)
                 .Select(option => (Group: group, Option: option)))
             .ToArray();
         if (linkedServices.Length == 0 && linkedOptions.Length == 0)

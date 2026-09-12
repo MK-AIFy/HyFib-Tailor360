@@ -23,6 +23,13 @@ public sealed record PriceListVersionRequest(
     /// <summary>Whether the body said which way rates are quoted; an omitted flag is refused rather than read as exclusive.</summary>
     public bool SaysTaxInclusive => TaxInclusive.HasValue;
 
+    /// <summary>
+    /// Whether the body said which branches the version prices. An omitted list is refused rather than read
+    /// as none: a whole-value update that left it out would otherwise drop every branch silently. An empty
+    /// list, sent on purpose, is a draft pricing nowhere yet, which the publication checks refuse.
+    /// </summary>
+    public bool SaysBranchIds => BranchIds is not null;
+
     /// <summary>The details as the domain reads them; an omitted date or threshold becomes a value the domain refuses.</summary>
     public PriceListVersionDetails ToDetails()
         => new(

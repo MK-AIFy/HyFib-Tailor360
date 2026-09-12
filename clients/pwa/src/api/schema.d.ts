@@ -3425,6 +3425,7 @@ export interface components {
             overrideThresholdPercent: null | number | string;
             reason: null | string;
             roundOff: null | string;
+            saysBranchIds?: boolean;
             saysTaxInclusive?: boolean;
             taxInclusive: null | boolean;
         };

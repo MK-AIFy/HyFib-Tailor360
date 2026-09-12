@@ -4518,6 +4518,9 @@
               "string"
             ]
           },
+          "saysBranchIds": {
+            "type": "boolean"
+          },
           "saysTaxInclusive": {
             "type": "boolean"
           },
