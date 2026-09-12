@@ -741,6 +741,190 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/gst-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the organisation's GST registrations, by branch and first day. */
+        get: operations["ListGstRegistrations"];
+        put?: never;
+        /**
+         * Record a branch's GST registration.
+         * @description The GSTIN is checked for shape and check character, never against the tax portal. At most one registration of a branch is in force on any day; an overlap is refused.
+         */
+        post: operations["AddGstRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/gst-registrations/{registrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one GST registration. The ETag is the token an amendment is made against. */
+        get: operations["GetGstRegistration"];
+        /**
+         * Amend a GST registration: its dates, names and number. The branch never changes.
+         * @description A registration is never deleted — invoices were issued under it — so a branch re-registered under a new number ends this one the day before and records the new one.
+         */
+        put: operations["AmendGstRegistration"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organisation's tax configuration versions, newest first.
+         * @description Summaries only; a version's codes are read one version at a time.
+         */
+        get: operations["ListTaxConfigurationVersions"];
+        put?: never;
+        /**
+         * Start a draft tax configuration version, empty or cloned from an existing one.
+         * @description Cloning the published version is the ordinary way to change what is in force: a published version is immutable, so a rate change is a clone, an edit and a second publication. The clone carries the same codes as concepts with new rows of its own.
+         */
+        post: operations["CreateTaxConfigurationDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one tax configuration version and its codes, whatever its status.
+         * @description The ETag is the token every change to the version is made against.
+         */
+        get: operations["GetTaxConfigurationVersion"];
+        /** Change a draft's name, notes and effective date. */
+        put: operations["DescribeTaxConfigurationVersion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a draft, retiring the version it supersedes in the same transaction.
+         * @description Refused while a publication check fails, with every finding in the problem detail. Two administrators publishing different drafts at once is settled by a partial unique index: one commits and the other is answered 409.
+         */
+        post: operations["PublishTaxConfigurationVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a tax code to a draft tax configuration version.
+         * @description A code is a classification (HSN or SAC) and the components it carries. Only a draft accepts it; the components' arithmetic is checked at publication so a half-entered code can be saved.
+         */
+        post: operations["AddTaxCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{taxCodeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace what a draft says about a tax code.
+         * @description Whole-value, not partial: an omitted rate list means 'nil-rated' rather than 'unchanged'.
+         */
+        put: operations["EditTaxCode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{taxCodeId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a tax code from a draft tax configuration version. */
+        post: operations["RemoveTaxCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run the publication checks against a version and report what they found.
+         * @description The checks say what would make a calculation contradict itself — a CGST without its SGST, an IGST that is not their sum, a code re-spelled after invoices carried it. They encode no rate.
+         */
+        get: operations["ValidateTaxConfigurationVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/current": {
         parameters: {
             query?: never;
@@ -2063,6 +2247,21 @@ export interface components {
             entries: components["schemas"]["AuditEntryPayload"][];
             nextCursor: null | string;
         };
+        BillingFindingPayload: {
+            code: string;
+            message: string;
+            severity: string;
+            target: null | string;
+        };
+        BillingReasonRequest: {
+            reason: null | string;
+        };
+        BillingValidationReportPayload: {
+            canPublish: boolean;
+            findings: components["schemas"]["BillingFindingPayload"][];
+            /** Format: uuid */
+            versionId: string;
+        };
         BranchAssignmentPayload: {
             /** Format: uuid */
             branchId: string;
@@ -2248,6 +2447,14 @@ export interface components {
             description: null | string;
             name: string;
         };
+        CreateTaxConfigurationDraftRequest: {
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
+            /** Format: date */
+            effectiveFrom: null | string;
+            name: null | string;
+            notes: null | string;
+        };
         CurrentUserResponse: {
             /** Format: uuid */
             branchId: null | string;
@@ -2412,6 +2619,13 @@ export interface components {
             name: null | string;
             reason: null | string;
         };
+        DescribeTaxConfigurationRequest: {
+            /** Format: date */
+            effectiveFrom: null | string;
+            name: null | string;
+            notes: null | string;
+            reason: null | string;
+        };
         DesignGroupPayload: {
             /** Format: date */
             activeFrom: null | string;
@@ -2571,6 +2785,37 @@ export interface components {
             /** Format: uuid */
             updatedBy: null | string;
             version: string;
+        };
+        GstRegistrationPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveTo: null | string;
+            /** Format: uuid */
+            gstRegistrationId: string;
+            gstin: string;
+            legalName: string;
+            stateCode: string;
+            tradeName: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        GstRegistrationRequest: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: date */
+            effectiveFrom: null | string;
+            /** Format: date */
+            effectiveTo: null | string;
+            gstin: null | string;
+            legalName: null | string;
+            reason: null | string;
+            stateCode: null | string;
+            tradeName: null | string;
         };
         IResult: Record<string, never>;
         InviteStaffMemberPayload: {
@@ -3150,6 +3395,66 @@ export interface components {
             defaultDisplayUnit: string;
             name: string;
             notes: null | string;
+        };
+        TaxCodePayload: {
+            active: boolean;
+            classification: string;
+            code: string;
+            description: string;
+            kind: string;
+            rates: components["schemas"]["TaxRatePayload"][];
+            /** Format: uuid */
+            taxCodeId: string;
+            /** Format: uuid */
+            taxCodeKey: string;
+        };
+        TaxCodeRequest: {
+            active: boolean;
+            classification: null | string;
+            code: null | string;
+            description: null | string;
+            kind: null | string;
+            rates: null | components["schemas"]["TaxRateRequest"][];
+            reason: null | string;
+        };
+        TaxConfigurationPayload: {
+            taxCodes: components["schemas"]["TaxCodePayload"][];
+            version: components["schemas"]["TaxConfigurationSummaryPayload"];
+        };
+        TaxConfigurationPublicationPayload: {
+            findings: components["schemas"]["BillingFindingPayload"][];
+            published: components["schemas"]["TaxConfigurationPayload"];
+            /** Format: uuid */
+            supersededVersionId: null | string;
+        };
+        TaxConfigurationSummaryPayload: {
+            /** Format: uuid */
+            clonedFromVersionId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            name: string;
+            notes: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            status: string;
+            /** Format: uuid */
+            taxConfigurationVersionId: string;
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
+        TaxRatePayload: {
+            kind: string;
+            /** Format: double */
+            ratePercent: number | string;
+        };
+        TaxRateRequest: {
+            kind: null | string;
+            /** Format: double */
+            ratePercent: null | number | string;
         };
         TemplateChoiceOption: {
             code: string;
@@ -5717,6 +6022,771 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             415: components["responses"]["UnsupportedMediaType"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListGstRegistrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddGstRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                 *       "effectiveFrom": "2026-04-01",
+                 *       "effectiveTo": null,
+                 *       "gstin": "33AAACH7409R1Z8",
+                 *       "legalName": "Example Tailors Private Limited",
+                 *       "reason": null,
+                 *       "stateCode": "33",
+                 *       "tradeName": "Example Tailors"
+                 *     }
+                 */
+                "application/json": components["schemas"]["GstRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetGstRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AmendGstRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                 *       "effectiveFrom": "2026-04-01",
+                 *       "effectiveTo": "2027-03-31",
+                 *       "gstin": "33AAACH7409R1Z8",
+                 *       "legalName": "Example Tailors Private Limited",
+                 *       "reason": "Re-registered under a new number from 1 April 2027.",
+                 *       "stateCode": "33",
+                 *       "tradeName": "Example Tailors"
+                 *     }
+                 */
+                "application/json": components["schemas"]["GstRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListTaxConfigurationVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationSummaryPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateTaxConfigurationDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000d2",
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "Cloned from version 2; the accountant's revised classification list."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CreateTaxConfigurationDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DescribeTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "The accountant's revised classification list.",
+                 *       "reason": "The effective date moved to the start of the financial year."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DescribeTaxConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PublishTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPublicationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddTaxCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "classification": "998822",
+                 *       "code": "STITCHING_5",
+                 *       "description": "Tailoring services",
+                 *       "kind": "Services",
+                 *       "rates": [
+                 *         {
+                 *           "kind": "Cgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Sgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Igst",
+                 *           "ratePercent": 5
+                 *         }
+                 *       ],
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["TaxCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxCodePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditTaxCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                taxCodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "classification": "998822",
+                 *       "code": "STITCHING_5",
+                 *       "description": "Tailoring services, as the accountant classifies them",
+                 *       "kind": "Services",
+                 *       "rates": [
+                 *         {
+                 *           "kind": "Cgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Sgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Igst",
+                 *           "ratePercent": 5
+                 *         }
+                 *       ],
+                 *       "reason": "Description aligned with the accountant's wording."
+                 *     }
+                 */
+                "application/json": components["schemas"]["TaxCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxCodePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveTaxCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                taxCodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Entered twice; the other row is the one the price list names."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ValidateTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingValidationReportPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

@@ -331,6 +331,69 @@
         ],
         "type": "object"
       },
+      "BillingFindingPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "target": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "severity",
+          "code",
+          "message",
+          "target"
+        ],
+        "type": "object"
+      },
+      "BillingReasonRequest": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "BillingValidationReportPayload": {
+        "properties": {
+          "canPublish": {
+            "type": "boolean"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/BillingFindingPayload"
+            },
+            "type": "array"
+          },
+          "versionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "versionId",
+          "canPublish",
+          "findings"
+        ],
+        "type": "object"
+      },
       "BranchAssignmentPayload": {
         "properties": {
           "branchId": {
@@ -1192,6 +1255,43 @@
         ],
         "type": "object"
       },
+      "CreateTaxConfigurationDraftRequest": {
+        "properties": {
+          "cloneFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "effectiveFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "notes",
+          "effectiveFrom",
+          "cloneFromVersionId"
+        ],
+        "type": "object"
+      },
       "CurrentUserResponse": {
         "properties": {
           "branchId": {
@@ -1873,6 +1973,42 @@
         "required": [
           "name",
           "description",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DescribeTaxConfigurationRequest": {
+        "properties": {
+          "effectiveFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "notes",
+          "effectiveFrom",
           "reason"
         ],
         "type": "object"
@@ -2658,6 +2794,128 @@
           "revision",
           "propagationSeconds",
           "version"
+        ],
+        "type": "object"
+      },
+      "GstRegistrationPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "format": "date",
+            "type": "string"
+          },
+          "effectiveTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gstRegistrationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string"
+          },
+          "legalName": {
+            "type": "string"
+          },
+          "stateCode": {
+            "type": "string"
+          },
+          "tradeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gstRegistrationId",
+          "branchId",
+          "gstin",
+          "stateCode",
+          "legalName",
+          "tradeName",
+          "effectiveFrom",
+          "effectiveTo",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "GstRegistrationRequest": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "effectiveTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gstin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "legalName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stateCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tradeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "branchId",
+          "gstin",
+          "stateCode",
+          "legalName",
+          "tradeName",
+          "effectiveFrom",
+          "effectiveTo",
+          "reason"
         ],
         "type": "object"
       },
@@ -5058,6 +5316,264 @@
           "notes",
           "defaultDisplayUnit",
           "cloneFromVersionId"
+        ],
+        "type": "object"
+      },
+      "TaxCodePayload": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "classification": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/TaxRatePayload"
+            },
+            "type": "array"
+          },
+          "taxCodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "taxCodeKey": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taxCodeId",
+          "taxCodeKey",
+          "code",
+          "description",
+          "classification",
+          "kind",
+          "active",
+          "rates"
+        ],
+        "type": "object"
+      },
+      "TaxCodeRequest": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "classification": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/TaxRateRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "description",
+          "classification",
+          "kind",
+          "active",
+          "rates",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "TaxConfigurationPayload": {
+        "properties": {
+          "taxCodes": {
+            "items": {
+              "$ref": "#/components/schemas/TaxCodePayload"
+            },
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/TaxConfigurationSummaryPayload"
+          }
+        },
+        "required": [
+          "version",
+          "taxCodes"
+        ],
+        "type": "object"
+      },
+      "TaxConfigurationPublicationPayload": {
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/BillingFindingPayload"
+            },
+            "type": "array"
+          },
+          "published": {
+            "$ref": "#/components/schemas/TaxConfigurationPayload"
+          },
+          "supersededVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "published",
+          "supersededVersionId",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "TaxConfigurationSummaryPayload": {
+        "properties": {
+          "clonedFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "format": "date",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "retiredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "taxConfigurationVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "taxConfigurationVersionId",
+          "versionNumber",
+          "name",
+          "notes",
+          "status",
+          "effectiveFrom",
+          "clonedFromVersionId",
+          "createdAt",
+          "publishedAt",
+          "retiredAt"
+        ],
+        "type": "object"
+      },
+      "TaxRatePayload": {
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "ratePercent": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "ratePercent"
+        ],
+        "type": "object"
+      },
+      "TaxRateRequest": {
+        "properties": {
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ratePercent": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "ratePercent"
         ],
         "type": "object"
       },
@@ -9580,6 +10096,1244 @@
         "x-tailor360-audit": "identity.recovery.requested",
         "x-tailor360-authorisation": "anonymous",
         "x-tailor360-rate-limit": "recovery-anon"
+      }
+    },
+    "/api/v1/billing/gst-registrations": {
+      "get": {
+        "operationId": "ListGstRegistrations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GstRegistrationPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the organisation's GST registrations, by branch and first day.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "The GSTIN is checked for shape and check character, never against the tax portal. At most one registration of a branch is in force on any day; an overlap is refused.",
+        "operationId": "AddGstRegistration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                "effectiveFrom": "2026-04-01",
+                "effectiveTo": null,
+                "gstin": "33AAACH7409R1Z8",
+                "legalName": "Example Tailors Private Limited",
+                "reason": null,
+                "stateCode": "33",
+                "tradeName": "Example Tailors"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GstRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GstRegistrationPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record a branch's GST registration.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.gst_registration.added",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/gst-registrations/{registrationId}": {
+      "get": {
+        "operationId": "GetGstRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GstRegistrationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one GST registration. The ETag is the token an amendment is made against.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "A registration is never deleted — invoices were issued under it — so a branch re-registered under a new number ends this one the day before and records the new one.",
+        "operationId": "AmendGstRegistration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                "effectiveFrom": "2026-04-01",
+                "effectiveTo": "2027-03-31",
+                "gstin": "33AAACH7409R1Z8",
+                "legalName": "Example Tailors Private Limited",
+                "reason": "Re-registered under a new number from 1 April 2027.",
+                "stateCode": "33",
+                "tradeName": "Example Tailors"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GstRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GstRegistrationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Amend a GST registration: its dates, names and number. The branch never changes.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.gst_registration.changed",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions": {
+      "get": {
+        "description": "Summaries only; a version's codes are read one version at a time.",
+        "operationId": "ListTaxConfigurationVersions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaxConfigurationSummaryPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the organisation's tax configuration versions, newest first.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "Cloning the published version is the ordinary way to change what is in force: a published version is immutable, so a rate change is a clone, an edit and a second publication. The clone carries the same codes as concepts with new rows of its own.",
+        "operationId": "CreateTaxConfigurationDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000d2",
+                "effectiveFrom": "2027-04-01",
+                "name": "Rates from 1 April 2027",
+                "notes": "Cloned from version 2; the accountant's revised classification list."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateTaxConfigurationDraftRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxConfigurationPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start a draft tax configuration version, empty or cloned from an existing one.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.tax_configuration.drafted",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions/{versionId}": {
+      "get": {
+        "description": "The ETag is the token every change to the version is made against.",
+        "operationId": "GetTaxConfigurationVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxConfigurationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one tax configuration version and its codes, whatever its status.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "operationId": "DescribeTaxConfigurationVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "effectiveFrom": "2027-04-01",
+                "name": "Rates from 1 April 2027",
+                "notes": "The accountant's revised classification list.",
+                "reason": "The effective date moved to the start of the financial year."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DescribeTaxConfigurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxConfigurationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Change a draft's name, notes and effective date.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.tax_configuration.changed",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions/{versionId}/publish": {
+      "post": {
+        "description": "Refused while a publication check fails, with every finding in the problem detail. Two administrators publishing different drafts at once is settled by a partial unique index: one commits and the other is answered 409.",
+        "operationId": "PublishTaxConfigurationVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BillingReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxConfigurationPublicationPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Publish a draft, retiring the version it supersedes in the same transaction.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.tax_configuration.published",
+        "x-tailor360-authorisation": "permission:billing.publish_price_list",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes": {
+      "post": {
+        "description": "A code is a classification (HSN or SAC) and the components it carries. Only a draft accepts it; the components' arithmetic is checked at publication so a half-entered code can be saved.",
+        "operationId": "AddTaxCode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "active": true,
+                "classification": "998822",
+                "code": "STITCHING_5",
+                "description": "Tailoring services",
+                "kind": "Services",
+                "rates": [
+                  {
+                    "kind": "Cgst",
+                    "ratePercent": 2.5
+                  },
+                  {
+                    "kind": "Sgst",
+                    "ratePercent": 2.5
+                  },
+                  {
+                    "kind": "Igst",
+                    "ratePercent": 5
+                  }
+                ],
+                "reason": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TaxCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxCodePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a tax code to a draft tax configuration version.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.tax_code.added",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{taxCodeId}": {
+      "put": {
+        "description": "Whole-value, not partial: an omitted rate list means 'nil-rated' rather than 'unchanged'.",
+        "operationId": "EditTaxCode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "taxCodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "active": true,
+                "classification": "998822",
+                "code": "STITCHING_5",
+                "description": "Tailoring services, as the accountant classifies them",
+                "kind": "Services",
+                "rates": [
+                  {
+                    "kind": "Cgst",
+                    "ratePercent": 2.5
+                  },
+                  {
+                    "kind": "Sgst",
+                    "ratePercent": 2.5
+                  },
+                  {
+                    "kind": "Igst",
+                    "ratePercent": 5
+                  }
+                ],
+                "reason": "Description aligned with the accountant's wording."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TaxCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxCodePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace what a draft says about a tax code.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.tax_code.changed",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{taxCodeId}/delete": {
+      "post": {
+        "operationId": "RemoveTaxCode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "taxCodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Entered twice; the other row is the one the price list names."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BillingReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a tax code from a draft tax configuration version.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.tax_code.removed",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/tax-configuration/versions/{versionId}/validation": {
+      "get": {
+        "description": "The checks say what would make a calculation contradict itself — a CGST without its SGST, an IGST that is not their sum, a code re-spelled after invoices carried it. They encode no rate.",
+        "operationId": "ValidateTaxConfigurationVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingValidationReportPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Run the publication checks against a version and report what they found.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
       }
     },
     "/api/v1/catalog/current": {
@@ -16650,6 +18404,10 @@
     {
       "description": "Signing in, second factors, passkeys and account recovery. These are the only operations that can be reached before a session exists, and every one of them still requires the anti-forgery token.",
       "name": "Authentication"
+    },
+    {
+      "description": "Money: the tax configuration and GST registrations every calculation reads, and — as the epic lands — price lists, the pricing engine, invoices, payments and receipts. Everything here is versioned, accountant-entered configuration rather than code: no statutory rate is built in, exactly one tax configuration version is published at a time, and a published version is immutable because every invoice since was calculated on it.",
+      "name": "Billing"
     },
     {
       "description": "The stitching-category and service catalogue: what the shop offers, and what a branch may order today. Everything here is versioned configuration rather than code — an administrator adds a category or a service type through these routes and no deployment follows — and exactly one version is published at a time, because an order is placed against one coherent snapshot of the hierarchy. A published version is immutable but for its labels, so a correction is a clone, an edit and a second publication; publishing supersedes what came before it and never changes work already under way.",
