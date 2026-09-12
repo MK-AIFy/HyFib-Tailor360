@@ -204,6 +204,45 @@ public sealed class DesignRuleValidatorTests
     }
 
     [Fact]
+    public async Task RefusesAnAlwaysRequiresWhoseGroupIsNotOfferedWhereverTheCategoryIs()
+    {
+        // The finish group is offered at the main branch only; the category at both. An unconditional
+        // rule obliging a finish would fire at the second branch with nothing admissible.
+        var findings = await CheckAsync(Candidate(
+            groups: BlouseGroups(),
+            rules: [Rule(40, "Requires", Operand(null, "Always"), Operand("finish", "Includes", "PIPING"))]));
+
+        var refused = Errors(findings).Single(finding => finding.Code == "design.requires-not-offered-where-antecedent-is");
+        refused.Message.ShouldContain("'BLOUSE_PATTERN' is");
+    }
+
+    [Fact]
+    public async Task RefusesARequiresWhoseGroupIsSeasonalWhereTheAntecedentIsNot()
+    {
+        // A festival lining offered from October to December, obliged by a year-round cut: the rule
+        // fires in July and has nothing to pick. The same rule with a matching season passes.
+        var seasonal = Group("festival_lining", false, "SingleChoice", [Option("BROCADE")]) with
+        {
+            ActiveFrom = new DateOnly(2026, 10, 1),
+            ActiveTo = new DateOnly(2026, 12, 31),
+        };
+        var rule = Rule(41, "Requires", Operand("blouse_cut", "Equals", "KATORI"), Operand("festival_lining", "Equals", "BROCADE"));
+
+        var outOfSeason = await CheckAsync(Candidate(groups: [.. BlouseGroups(), seasonal], rules: [rule]));
+        Errors(outOfSeason).Single(finding => finding.Code == "design.requires-not-offered-when-antecedent-is")
+            .Target.ShouldBe("designRules[DR-41].consequent.groupCode");
+
+        var cut = BlouseGroups().Single(group => group.Code == "blouse_cut") with
+        {
+            ActiveFrom = new DateOnly(2026, 11, 1),
+            ActiveTo = new DateOnly(2026, 11, 30),
+        };
+        var inSeason = await CheckAsync(Candidate(
+            groups: [.. BlouseGroups().Where(group => group.Code != "blouse_cut"), cut, seasonal], rules: [rule]));
+        inSeason.ShouldNotContain(finding => finding.Code == "design.requires-not-offered-when-antecedent-is");
+    }
+
+    [Fact]
     public async Task RefusesARequiresEmptiedByAnExcludesAgainstBothIdentifiers()
     {
         var findings = await CheckAsync(Candidate(

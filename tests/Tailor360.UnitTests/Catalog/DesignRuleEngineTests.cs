@@ -270,6 +270,63 @@ public sealed class DesignRuleEngineTests
     }
 
     [Fact]
+    public void ARequirementLeftOpenIsSettledByWhatALaterRuleSelects()
+    {
+        // DR-50 obliges a lining of either kind; DR-51, read later, obliges the full one. DR-50 alone
+        // would be a prompt; DR-51 selects FULL, and that satisfies DR-50 too, so nothing is asked.
+        var rules = new List<DesignRule>(Seed.Rules)
+        {
+            Rule(50, DesignRuleType.Requires,
+                new DesignRuleOperand("padding", DesignOperandForm.Equals, ["LIGHT"]),
+                new DesignRuleOperand("lining", DesignOperandForm.In, ["FULL", "KATORI_CUP"])),
+            Rule(51, DesignRuleType.Requires,
+                new DesignRuleOperand("padding", DesignOperandForm.Equals, ["LIGHT"]),
+                new DesignRuleOperand("lining", DesignOperandForm.Equals, ["FULL"])),
+        };
+
+        var evaluated = DesignRuleEngine.Evaluate(
+            Seed.Groups, rules,
+            Selections(("blouse_cut", ["PLAIN_DART"]), ("front_neck", ["ROUND"]), ("back_neck", ["ROUND"]),
+                ("sleeve_style", ["SHORT"]), ("closure", ["HOOK"]), ("padding", ["LIGHT"])),
+            CatalogTestData.MainBranch, Today, false);
+
+        evaluated.IsConfirmable.ShouldBeTrue(string.Join("; ", evaluated.Violations.Select(found => found.Message)));
+        evaluated.AutoSelections.Select(auto => (auto.RuleIdentifier, auto.OptionCode)).ShouldBe([("DR-51", "FULL")]);
+        evaluated.Violations.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AnExcludesWokenByAnAutoSelectionNarrowsWhatALaterRequiresMayPick()
+    {
+        // A tie closure obliges a puff sleeve (DR-60); a puff sleeve forbids piping (DR-61); the tie
+        // also obliges one of piping or contrast binding (DR-62). Read together: PUFF is added, the
+        // piping is forbidden, and the binding is the one option left — selected, not prompted.
+        var rules = new List<DesignRule>(Seed.Rules)
+        {
+            Rule(60, DesignRuleType.Requires,
+                new DesignRuleOperand("closure", DesignOperandForm.Equals, ["TIE_BACK"]),
+                new DesignRuleOperand("sleeve_shape", DesignOperandForm.Equals, ["PUFF"])),
+            Rule(61, DesignRuleType.Excludes,
+                new DesignRuleOperand("sleeve_shape", DesignOperandForm.Equals, ["PUFF"]),
+                new DesignRuleOperand("finish", DesignOperandForm.Includes, ["PIPING"])),
+            Rule(62, DesignRuleType.Requires,
+                new DesignRuleOperand("closure", DesignOperandForm.Equals, ["TIE_BACK"]),
+                new DesignRuleOperand("finish", DesignOperandForm.In, ["PIPING", "CONTRAST_BINDING"])),
+        };
+
+        var evaluated = DesignRuleEngine.Evaluate(
+            Seed.Groups, rules,
+            Selections(("blouse_cut", ["PLAIN_DART"]), ("front_neck", ["ROUND"]), ("back_neck", ["ROUND"]),
+                ("sleeve_style", ["SHORT"]), ("closure", ["TIE_BACK"]), ("lining", ["NONE"])),
+            CatalogTestData.MainBranch, Today, false);
+
+        evaluated.IsConfirmable.ShouldBeTrue(string.Join("; ", evaluated.Violations.Select(found => found.Message)));
+        evaluated.AutoSelections.Select(auto => (auto.RuleIdentifier, auto.OptionCode))
+            .ShouldBe([("DR-60", "PUFF"), ("DR-62", "CONTRAST_BINDING")]);
+        evaluated.Violations.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void ASingleChoiceGroupHoldingAnotherValueIsAConflictNotAPrompt()
     {
         // DR-02 obliges the katori cup, and the customer chose a full lining: one candidate, but the

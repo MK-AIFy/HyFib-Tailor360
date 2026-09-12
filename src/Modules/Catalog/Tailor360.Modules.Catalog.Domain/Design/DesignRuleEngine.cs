@@ -19,11 +19,12 @@ namespace Tailor360.Modules.Catalog.Domain.Design;
 /// option is satisfied by selecting it and saying so (rule 9); two or more is a prompt, never a choice.
 /// </para>
 /// <para>
-/// <strong>What a rule added is checked as if the customer had chosen it.</strong> After the
-/// <c>requires</c> fixed point, every <c>excludes</c> is read once more over the selections as they
-/// now stand, so an option a rule selected can never slip past a rule that forbids it — the publish
-/// checks make that pair an error, but a version published before the check existed is still read
-/// safely.
+/// <strong>What a rule added is read as if the customer had chosen it.</strong> <c>excludes</c> and
+/// <c>requires</c> resolve together to one fixed point — an option a rule selected can wake an
+/// <c>excludes</c> that narrows what a later <c>requires</c> may pick, and can satisfy a
+/// <c>requires</c> read earlier — and every <c>excludes</c> is judged over the final selections, so
+/// an option a rule selected can never slip past a rule that forbids it. The publish checks make such
+/// a pair an error; a version published before the check existed is still read safely.
 /// </para>
 /// </remarks>
 public static class DesignRuleEngine
@@ -110,41 +111,38 @@ public static class DesignRuleEngine
 
         var ordered = rules.OrderBy(rule => rule.Number).ToList();
 
-        // 2. Excludes narrows each group's admissible set first.
-        var excluded = new HashSet<(Guid Rule, string Option)>();
-        foreach (var rule in ordered.Where(rule => rule.Type == DesignRuleType.Excludes))
-        {
-            if (!Holds(rule.Antecedent, chosen) || rule.Consequent is not { GroupCode: { } forbiddenGroup } consequent)
-            {
-                continue;
-            }
-
-            var forbidden = OptionSetOf(consequent, byCode);
-            if (admissible.TryGetValue(forbiddenGroup, out var set))
-            {
-                set.ExceptWith(forbidden);
-            }
-
-            if (chosen.TryGetValue(forbiddenGroup, out var selected)
-                && selected.Intersect(forbidden, StringComparer.Ordinal).ToArray() is { Length: > 0 } clash)
-            {
-                excluded.UnionWith(clash.Select(code => (rule.Id, code)));
-                violations.Add(Violation(
-                    "design.excluded", rule.Identifier, forbiddenGroup, [.. clash.Order(StringComparer.Ordinal)],
-                    rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
-                    $"{rule.Identifier}: {rule.Antecedent} excludes {consequent}, and both are chosen."));
-            }
-        }
-
-        // 3. Requires, to a fixed point: a selection a rule adds can be what another rule reads.
+        // 2 and 3. Excludes and requires together, to a fixed point. Each pass first applies every
+        // excludes whose antecedent holds over the selections as they now stand — narrowing the
+        // group's admissible set — and then reads every requires whose antecedent holds: one already
+        // satisfied is settled; one with exactly one admissible option and a free group is satisfied
+        // by selecting it and saying so (rule 9); any other is left open for a later pass, because
+        // a later rule may narrow its set to one or select what satisfies it. Excludes go first in
+        // every pass, which is the fixed order rule 8 prescribes. Terminates: a pass either narrows a
+        // set, settles a rule or selects an option, or changes nothing.
         var effective = chosen.ToDictionary(
             pair => pair.Key, pair => new HashSet<string>(pair.Value, StringComparer.Ordinal), StringComparer.Ordinal);
+        var applied = new HashSet<Guid>();
         var settled = new HashSet<Guid>();
         bool changed;
         do
         {
-            // Terminates: a pass either settles at least one more rule or changes nothing.
             changed = false;
+            foreach (var rule in ordered.Where(rule => rule.Type == DesignRuleType.Excludes && !applied.Contains(rule.Id)))
+            {
+                if (!Holds(rule.Antecedent, effective) || rule.Consequent is not { GroupCode: { } forbiddenGroup } consequent)
+                {
+                    continue;
+                }
+
+                applied.Add(rule.Id);
+                if (admissible.TryGetValue(forbiddenGroup, out var set))
+                {
+                    var before = set.Count;
+                    set.ExceptWith(OptionSetOf(consequent, byCode));
+                    changed |= set.Count != before;
+                }
+            }
+
             foreach (var rule in ordered.Where(rule => rule.Type == DesignRuleType.Requires && !settled.Contains(rule.Id)))
             {
                 if (!Holds(rule.Antecedent, effective)
@@ -153,64 +151,70 @@ public static class DesignRuleEngine
                     continue;
                 }
 
-                settled.Add(rule.Id);
-                var wanted = OptionSetOf(consequent, byCode);
-                var already = effective.TryGetValue(requiredGroup, out var selected)
-                              && SatisfiedBy(consequent, selected);
-                if (already)
+                var current = effective.TryGetValue(requiredGroup, out var held) ? held : effective[requiredGroup] = [];
+                if (SatisfiedBy(consequent, current))
                 {
+                    settled.Add(rule.Id);
                     continue;
                 }
 
-                var candidates = admissible.TryGetValue(requiredGroup, out var pool)
-                    ? wanted.Where(pool.Contains).Order(StringComparer.Ordinal).ToArray()
-                    : [];
-                var current = effective.TryGetValue(requiredGroup, out var held) ? held : effective[requiredGroup] = [];
+                var candidates = Candidates(consequent, requiredGroup, admissible, byCode);
                 var holdsAnother = current.Count > 0
                                    && byCode[requiredGroup].SelectionMode == DesignSelectionMode.SingleChoice;
-
                 if (candidates.Length == 1 && !holdsAnother)
                 {
-                    // Rule 9: exactly one option can satisfy it, so it is selected on the customer's behalf
-                    // and said.
                     var pick = candidates[0];
                     current.Add(pick);
                     autoSelections.Add(new DesignAutoSelectionResult(rule.Identifier, requiredGroup, pick));
+                    settled.Add(rule.Id);
                     changed = true;
-                    continue;
-                }
-
-                if (candidates.Length == 0)
-                {
-                    violations.Add(Violation(
-                        "design.requires-unsatisfiable", rule.Identifier, requiredGroup, [.. wanted.Order(StringComparer.Ordinal)],
-                        rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
-                        $"{rule.Identifier}: {rule.Antecedent} requires {consequent}, and none of those options "
-                        + "can be chosen here today."));
-                }
-                else if (holdsAnother)
-                {
-                    // A single-choice group already holding another value is never overwritten: that would
-                    // be two decisions made silently. It is said as a conflict, not as a prompt to choose.
-                    violations.Add(Violation(
-                        "design.requires-conflict", rule.Identifier, requiredGroup, [.. current.Order(StringComparer.Ordinal)],
-                        rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
-                        $"{rule.Identifier}: {rule.Antecedent} requires {consequent}, and '{requiredGroup}' holds "
-                        + $"{string.Join(", ", current.Order(StringComparer.Ordinal))} instead."));
-                }
-                else
-                {
-                    violations.Add(Violation(
-                        "design.requires-choice", rule.Identifier, requiredGroup, [.. candidates],
-                        rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
-                        $"{rule.Identifier}: {rule.Antecedent} requires {consequent}. Choose one of them."));
                 }
             }
         }
         while (changed);
 
-        // 3b. Excludes once more, over what the rules added: an auto-selected option that another rule
-        // forbids, or a selection an auto-selection has now made forbidden, is a clash like any other.
+        // What the fixed point left open is said now, against the selections as they finally stand:
+        // nothing admissible, a single-choice group already holding another value, or a choice
+        // between several — never overwritten, never chosen on the customer's behalf.
+        foreach (var rule in ordered.Where(rule => rule.Type == DesignRuleType.Requires && !settled.Contains(rule.Id)))
+        {
+            if (!Holds(rule.Antecedent, effective)
+                || rule.Consequent is not { GroupCode: { } requiredGroup } consequent
+                || !effective.TryGetValue(requiredGroup, out var current)
+                || SatisfiedBy(consequent, current))
+            {
+                continue;
+            }
+
+            var wanted = OptionSetOf(consequent, byCode);
+            var candidates = Candidates(consequent, requiredGroup, admissible, byCode);
+            if (candidates.Length == 0)
+            {
+                violations.Add(Violation(
+                    "design.requires-unsatisfiable", rule.Identifier, requiredGroup, [.. wanted.Order(StringComparer.Ordinal)],
+                    rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
+                    $"{rule.Identifier}: {rule.Antecedent} requires {consequent}, and none of those options "
+                    + "can be chosen here today."));
+            }
+            else if (current.Count > 0 && byCode[requiredGroup].SelectionMode == DesignSelectionMode.SingleChoice)
+            {
+                violations.Add(Violation(
+                    "design.requires-conflict", rule.Identifier, requiredGroup, [.. current.Order(StringComparer.Ordinal)],
+                    rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
+                    $"{rule.Identifier}: {rule.Antecedent} requires {consequent}, and '{requiredGroup}' holds "
+                    + $"{string.Join(", ", current.Order(StringComparer.Ordinal))} instead."));
+            }
+            else
+            {
+                violations.Add(Violation(
+                    "design.requires-choice", rule.Identifier, requiredGroup, [.. candidates],
+                    rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
+                    $"{rule.Identifier}: {rule.Antecedent} requires {consequent}. Choose one of them."));
+            }
+        }
+
+        // Every excludes that fires over the final selections, against what they hold: a clash between
+        // two things the customer chose, or between a choice and what a rule added on their behalf.
         foreach (var rule in ordered.Where(rule => rule.Type == DesignRuleType.Excludes))
         {
             if (!Holds(rule.Antecedent, effective) || rule.Consequent is not { GroupCode: { } forbiddenGroup } consequent
@@ -220,17 +224,21 @@ public static class DesignRuleEngine
             }
 
             var clash = selected.Intersect(OptionSetOf(consequent, byCode), StringComparer.Ordinal)
-                .Where(code => !excluded.Contains((rule.Id, code)))
                 .Order(StringComparer.Ordinal)
                 .ToArray();
-            if (clash.Length > 0)
+            if (clash.Length == 0)
             {
-                violations.Add(Violation(
-                    "design.excluded", rule.Identifier, forbiddenGroup, clash,
-                    rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
-                    $"{rule.Identifier}: {rule.Antecedent} excludes {consequent}, and a rule selected one side "
-                    + "of it on the customer's behalf."));
+                continue;
             }
+
+            var bothChosen = Holds(rule.Antecedent, chosen)
+                             && chosen.TryGetValue(forbiddenGroup, out var chosenHere)
+                             && clash.All(chosenHere.Contains);
+            violations.Add(Violation(
+                "design.excluded", rule.Identifier, forbiddenGroup, clash,
+                rule.Antecedent.GroupCode, [.. rule.Antecedent.OptionCodes],
+                $"{rule.Identifier}: {rule.Antecedent} excludes {consequent}, and "
+                + (bothChosen ? "both are chosen." : "a rule selected one side of it on the customer's behalf.")));
         }
 
         // 4. A required group with nothing in it, after what the rules added.
@@ -300,6 +308,16 @@ public static class DesignRuleEngine
             DesignOperandForm.Excludes => set.Count > 0 && !set.Contains(operand.OptionCodes[0]),
             _ => false,
         };
+
+    /// <summary>The options that could satisfy a consequent here today, in code order.</summary>
+    private static string[] Candidates(
+        DesignRuleOperand consequent,
+        string group,
+        Dictionary<string, HashSet<string>> admissible,
+        Dictionary<string, DesignOptionGroup> groups)
+        => admissible.TryGetValue(group, out var pool)
+            ? [.. OptionSetOf(consequent, groups).Where(pool.Contains).Order(StringComparer.Ordinal)]
+            : [];
 
     /// <summary>The options a consequent names, as the set of codes that would satisfy it.</summary>
     private static HashSet<string> OptionSetOf(DesignRuleOperand consequent, Dictionary<string, DesignOptionGroup> groups)

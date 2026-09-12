@@ -62,7 +62,7 @@ public sealed class DesignRuleValidator : ICatalogDependencyValidator
             CheckRuleReferences(categoryCode, groups, rules, findings);
             CheckOverlaps(groups, rules, findings);
             CheckRequiresCycles(groups, rules, findings);
-            CheckRequiresSatisfiable(categoryCode, groups, rules, findings);
+            CheckRequiresSatisfiable(categoryCode, category, groups, rules, findings);
             CheckRequiresAgainstExcludes(categoryCode, groups, rules, findings);
             CheckRequiredGroupsAgainstExcludes(categoryCode, groups, rules, findings);
         }
@@ -289,11 +289,13 @@ public sealed class DesignRuleValidator : ICatalogDependencyValidator
     }
 
     /// <summary>
-    /// Section 10: a <c>requires</c> whose consequent set holds no option that is active, and offered
-    /// wherever the antecedent's group is offered.
+    /// Section 10: a <c>requires</c> whose consequent set holds no option that is active, or whose
+    /// group is not offered — at a branch, or in a season — everywhere its antecedent can fire. An
+    /// <c>always</c> antecedent fires wherever and whenever the category is offered.
     /// </summary>
     private static void CheckRequiresSatisfiable(
         string categoryCode,
+        CatalogCategoryView category,
         Dictionary<string, CatalogDesignGroupView> groups,
         List<CatalogDesignRuleView> rules,
         List<CatalogFinding> findings)
@@ -317,19 +319,58 @@ public sealed class DesignRuleValidator : ICatalogDependencyValidator
                 continue;
             }
 
-            if (rule.Antecedent.GroupCode is { } antecedentGroupCode
-                && groups.TryGetValue(antecedentGroupCode, out var antecedentGroup)
-                && antecedentGroup.BranchIds.Except(wantedGroup.BranchIds).ToArray() is { Length: > 0 } elsewhere)
+            // Where and when the antecedent can fire: its own group's reach, or the whole category's
+            // for `always`.
+            IReadOnlyCollection<Guid> firesAt;
+            DateOnly? firesFrom;
+            DateOnly? firesTo;
+            string firesAs;
+            if (rule.Antecedent.GroupCode is { } antecedentGroupCode)
+            {
+                if (!groups.TryGetValue(antecedentGroupCode, out var antecedentGroup))
+                {
+                    continue;
+                }
+
+                firesAt = antecedentGroup.BranchIds;
+                firesFrom = antecedentGroup.ActiveFrom;
+                firesTo = antecedentGroup.ActiveTo;
+                firesAs = $"'{antecedentGroup.Code}'";
+            }
+            else
+            {
+                firesAt = category.BranchIds;
+                firesFrom = category.ActiveFrom;
+                firesTo = category.ActiveTo;
+                firesAs = $"'{categoryCode}'";
+            }
+
+            if (firesAt.Except(wantedGroup.BranchIds).ToArray() is { Length: > 0 } elsewhere)
             {
                 findings.Add(CatalogFinding.Error(
                     "design.requires-not-offered-where-antecedent-is",
                     $"{rule.Identifier} requires an option of '{wantedGroup.Code}', which is not offered at "
-                    + $"{elsewhere.Length} branch(es) where '{antecedentGroup.Code}' is. A customer there could "
-                    + "choose the antecedent and never satisfy the rule.",
+                    + $"{elsewhere.Length} branch(es) where {firesAs} is. A customer there could choose the "
+                    + "antecedent and never satisfy the rule.",
+                    RuleTarget(rule.Identifier, "consequent.groupCode")));
+            }
+
+            if (!Covers(wantedGroup.ActiveFrom, wantedGroup.ActiveTo, firesFrom, firesTo))
+            {
+                findings.Add(CatalogFinding.Error(
+                    "design.requires-not-offered-when-antecedent-is",
+                    $"{rule.Identifier} requires an option of '{wantedGroup.Code}', whose active period does not "
+                    + $"cover every day {firesAs} is offered. Outside it a customer could choose the antecedent "
+                    + "and never satisfy the rule.",
                     RuleTarget(rule.Identifier, "consequent.groupCode")));
             }
         }
     }
+
+    /// <summary>Whether one active period contains another; null is unbounded on that side.</summary>
+    private static bool Covers(DateOnly? outerFrom, DateOnly? outerTo, DateOnly? innerFrom, DateOnly? innerTo)
+        => (outerFrom is null || (innerFrom is not null && outerFrom <= innerFrom))
+           && (outerTo is null || (innerTo is not null && outerTo >= innerTo));
 
     /// <summary>
     /// Section 4 rule 8: a <c>requires</c> whose consequent set an <c>excludes</c> empties. The pair is a
