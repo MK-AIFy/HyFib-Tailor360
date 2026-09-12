@@ -1059,11 +1059,27 @@ jobs:
       - name: Prepare the output directory
         run: mkdir -p artifacts/sbom
 
+      # The same step twice, because the action resolves the Syft release from the GitHub API and
+      # downloads the binary on every run. A transient failure there — `received HTTP status=000`,
+      # then `unable to find tag=''` and `The Syft installer failed to install` — fails a required
+      # check on a pull request whose diff has nothing to do with it, and the only remedy was a
+      # manual re-run of the whole job.
+      #
+      # Neither attempt decides the job's result: both are `continue-on-error`, and the document
+      # itself decides, in the check below. That is what keeps this a retry rather than a way of
+      # turning a real failure green — a cataloguing error, an unreadable `deps.json`, a Syft that
+      # cannot be installed at all, all still fail the job, with the message of the second attempt
+      # above them.
       - name: Generate the bill of materials
         id: generate
+        continue-on-error: true
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           path: .
+          # Pinned for the reason every other tool version in this workflow is pinned: the release
+          # the job resolves cannot change between two runs of the same commit without a commit of
+          # its own. Raise it deliberately, the way the action's own pin is raised.
+          syft-version: v1.51.1
           # CycloneDX because that is what the vulnerability tooling downstream of a release reads.
           format: cyclonedx-json
           output-file: artifacts/sbom/tailor360.cyclonedx.json
@@ -1078,6 +1094,44 @@ jobs:
           # This workflow never runs on a release event; saying so explicitly keeps it that way if
           # a release trigger is added later without reading this job.
           upload-release-assets: false
+
+      - name: Wait before the second attempt
+        if: ${{ steps.generate.outcome == 'failure' }}
+        # A download that has just failed is given a moment rather than being asked again at once;
+        # fifteen seconds is long enough for a momentary loss of the route and short enough that the
+        # job's 20-minute ceiling is unaffected.
+        run: sleep 15
+
+      - name: Generate the bill of materials, second attempt
+        id: generate-again
+        if: ${{ steps.generate.outcome == 'failure' }}
+        continue-on-error: true
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: .
+          syft-version: v1.51.1
+          format: cyclonedx-json
+          output-file: artifacts/sbom/tailor360.cyclonedx.json
+          upload-artifact: false
+          dependency-snapshot: false
+          upload-release-assets: false
+
+      - name: Check that the document was produced
+        id: document
+        # Runs whatever the two attempts reported, and is the only step in this job that decides its
+        # result. A document that is absent or empty fails the job; a job that produced no bill of
+        # materials is never reported as a pass.
+        if: ${{ !cancelled() }}
+        run: |
+          document=artifacts/sbom/tailor360.cyclonedx.json
+          if [ ! -s "$document" ]; then
+            echo "::error title=No bill of materials::Syft produced no document after two attempts."
+            echo "Neither attempt produced $document. The step logs above name the cause: an"
+            echo "installer failure is the network, anything else is the catalogue or the build."
+            exit 1
+          fi
+          python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$document"
+          echo "The document is present and is valid JSON."
 
       - name: Summarise the bill of materials
         if: ${{ !cancelled() }}
@@ -1113,10 +1167,10 @@ jobs:
           PY
 
       - name: Upload the bill of materials
-        # Gated on the generation, for the reason the client's `dist/` upload is: `error` on no
+        # Gated on the document, for the reason the client's `dist/` upload is: `error` on no
         # files is the right setting for a step that is meant to have produced a document, and
         # running it after a failed generation only buries the real cause under a second failure.
-        if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.document.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
