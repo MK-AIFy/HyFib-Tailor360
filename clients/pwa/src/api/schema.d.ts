@@ -1453,9 +1453,29 @@ export interface paths {
         };
         /**
          * Read a customer's measurements as a tailor reads them.
-         * @description The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because "who looked at my measurements" is a question she may ask and the answer has to be somewhere a person can find.
+         * @description The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. The template version the values render through travels with them, so the sheet is one read for a person who holds this key and not the capture key. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because "who looked at my measurements" is a question she may ask and the answer has to be somewhere a person can find.
          */
         get: operations["ReadMeasurementSheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurements/{measurementVersionId}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the template version a confirmed measurement renders through, with its fields.
+         * @description The comparison screen and a correction both start from a confirmed measurement and need the labels, groups and units it was captured under — the version it renders through forever, whatever the template has become since. The capture-side read of a template by way of a measurement, as the draft route is by way of a draft; nothing about the customer travels here.
+         */
+        get: operations["GetMeasurementVersionTemplate"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2297,6 +2317,34 @@ export interface components {
             field: null | string;
             message: string;
         };
+        MeasurementSheetPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            correctsVersionId: null | string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            /** Format: uuid */
+            measurementVersionId: string;
+            reason: null | string;
+            /** Format: uuid */
+            reusedFromVersionId: null | string;
+            /** Format: date-time */
+            takenAt: string;
+            /** Format: uuid */
+            takenBy: null | string;
+            takenByName: null | string;
+            templateCode: string;
+            templateName: string;
+            templateVersion: components["schemas"]["TemplateVersionPayload"];
+            /** Format: uuid */
+            templateVersionId: string;
+            values: components["schemas"]["MeasurementValuePayload"][];
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
         MeasurementSummaryPayload: {
             /** Format: uuid */
             branchId: string;
@@ -2315,6 +2363,7 @@ export interface components {
             takenAt: string;
             /** Format: uuid */
             takenBy: null | string;
+            takenByName: null | string;
             /** Format: uuid */
             templateVersionId: string;
             /** Format: int32 */
@@ -2364,11 +2413,21 @@ export interface components {
             takenAt: string;
             /** Format: uuid */
             takenBy: null | string;
+            takenByName: null | string;
             /** Format: uuid */
             templateVersionId: string;
             values: components["schemas"]["MeasurementValuePayload"][];
             /** Format: int32 */
             versionNumber: number | string;
+        };
+        MeasurementVersionTemplatePayload: {
+            code: string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            /** Format: uuid */
+            measurementVersionId: string;
+            name: string;
+            version: components["schemas"]["TemplateVersionPayload"];
         };
         MergeCustomerRequest: {
             /** Format: uuid */
@@ -7690,7 +7749,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeasurementVersionPayload"];
+                    "application/json": components["schemas"]["MeasurementSheetPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetMeasurementVersionTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                measurementVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementVersionTemplatePayload"];
                 };
             };
             400: components["responses"]["BadRequest"];

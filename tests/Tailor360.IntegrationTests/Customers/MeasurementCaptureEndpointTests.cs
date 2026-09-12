@@ -489,6 +489,50 @@ public sealed class MeasurementCaptureEndpointTests(WebApplicationFixture fixtur
     }
 
     [Fact]
+    public async Task ReadsTheTemplateVersionAMeasurementRendersThroughAndNamesWhoTookIt()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-vtmpl", "203.0.113.247");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("VTMPL");
+        var draftId = await StartAsync(counter, customerId, templateId);
+
+        await SaveBodiceAsync(counter, draftId, inches: 36m);
+
+        using var confirmed = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, draftId)).Content.ReadAsStringAsync(Token));
+        var versionId = confirmed.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        // The comparison screen and a correction start from a confirmed measurement and need the version it was
+        // captured under — by way of the measurement, since the administration read refuses this caller.
+        var read = await counter.GetAsync($"/api/v1/customers/measurements/{versionId}/template");
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var body = JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token));
+        body.RootElement.GetProperty("measurementVersionId").GetGuid().ShouldBe(versionId);
+        body.RootElement.GetProperty("measurementTemplateId").GetGuid().ShouldBe(templateId);
+        body.RootElement.GetProperty("version").GetProperty("status").GetString().ShouldBe("Published");
+        body.RootElement.GetProperty("version").GetProperty("fields").EnumerateArray().Single()
+            .GetProperty("key").GetString().ShouldBe("chest_bust");
+        body.RootElement.TryGetProperty("customerId", out _).ShouldBeFalse();
+
+        // A person choosing which measurement to reuse chooses on the date and on who took it, and an
+        // identifier is not a who: the list carries the name the staff directory gives.
+        var listed = await counter.GetAsync($"/api/v1/customers/{customerId}/measurements");
+        using var list = JsonDocument.Parse(await listed.Content.ReadAsStringAsync(Token));
+        var row = list.RootElement.EnumerateArray().Single();
+        row.GetProperty("takenBy").GetGuid().ShouldNotBe(Guid.Empty);
+        row.GetProperty("takenByName").GetString().ShouldNotBeNullOrEmpty();
+        confirmed.RootElement.GetProperty("takenByName").GetString()
+            .ShouldBe(row.GetProperty("takenByName").GetString());
+
+        var missing = await counter.GetAsync($"/api/v1/customers/measurements/{Guid.CreateVersion7()}/template");
+        missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task ReadsASheetCarryingNothingAboutTheCustomerButHerMeasurements()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
@@ -525,6 +569,16 @@ public sealed class MeasurementCaptureEndpointTests(WebApplicationFixture fixtur
 
         using var body = JsonDocument.Parse(text);
         body.RootElement.GetProperty("values").GetArrayLength().ShouldBe(1);
+
+        // The version the values render through travels with them (#124): a person holding the sheet key and
+        // not the capture key has no other way to the labels, groups and units, and a sheet is one read.
+        body.RootElement.GetProperty("templateName").GetString().ShouldNotBeNullOrEmpty();
+        var sheetField = body.RootElement.GetProperty("templateVersion").GetProperty("fields").EnumerateArray().Single();
+        sheetField.GetProperty("key").GetString().ShouldBe("chest_bust");
+        sheetField.GetProperty("label").GetString().ShouldBe("Chest (bust)");
+
+        // And who took it is a name, resolved through the staff directory, not an identifier a tailor cannot read.
+        body.RootElement.GetProperty("takenByName").GetString().ShouldNotBeNullOrEmpty();
 
         // A tailor holding a printed sheet is the widest audience any measurement gets. Asserted rather than
         // eyeballed: no contact field of any name reaches this payload.

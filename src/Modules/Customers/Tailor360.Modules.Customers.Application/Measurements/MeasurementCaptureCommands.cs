@@ -76,3 +76,23 @@ public sealed record CapturedDraft(MeasurementDraft Draft, EntityTag Tag);
 /// <param name="Template">The template the draft answers.</param>
 /// <param name="Version">The version the draft will be confirmed against.</param>
 public sealed record CapturedTemplate(MeasurementDraft Draft, MeasurementTemplate Template, TemplateVersion Version);
+
+/// <summary>A confirmed measurement together with the template version it renders through.</summary>
+/// <param name="Version">The measurement.</param>
+/// <param name="Template">The template it answers.</param>
+/// <param name="TemplateVersion">The version it was captured under, and renders through forever.</param>
+public sealed record MeasuredTemplate(
+    MeasurementVersion Version,
+    MeasurementTemplate Template,
+    TemplateVersion TemplateVersion);
+
+/// <summary>A measurement as a sheet carries it: the values, the version they render through, and who took them.</summary>
+/// <param name="Version">The measurement.</param>
+/// <param name="Template">The template it answers.</param>
+/// <param name="TemplateVersion">The version it renders through.</param>
+/// <param name="TakenByName">Who took it, as the directory names them, or null when it no longer knows.</param>
+public sealed record MeasurementSheet(
+    MeasurementVersion Version,
+    MeasurementTemplate Template,
+    TemplateVersion TemplateVersion,
+    string? TakenByName);

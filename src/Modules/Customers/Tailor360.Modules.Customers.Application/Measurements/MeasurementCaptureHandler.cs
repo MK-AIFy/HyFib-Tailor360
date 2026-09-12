@@ -6,6 +6,7 @@ using Tailor360.Modules.Customers.Contracts.Consent;
 using Tailor360.Modules.Customers.Contracts.Events;
 using Tailor360.Modules.Customers.Domain.Consent;
 using Tailor360.Modules.Customers.Domain.Measurements;
+using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
@@ -38,6 +39,7 @@ namespace Tailor360.Modules.Customers.Application.Measurements;
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
 /// <param name="options">The capture options, for how long a draft lives.</param>
+/// <param name="users">The staff directory, for who took a measurement.</param>
 public sealed class MeasurementCaptureHandler(
     IMeasurementCaptureStore store,
     IMeasurementTemplateStore templates,
@@ -46,7 +48,8 @@ public sealed class MeasurementCaptureHandler(
     IAuditWriter audit,
     IClock clock,
     IIdGenerator ids,
-    IOptions<MeasurementCaptureOptions> options)
+    IOptions<MeasurementCaptureOptions> options,
+    IUserDirectory users)
 {
     /// <summary>Measuring began.</summary>
     public const string DraftStartedAction = "customers.measurement.draft.started";
@@ -182,11 +185,73 @@ public sealed class MeasurementCaptureHandler(
             return Result.Failure<CapturedTemplate>(MeasurementErrors.DraftNotFound);
         }
 
-        var pinned = await FindPinnedVersionAsync(draft, organisationId, cancellationToken);
+        var pinned = await FindPinnedVersionAsync(draft.TemplateVersionId, organisationId, cancellationToken);
 
         return pinned is null
             ? Result.Failure<CapturedTemplate>(MeasurementErrors.VersionNotFound)
             : Result.Success(new CapturedTemplate(draft, pinned.Value.Template, pinned.Value.Version));
+    }
+
+    /// <summary>Reads the template version a confirmed measurement renders through, for a screen to show it.</summary>
+    /// <remarks>
+    /// The capture-side read of a template by way of a measurement rather than a draft (#124): a comparison
+    /// screen and a correction both start from a confirmed measurement, and both need the labels, groups and
+    /// units of the version it was captured under — which is the version it renders through forever, whatever
+    /// the template has become since.
+    /// </remarks>
+    /// <param name="versionId">The measurement.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The measurement, its template and the version it was captured under, or why not.</returns>
+    public async Task<Result<MeasuredTemplate>> ReadVersionTemplateAsync(
+        Guid versionId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        var found = await store.FindVersionAsync(versionId, organisationId, cancellationToken);
+
+        if (found is null)
+        {
+            return Result.Failure<MeasuredTemplate>(MeasurementErrors.MeasurementNotFound);
+        }
+
+        var pinned = await FindPinnedVersionAsync(found.TemplateVersionId, organisationId, cancellationToken);
+
+        return pinned is null
+            ? Result.Failure<MeasuredTemplate>(MeasurementErrors.VersionNotFound)
+            : Result.Success(new MeasuredTemplate(found, pinned.Value.Template, pinned.Value.Version));
+    }
+
+    /// <summary>The display names of whoever took the given measurements, by user identity.</summary>
+    /// <remarks>
+    /// A person choosing which measurement to reuse chooses on the date and on who took it, and an identifier
+    /// is not a who. Resolved through the staff directory in one call; an identity the directory no longer
+    /// answers for is simply absent, and the screen says so.
+    /// </remarks>
+    /// <param name="versions">The measurements.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Display name by user identity, for every identity the directory knows.</returns>
+    public async Task<IReadOnlyDictionary<Guid, string>> TakenByNamesAsync(
+        IEnumerable<MeasurementVersion> versions,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(versions);
+
+        var userIds = versions
+            .Select(version => version.TakenBy)
+            .Where(userId => userId is not null)
+            .Select(userId => userId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (userIds.Length == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        var members = await users.FindManyAsync(userIds, cancellationToken);
+
+        return members.ToDictionary(member => member.UserId, member => member.DisplayName);
     }
 
     /// <summary>Saves one wizard step.</summary>
@@ -452,7 +517,7 @@ public sealed class MeasurementCaptureHandler(
     /// <param name="organisationId">The organisation.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The measurement, or the reason it could not be read.</returns>
-    public async Task<Result<MeasurementVersion>> ReadSheetAsync(
+    public async Task<Result<MeasurementSheet>> ReadSheetAsync(
         Guid measurementVersionId,
         Guid organisationId,
         CancellationToken cancellationToken = default)
@@ -461,8 +526,20 @@ public sealed class MeasurementCaptureHandler(
 
         if (found is null)
         {
-            return Result.Failure<MeasurementVersion>(MeasurementErrors.MeasurementNotFound);
+            return Result.Failure<MeasurementSheet>(MeasurementErrors.MeasurementNotFound);
         }
+
+        // The sheet renders through the version it was captured under and carries it, so the person printing
+        // it needs no second read they may not hold the key for — measurements.read_sheet is deliberately not
+        // measurements.capture, and the labels, groups and units are facts about the template, not the customer.
+        var pinned = await FindPinnedVersionAsync(found.TemplateVersionId, organisationId, cancellationToken);
+
+        if (pinned is null)
+        {
+            return Result.Failure<MeasurementSheet>(MeasurementErrors.VersionNotFound);
+        }
+
+        var names = await TakenByNamesAsync([found], cancellationToken);
 
         await CustomerAudit.RecordAsync(
             audit,
@@ -475,7 +552,11 @@ public sealed class MeasurementCaptureHandler(
             after: null,
             cancellationToken);
 
-        return Result.Success(found);
+        return Result.Success(new MeasurementSheet(
+            found,
+            pinned.Value.Template,
+            pinned.Value.Version,
+            found.TakenBy is { } takenBy && names.TryGetValue(takenBy, out var name) ? name : null));
     }
 
     /// <summary>Pre-fills a fresh draft from an earlier measurement of the same template.</summary>
@@ -590,7 +671,7 @@ public sealed class MeasurementCaptureHandler(
             return Result.Failure<(MeasurementDraft, TemplateVersion)>(MeasurementErrors.DraftChanged);
         }
 
-        var pinned = await FindPinnedVersionAsync(draft, organisationId, cancellationToken);
+        var pinned = await FindPinnedVersionAsync(draft.TemplateVersionId, organisationId, cancellationToken);
 
         return pinned is null
             ? Result.Failure<(MeasurementDraft, TemplateVersion)>(MeasurementErrors.VersionNotFound)
@@ -599,19 +680,18 @@ public sealed class MeasurementCaptureHandler(
 
     /// <summary>The template version a draft is pinned to, and the template holding it.</summary>
     /// <remarks>
-    /// One place, because a draft is confirmed against the version it was started against and never the one
-    /// being drafted to replace it — and two lookups that could drift would let a section save and the wizard's
-    /// own read of the version disagree about which that is.
+    /// One place, because a draft is confirmed against the version it was started against, and a measurement
+    /// renders through the version it was confirmed against, never the one being drafted to replace it — and
+    /// lookups that could drift would let a section save, the wizard and the sheet disagree about which that is.
     /// </remarks>
     private async Task<(MeasurementTemplate Template, TemplateVersion Version)?> FindPinnedVersionAsync(
-        MeasurementDraft draft,
+        Guid templateVersionId,
         Guid organisationId,
         CancellationToken cancellationToken)
     {
-        var template = await templates.FindByVersionAsync(
-            draft.TemplateVersionId, organisationId, cancellationToken);
+        var template = await templates.FindByVersionAsync(templateVersionId, organisationId, cancellationToken);
 
-        var version = template?.Versions.SingleOrDefault(one => one.Id == draft.TemplateVersionId);
+        var version = template?.Versions.SingleOrDefault(one => one.Id == templateVersionId);
 
         return template is null || version is null ? null : (template, version);
     }
