@@ -437,6 +437,68 @@ public sealed class MeasurementCaptureEndpointTests(WebApplicationFixture fixtur
     }
 
     [Fact]
+    public async Task RefusesToRecordACorrectionOfTheSameCustomersOtherGarment()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-tcorr", "203.0.113.249");
+
+        var customerId = await CustomerAsync();
+
+        // The same customer, measured for another garment: a real measurement, and still not one a
+        // blouse can be a correction of.
+        var otherTemplateId = await PublishedTemplateAsync("TCORRA");
+        var otherDraft = await StartAsync(counter, customerId, otherTemplateId);
+        await SaveBodiceAsync(counter, otherDraft, inches: 34m);
+        using var other = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, otherDraft)).Content.ReadAsStringAsync(Token));
+        var otherVersionId = other.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        var templateId = await PublishedTemplateAsync("TCORRB");
+        var draftId = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, draftId, inches: 36m);
+
+        var refused = await counter.PostAsync(
+            $"{Drafts}/{draftId}/confirm",
+            new { reason = "Re-measured.", correctsVersionId = otherVersionId },
+            [.. Key(), ("If-Match", await TagAsync(counter, draftId))]);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        using var problem = JsonDocument.Parse(await refused.Content.ReadAsStringAsync(Token));
+        problem.RootElement.GetProperty("code").GetString()
+            .ShouldBe("measurements.correction-subject-does-not-match");
+
+        (await MeasurementCountAsync(customerId)).ShouldBe(1, "the other garment's measurement stands alone");
+    }
+
+    [Fact]
+    public async Task RefusesToRecordACorrectionOfAMeasurementThatDoesNotExist()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-ncorr", "203.0.113.250");
+
+        var templateId = await PublishedTemplateAsync("NCORR");
+        var customerId = await CustomerAsync();
+        var draftId = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, draftId, inches: 36m);
+
+        // A refusal of the request, not a missing resource: the draft exists and the route is right; what
+        // is wrong is a value in the body, and it is answered as one so a client can place it on the field.
+        var refused = await counter.PostAsync(
+            $"{Drafts}/{draftId}/confirm",
+            new { reason = "Re-measured.", correctsVersionId = Guid.CreateVersion7() },
+            [.. Key(), ("If-Match", await TagAsync(counter, draftId))]);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        using var problem = JsonDocument.Parse(await refused.Content.ReadAsStringAsync(Token));
+        problem.RootElement.GetProperty("code").GetString()
+            .ShouldBe("measurements.correction-subject-does-not-match");
+
+        (await MeasurementCountAsync(customerId)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task RefusesACorrectionWithNoReason()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
