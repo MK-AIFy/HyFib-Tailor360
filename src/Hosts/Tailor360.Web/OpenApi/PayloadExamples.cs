@@ -26,6 +26,117 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["CreatePriceList"] = """
+            {
+              "code": "PL_CBE01",
+              "name": "Coimbatore price list",
+              "reason": null
+            }
+            """,
+
+        ["RenamePriceList"] = """
+            {
+              "name": "Coimbatore and Tiruppur price list",
+              "reason": "The Tiruppur branch prices from the same list from April."
+            }
+            """,
+
+        ["CreatePriceListDraft"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "Cloned from version 4; stitching up by 5%.",
+              "effectiveFrom": "2027-04-01",
+              "taxInclusive": false,
+              "roundOff": "NearestRupee",
+              "overrideThresholdPercent": 10,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+              "reason": null
+            }
+            """,
+
+        ["DescribePriceListVersion"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "Stitching up by 5%.",
+              "effectiveFrom": "2027-04-01",
+              "taxInclusive": false,
+              "roundOff": "NearestRupee",
+              "overrideThresholdPercent": 10,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "cloneFromVersionId": null,
+              "reason": "The effective date moved to the start of the financial year."
+            }
+            """,
+
+        ["AddPriceListItem"] = """
+            {
+              "code": "BLOUSE_PATTERN_STITCHING",
+              "description": "Blouse stitching, pattern work",
+              "kind": "Service",
+              "baseRate": 450,
+              "unit": "each",
+              "taxCode": "STITCHING_5",
+              "active": true,
+              "reason": null
+            }
+            """,
+
+        ["EditPriceListItem"] = """
+            {
+              "code": "BLOUSE_PATTERN_STITCHING",
+              "description": "Blouse stitching, pattern work",
+              "kind": "Service",
+              "baseRate": 472.5,
+              "unit": "each",
+              "taxCode": "STITCHING_5",
+              "active": true,
+              "reason": "Up by 5% with the new year's list."
+            }
+            """,
+
+        ["RemovePriceListItem"] = """
+            {
+              "reason": "Entered twice; the other row is the one the catalogue names."
+            }
+            """,
+
+        ["AddDiscountRule"] = """
+            {
+              "code": "FESTIVAL",
+              "description": "Festival-season discount on stitching",
+              "kind": "Percentage",
+              "maximumWithoutApproval": 5,
+              "maximum": 15,
+              "active": true,
+              "reason": null
+            }
+            """,
+
+        ["EditDiscountRule"] = """
+            {
+              "code": "FESTIVAL",
+              "description": "Festival-season discount on stitching",
+              "kind": "Percentage",
+              "maximumWithoutApproval": 5,
+              "maximum": 20,
+              "active": true,
+              "reason": "The owner may now approve up to twenty percent."
+            }
+            """,
+
+        ["RemoveDiscountRule"] = """
+            {
+              "reason": "Withdrawn after the season."
+            }
+            """,
+
+        ["PublishPriceListVersion"] = """
+            {
+              "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+            }
+            """,
+
         ["CreateTaxConfigurationDraft"] = """
             {
               "name": "Rates from 1 April 2027",

@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Billing.Application\Tailor360.Modules.Billing.Application.csproj" />
+    <!-- The catalogue link validator is registered here as an ICatalogDependencyValidator (ARCH-004: Contracts only). -->
+    <ProjectReference Include="..\..\Catalog\Tailor360.Modules.Catalog.Contracts\Tailor360.Modules.Catalog.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
   </ItemGroup>

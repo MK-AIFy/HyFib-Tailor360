@@ -10,8 +10,8 @@ using Tailor360.Platform.Persistence.Conventions;
 namespace Tailor360.IntegrationTests.Billing;
 
 /// <summary>
-/// The initial Billing migration (#145) applied, rolled back to nothing and re-applied against real
-/// PostgreSQL, in a scratch database of its own. <c>src/Modules/CLAUDE.md</c> section 6 asks that every
+/// The Billing migrations (#145's initial schema and #146's price lists) applied, rolled back to nothing
+/// and re-applied against real PostgreSQL, in a scratch database of its own. <c>src/Modules/CLAUDE.md</c> section 6 asks that every
 /// <c>Down</c> has been executed at least once; this is where it is.
 /// </summary>
 [Trait("Category", "Integration")]
@@ -23,6 +23,11 @@ public sealed class BillingMigrationTests
         "tax_configuration_versions",
         "tax_codes",
         "tax_components",
+        "price_lists",
+        "price_list_versions",
+        "price_list_version_branches",
+        "price_list_items",
+        "discount_rules",
         "outbox_messages",
         "inbox_messages",
     ];

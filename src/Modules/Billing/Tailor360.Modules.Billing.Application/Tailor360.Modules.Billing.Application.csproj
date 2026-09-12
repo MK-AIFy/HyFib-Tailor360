@@ -7,6 +7,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Billing.Contracts\Tailor360.Modules.Billing.Contracts.csproj" />
+    <!-- Billing answers the catalogue's link 4 (price-list item codes) through ICatalogDependencyValidator. A
+         Contracts project is the only thing that may cross a module boundary (ARCH-004). -->
+    <ProjectReference Include="..\..\Catalog\Tailor360.Modules.Catalog.Contracts\Tailor360.Modules.Catalog.Contracts.csproj" />
     <ProjectReference Include="..\Tailor360.Modules.Billing.Domain\Tailor360.Modules.Billing.Domain.csproj" />
     <ProjectReference Include="..\..\Identity\Tailor360.Modules.Identity.Contracts\Tailor360.Modules.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />

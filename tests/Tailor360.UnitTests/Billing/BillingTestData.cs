@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Tailor360.Modules.Billing.Domain.Pricing;
 using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Domain.Tax;
 
@@ -61,4 +62,22 @@ internal static class BillingTestData
     /// <summary>A registration whose first day was never given.</summary>
     public static GstRegistrationDetails RegistrationWithoutAFirstDay()
         => Registration() with { EffectiveFrom = default };
+
+    /// <summary>A version's details, pricing the main branch, effective today unless said otherwise.</summary>
+    public static PriceListVersionDetails VersionDetails(DateOnly? effectiveFrom = null)
+        => new("Version", null, effectiveFrom ?? Today, false, RoundOffRule.NearestRupee, 10m, [MainBranch]);
+
+    /// <summary>An empty price-list draft of one list; a different number gives a different identifier.</summary>
+    public static PriceListVersion PriceListDraft(int number = 1, DateOnly? effectiveFrom = null)
+        => PriceListVersion.CreateDraft(
+                Id($"price-version-{number}"), Id("pl"), Organisation, number, VersionDetails(effectiveFrom), Now, null)
+            .Value;
+
+    /// <summary>A stitching service item on a synthetic tax code.</summary>
+    public static PriceListItemDetails StitchingItem(string code = "BLOUSE_PATTERN_STITCHING")
+        => new(code, "Blouse stitching, pattern work", PriceItemKind.Service, 450m, "each", "STITCHING_5", true);
+
+    /// <summary>A percentage discount rule with an approval threshold below its maximum.</summary>
+    public static DiscountRuleDetails FestivalRule(string code = "FESTIVAL")
+        => new(code, "Festival-season discount", DiscountKind.Percentage, 5m, 15m, true);
 }

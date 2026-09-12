@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Modules.Billing.Domain;
+using Tailor360.Modules.Billing.Domain.Pricing;
 using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Domain.Tax;
 using Tailor360.Platform.Persistence.Conventions;
@@ -43,6 +44,34 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The GST registrations.</summary>
     public DbSet<GstRegistration> GstRegistrations => Set<GstRegistration>();
 
+    /// <summary>Exactly one published version per price list; a deferred exclusion constraint in the migration.</summary>
+    public const string OnePublishedPriceListVersionConstraint = "ux_price_list_versions_one_published";
+
+    /// <summary>
+    /// A branch is priced by at most one published version across every list. Kept by the migration's
+    /// <c>published</c> column on the branch rows, which the version's own trigger maintains; the model does
+    /// not map that column because nothing but the database ever writes it.
+    /// </summary>
+    public const string OnePublishedVersionPerBranchConstraint = "ex_price_list_version_branches_one_published";
+
+    /// <summary>Price-list codes are unique per organisation.</summary>
+    public const string PriceListCodeIndex = "ux_price_lists_organisation_code";
+
+    /// <summary>Version numbers are unique per price list.</summary>
+    public const string PriceListVersionNumberIndex = "ux_price_list_versions_list_number";
+
+    /// <summary>The price lists.</summary>
+    public DbSet<PriceList> PriceLists => Set<PriceList>();
+
+    /// <summary>The price-list versions.</summary>
+    public DbSet<PriceListVersion> PriceListVersions => Set<PriceListVersion>();
+
+    /// <summary>The items of every version.</summary>
+    public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
+
+    /// <summary>The discount rules of every version.</summary>
+    public DbSet<DiscountRule> DiscountRules => Set<DiscountRule>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,7 +81,148 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigureTaxConfigurationVersions(modelBuilder);
         ConfigureTaxCodes(modelBuilder);
         ConfigureGstRegistrations(modelBuilder);
+        ConfigurePriceLists(modelBuilder);
+        ConfigurePriceListVersions(modelBuilder);
+        ConfigurePriceListItems(modelBuilder);
+        ConfigureDiscountRules(modelBuilder);
     }
+
+    private static void ConfigurePriceLists(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<PriceList>(entity =>
+        {
+            entity.ToTable("price_lists", table =>
+                table.HasCheckConstraint("ck_price_lists_code_is_well_formed", "code ~ '^[A-Z][A-Z0-9_]+$'"));
+            entity.HasKey(list => list.Id);
+            entity.Property(list => list.Code).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(list => list.Name).HasMaxLength(PriceList.MaximumNameLength).IsRequired();
+            entity.HasIndex(list => new { list.OrganisationId, list.Code })
+                .IsUnique()
+                .HasDatabaseName(PriceListCodeIndex);
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigurePriceListVersions(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<PriceListVersion>(entity =>
+        {
+            entity.ToTable("price_list_versions", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_price_list_versions_lifecycle_is_consistent",
+                    """
+                    (status = 0 AND published_at IS NULL AND retired_at IS NULL)
+                    OR (status = 1 AND published_at IS NOT NULL AND retired_at IS NULL)
+                    OR (status = 2 AND published_at IS NOT NULL AND retired_at IS NOT NULL)
+                    """);
+                table.HasCheckConstraint("ck_price_list_versions_number_is_positive", "version_number >= 1");
+                table.HasCheckConstraint(
+                    "ck_price_list_versions_threshold_is_a_percentage",
+                    "override_threshold_percent >= 0 AND override_threshold_percent <= 100");
+            });
+
+            entity.HasKey(version => version.Id);
+            entity.Property(version => version.Name).HasMaxLength(PriceListVersionDetails.MaximumNameLength).IsRequired();
+            entity.Property(version => version.Notes).HasMaxLength(PriceListVersionDetails.MaximumNotesLength);
+            entity.Property(version => version.PublishReason).HasMaxLength(PriceListVersion.MaximumReasonLength);
+            entity.Property(version => version.RetiredReason).HasMaxLength(PriceListVersion.MaximumReasonLength);
+            entity.Property(version => version.Status).HasConversion<int>();
+            entity.Property(version => version.RoundOff).HasConversion<int>();
+            entity.Property(version => version.OverrideThresholdPercent).HasPrecision(6, 3);
+            entity.Ignore(version => version.BranchIds);
+            entity.Ignore(version => version.Details);
+
+            entity.HasOne<PriceList>()
+                .WithMany()
+                .HasForeignKey(version => version.PriceListId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(version => new { version.PriceListId, version.VersionNumber })
+                .IsUnique()
+                .HasDatabaseName(PriceListVersionNumberIndex);
+            entity.HasIndex(version => new { version.OrganisationId, version.Status })
+                .HasDatabaseName("ix_price_list_versions_organisation_status");
+
+            entity.OwnsMany(version => version.Branches, branches =>
+            {
+                branches.ToTable("price_list_version_branches");
+                branches.WithOwner()
+                    .HasForeignKey(branch => branch.PriceListVersionId)
+                    // Named by hand: the conventional name exceeds PostgreSQL's 63-character limit.
+                    .HasConstraintName("fk_price_list_version_branches_price_list_versions");
+                branches.HasKey(branch => new { branch.PriceListVersionId, branch.BranchId });
+            });
+            entity.HasMany(version => version.Items)
+                .WithOne()
+                .HasForeignKey(item => item.PriceListVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(version => version.DiscountRules)
+                .WithOne()
+                .HasForeignKey(rule => rule.PriceListVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(version => version.Branches).AutoInclude();
+            entity.Navigation(version => version.Items).AutoInclude();
+            entity.Navigation(version => version.DiscountRules).AutoInclude();
+
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigurePriceListItems(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<PriceListItem>(entity =>
+        {
+            entity.ToTable("price_list_items", table =>
+            {
+                table.HasCheckConstraint("ck_price_list_items_code_is_well_formed", "code ~ '^[A-Z][A-Z0-9_]+$'");
+                table.HasCheckConstraint("ck_price_list_items_rate_is_not_negative", "base_rate >= 0");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Key).HasColumnName("price_list_item_key");
+            entity.Property(item => item.Code).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(item => item.Description).HasMaxLength(PriceListItemDetails.MaximumDescriptionLength).IsRequired();
+            entity.Property(item => item.Kind).HasConversion<int>();
+            // Unit rates are numeric(18,4): four decimal places so a single rounding step happens at the
+            // end of a calculation (conventions section 1.1).
+            entity.Property(item => item.BaseRate).HasPrecision(18, 4);
+            entity.Property(item => item.Unit).HasMaxLength(PriceListItemDetails.MaximumUnitLength).IsRequired();
+            entity.Property(item => item.TaxCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Ignore(item => item.Details);
+
+            entity.HasIndex(item => new { item.PriceListVersionId, item.Code })
+                .IsUnique()
+                .HasDatabaseName("ux_price_list_items_version_code");
+            entity.HasIndex(item => new { item.PriceListVersionId, item.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_price_list_items_version_key");
+        });
+
+    private static void ConfigureDiscountRules(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DiscountRule>(entity =>
+        {
+            entity.ToTable("discount_rules", table =>
+            {
+                table.HasCheckConstraint("ck_discount_rules_code_is_well_formed", "code ~ '^[A-Z][A-Z0-9_]+$'");
+                table.HasCheckConstraint(
+                    "ck_discount_rules_bounds_are_ordered",
+                    "maximum_without_approval >= 0 AND maximum_without_approval <= maximum");
+            });
+
+            entity.HasKey(rule => rule.Id);
+            entity.Property(rule => rule.Key).HasColumnName("discount_rule_key");
+            entity.Property(rule => rule.Code).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(rule => rule.Description).HasMaxLength(DiscountRuleDetails.MaximumDescriptionLength).IsRequired();
+            entity.Property(rule => rule.Kind).HasConversion<int>();
+            // One pair of columns serves both kinds: an amount for an Amount rule, a percentage for a
+            // Percentage rule. Money precision (18,4) holds either without loss; the convention's (6,3) for a
+            // percentage is a ceiling this column merely exceeds, and the domain caps a percentage at 100.
+            entity.Property(rule => rule.MaximumWithoutApproval).HasPrecision(18, 4);
+            entity.Property(rule => rule.Maximum).HasPrecision(18, 4);
+            entity.Ignore(rule => rule.Details);
+
+            entity.HasIndex(rule => new { rule.PriceListVersionId, rule.Code })
+                .IsUnique()
+                .HasDatabaseName("ux_discount_rules_version_code");
+            entity.HasIndex(rule => new { rule.PriceListVersionId, rule.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_discount_rules_version_key");
+        });
 
     private static void ConfigureTaxConfigurationVersions(ModelBuilder modelBuilder)
         => modelBuilder.Entity<TaxConfigurationVersion>(entity =>
