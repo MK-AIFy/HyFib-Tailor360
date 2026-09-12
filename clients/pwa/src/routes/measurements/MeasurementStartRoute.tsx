@@ -96,14 +96,15 @@ export function MeasurementStartRoute() {
     setTooShort(false)
     setSearching(true)
     setSearchFailure(null)
+    // A choice made from the previous list does not survive a new search — forgotten the moment the
+    // search starts, not when it answers: the person can no longer see who it was, a slow answer
+    // would leave Start armed with them, and a failed one would leave them chosen for good. Starting
+    // a draft for somebody not on screen is how the wrong customer gets measured.
+    setCustomerId('')
     try {
       const page = await searchCustomers(wanted)
       setResults(page.customers)
       setTruncated(page.nextCursor !== null)
-      // A choice made from the previous list does not survive a new one: the person can no longer
-      // see who it was, and starting a draft for somebody not on screen is how the wrong customer
-      // gets measured.
-      setCustomerId('')
     } catch (cause: unknown) {
       setSearchFailure(cause)
     } finally {
