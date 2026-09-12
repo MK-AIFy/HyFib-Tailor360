@@ -1233,6 +1233,46 @@
         ],
         "type": "object"
       },
+      "CreateInvoiceRequest": {
+        "properties": {
+          "calculationReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "garmentJobIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "calculationReference",
+          "garmentJobIds",
+          "reason"
+        ],
+        "type": "object"
+      },
       "CreateMeasurementTemplateRequest": {
         "properties": {
           "code": {
@@ -3106,6 +3146,573 @@
           "displayName",
           "homeBranchId",
           "reason"
+        ],
+        "type": "object"
+      },
+      "InvoiceCalculationPayload": {
+        "properties": {
+          "gstRegistrationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string"
+          },
+          "placeOfSupplyStateCode": {
+            "type": "string"
+          },
+          "priceListVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "supplierStateCode": {
+            "type": "string"
+          },
+          "taxConfigurationVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "taxInclusive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reference",
+          "priceListVersionId",
+          "taxConfigurationVersionId",
+          "gstRegistrationId",
+          "gstin",
+          "supplierStateCode",
+          "placeOfSupplyStateCode",
+          "scheme",
+          "taxInclusive"
+        ],
+        "type": "object"
+      },
+      "InvoiceCustomerPayload": {
+        "properties": {
+          "addressLine": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerNumber": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "locality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postcode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerNumber",
+          "displayName",
+          "addressLine",
+          "locality",
+          "postcode"
+        ],
+        "type": "object"
+      },
+      "InvoiceLinePayload": {
+        "properties": {
+          "appliedRate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "base": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "catalogueRate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "classification": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "discountAmount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "discountKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountRuleCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "garmentJobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "gross": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "lineNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "lineTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "surcharges": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLineSurchargePayload"
+            },
+            "type": "array"
+          },
+          "taxCode": {
+            "type": "string"
+          },
+          "taxCodeKind": {
+            "type": "string"
+          },
+          "taxTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxableValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxes": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceTaxComponentPayload"
+            },
+            "type": "array"
+          },
+          "variance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "lineNumber",
+          "garmentJobId",
+          "itemCode",
+          "description",
+          "quantity",
+          "catalogueRate",
+          "appliedRate",
+          "base",
+          "surcharges",
+          "discountRuleCode",
+          "discountKind",
+          "discountValue",
+          "discountAmount",
+          "gross",
+          "taxableValue",
+          "taxCode",
+          "classification",
+          "taxCodeKind",
+          "taxes",
+          "taxTotal",
+          "lineTotal",
+          "variance"
+        ],
+        "type": "object"
+      },
+      "InvoiceLineSurchargePayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "rate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "itemCode",
+          "description",
+          "rate",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "InvoicePagePayload": {
+        "properties": {
+          "invoices": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceSummaryPayload"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "invoices",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "InvoicePayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "calculation": {
+            "$ref": "#/components/schemas/InvoiceCalculationPayload"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/InvoiceCustomerPayload"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "discardReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discardedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLinePayload"
+            },
+            "type": "array"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "orderNumber": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/InvoiceTotalsPayload"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoiceId",
+          "branchId",
+          "customerId",
+          "orderId",
+          "orderNumber",
+          "status",
+          "revision",
+          "customer",
+          "calculation",
+          "currency",
+          "lines",
+          "totals",
+          "createdAt",
+          "updatedAt",
+          "discardedAt",
+          "discardReason"
+        ],
+        "type": "object"
+      },
+      "InvoiceSummaryPayload": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerDisplayName": {
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "grandTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "orderNumber": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoiceId",
+          "customerId",
+          "orderId",
+          "orderNumber",
+          "status",
+          "customerDisplayName",
+          "grandTotal",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "InvoiceTaxComponentPayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "ratePercent": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "ratePercent",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "InvoiceTotalsPayload": {
+        "properties": {
+          "centralTax": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "cess": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "discountTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "grandTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "integratedTax": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "roundOff": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "stateTax": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "subtotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxableValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "subtotal",
+          "discountTotal",
+          "taxableValue",
+          "centralTax",
+          "stateTax",
+          "integratedTax",
+          "cess",
+          "roundOff",
+          "grandTotal"
         ],
         "type": "object"
       },
@@ -5701,6 +6308,45 @@
         },
         "required": [
           "roleKeys",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RepriceInvoiceRequest": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PricingLineRequestPayload"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "on": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "placeOfSupplyStateCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "on",
+          "placeOfSupplyStateCode",
+          "lines",
           "reason"
         ],
         "type": "object"
@@ -11533,6 +12179,489 @@
         ],
         "x-tailor360-audit": "billing.gst_registration.changed",
         "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices": {
+      "get": {
+        "description": "Filtered by `status` (Draft, Posted, Discarded) when given; the caller's current branch only.",
+        "operationId": "ListInvoices",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePagePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The branch's invoices, newest first, by cursor.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "The order must be confirmed, not cancelled and taken at the caller's branch; the calculation named must reproduce on the versions it was made on; no live invoice may already charge for any of its garment jobs. Nothing is re-priced: the lines are the calculation's.",
+        "operationId": "CreateInvoiceDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "calculationReference": "order:0199c2f0-0000-7000-8000-0000000000c1:1",
+                "garmentJobIds": null,
+                "orderId": "0199c2f0-0000-7000-8000-0000000000c1",
+                "reason": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Draft an invoice from an order's stored calculation.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.drafted",
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}": {
+      "get": {
+        "operationId": "GetInvoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read an invoice with its lines, and the tag a change sends back as If-Match.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "Whole-value: the lines sent are the lines kept, priced by the engine under a reference of the draft's own. A discount beyond its rule's counter maximum or an override beyond the version's threshold needs billing.override_price on a recently re-authenticated session, as everywhere.",
+        "operationId": "RepriceInvoiceDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "lines": [
+                  {
+                    "discount": {
+                      "reason": null,
+                      "ruleCode": "FESTIVAL",
+                      "value": 5
+                    },
+                    "itemCode": "BLOUSE_PATTERN_STITCHING",
+                    "lineKey": "0199c2f0-0000-7000-8000-0000000000d1",
+                    "override": null,
+                    "quantity": 1,
+                    "surchargeItemCodes": [
+                      "PI_KATORI_CUP_LINING"
+                    ]
+                  }
+                ],
+                "on": "2027-04-05",
+                "placeOfSupplyStateCode": "33",
+                "reason": "The piping finish was dropped at the counter."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RepriceInvoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace a draft's lines by pricing them afresh.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.updated",
+        "x-tailor360-authorisation": "permission:billing.update_invoice",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}/discard": {
+      "post": {
+        "description": "A reason is recorded. A posted invoice is never discarded; it is cancelled by its compensating record.",
+        "operationId": "DiscardInvoiceDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Drafted against the wrong order."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BillingReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Abandon a draft, freeing its garment jobs for another invoice.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.discarded",
+        "x-tailor360-authorisation": "permission:billing.update_invoice",
         "x-tailor360-rate-limit": "write"
       }
     },

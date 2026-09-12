@@ -133,6 +133,40 @@ public sealed class PricingService(
         return stored is null ? null : PricingJson.ReadResult(stored.ResultJson);
     }
 
+    /// <inheritdoc />
+    public async Task<Result<VerifiedCalculation>> VerifySnapshotAsync(Guid organisationId, string reference, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        var stored = await snapshots.FindAsync(organisationId, reference.Trim(), cancellationToken);
+        if (stored is null)
+        {
+            return Result.Failure<VerifiedCalculation>(BillingErrors.CalculationNotFound);
+        }
+
+        var request = PricingJson.ReadRequest(stored.RequestJson);
+        var result = PricingJson.ReadResult(stored.ResultJson);
+
+        // Recomputed on the very versions the snapshot names — published or since retired — with the
+        // caller's permission irrelevant: what was approved then was approved then. The clock is the
+        // snapshot's, so the two documents differ only where a figure would.
+        var version = await priceLists.FindVersionAsync(stored.PriceListVersionId, organisationId, cancellationToken);
+        var taxConfiguration = await taxConfigurations.FindAsync(stored.TaxConfigurationVersionId, organisationId, cancellationToken);
+        var registration = await registrations.FindAsync(stored.GstRegistrationId, organisationId, cancellationToken);
+        if (version is null || taxConfiguration is null || registration is null)
+        {
+            return Result.Failure<VerifiedCalculation>(BillingErrors.SnapshotMismatch);
+        }
+
+        var replayed = PricingEngine.Calculate(request, version, taxConfiguration, registration, callerMayOverride: true, result.CalculatedAt);
+        if (replayed.IsFailure || !string.Equals(PricingJson.Write(replayed.Value), PricingJson.Write(result), StringComparison.Ordinal))
+        {
+            return Result.Failure<VerifiedCalculation>(BillingErrors.SnapshotMismatch);
+        }
+
+        return Result.Success(new VerifiedCalculation(request, result));
+    }
+
     private async Task<Result<PricingResult>> CalculateAsync(
         PricingRequest request,
         PriceListVersion version,

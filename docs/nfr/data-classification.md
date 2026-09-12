@@ -356,7 +356,7 @@ to show a merge asks `ICustomerSnapshotQuery`, which re-authorises the read.
 | Attribute | Treatment |
 | --- | --- |
 | Class | **Financial** and **Personal** |
-| Examples | Posted invoices with lines and tax components, CGST, SGST, IGST and cess amounts, place of supply, the branch GSTIN, the customer's name and any GSTIN they give, credit and debit notes, cancellation records, the rendered PDF under the `documents/` prefix with its checksum |
+| Examples | Posted invoices with lines and tax components, CGST, SGST, IGST and cess amounts, place of supply, the branch GSTIN, the customer's name and any GSTIN they give, credit and debit notes, cancellation records, the rendered PDF under the `documents/` prefix with its checksum. A draft (#153) already carries the customer's number, name and the address the document is addressed to as they stood when it was drafted, copied under the drafting cashier's own `customers.read_contact` — a cashier without it drafts a document with no address on it |
 | Purpose | To charge correctly, to account correctly, and to answer the tax authority and the accountant |
 | Lawful basis or consent | **Legal obligation.** A customer cannot withdraw consent to the existence of a tax invoice, and this is the reason financial records are excluded from deletion requests |
 | Who may access | `billing.post_invoice` and the cashier permissions within branch scope; Owner and Auditor across branches; Reception may view an invoice for a customer at the counter. Posting is audited; a cancellation is an appended record with a reason and an approval |

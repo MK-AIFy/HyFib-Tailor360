@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Tailor360.Modules.Billing.Domain;
+using Tailor360.Modules.Billing.Domain.Invoicing;
 using Tailor360.Modules.Billing.Domain.Pricing;
 using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Domain.Tax;
+using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Persistence.Conventions;
 
 namespace Tailor360.Modules.Billing.Infrastructure.Persistence;
@@ -63,6 +66,22 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The calculation snapshots.</summary>
     public DbSet<CalculationSnapshot> CalculationSnapshots => Set<CalculationSnapshot>();
 
+    /// <summary>
+    /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
+    /// which the invoice's own trigger keeps equal to the parent's status, because a partial index cannot
+    /// reach across the join; the model does not map that column.
+    /// </summary>
+    public const string OneLiveInvoicePerJobIndex = "ux_invoice_lines_live_garment_job";
+
+    /// <summary>What Billing knows about orders.</summary>
+    public DbSet<OrderFact> OrderFacts => Set<OrderFact>();
+
+    /// <summary>The invoices.</summary>
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+    /// <summary>The invoice lines.</summary>
+    public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+
     /// <summary>Version numbers are unique per price list.</summary>
     public const string PriceListVersionNumberIndex = "ux_price_list_versions_list_number";
 
@@ -92,6 +111,183 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigurePriceListItems(modelBuilder);
         ConfigureDiscountRules(modelBuilder);
         ConfigureCalculationSnapshots(modelBuilder);
+        ConfigureOrderFacts(modelBuilder);
+        ConfigureInvoices(modelBuilder);
+    }
+
+    private static void ConfigureOrderFacts(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<OrderFact>(entity =>
+        {
+            entity.ToTable("order_facts");
+            entity.HasKey(fact => fact.OrderId);
+            entity.Property(fact => fact.OrderNumber).HasMaxLength(OrderFact.MaximumNumberLength).IsRequired();
+            entity.Property(fact => fact.CancellationReasonCode).HasMaxLength(OrderFact.MaximumNumberLength);
+            entity.Property(fact => fact.Status).HasConversion<int>();
+            entity.Ignore(fact => fact.IsInvoiceable);
+            entity.HasIndex(fact => new { fact.OrganisationId, fact.BranchId, fact.Status })
+                .HasDatabaseName("ix_order_facts_organisation_branch_status");
+
+            entity.HasMany(fact => fact.Jobs)
+                .WithOne()
+                .HasForeignKey(job => job.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(fact => fact.Jobs).AutoInclude();
+        });
+
+    private static void ConfigureInvoices(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OrderFactJob>(entity =>
+        {
+            entity.ToTable("order_fact_jobs");
+            entity.HasKey(job => new { job.OrderId, job.GarmentJobId });
+            entity.Property(job => job.GarmentJobNumber).HasMaxLength(OrderFact.MaximumNumberLength).IsRequired();
+            entity.Property(job => job.CancellationReasonCode).HasMaxLength(OrderFact.MaximumNumberLength);
+            entity.Ignore(job => job.IsCancelled);
+        });
+
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.ToTable("invoices", table =>
+                table.HasCheckConstraint(
+                    "ck_invoices_lifecycle_is_consistent",
+                    """
+                    (status = 2 AND discarded_at IS NOT NULL) OR (status <> 2 AND discarded_at IS NULL)
+                    """));
+            entity.HasKey(invoice => invoice.Id);
+            entity.Property(invoice => invoice.OrderNumber).HasMaxLength(OrderFact.MaximumNumberLength).IsRequired();
+            entity.Property(invoice => invoice.Status).HasConversion<int>();
+            entity.Property(invoice => invoice.DiscardReason).HasMaxLength(Invoice.MaximumReasonLength);
+            entity.Ignore(invoice => invoice.IsDraft);
+            entity.Ignore(invoice => invoice.GarmentJobIds);
+
+            // The customer as the document names them: Personal data, kept as issued (data classification 5.10).
+            entity.ComplexProperty(invoice => invoice.Customer, customer =>
+            {
+                customer.IsRequired();
+                customer.Property(c => c.CustomerNumber).HasColumnName("customer_number").HasMaxLength(InvoiceCustomer.MaximumLength).IsRequired();
+                customer.Property(c => c.DisplayName).HasColumnName("customer_display_name").HasMaxLength(InvoiceCustomer.MaximumLength).IsRequired();
+                customer.Property(c => c.AddressLine).HasColumnName("customer_address_line").HasMaxLength(InvoiceCustomer.MaximumLength);
+                customer.Property(c => c.Locality).HasColumnName("customer_locality").HasMaxLength(InvoiceCustomer.MaximumLength);
+                customer.Property(c => c.Postcode).HasColumnName("customer_postcode").HasMaxLength(InvoiceCustomer.MaximumLength);
+            });
+
+            entity.ComplexProperty(invoice => invoice.Calculation, calculation =>
+            {
+                calculation.IsRequired();
+                calculation.Property(c => c.Reference).HasColumnName("calculation_reference").HasMaxLength(CalculationSnapshot.MaximumReferenceLength).IsRequired();
+                calculation.Property(c => c.PriceListVersionId).HasColumnName("price_list_version_id");
+                calculation.Property(c => c.TaxConfigurationVersionId).HasColumnName("tax_configuration_version_id");
+                calculation.Property(c => c.GstRegistrationId).HasColumnName("gst_registration_id");
+                calculation.Property(c => c.Gstin).HasColumnName("gstin").HasMaxLength(15).IsRequired();
+                calculation.Property(c => c.SupplierStateCode).HasColumnName("supplier_state_code").HasMaxLength(2).IsRequired();
+                calculation.Property(c => c.PlaceOfSupplyStateCode).HasColumnName("place_of_supply_state_code").HasMaxLength(2).IsRequired();
+                calculation.Property(c => c.Scheme).HasColumnName("scheme").HasMaxLength(20).IsRequired();
+                calculation.Property(c => c.TaxInclusive).HasColumnName("tax_inclusive");
+            });
+
+            entity.ComplexProperty(invoice => invoice.Totals, totals =>
+            {
+                totals.IsRequired();
+                ConfigureMoney(totals.ComplexProperty(t => t.Subtotal), "subtotal");
+                ConfigureMoney(totals.ComplexProperty(t => t.DiscountTotal), "discount_total");
+                ConfigureMoney(totals.ComplexProperty(t => t.TaxableValue), "taxable_value");
+                ConfigureMoney(totals.ComplexProperty(t => t.CentralTax), "central_tax");
+                ConfigureMoney(totals.ComplexProperty(t => t.StateTax), "state_tax");
+                ConfigureMoney(totals.ComplexProperty(t => t.IntegratedTax), "integrated_tax");
+                ConfigureMoney(totals.ComplexProperty(t => t.Cess), "cess");
+                ConfigureMoney(totals.ComplexProperty(t => t.RoundOff), "round_off");
+                ConfigureMoney(totals.ComplexProperty(t => t.GrandTotal), "grand_total");
+            });
+
+            entity.HasMany(invoice => invoice.Lines)
+                .WithOne()
+                .HasForeignKey(line => line.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(invoice => invoice.Lines).AutoInclude();
+
+            entity.HasIndex(invoice => new { invoice.OrganisationId, invoice.BranchId, invoice.Status, invoice.UpdatedAt })
+                .HasDatabaseName("ix_invoices_organisation_branch_status_updated_at");
+            entity.HasIndex(invoice => new { invoice.OrganisationId, invoice.OrderId })
+                .HasDatabaseName("ix_invoices_organisation_order");
+            UseRowVersion(entity);
+        });
+
+        modelBuilder.Entity<InvoiceLine>(entity =>
+        {
+            entity.ToTable("invoice_lines");
+            // Keyed by the job the line charges for, not by its position: a re-price that drops, adds or
+            // reorders lines then updates a kept job's row where it is, and the one-live-invoice-per-job
+            // index below never sees a job move between rows of one invoice. The line number is a plain
+            // column for the same reason — two kept lines swapping numbers in one save is a cycle no
+            // unique constraint on it could be satisfied through — and the aggregate keeps it distinct.
+            entity.HasKey(line => new { line.InvoiceId, line.GarmentJobId });
+            entity.Property(line => line.LineKey).HasMaxLength(200).IsRequired();
+            entity.Property(line => line.ItemCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(line => line.Description).HasMaxLength(PriceListItemDetails.MaximumDescriptionLength).IsRequired();
+            entity.Property(line => line.Quantity).HasPrecision(18, 4);
+            entity.Property(line => line.CatalogueRate).HasPrecision(18, 4);
+            entity.Property(line => line.AppliedRate).HasPrecision(18, 4);
+            entity.Property(line => line.DiscountRuleCode).HasMaxLength(BillingCode.MaximumLength);
+            entity.Property(line => line.DiscountKind).HasMaxLength(20);
+            entity.Property(line => line.DiscountValue).HasPrecision(18, 4);
+            entity.Property(line => line.TaxCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(line => line.Classification).HasMaxLength(8).IsRequired();
+            entity.Property(line => line.TaxCodeKind).HasMaxLength(20).IsRequired();
+            ConfigureMoney(entity.ComplexProperty(line => line.Base), "base");
+            ConfigureMoney(entity.ComplexProperty(line => line.DiscountAmount), "discount");
+            ConfigureMoney(entity.ComplexProperty(line => line.Gross), "gross");
+            ConfigureMoney(entity.ComplexProperty(line => line.TaxableValue), "taxable_value");
+            ConfigureMoney(entity.ComplexProperty(line => line.TaxTotal), "tax_total");
+            ConfigureMoney(entity.ComplexProperty(line => line.LineTotal), "line_total");
+            ConfigureMoney(entity.ComplexProperty(line => line.Variance), "variance");
+            // Declared on the model as well as created by the migration, and not only for the read it serves:
+            // the change tracker orders the commands of one save by the unique indexes it knows about, so a
+            // re-price that moves a job onto another line number deletes the old holder before the new one
+            // is written. An index the model cannot see is an index the save can trip over.
+            entity.HasIndex(line => line.GarmentJobId)
+                .IsUnique()
+                .HasDatabaseName(OneLiveInvoicePerJobIndex)
+                .HasFilter("invoice_status IN (0, 1)");
+
+            entity.HasMany(line => line.Surcharges)
+                .WithOne()
+                .HasForeignKey(surcharge => new { surcharge.InvoiceId, surcharge.GarmentJobId })
+                .HasConstraintName("fk_invoice_line_surcharges_invoice_lines")
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(line => line.Surcharges).AutoInclude();
+            entity.HasMany(line => line.Taxes)
+                .WithOne()
+                .HasForeignKey(tax => new { tax.InvoiceId, tax.GarmentJobId })
+                .HasConstraintName("fk_invoice_tax_components_invoice_lines")
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(line => line.Taxes).AutoInclude();
+        });
+
+        modelBuilder.Entity<InvoiceLineSurcharge>(entity =>
+        {
+            entity.ToTable("invoice_line_surcharges");
+            entity.HasKey(surcharge => new { surcharge.InvoiceId, surcharge.GarmentJobId, surcharge.Position });
+            entity.Property(surcharge => surcharge.ItemCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(surcharge => surcharge.Description).HasMaxLength(PriceListItemDetails.MaximumDescriptionLength).IsRequired();
+            entity.Property(surcharge => surcharge.Rate).HasPrecision(18, 4);
+            ConfigureMoney(entity.ComplexProperty(surcharge => surcharge.Amount), "amount");
+        });
+
+        modelBuilder.Entity<InvoiceTaxComponent>(entity =>
+        {
+            entity.ToTable("invoice_tax_components");
+            entity.HasKey(tax => new { tax.InvoiceId, tax.GarmentJobId, tax.Kind });
+            entity.Property(tax => tax.Kind).HasMaxLength(8).IsRequired();
+            entity.Property(tax => tax.RatePercent).HasPrecision(6, 3);
+            ConfigureMoney(entity.ComplexProperty(tax => tax.Amount), "amount");
+        });
+    }
+
+    /// <summary>Money as Orders maps it: an amount at the internal scale and its three-letter currency, side by side.</summary>
+    private static void ConfigureMoney(ComplexPropertyBuilder<Money> money, string prefix)
+    {
+        money.Property(m => m.Amount).HasColumnName($"{prefix}_amount").HasPrecision(18, Money.InternalScale);
+        money.Property(m => m.Currency).HasColumnName($"{prefix}_currency").HasMaxLength(3).IsRequired();
     }
 
     private static void ConfigureCalculationSnapshots(ModelBuilder modelBuilder)

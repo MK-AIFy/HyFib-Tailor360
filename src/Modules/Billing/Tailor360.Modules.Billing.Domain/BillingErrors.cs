@@ -258,6 +258,93 @@ public static class BillingErrors
         "billing.tax-code-not-found",
         "That tax code is not in this version.");
 
+    /// <summary>The order is not one Billing has heard of.</summary>
+    public static readonly Error OrderNotKnown = Error.NotFound(
+        "billing.order-not-known",
+        "Billing has not heard of that order. A confirmed order reaches Billing through its events; if it was "
+        + "confirmed a moment ago, ask again shortly.");
+
+    /// <summary>The order's garment jobs have been heard of, its confirmation not yet.</summary>
+    public static readonly Error OrderNotYetConfirmed = Error.Conflict(
+        "billing.order-not-yet-confirmed",
+        "Billing has heard of the order's garments but not yet of its confirmation, which names the customer. "
+        + "Ask again shortly.");
+
+    /// <summary>The stored calculation was priced for another branch than the order's.</summary>
+    public static readonly Error CalculationForAnotherBranch = Error.Conflict(
+        "billing.calculation-for-another-branch",
+        "The stored calculation was priced under another branch's price list than the branch that took the "
+        + "order. An invoice carries the figures of the branch that issues it.");
+
+    /// <summary>The order was cancelled.</summary>
+    public static readonly Error OrderCancelled = Error.Conflict(
+        "billing.order-cancelled",
+        "The order was cancelled, and a cancelled order is not invoiced.");
+
+    /// <summary>The order belongs to another branch than the caller is working in.</summary>
+    public static readonly Error OrderAtAnotherBranch = Error.Forbidden(
+        "billing.order-at-another-branch",
+        "The order was taken at another branch. An invoice is issued by the branch that took the order.");
+
+    /// <summary>No calculation is stored under the reference the request named.</summary>
+    public static readonly Error CalculationNotFound = Error.NotFound(
+        "billing.calculation-not-found",
+        "No calculation is stored under that reference.");
+
+    /// <summary>The stored calculation does not reproduce on the versions it names.</summary>
+    public static readonly Error SnapshotMismatch = Error.Conflict(
+        "billing.snapshot-mismatch",
+        "The stored calculation does not reproduce on the price-list and tax configuration versions it names. "
+        + "The order must be re-priced rather than invoiced from a figure that no longer adds up.");
+
+    /// <summary>A line's key is not a garment job of the order.</summary>
+    /// <param name="field">The line.</param>
+    public static Error LineNotAGarmentJob(string field) => Error.Validation(
+        "billing.line-not-a-garment-job",
+        "Every invoice line charges for one garment job of the order, and this line's key names none.",
+        field);
+
+    /// <summary>A line charges for a garment job the counter has cancelled.</summary>
+    /// <param name="field">The line.</param>
+    public static Error JobCancelled(string field) => Error.Validation(
+        "billing.job-cancelled",
+        "This line charges for a garment job that was cancelled, and a cancelled job is not invoiced.",
+        field);
+
+    /// <summary>Two lines charge for the same garment job.</summary>
+    /// <param name="field">The lines.</param>
+    public static Error JobRepeated(string field) => Error.Validation(
+        "billing.job-repeated",
+        "An invoice charges for each garment job on one line; two of these lines name the same job.",
+        field);
+
+    /// <summary>A garment job is already charged on a live invoice.</summary>
+    public static readonly Error JobAlreadyInvoiced = Error.Conflict(
+        "billing.job-already-invoiced",
+        "A garment job is charged on at most one invoice at a time; one of these is already on a draft or a posted "
+        + "invoice.");
+
+    /// <summary>The customer record could not be read.</summary>
+    public static readonly Error CustomerNotFound = Error.NotFound(
+        "billing.customer-not-found",
+        "The order's customer could not be read.");
+
+    /// <summary>The invoice is not one of the caller's organisation.</summary>
+    public static readonly Error InvoiceNotFound = Error.NotFound(
+        "billing.invoice-not-found",
+        "No such invoice.");
+
+    /// <summary>The invoice is no longer a draft.</summary>
+    public static readonly Error InvoiceNotEditable = Error.Conflict(
+        "billing.invoice-not-editable",
+        "Only a draft invoice changes. A posted invoice is corrected by a credit or debit note; a discarded one is "
+        + "replaced by a new draft.");
+
+    /// <summary>The invoice changed since it was read.</summary>
+    public static readonly Error InvoiceChanged = Error.PreconditionFailed(
+        "billing.invoice-changed",
+        "The invoice changed since it was read. Reload it and try again.");
+
     /// <summary>A calculation was already stored under the reference.</summary>
     public static readonly Error SnapshotExists = Error.Conflict(
         "billing.snapshot-exists",

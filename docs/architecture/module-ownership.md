@@ -550,7 +550,8 @@ single-use exception that together form the shop's cash-protection control.
 | `gst_registrations` | Branch GSTIN and state code — owned here even though the branch record is Identity's |
 | `tax_configuration_versions`, `tax_codes`, `tax_components` | Immutable, effective-dated tax codes, HSN/SAC mappings, rates and place-of-supply rules |
 | `calculation_snapshots` | The exact pricing result and the configuration versions used |
-| `invoices`, `invoice_lines`, `invoice_tax_components` | Draft to posted; posted rows never updated |
+| `order_facts`, `order_fact_jobs` | What Billing knows about an order — number, branch, customer, revision, status, and its garment jobs with their cancellations — written only by the consumers of Orders' events, never by reading Orders' tables (ARCH-010) |
+| `invoices`, `invoice_lines`, `invoice_line_surcharges`, `invoice_tax_components` | Draft to posted; posted rows never updated; a garment job charged on at most one live invoice |
 | `invoice_cancellations`, `credit_notes`, `debit_notes` | Appended compensating records |
 | `document_sequences` | The per-branch, per-financial-year number series, allocated through Platform's `ISequenceAllocator` |
 | `document_artifacts` | Rendered PDFs under `documents/` with version and checksum |
