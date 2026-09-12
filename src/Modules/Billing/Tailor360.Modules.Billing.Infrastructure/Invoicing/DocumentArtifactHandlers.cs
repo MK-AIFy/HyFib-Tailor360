@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Application.Invoicing;
 using Tailor360.Modules.Billing.Contracts.Events;
@@ -80,9 +81,13 @@ public sealed class DebitNotePostedArtifactHandler(DocumentArtifactHandler artif
 
 /// <summary>
 /// <c>billing.payment-recorded.v1</c>: the receipt issued with the payment is rendered on the roll template.
-/// The event names the payment; the receipt is found from it, because the receipt is what is rendered.
+/// The event names the payment; the receipt is found from it, because the receipt is what is rendered. A
+/// payment recorded by the version before receipts existed — a message committed before the upgrade and
+/// dispatched after it, or written by an instance still running the old code — has no receipt to render:
+/// the message is consumed and the fact logged, never retried into the dead-letter queue, because nothing
+/// a retry could do would issue one.
 /// </summary>
-public sealed class PaymentRecordedArtifactHandler(DocumentArtifactHandler artifacts, IPaymentStore payments) : IOutboxMessageHandler
+public sealed partial class PaymentRecordedArtifactHandler(DocumentArtifactHandler artifacts, IPaymentStore payments, ILogger<PaymentRecordedArtifactHandler> logger) : IOutboxMessageHandler
 {
     /// <inheritdoc />
     public string EventType => PaymentRecorded.Type;
@@ -99,11 +104,18 @@ public sealed class PaymentRecordedArtifactHandler(DocumentArtifactHandler artif
         ArgumentNullException.ThrowIfNull(delivery);
 
         var recorded = OrderFacts.Read<RecordedPaymentFact>(delivery.Payload);
-        var receipt = await payments.FindReceiptForPaymentAsync(recorded.AggregateId, recorded.OrganisationId, cancellationToken)
-            ?? throw new InvalidOperationException($"No receipt for payment {recorded.AggregateId} to render.");
+        var receipt = await payments.FindReceiptForPaymentAsync(recorded.AggregateId, recorded.OrganisationId, cancellationToken);
+        if (receipt is null)
+        {
+            LogNoReceipt(logger, recorded.AggregateId);
+            return;
+        }
 
         await artifacts.RequestAsync(DocumentKind.Receipt, receipt.Id, recorded.OrganisationId, cancellationToken);
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Payment {PaymentId} was recorded without a receipt, before receipts were issued with payments; there is no receipt document to render for it.")]
+    private static partial void LogNoReceipt(ILogger logger, Guid paymentId);
 
     private sealed record RecordedPaymentFact(Guid AggregateId, Guid OrganisationId);
 }
