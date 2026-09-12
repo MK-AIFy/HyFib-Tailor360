@@ -98,6 +98,41 @@ public sealed class DesignCatalogueReferenceDataSeederTests(WebApplicationFixtur
     }
 
     [Fact]
+    public async Task FailsClearlyRatherThanCrashingWhenTheOnlyCatalogueVersionIsAlreadyPublished()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // The hierarchy seed (#137) and the design seed (#139) are two separate init-reference-data
+        // steps, run once each — nothing stops an administrator publishing the plain stitching hierarchy
+        // in between, long before this seeder ever runs. The earliest catalogue version is then no
+        // longer a draft, and there is no other version to fall back to.
+        var organisationId = Guid.CreateVersion7();
+
+        using var scope = fixture.Services.CreateScope();
+        var hierarchySeeder = scope.ServiceProvider.GetRequiredService<ICatalogReferenceDataSeeder>();
+        var designSeeder = scope.ServiceProvider.GetRequiredService<IDesignCatalogueReferenceDataSeeder>();
+        var store = scope.ServiceProvider.GetRequiredService<ICatalogStore>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+
+        var hierarchy = await hierarchySeeder.SeedInitialCatalogAsync(organisationId, Token);
+
+        var draft = await store.FindAsync(hierarchy.CatalogVersionId, organisationId, Token);
+        draft.ShouldNotBeNull();
+        draft!.Publish(clock.UtcNow, null, "Test publish before any design group exists.")
+            .IsSuccess.ShouldBeTrue();
+        await store.SaveAsync(Token);
+
+        var failure = await Should.ThrowAsync<InvalidOperationException>(
+            () => designSeeder.SeedDesignGroupsAsync(organisationId, Token));
+
+        // The point of the fix: a clear, actionable message naming the real problem (no draft to seed
+        // into), never the aggregate's own low-level "catalog.version-not-editable" refusal that a blind
+        // AddDesignGroup on a published version would otherwise surface.
+        failure.Message.ShouldContain("draft");
+        failure.Message.ShouldNotContain("catalog.version-not-editable");
+    }
+
+    [Fact]
     public async Task LinksOnlyStitchingAndRestitchingToTheDesignGroupsAndNeverAlteration()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);

@@ -36,14 +36,14 @@ public sealed class DesignCatalogueReferenceDataSeeder(
         Guid organisationId,
         CancellationToken cancellationToken = default)
     {
-        var existingVersion = await context.CatalogVersions
+        var versions = await context.CatalogVersions
             .AsNoTracking()
             .IgnoreAutoIncludes()
             .Where(version => version.OrganisationId == organisationId)
             .OrderBy(version => version.VersionNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
 
-        if (existingVersion is null)
+        if (versions.Count == 0)
         {
             // The category and service-type seed (ICatalogReferenceDataSeeder) has not run for this
             // organisation. init-reference-data always calls it first; a caller that has not is asking
@@ -54,17 +54,33 @@ public sealed class DesignCatalogueReferenceDataSeeder(
                 + "first.");
         }
 
-        var alreadySeeded = await context.DesignGroups
+        var versionIds = versions.Select(version => version.Id).ToArray();
+
+        var alreadySeededVersionId = await context.DesignGroups
             .AsNoTracking()
             .IgnoreAutoIncludes()
-            .AnyAsync(group => group.CatalogVersionId == existingVersion.Id, cancellationToken);
+            .Where(group => versionIds.Contains(group.CatalogVersionId))
+            .Select(group => (Guid?)group.CatalogVersionId)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (alreadySeeded)
+        if (alreadySeededVersionId is { } seededVersionId)
         {
-            var counts = await CountAsync(existingVersion.Id, cancellationToken);
+            var counts = await CountAsync(seededVersionId, cancellationToken);
 
-            return new DesignCatalogueSeedOutcome(false, existingVersion.Id, counts.Groups, counts.Rules);
+            return new DesignCatalogueSeedOutcome(false, seededVersionId, counts.Groups, counts.Rules);
         }
+
+        // Not just the earliest version: by the time this seeder runs, the organisation's earliest
+        // catalogue version may already have been published (an administrator can publish the plain
+        // stitching hierarchy — #137's own scope — long before the design catalogue exists to add to
+        // it). Writing to a published version is refused by the aggregate itself, so seed into whichever
+        // version is still a draft rather than assuming the lowest version number always is one.
+        var existingVersion = versions.FirstOrDefault(version => version.Status == CatalogStatus.Draft)
+            ?? throw new InvalidOperationException(
+                $"Organisation {organisationId} has {versions.Count} catalogue version(s) and none is a "
+                + "draft — every version is already published. The design catalogue can only be seeded "
+                + "into a draft; create one through the catalogue administration API, then run this "
+                + "seeder again.");
 
         var draft = await store.FindAsync(existingVersion.Id, organisationId, cancellationToken)
             ?? throw new InvalidOperationException(
