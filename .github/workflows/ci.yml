@@ -8,12 +8,18 @@ name: CI
 # gate that failed, the jobs run in parallel rather than in series, and each holds only the token
 # permissions it needs.
 #
-# The budget in Section 5.3 is 15 minutes of wall clock for a pull-request pipeline. That is the
-# target, not a measurement: the timeouts below (30 for the .NET job, 25 for CodeQL, 20 for the
-# bill of materials and the migration check, 15 for the rest) are ceilings that stop a hung job,
-# and they permit considerably more than the budget. `docs/process/workflow-demo.md` section 7 is
-# where the real per-job durations are recorded; until it has numbers, nothing here should be read
-# as a claim that the pipeline fits.
+# The budget in Section 5.3 is 15 minutes of wall clock for a pull-request pipeline, and the
+# timeouts below are ceilings that stop a hung job rather than expectations — most of them permit
+# more than the whole budget on their own. `docs/process/workflow-demo.md` section 7 is where the
+# per-job durations belong.
+#
+# What one measured run says about the shape of the pipeline, from run 201 (2026-09-12, a
+# successful pull request): 8:58 of wall clock, of which `.NET build and tests` was 8:54 and every
+# other job had finished by 3:06. The critical path is that one job and nothing else, so only work
+# taken out of it makes the pipeline shorter — which is why the format check is now its own job
+# (it was 1:26 of serial time there) and why nothing else is worth splitting until the integration
+# tier, 4:59 of the remainder, is measured from the inside. The ordering here is not evidence that
+# the budget is met; the Median column of that section 7 table is.
 #
 # `pull_request` (never `pull_request_target`): `pull_request_target` runs with the base
 # repository's secrets and a write-scoped token, so checking out the pull-request head under it
@@ -33,12 +39,22 @@ on:
 permissions:
   contents: read
 
-# One run per ref: a second push to the same branch cancels the run already in flight, which saves
-# runner minutes and keeps the queue short — both of which the 15-minute budget of Section 5
-# depends on, though neither on its own proves the budget is met.
+# One run per pull-request ref: a second push to the same branch cancels the run already in
+# flight, which saves runner minutes and keeps the queue short — both of which the 15-minute
+# budget of Section 5 depends on, though neither on its own proves the budget is met.
+#
+# Cancellation is for pull requests only. A push to `main` is the last word on a commit that is
+# already merged: cancelling it leaves that commit with no verdict, and `main` can then be red with
+# nothing saying so — the exact blind spot the CodeQL note below was written about. Run 197
+# (2026-09-12, a docs commit on `main`) was cancelled 39 seconds in by the push that followed it and
+# was never verified. Superseding a pull-request run is different: the branch gets a fresh verdict
+# moments later, so nothing is left unjudged.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keyed on the ref for a pull request, so a new push supersedes the run in flight; keyed on the
+  # commit for a push, so each commit on `main` gets its own group and is neither cancelled by the
+  # next one nor queued behind the previous one.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   DOTNET_NOLOGO: "true"
@@ -96,9 +112,9 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d tailor360_test"
-          --health-interval 10s
+          --health-interval 2s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 50
 
     env:
       # The Integration tier skips when no database is reachable, which would be a green build over
@@ -123,11 +139,8 @@ jobs:
       - name: Restore
         run: dotnet restore HyFib.Tailor360.slnx
 
-      - name: Verify formatting
-        # Style is enforced from .editorconfig. `--verify-no-changes` exits non-zero instead of
-        # rewriting files, so a formatting failure is reported rather than silently fixed in CI.
-        run: dotnet format HyFib.Tailor360.slnx --verify-no-changes --no-restore --verbosity minimal
-
+      # Formatting is checked by the `.NET formatting` job, not here: it needs no database and
+      # nothing in this job depends on it, so it has no business holding up the test tiers.
       - name: Build
         id: build
         # Directory.Build.props already sets TreatWarningsAsErrors; -warnaserror also promotes the
@@ -282,6 +295,40 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python3 scripts/coverage-floor.py artifacts/coverage
 
+  format-dotnet:
+    name: .NET formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Its own job because it was the most expensive thing on the critical path that nothing else
+    # waited for. Measured on run 201 (2026-09-12): `dotnet format` took 86 seconds and sat between
+    # the restore and the build inside `.NET build and tests`, so every build and all four test
+    # tiers queued behind a whitespace check, and a formatting slip reported no test result at all.
+    # Here it runs beside the other jobs, finishes inside two minutes, and names its own failure.
+    #
+    # It repeats the restore rather than sharing one, because `dotnet format` loads the workspace
+    # through MSBuild and needs the assets file. That is 11 seconds of the budget, spent off the
+    # critical path.
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore HyFib.Tailor360.slnx
+
+      - name: Verify formatting
+        # Style is enforced from .editorconfig. `--verify-no-changes` exits non-zero instead of
+        # rewriting files, so a formatting failure is reported rather than silently fixed in CI.
+        # `--no-restore` because the step above did it.
+        run: dotnet format HyFib.Tailor360.slnx --verify-no-changes --no-restore --verbosity minimal
+
   build-test-pwa:
     name: PWA build and tests
     runs-on: ubuntu-latest
@@ -355,11 +402,16 @@ jobs:
         run: pnpm test
 
       - name: Build
+        id: build
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm build
 
       - name: Upload the build output
-        if: ${{ !cancelled() }}
+        # Only when the build produced something. `if-no-files-found: error` is right — a build
+        # that reports success and emits no `dist/` is a real defect — but paired with a condition
+        # that also ran after a *failed* build it turned one red step into two, the second naming
+        # a missing directory instead of the compile error that caused it.
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pwa-dist
@@ -526,19 +578,11 @@ jobs:
           echo "::warning title=Dependency review not enabled::The dependency graph is not available \
           on this repository, so new dependencies are not being checked against advisories."
           {
-            echo "### Dependency review is not running"
-            echo
-            echo "This repository does not have the dependency graph available, which the check needs."
-            echo "On a private repository that means GitHub Advanced Security."
-            echo
-            echo "To turn the gate on:"
-            echo "1. Enable the dependency graph under Settings → Code security."
-            echo "2. Set the repository variable \`DEPENDENCY_REVIEW_ENABLED\` to \`true\`."
-            echo
-            echo "Until then a new dependency with a known high-severity advisory would not be caught"
-            echo "here. The Trivy dependency scan in the \`Container and dependency scan\` job is what"
-            echo "covers it in the meantime. No waiver has been granted for this gap; record one in"
-            echo "\`docs/process/waivers.md\` if it is still open at the first release."
+            echo "**Dependency review is not running** — no dependency graph on this repository"
+            echo "(Advanced Security). Covered meanwhile by the Trivy dependency scan in"
+            echo "\`Container and dependency scan\`; unwaived, see \`docs/process/waivers.md\`."
+            echo "To enable: dependency graph under Settings → Code security, then set the"
+            echo "repository variable \`DEPENDENCY_REVIEW_ENABLED\` to \`true\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Review dependency changes
@@ -578,9 +622,9 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d tailor360_migrations"
-          --health-interval 10s
+          --health-interval 2s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 50
 
     env:
       # The command line reads the same configuration the hosts read, so the connection string
@@ -643,8 +687,12 @@ jobs:
           dotnet run --project src/Tools/Tailor360.Cli --configuration Release --no-build \
             -- migrate --dry-run | tee dry-run.log
 
-          if grep -q "applied" second-run.log; then
+          # Anchored on the line the tool actually writes — `<schema>: applied N migration(s)` —
+          # rather than the bare word, which also appears in "would be applied" and in any future
+          # wording that reports having applied nothing.
+          if grep -qE ': applied [0-9]+ migration' second-run.log; then
             echo "::error title=Migrations are not idempotent::A second migrate applied something."
+            grep -E ': applied [0-9]+ migration' second-run.log
             exit 1
           fi
 
@@ -837,23 +885,11 @@ jobs:
           but its findings cannot be published to the alerts page, so there is no history and no \
           triage there."
           {
-            echo "### CodeQL findings are not being published"
-            echo
-            echo "The scan ran and failed the build if it found anything at high severity or above."
-            echo "What is missing is the alerts page: publishing SARIF needs GitHub Advanced"
-            echo "Security, which a private repository owned by a personal account cannot have."
-            echo
-            echo "Until then the findings are in the job summary above and in the"
-            echo "\`codeql-sarif-${{ matrix.language }}\` artefact, and there is no alert history"
-            echo "and no dismissal trail."
-            echo
-            echo "To turn publication on:"
-            echo "1. Enable code scanning under Settings → Code security."
-            echo "2. Set the repository variable \`CODE_SCANNING_ENABLED\` to \`true\`."
-            echo
-            echo "The scan itself still gates this build, so nothing is being carried silently. No"
-            echo "waiver has been granted for the missing alerts page; record one in"
-            echo "\`docs/process/waivers.md\` if it is still missing at the first release."
+            echo "**CodeQL findings are not published** (no alerts page without Advanced Security)."
+            echo "The scan still gates this build at high severity; findings are in the summary"
+            echo "above and the \`codeql-sarif-${{ matrix.language }}\` artefact, with no alert"
+            echo "history or dismissal trail. Unwaived, see \`docs/process/waivers.md\`. To enable:"
+            echo "code scanning under Settings → Code security, then set \`CODE_SCANNING_ENABLED\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Gate on the CodeQL findings
@@ -961,17 +997,11 @@ jobs:
           but its findings cannot be published to the alerts page, so there is no history and no \
           triage there."
           {
-            echo "### Trivy findings are not being published"
-            echo
-            echo "The scans ran and failed the build at the severities the job gates on. What is"
-            echo "missing is the alerts page: publishing SARIF needs GitHub Advanced Security,"
-            echo "which a private repository owned by a personal account cannot have."
-            echo
-            echo "Until then the findings are in the job summary above and in the \`trivy-sarif\`"
-            echo "artefact. Set the repository variable \`CODE_SCANNING_ENABLED\` to \`true\` once"
-            echo "code scanning is available. The scans still gate this build; no waiver has been"
-            echo "granted, and one belongs in \`docs/process/waivers.md\` if this is still the state"
-            echo "at the first release."
+            echo "**Trivy findings are not published** (no alerts page without Advanced Security)."
+            echo "The scans still gate this build — container definitions at critical, dependencies"
+            echo "at high — and findings are in the summary above and the \`trivy-sarif\` artefact."
+            echo "Unwaived, see \`docs/process/waivers.md\`. To enable: code scanning under"
+            echo "Settings → Code security, then set \`CODE_SCANNING_ENABLED\` to \`true\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Gate on the container definitions
@@ -1030,6 +1060,7 @@ jobs:
         run: mkdir -p artifacts/sbom
 
       - name: Generate the bill of materials
+        id: generate
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           path: .
@@ -1082,7 +1113,10 @@ jobs:
           PY
 
       - name: Upload the bill of materials
-        if: ${{ !cancelled() }}
+        # Gated on the generation, for the reason the client's `dist/` upload is: `error` on no
+        # files is the right setting for a step that is meant to have produced a document, and
+        # running it after a failed generation only buries the real cause under a second failure.
+        if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
