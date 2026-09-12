@@ -391,6 +391,20 @@
         ],
         "type": "object"
       },
+      "ApproveReconciliationRequest": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "AssignedAccessPayload": {
         "properties": {
           "branches": {
@@ -844,6 +858,16 @@
               "string"
             ]
           },
+          "reconciliationBatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReconciliationBatchPayload"
+              }
+            ]
+          },
           "status": {
             "type": "string"
           },
@@ -877,7 +901,8 @@
           "varianceReason",
           "currency",
           "denominations",
-          "modeTotals"
+          "modeTotals",
+          "reconciliationBatch"
         ],
         "type": "object"
       },
@@ -7190,6 +7215,114 @@
           "unappliedAdvance",
           "orderOutstanding",
           "currency"
+        ],
+        "type": "object"
+      },
+      "ReconciliationBatchModeLinePayload": {
+        "properties": {
+          "expected": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "modeCode": {
+            "type": "string"
+          },
+          "recorded": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "variance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "modeCode",
+          "expected",
+          "recorded",
+          "variance"
+        ],
+        "type": "object"
+      },
+      "ReconciliationBatchPayload": {
+        "properties": {
+          "approvedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "approvedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "expectedTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "modeLines": {
+            "items": {
+              "$ref": "#/components/schemas/ReconciliationBatchModeLinePayload"
+            },
+            "type": "array"
+          },
+          "recordedTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "variance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "expectedTotal",
+          "recordedTotal",
+          "variance",
+          "currency",
+          "approvedBy",
+          "approvedAt",
+          "modeLines"
         ],
         "type": "object"
       },
@@ -13743,6 +13876,118 @@
         ],
         "x-tailor360-audit": "payments.close_session",
         "x-tailor360-authorisation": "permission:payments.session",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve": {
+      "post": {
+        "description": "Refused for the cashier who closed the session (INV-CSH-04), refused twice, and refused where no variance on the session's batch was ever beyond the configured threshold — the same number the close asked a reason for (OD-24). Step-up and a reason.",
+        "operationId": "ApproveReconciliation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Counted twice with the Branch Manager present; the shortfall was change given from the wrong tray."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ApproveReconciliationRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationBatchPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Approve a closed cashier session's variance, by someone other than the cashier who closed it.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.approve_reconciliation",
+        "x-tailor360-authorisation": "permission:payments.approve_reconciliation",
         "x-tailor360-rate-limit": "write"
       }
     },

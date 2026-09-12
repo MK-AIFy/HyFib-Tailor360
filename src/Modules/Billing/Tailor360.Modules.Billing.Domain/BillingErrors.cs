@@ -755,4 +755,24 @@ public static class BillingErrors
     public static readonly Error RefundDuplicated = Error.Conflict(
         "billing.refund-duplicated",
         "This refund has been recorded already. Read it back rather than recording it again.");
+
+    /// <summary>The reconciliation batch named is not one of the organisation's.</summary>
+    public static readonly Error ReconciliationBatchNotFound = Error.NotFound(
+        "billing.reconciliation-batch-not-found",
+        "No reconciliation batch belongs to this session in this organisation.");
+
+    /// <summary>The batch was approved already, by this request's twin or by an earlier one.</summary>
+    public static readonly Error ReconciliationBatchAlreadyApproved = Error.Conflict(
+        "billing.reconciliation-batch-already-approved",
+        "This variance has been approved already.");
+
+    /// <summary>No variance on the batch was ever beyond the threshold; there is nothing to approve (INV-CSH-06).</summary>
+    public static readonly Error ReconciliationApprovalNotRequired = Error.Conflict(
+        "billing.reconciliation-approval-not-required",
+        "The count agreed with what the session expected. There is no variance to approve.");
+
+    /// <summary>The cashier who closed the session tried to approve their own variance (INV-CSH-04).</summary>
+    public static readonly Error ReconciliationApprovalBySameUser = Error.Forbidden(
+        "billing.reconciliation-approval-by-same-user",
+        "A variance is approved by someone other than the cashier who closed the session.");
 }

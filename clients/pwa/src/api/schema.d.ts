@@ -825,6 +825,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a closed cashier session's variance, by someone other than the cashier who closed it.
+         * @description Refused for the cashier who closed the session (INV-CSH-04), refused twice, and refused where no variance on the session's batch was ever beyond the configured threshold — the same number the close asked a reason for (OD-24). Step-up and a reason.
+         */
+        post: operations["ApproveReconciliation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/gst-registrations": {
         parameters: {
             query?: never;
@@ -3064,6 +3084,9 @@ export interface components {
             headerName: string;
             token: string;
         };
+        ApproveReconciliationRequest: {
+            reason: null | string;
+        };
         AssignedAccessPayload: {
             branches: components["schemas"]["BranchAssignmentPayload"][];
             roleKeys: string[];
@@ -3176,6 +3199,7 @@ export interface components {
             openedAt: string;
             /** Format: double */
             openingFloat: number | string;
+            reconciliationBatch: null | components["schemas"]["ReconciliationBatchPayload"];
             status: string;
             /** Format: double */
             variance: number | string;
@@ -4654,6 +4678,32 @@ export interface components {
             receiptNumber: string;
             /** Format: double */
             unappliedAdvance: number | string;
+        };
+        ReconciliationBatchModeLinePayload: {
+            /** Format: double */
+            expected: number | string;
+            modeCode: string;
+            /** Format: double */
+            recorded: number | string;
+            /** Format: double */
+            variance: number | string;
+        };
+        ReconciliationBatchPayload: {
+            /** Format: date-time */
+            approvedAt: null | string;
+            /** Format: uuid */
+            approvedBy: null | string;
+            currency: string;
+            /** Format: double */
+            expectedTotal: number | string;
+            /** Format: uuid */
+            id: string;
+            modeLines: components["schemas"]["ReconciliationBatchModeLinePayload"][];
+            /** Format: double */
+            recordedTotal: number | string;
+            status: string;
+            /** Format: double */
+            variance: number | string;
         };
         ReconfigureBranchPayload: {
             addressLine1: null | string;
@@ -7792,6 +7842,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ApproveReconciliation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Counted twice with the Branch Manager present; the shortfall was change given from the wrong tray."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["ApproveReconciliationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationBatchPayload"];
                 };
             };
             /** @description Bad Request */

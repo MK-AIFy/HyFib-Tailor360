@@ -51,6 +51,7 @@ public sealed record PaymentModePayload(
 /// <param name="Currency">The currency of every figure on the session.</param>
 /// <param name="Denominations">The count sheet, written at close.</param>
 /// <param name="ModeTotals">Expected against counted per mode, written at close.</param>
+/// <param name="ReconciliationBatch">The batch opened at close; null until then.</param>
 public sealed record CashierSessionPayload(
     Guid Id,
     Guid BranchId,
@@ -66,7 +67,8 @@ public sealed record CashierSessionPayload(
     string? VarianceReason,
     string Currency,
     IReadOnlyList<DenominationCountPayload> Denominations,
-    IReadOnlyList<ModeTotalPayload> ModeTotals)
+    IReadOnlyList<ModeTotalPayload> ModeTotals,
+    ReconciliationBatchPayload? ReconciliationBatch)
 {
     /// <summary>Projects a session.</summary>
     public static CashierSessionPayload From(CashierSession session)
@@ -79,9 +81,51 @@ public sealed record CashierSessionPayload(
             session.ExpectedTotal.Amount, session.CountedTotal.Amount, session.Variance.Amount, session.VarianceReason,
             session.OpeningFloat.Currency,
             session.Counts.OrderByDescending(count => count.Denomination).Select(count => new DenominationCountPayload(count.Denomination, count.Quantity, count.Value)).ToList(),
-            session.ModeTotals.OrderBy(total => total.ModeCode, StringComparer.Ordinal).Select(total => new ModeTotalPayload(total.ModeCode, total.Expected, total.Counted, total.Variance)).ToList());
+            session.ModeTotals.OrderBy(total => total.ModeCode, StringComparer.Ordinal).Select(total => new ModeTotalPayload(total.ModeCode, total.Expected, total.Counted, total.Variance)).ToList(),
+            session.ReconciliationBatch is { } batch ? ReconciliationBatchPayload.From(batch) : null);
     }
 }
+
+/// <summary>What a closed session's reconciliation batch found (INV-CSH-06).</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="Status">NotRequired, Pending or Approved.</param>
+/// <param name="ExpectedTotal">Over every mode, what the session should have held.</param>
+/// <param name="RecordedTotal">Over every mode, what was counted.</param>
+/// <param name="Variance">Recorded minus expected.</param>
+/// <param name="Currency">The currency of the three figures.</param>
+/// <param name="ApprovedBy">Who approved it; null until approved.</param>
+/// <param name="ApprovedAt">When it was approved; null until then.</param>
+/// <param name="ModeLines">Expected against recorded per mode.</param>
+public sealed record ReconciliationBatchPayload(
+    Guid Id,
+    string Status,
+    decimal ExpectedTotal,
+    decimal RecordedTotal,
+    decimal Variance,
+    string Currency,
+    Guid? ApprovedBy,
+    DateTimeOffset? ApprovedAt,
+    IReadOnlyList<ReconciliationBatchModeLinePayload> ModeLines)
+{
+    /// <summary>Projects a batch.</summary>
+    public static ReconciliationBatchPayload From(ReconciliationBatch batch)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return new ReconciliationBatchPayload(
+            batch.Id, batch.Status.ToString(), batch.ExpectedTotal.Amount, batch.RecordedTotal.Amount, batch.Variance.Amount,
+            batch.ExpectedTotal.Currency, batch.ApprovedBy, batch.ApprovedAt,
+            batch.ModeLines.OrderBy(line => line.ModeCode, StringComparer.Ordinal)
+                .Select(line => new ReconciliationBatchModeLinePayload(line.ModeCode, line.Expected, line.Recorded, line.Variance)).ToList());
+    }
+}
+
+/// <summary>One mode's expected against recorded, on a reconciliation batch.</summary>
+/// <param name="ModeCode">The payment mode.</param>
+/// <param name="Expected">What the close expected in this mode.</param>
+/// <param name="Recorded">What the close recorded as counted in this mode.</param>
+/// <param name="Variance">Recorded minus expected.</param>
+public sealed record ReconciliationBatchModeLinePayload(string ModeCode, decimal Expected, decimal Recorded, decimal Variance);
 
 /// <summary>One line of the count sheet.</summary>
 /// <param name="Denomination">The note or coin, in rupees.</param>
