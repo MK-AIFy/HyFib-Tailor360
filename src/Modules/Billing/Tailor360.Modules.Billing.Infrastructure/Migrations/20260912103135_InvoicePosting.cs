@@ -246,6 +246,18 @@ namespace Tailor360.Modules.Billing.Infrastructure.Migrations
                 column: "invoice_id",
                 unique: true);
 
+            // Every draft made before this column existed was made against the order as Billing then knew it;
+            // stamping it with the order's current revision keeps such a draft postable, exactly as a draft
+            // made after this migration and not revised since would be. A draft whose order has no fact left
+            // keeps zero and is refused at posting, which is the honest answer for it.
+            migrationBuilder.Sql("""
+                UPDATE billing.invoices AS invoices
+                   SET order_revision_number = facts.revision_number
+                  FROM billing.order_facts AS facts
+                 WHERE facts.order_id = invoices.order_id
+                   AND invoices.status = 0;
+                """);
+
             // What the model cannot express, each with the reason it is here (G-4: financial immutability).
 
             // 1. A posted invoice never changes and is never deleted; a draft moves to posted or discarded and
