@@ -131,7 +131,19 @@ public sealed class DesignOptionGroup
     /// <param name="details">The validated details.</param>
     internal void Apply(DesignGroupDetails details)
     {
+        // A renamed group takes its options' illustration references with it: every anchor is
+        // `sheet#group.OPTION`, checked against this code when the option is added, and a rename
+        // would otherwise leave each one pointing at a code the sheet no longer carries.
+        var renamed = !string.Equals(Code, details.Code, StringComparison.Ordinal);
         Code = details.Code;
+        if (renamed)
+        {
+            foreach (var option in _options)
+            {
+                option.FollowGroupCode(Code);
+            }
+        }
+
         Name = details.Name;
         NameTamil = details.NameTamil;
         SelectionMode = details.SelectionMode;
