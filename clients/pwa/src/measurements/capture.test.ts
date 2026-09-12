@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { aTemplateField } from '../admin/testing/fixtures'
 import {
   captureGroups,
+  effectiveUnitOf,
   enteredFor,
   findingErrorsOf,
+  groupsWithVisibilityChanged,
   localErrorsOf,
   sectionRequestOf,
   stateOf,
@@ -36,6 +38,47 @@ describe('enteredFor', () => {
   it('sends a count as the whole number it is, whatever unit is on screen', () => {
     const pleats = aTemplateField({ key: 'pleats', canonicalUnit: 'Count' })
     expect(enteredFor(pleats, 6, 'cm')).toEqual({ entered: 6, unit: 'Count' })
+  })
+})
+
+describe('effectiveUnitOf', () => {
+  it('honours the chosen unit where the field offers both', () => {
+    expect(effectiveUnitOf(CHEST, 'cm')).toBe('cm')
+    expect(effectiveUnitOf(CHEST, 'in')).toBe('in')
+  })
+
+  it('uses the field’s own unit where it offers only one, whatever was chosen', () => {
+    const centimetresOnly = aTemplateField({ inchFraction: 0, centimetreDecimals: 1 })
+    const inchesOnly = aTemplateField({ inchFraction: 16, centimetreDecimals: 0 })
+
+    expect(effectiveUnitOf(centimetresOnly, 'in')).toBe('cm')
+    expect(effectiveUnitOf(inchesOnly, 'cm')).toBe('in')
+    // And the request follows the field, not the chooser — the server refuses a unit a field
+    // does not offer, at confirmation, after every step had saved.
+    expect(enteredFor(centimetresOnly, 927.1, 'in')).toEqual({ entered: 92.7, unit: 'Centimetre' })
+  })
+})
+
+describe('groupsWithVisibilityChanged', () => {
+  it('names the group of a field another group’s answer just hid', () => {
+    const lining = aTemplateField({
+      templateFieldId: 'f-lining',
+      key: 'lining_length',
+      label: 'Lining length',
+      groupName: 'Sleeve',
+      displayOrder: 5,
+      ruleDefinition: {
+        effect: 'HiddenWhen',
+        anyOf: [{ scope: 'Field', name: 'closure', operator: 'IsAnyOf', values: ['front_hooks'] }],
+      },
+    })
+    const groups = captureGroups({ ...VERSION, fields: [...(VERSION.fields ?? []), lining] })
+
+    const before = { closure: { choice: 'back_hooks', acknowledged: false } }
+    const after = { closure: { choice: 'front_hooks', acknowledged: false } }
+
+    expect(groupsWithVisibilityChanged(groups, before, after)).toEqual(['Sleeve'])
+    expect(groupsWithVisibilityChanged(groups, before, before)).toEqual([])
   })
 })
 

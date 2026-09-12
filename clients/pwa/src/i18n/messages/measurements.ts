@@ -82,6 +82,7 @@ export const measurementsEn = {
     '{label} is asked for because its rule cannot be settled here: design choices only exist inside an order.',
   'measurements.wizard.diagram': 'Diagram: {alt}',
   'measurements.wizard.count.hint': 'A whole number.',
+  'measurements.wizard.clear': 'Clear {label}',
   'measurements.wizard.back': 'Back',
   'measurements.wizard.next': 'Next',
   'measurements.wizard.toReview': 'Review',
@@ -241,6 +242,8 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   'measurements.wizard.diagram': 'Diagram: {alt}',
   // not translated — awaiting native-speaker review
   'measurements.wizard.count.hint': 'A whole number.',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.clear': 'Clear {label}',
   // not translated — awaiting native-speaker review
   'measurements.wizard.back': 'Back',
   // not translated — awaiting native-speaker review
