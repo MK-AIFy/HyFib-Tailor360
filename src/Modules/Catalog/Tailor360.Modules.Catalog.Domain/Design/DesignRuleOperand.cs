@@ -25,6 +25,84 @@ public sealed record DesignRuleOperand(
     public bool IsOptionSet
         => Form is not (DesignOperandForm.Always or DesignOperandForm.AnySelection);
 
+    /// <summary>
+    /// Whether the form names the options that satisfy it directly (<c>=</c>, <c>in</c>, <c>includes</c>)
+    /// rather than the one that does not (<c>≠</c>, <c>excludes</c>).
+    /// </summary>
+    public bool IsPositive
+        => Form is DesignOperandForm.Equals or DesignOperandForm.In or DesignOperandForm.Includes;
+
+    /// <summary>Whether the form names the one option that fails it.</summary>
+    public bool IsNegation
+        => Form is DesignOperandForm.NotEquals or DesignOperandForm.Excludes;
+
+    /// <summary>
+    /// The options of the group that satisfy this operand, read as a single choice: the named ones for a
+    /// positive form, every other one for a negation, all of them for <c>any selection</c>.
+    /// </summary>
+    /// <remarks>
+    /// This is the set a consequent obliges or forbids, and the set an antecedent fires on; it is what
+    /// makes <c>lining ≠ NONE</c> and <c>lining in (FULL, KATORI_CUP)</c> the same rule over a group
+    /// holding those three options. <c>always</c> has no group and yields the whole universe.
+    /// </remarks>
+    /// <param name="universe">Every option code of the group, retired ones included.</param>
+    /// <returns>The satisfying codes.</returns>
+    public HashSet<string> SatisfyingSet(IEnumerable<string> universe)
+    {
+        ArgumentNullException.ThrowIfNull(universe);
+
+        var all = universe.ToHashSet(StringComparer.Ordinal);
+        if (IsPositive)
+        {
+            return OptionCodes.ToHashSet(StringComparer.Ordinal);
+        }
+
+        if (IsNegation)
+        {
+            all.ExceptWith(OptionCodes);
+        }
+
+        return all;
+    }
+
+    /// <summary>
+    /// Whether this operand and another over the same group are certainly satisfied by a common option,
+    /// decided from the two forms alone. What can be decided without the group's option list: two
+    /// positive forms naming a common option; a positive form naming an option a negation does not
+    /// exclude; and <c>any selection</c>, which agrees with everything. Two negations cannot be decided
+    /// here — over two options they are disjoint, over three they share one — so they are left to the
+    /// exact check, <see cref="SatisfyingSet"/> on both sides over the group's options.
+    /// </summary>
+    /// <param name="other">The other operand.</param>
+    /// <returns>True when a common option certainly exists.</returns>
+    public bool CertainlyOverlaps(DesignRuleOperand other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        if (Form == DesignOperandForm.Always || other.Form == DesignOperandForm.Always
+            || !string.Equals(GroupCode, other.GroupCode, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Form == DesignOperandForm.AnySelection || other.Form == DesignOperandForm.AnySelection)
+        {
+            return true;
+        }
+
+        if (IsPositive && other.IsPositive)
+        {
+            return OptionCodes.Intersect(other.OptionCodes, StringComparer.Ordinal).Any();
+        }
+
+        if (IsPositive)
+        {
+            return OptionCodes.Except(other.OptionCodes, StringComparer.Ordinal).Any();
+        }
+
+        return other.IsPositive && other.OptionCodes.Except(OptionCodes, StringComparer.Ordinal).Any();
+    }
+
     /// <summary>Checks the operand against its form.</summary>
     /// <param name="field">The request field the operand came from, for the problem detail.</param>
     /// <returns>Success, or the first thing wrong with it.</returns>

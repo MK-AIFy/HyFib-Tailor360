@@ -58,12 +58,13 @@ public sealed record DesignRuleDetails(
                     + "OPTION' or 'group excludes OPTION' — never 'always' or 'any selection'."));
             }
 
-            if (Antecedent.Form != DesignOperandForm.Always
-                && string.Equals(Antecedent.GroupCode, Consequent.GroupCode, StringComparison.Ordinal)
-                && Antecedent.OptionCodes.Intersect(Consequent.OptionCodes, StringComparer.Ordinal).Any())
+            // Section 4 rule 3, as far as the two forms decide it on their own: `lining = FULL requires
+            // lining ≠ NONE` says nothing and `lining = FULL excludes lining ≠ NONE` contradicts itself.
+            // The exact check, against the group's option list, is the version's when the rule is added.
+            if (Antecedent.CertainlyOverlaps(Consequent))
             {
                 return Result.Failure(CatalogErrors.OperandMalformed(
-                    "consequent", "The two sides of a rule name the same option."));
+                    "consequent", "The two sides of a rule are satisfied by the same option."));
             }
         }
         else if (Consequent is not null)
