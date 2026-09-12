@@ -555,9 +555,10 @@ single-use exception that together form the shop's cash-protection control.
 | `invoice_cancellations` | The record a cancellation appends, from which the displayed status derives; the invoice keeps its number and totals, and its garment jobs are freed for another invoice. Append-only |
 | `adjustment_notes`, `adjustment_note_lines`, `adjustment_note_taxes` | Credit and debit notes against posted invoices, numbered from their own sequences, per line at the invoice line's rates. Append-only |
 | `document_artifacts` | One row per posted invoice, credit note and debit note: requested at posting through the outbox, rendered and stored by the worker under an opaque `documents/` key, with the size, the SHA-256 and the version; pending, completed or failed after the bounded attempts (`INV-INV-08`) |
-| `payment_modes`, `payments`, `payment_allocations`, `advances`, `refunds` | Append-only money movement and its application |
+| `payment_modes`, `payment_mode_branches` | Configuration: the ways money is taken, their flags and the branches each is restricted to; seeded, renamed, never redefined |
+| `payments`, `payment_allocations`, `advances`, `refunds` | Append-only money movement and its application |
 | `receipts` | Numbered acknowledgements carrying an `R-…` barcode |
-| `cashier_sessions`, `cashier_session_counts`, `reconciliation_batches` | Shift open to close, denomination sheets, variance and approval |
+| `cashier_sessions`, `cashier_session_counts`, `cashier_session_mode_totals`, `reconciliation_batches` | Shift open to close, denomination sheets, expected against counted by mode, variance and approval |
 | `dispatch_exceptions` | Single-use overrides bound to order, job set, maximum outstanding amount, policy version and expiry |
 
 **Owned object-storage prefix.** `documents/`.

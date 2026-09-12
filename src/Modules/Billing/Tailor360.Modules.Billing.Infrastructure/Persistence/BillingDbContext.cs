@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Invoicing;
+using Tailor360.Modules.Billing.Domain.Payments;
 using Tailor360.Modules.Billing.Domain.Pricing;
 using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Domain.Tax;
@@ -66,6 +67,18 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The calculation snapshots.</summary>
     public DbSet<CalculationSnapshot> CalculationSnapshots => Set<CalculationSnapshot>();
 
+    /// <summary>One code per organisation: a mode is defined once and renamed, never redefined.</summary>
+    public const string OnePaymentModePerCodeIndex = "ux_payment_modes_organisation_code";
+
+    /// <summary>At most one open session per cashier per branch (INV-CSH-01).</summary>
+    public const string OneOpenCashierSessionIndex = "ux_cashier_sessions_one_open";
+
+    /// <summary>The organisation's payment modes.</summary>
+    public DbSet<PaymentMode> PaymentModes => Set<PaymentMode>();
+
+    /// <summary>Cashier sessions with their counts.</summary>
+    public DbSet<CashierSession> CashierSessions => Set<CashierSession>();
+
     /// <summary>
     /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
     /// which the invoice's own trigger keeps equal to the parent's status, because a partial index cannot
@@ -123,6 +136,8 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigurePriceListItems(modelBuilder);
         ConfigureDiscountRules(modelBuilder);
         ConfigureCalculationSnapshots(modelBuilder);
+        ConfigurePaymentModes(modelBuilder);
+        ConfigureCashierSessions(modelBuilder);
         ConfigureOrderFacts(modelBuilder);
         ConfigureInvoices(modelBuilder);
     }
@@ -428,6 +443,78 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
             ConfigureMoney(entity.ComplexProperty(tax => tax.Amount), "amount");
         });
     }
+
+    private static void ConfigurePaymentModes(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<PaymentMode>(entity =>
+        {
+            entity.ToTable("payment_modes", table =>
+                table.HasCheckConstraint("ck_payment_modes_code_is_well_formed", "code ~ '^[A-Z][A-Z0-9_]+$'"));
+            entity.HasKey(mode => mode.Id);
+            entity.Property(mode => mode.Code).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(mode => mode.Name).HasMaxLength(PaymentMode.MaximumNameLength).IsRequired();
+            entity.HasIndex(mode => new { mode.OrganisationId, mode.Code }).IsUnique().HasDatabaseName(OnePaymentModePerCodeIndex);
+            entity.Ignore(mode => mode.Details);
+
+            // A restriction, not an offer: the same owned shape as a price-list version's branches.
+            entity.OwnsMany(mode => mode.Branches, branches =>
+            {
+                branches.ToTable("payment_mode_branches");
+                branches.WithOwner().HasForeignKey(branch => branch.PaymentModeId);
+                branches.HasKey(branch => new { branch.PaymentModeId, branch.BranchId });
+            });
+            entity.Navigation(mode => mode.Branches).AutoInclude();
+
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigureCashierSessions(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<CashierSession>(entity =>
+        {
+            entity.ToTable("cashier_sessions", table =>
+                table.HasCheckConstraint(
+                    "ck_cashier_sessions_lifecycle_is_consistent",
+                    "(status = 0 AND closed_at IS NULL AND closed_by IS NULL) OR (status = 1 AND closed_at IS NOT NULL AND closed_by IS NOT NULL)"));
+            entity.HasKey(session => session.Id);
+            entity.Property(session => session.Status).HasConversion<int>();
+            entity.Property(session => session.VarianceReason).HasMaxLength(CashierSession.MaximumReasonLength);
+            ConfigureMoney(entity.ComplexProperty(session => session.OpeningFloat), "opening_float");
+            ConfigureMoney(entity.ComplexProperty(session => session.ExpectedTotal), "expected_total");
+            ConfigureMoney(entity.ComplexProperty(session => session.CountedTotal), "counted_total");
+            ConfigureMoney(entity.ComplexProperty(session => session.Variance), "variance");
+            entity.Ignore(session => session.IsOpen);
+
+            // INV-CSH-01 as an index, not a check in code: two opens in the same instant cannot both pass a
+            // read, and only one passes the index.
+            entity.HasIndex(session => new { session.BranchId, session.CashierId })
+                .IsUnique()
+                .HasFilter("closed_at IS NULL")
+                .HasDatabaseName(OneOpenCashierSessionIndex);
+            entity.HasIndex(session => new { session.OrganisationId, session.BranchId, session.OpenedAt })
+                .HasDatabaseName("ix_cashier_sessions_organisation_branch_opened_at");
+
+            entity.OwnsMany(session => session.Counts, counts =>
+            {
+                counts.ToTable("cashier_session_counts");
+                counts.WithOwner().HasForeignKey(count => count.SessionId);
+                counts.HasKey(count => new { count.SessionId, count.Denomination });
+                counts.Property(count => count.Denomination).HasPrecision(18, Money.DocumentScale);
+                counts.Ignore(count => count.Value);
+            });
+            entity.OwnsMany(session => session.ModeTotals, totals =>
+            {
+                totals.ToTable("cashier_session_mode_totals");
+                totals.WithOwner().HasForeignKey(total => total.SessionId);
+                totals.HasKey(total => new { total.SessionId, total.ModeCode });
+                totals.Property(total => total.ModeCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+                totals.Property(total => total.Expected).HasPrecision(18, Money.DocumentScale);
+                totals.Property(total => total.Counted).HasPrecision(18, Money.DocumentScale);
+                totals.Property(total => total.Variance).HasPrecision(18, Money.DocumentScale);
+            });
+            entity.Navigation(session => session.Counts).AutoInclude();
+            entity.Navigation(session => session.ModeTotals).AutoInclude();
+
+            UseRowVersion(entity);
+        });
 
     /// <summary>Money as Orders maps it: an amount at the internal scale and its three-letter currency, side by side.</summary>
     private static void ConfigureMoney(ComplexPropertyBuilder<Money> money, string prefix)

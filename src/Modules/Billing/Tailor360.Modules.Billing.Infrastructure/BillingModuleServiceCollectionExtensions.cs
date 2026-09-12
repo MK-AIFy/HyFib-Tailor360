@@ -5,11 +5,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Application.Invoicing;
+using Tailor360.Modules.Billing.Application.Payments;
 using Tailor360.Modules.Billing.Application.Pricing;
 using Tailor360.Modules.Billing.Application.Registrations;
 using Tailor360.Modules.Billing.Application.Tax;
 using Tailor360.Modules.Billing.Contracts.Pricing;
 using Tailor360.Modules.Billing.Infrastructure.Invoicing;
+using Tailor360.Modules.Billing.Infrastructure.Payments;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Platform.Persistence;
@@ -67,6 +69,18 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<OrderFactProjector>();
         services.TryAddScoped<InvoiceHandler>();
 
+        // E09-F03-1: the payment modes and the cashier session, the first thing a cashier's day writes.
+        services.TryAddScoped<IPaymentModeStore, PaymentModeStore>();
+        services.TryAddScoped<ICashierSessionStore, CashierSessionStore>();
+        services.TryAddScoped<IBillingReferenceDataSeeder, BillingReferenceDataSeeder>();
+        services.TryAddScoped<PaymentModeHandler>();
+        services.TryAddScoped<CashierSessionHandler>();
+        services.AddOptions<CashierOptions>()
+            .Bind(configuration.GetSection(CashierOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<CashierOptions>, CashierOptionsValidator>();
+
         // What Billing knows about orders arrives through the outbox, one consumer per event type, each
         // committed with its inbox row by the dispatcher. Enumerable, not TryAdd: the other modules' consumers
         // share the interface.
@@ -84,6 +98,7 @@ public static class BillingModuleServiceCollectionExtensions
 
         // The branch an invoice belongs to, for the routes that name one (ARCH-023).
         services.AddScoped<IResourceScopeResolver, InvoiceScopeResolver>();
+        services.AddScoped<IResourceScopeResolver, CashierSessionScopeResolver>();
 
         // Link 4 of the catalogue's service types and design options — the price-list item code — is
         // answered here. Enumerable, not TryAdd: every module that owns something a service type links

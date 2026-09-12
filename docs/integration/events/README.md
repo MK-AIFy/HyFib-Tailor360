@@ -17,6 +17,7 @@ and one of those disagree, they win and this one is corrected.
 | `billing.invoice-cancelled.v1` | [schema](billing.invoice-cancelled.v1.schema.json) | [example](billing.invoice-cancelled.v1.example.json) | Billing, on the cancellation of a posted invoice | #154 |
 | `billing.credit-note-posted.v1` | [schema](billing.credit-note-posted.v1.schema.json) | [example](billing.credit-note-posted.v1.example.json) | Billing, on a credit note, a cancellation's included | #154 |
 | `billing.debit-note-posted.v1` | [schema](billing.debit-note-posted.v1.schema.json) | [example](billing.debit-note-posted.v1.example.json) | Billing, on a debit note | #154 |
+| `billing.cashier-session-closed.v1` | [schema](billing.cashier-session-closed.v1.schema.json) | [example](billing.cashier-session-closed.v1.example.json) | Billing, on the close of a cashier session | #161 |
 | `customers.consent-recorded.v1` | [schema](customers.consent-recorded.v1.schema.json) | [example](customers.consent-recorded.v1.example.json) | Customers, on a `Granted` or `Declined` answer | #26 |
 | `customers.consent-withdrawn.v1` | [schema](customers.consent-withdrawn.v1.schema.json) | [example](customers.consent-withdrawn.v1.example.json) | Customers, on a withdrawal | #26 |
 | `customers.preferences-changed.v1` | [schema](customers.preferences-changed.v1.schema.json) | [example](customers.preferences-changed.v1.example.json) | Customers, on a recorded or replaced communication preference | #26 |

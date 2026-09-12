@@ -65,6 +65,38 @@ public static class PayloadExamples
             }
             """,
 
+        ["DescribePaymentMode"] = """
+            {
+              "name": "Card (terminal)",
+              "requiresReference": true,
+              "requiresProvider": false,
+              "allowedForRefund": false,
+              "isActive": true,
+              "branchIds": []
+            }
+            """,
+
+        ["OpenCashierSession"] = """
+            {
+              "openingFloat": 2000.00
+            }
+            """,
+
+        ["CloseCashierSession"] = """
+            {
+              "denominations": [
+                { "denomination": 500, "quantity": 3 },
+                { "denomination": 200, "quantity": 2 },
+                { "denomination": 100, "quantity": 1 }
+              ],
+              "modeTotals": [
+                { "modeCode": "CARD", "counted": 4350.00 },
+                { "modeCode": "UPI", "counted": 1200.00 }
+              ],
+              "reason": null
+            }
+            """,
+
         ["CancelInvoice"] = """
             {
               "reason": "Issued to the wrong customer; re-invoiced as INV-MAIN-2627-000012."

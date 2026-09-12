@@ -40,6 +40,11 @@ public sealed class BillingMigrationTests
         "adjustment_note_lines",
         "adjustment_note_taxes",
         "document_artifacts",
+        "payment_modes",
+        "payment_mode_branches",
+        "cashier_sessions",
+        "cashier_session_counts",
+        "cashier_session_mode_totals",
         "outbox_messages",
         "inbox_messages",
     ];

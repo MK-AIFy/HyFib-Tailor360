@@ -21,7 +21,7 @@ It is deliberately a sequence, not a wish list: each slice is one pull request, 
 | Price lists, versions, items, discount rules, catalogue link validator | #146 (of #41) | **Merged** (#150, review fixes #151) | Aggregates, one-published-per-branch constraint, admin routes, publication checks, tests |
 | The pricing engine: `IPricingService`, calculation snapshots, overrides, golden master | #147 (of #41) | **Merged** (#152) | The contract, the pure engine, append-only snapshots keyed by the caller's reference, the preview route, the golden master the accountant signs |
 | Invoices, numbering, immutability, credit notes, PDF, barcode lookup | #42 | Not started | The permissions and the section 5 matrix rows are reserved |
-| Payments, allocations, advances, receipts, cashier, dispatch gate | #43 | Not started | The permissions and the section 5 matrix rows are reserved |
+| Payments, allocations, advances, receipts, cashier, dispatch gate | #43 | In progress: split into #161 (payment modes, cashier sessions), #162 (payments, allocations, advances, receipts, the balance), #163 (refunds, reversals, reconciliation), #164 (dispatch gate and exception), #165 (screens) | The permissions and the section 5 matrix rows are reserved |
 | Client screens for billing | (an issue under #41 once the API is stable) | Not started | `clients/pwa/src/stories/fixtures/billing.ts` only |
 
 With #147 merged, **#41 is complete in code** and closes when its parent epic's owner accepts the outcome: the

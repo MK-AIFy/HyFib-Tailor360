@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Tailor360.Modules.Billing.Api.Invoicing;
+using Tailor360.Modules.Billing.Api.Payments;
 using Tailor360.Modules.Billing.Api.Pricing;
 using Tailor360.Modules.Billing.Api.Registrations;
 using Tailor360.Modules.Billing.Api.Tax;
@@ -33,7 +34,9 @@ public static class BillingEndpoints
             .MapGstRegistrationEndpoints()
             .MapPriceListEndpoints()
             .MapPricingEndpoints()
-            .MapInvoiceEndpoints();
+            .MapInvoiceEndpoints()
+            .MapPaymentModeEndpoints()
+            .MapCashierSessionEndpoints();
 
         return endpoints;
     }
