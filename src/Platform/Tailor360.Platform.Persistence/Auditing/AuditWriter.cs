@@ -2,33 +2,49 @@ using System.Text.Json;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Time;
-using Tailor360.Platform.Persistence.Contexts;
+using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Entities;
 
 namespace Tailor360.Platform.Persistence.Auditing;
 
 /// <summary>
-/// Writes audit entries into the caller's unit of work. The entry is added to the same context as the
-/// change it describes and saved with it, so the two commit or roll back together; an audit trail that
-/// could disagree with the data would be worse than none, because it would be believed.
+/// Writes audit entries into the caller's own unit of work. <typeparamref name="TContext"/> is whichever
+/// module context the caller already has — <c>BillingDbContext</c>, <c>IdentityDbContext</c>, or
+/// <c>PlatformDbContext</c> itself when nothing more specific is available — so the entry is tracked by
+/// the <em>same</em> change tracker as the change it describes and saved by the same
+/// <c>SaveChangesAsync</c> call: the two commit or roll back together, and there is no window where a
+/// crash between two separate saves could leave a committed mutation with no audit row, or an audit row
+/// for a mutation that never committed
+/// (<see href="https://github.com/MK-AIFy/HyFib-Tailor360/issues/179">#179</see>).
 /// </summary>
-/// <param name="context">The platform context.</param>
+/// <remarks>
+/// Generic over the caller's context for the same reason <c>ModuleEventPublisher&lt;TContext&gt;</c> is:
+/// a second, separate context is a second connection and a second transaction, so writing through it
+/// could only ever be two commits — one of them possibly not the one the caller intended. A module wants
+/// its own binding of this rather than depending on it directly for the same reason it has its own event
+/// publisher port: the host composes every module at once, so one non-generic registration would resolve
+/// to whichever module's context happened to be bound last. <see cref="AuditEventMapping"/> maps
+/// <see cref="AuditEvent"/> on every context that needs to track one, so any of them can carry the row.
+/// </remarks>
+/// <typeparam name="TContext">The caller's own module context.</typeparam>
+/// <param name="context">The caller's own context, shared with its stores.</param>
 /// <param name="auditContext">Who is acting.</param>
 /// <param name="clock">The clock.</param>
 /// <param name="idGenerator">The identifier generator.</param>
-public sealed class AuditWriter(
-    PlatformDbContext context,
+public class AuditWriter<TContext>(
+    TContext context,
     IAuditContext auditContext,
     IClock clock,
     IIdGenerator idGenerator)
     : IAuditWriter
+    where TContext : ModuleDbContext
 {
     /// <inheritdoc />
     public Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        context.AuditEvents.Add(new AuditEvent
+        context.Set<AuditEvent>().Add(new AuditEvent
         {
             Id = idGenerator.NewId(),
             OccurredAt = clock.UtcNow,

@@ -709,6 +709,14 @@ dispatcher, the claim semantics and the dead-letter handling, not the rows. Its 
 not everybody's: a shared table would be a second connection and a second transaction for every other module, which
 is the one thing a transactional outbox exists to rule out (issue #77).
 
+For the identical reason, `audit_events` is *mapped* — never migrated, never owned — by a module's own context too,
+where that module has given itself an `IAuditWriter` binding of its own (`Billing`'s `IBillingAuditWriter`, over
+`AuditWriter<BillingDbContext>`): the entry is tracked by that context's own change tracker and saved by the same
+`SaveChangesAsync` call as the change it describes, so the two commit or roll back together (issue #179). This is
+still access through Platform's port, not a second owner: the table is still created, altered and hash-chained only
+by `Tailor360.Platform.Persistence` and `t360_migrator`, `ExcludeFromMigrations()` on every context that maps it
+except `PlatformDbContext`, and the application role still holds `INSERT` only.
+
 **Owned object-storage prefix.** None.
 
 **Publishes — integration events.** `platform.feature-flag-changed.v1`, `platform.print-job-queued.v1`.
