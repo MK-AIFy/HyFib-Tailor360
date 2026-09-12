@@ -131,7 +131,19 @@ public sealed class DesignOptionGroup
     /// <param name="details">The validated details.</param>
     internal void Apply(DesignGroupDetails details)
     {
+        // A renamed group takes its options' illustration references with it: every anchor is
+        // `sheet#group.OPTION`, checked against this code when the option is added, and a rename
+        // would otherwise leave each one pointing at a code the sheet no longer carries.
+        var renamed = !string.Equals(Code, details.Code, StringComparison.Ordinal);
         Code = details.Code;
+        if (renamed)
+        {
+            foreach (var option in _options)
+            {
+                option.FollowGroupCode(Code);
+            }
+        }
+
         Name = details.Name;
         NameTamil = details.NameTamil;
         SelectionMode = details.SelectionMode;
@@ -163,7 +175,7 @@ public sealed class DesignOptionGroup
     /// <returns>The option, or the reason it was refused.</returns>
     internal Result<DesignOption> AddOption(Guid id, Guid key, DesignOptionDetails details)
     {
-        var validated = details.Validate();
+        var validated = CheckOption(details);
         if (validated.IsFailure)
         {
             return Result.Failure<DesignOption>(validated.Error);
@@ -191,7 +203,7 @@ public sealed class DesignOptionGroup
             return Result.Failure<DesignOption>(CatalogErrors.DesignOptionNotFound);
         }
 
-        var validated = details.Validate();
+        var validated = CheckOption(details);
         if (validated.IsFailure)
         {
             return Result.Failure<DesignOption>(validated.Error);
@@ -207,6 +219,20 @@ public sealed class DesignOptionGroup
         option.Apply(details);
 
         return Result.Success(option);
+    }
+
+    /// <summary>What the option says about itself, and that its drawing is anchored on it and this group.</summary>
+    private Result CheckOption(DesignOptionDetails details)
+    {
+        var validated = details.Validate();
+        if (validated.IsFailure)
+        {
+            return validated;
+        }
+
+        return details.IllustrationKey is { } key && !DesignCode.IllustrationKeyNames(key, Code, details.Code)
+            ? Result.Failure(CatalogErrors.IllustrationKeyNotForThisOption("illustrationKey"))
+            : Result.Success();
     }
 
     /// <summary>Removes an option from a draft.</summary>

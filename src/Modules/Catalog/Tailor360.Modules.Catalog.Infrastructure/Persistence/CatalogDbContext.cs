@@ -314,6 +314,9 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
             entity.HasIndex(group => new { group.CatalogVersionId, group.Key })
                 .IsUnique()
                 .HasDatabaseName("ux_design_option_groups_version_key");
+            // The pair an option's foreign key targets, so that an option's version is its group's by
+            // construction rather than by two keys that could each pass on their own.
+            entity.HasAlternateKey(group => new { group.Id, group.CatalogVersionId });
 
             entity.HasOne<Category>()
                 .WithMany()
@@ -328,7 +331,11 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
             });
             entity.HasMany(group => group.Options)
                 .WithOne()
-                .HasForeignKey(option => option.DesignOptionGroupId)
+                .HasForeignKey(option => new { option.DesignOptionGroupId, option.CatalogVersionId })
+                .HasPrincipalKey(group => new { group.Id, group.CatalogVersionId })
+                // Named by hand: the conventional name exceeds PostgreSQL's 63-character limit and would
+                // be truncated to one ending in an underscore.
+                .HasConstraintName("fk_design_options_design_option_groups_version")
                 .OnDelete(DeleteBehavior.Cascade);
             entity.Navigation(group => group.Branches).AutoInclude();
             entity.Navigation(group => group.Options).AutoInclude();
@@ -376,12 +383,10 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
                 .HasDatabaseName("ux_design_options_version_key");
 
             // Denormalised from the group so that the immutability trigger and the code history can
-            // read the version without a join; a foreign key keeps it from ever naming a version the
-            // group does not.
-            entity.HasOne<CatalogVersion>()
-                .WithMany()
-                .HasForeignKey(option => option.CatalogVersionId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // read the version without a join. The composite foreign key to the group — its identity
+            // together with its version — is what keeps it from naming a version the group does not,
+            // which a foreign key to the version alone would not: a published group's identity beside
+            // a draft's version would pass both keys on their own and slip past the trigger.
         });
 
     private static void ConfigureDesignRules(ModelBuilder modelBuilder)

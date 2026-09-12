@@ -87,7 +87,9 @@ public sealed record DesignOptionDetails(
                 "priceListItemCode", ServiceTypeDetails.MaximumPriceListItemCodeLength));
         }
 
-        if (Math.Abs(TimeImpactDays) > MaximumTimeImpactDays)
+        // Compared directly rather than through Math.Abs, which throws on int.MinValue and would turn an
+        // out-of-range request into a server fault instead of the validation problem it is.
+        if (TimeImpactDays < -MaximumTimeImpactDays || TimeImpactDays > MaximumTimeImpactDays)
         {
             return Result.Failure(CatalogErrors.TimeImpactOutOfRange("timeImpactDays", MaximumTimeImpactDays));
         }

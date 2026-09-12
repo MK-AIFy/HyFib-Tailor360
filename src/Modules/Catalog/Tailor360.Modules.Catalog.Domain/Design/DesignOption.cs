@@ -99,6 +99,20 @@ public sealed class DesignOption
 
     /// <summary>Corrects the words of a published option.</summary>
     /// <param name="presentation">The validated correction.</param>
+    /// <summary>
+    /// Moves the illustration reference onto a renamed group: <c>sheet#old.CODE</c> becomes
+    /// <c>sheet#new.CODE</c>, so a rename never leaves an option pointing at a drawing anchored on a
+    /// code that no longer exists.
+    /// </summary>
+    /// <param name="groupCode">The group's new code.</param>
+    internal void FollowGroupCode(string groupCode)
+    {
+        if (IllustrationKey is { } key && key.IndexOf('#', StringComparison.Ordinal) is var hash and >= 0)
+        {
+            IllustrationKey = $"{key[..(hash + 1)]}{groupCode}.{Code}";
+        }
+    }
+
     internal void ApplyPresentation(DesignOptionPresentation presentation)
     {
         Name = presentation.Name;

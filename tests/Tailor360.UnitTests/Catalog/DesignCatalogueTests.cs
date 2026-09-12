@@ -143,11 +143,63 @@ public sealed class DesignCatalogueTests
         refused.IsFailure.ShouldBeTrue();
         refused.Error.Code.ShouldBe("catalog.illustration-key-not-well-formed");
 
+        // Well formed, and anchored on another option: the picker would show that option's drawing.
+        var another = version.AddDesignOption(
+            CatalogTestData.Id("o3"), CatalogTestData.Id("o3k"), group,
+            OptionDetails("FULL") with { IllustrationKey = "design_kids_style_v1#lining.NONE" },
+            CatalogTestData.Now, null);
+        another.IsFailure.ShouldBeTrue();
+        another.Error.Code.ShouldBe("catalog.illustration-key-not-for-this-option");
+
         version.AddDesignOption(
                 CatalogTestData.Id("o2"), CatalogTestData.Id("o2k"), group,
                 OptionDetails("FULL") with { IllustrationKey = "design_kids_style_v1#lining.FULL" },
                 CatalogTestData.Now, null)
             .IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RefusesATimeImpactAtTheEdgeOfWhatAnIntegerHoldsAsAValidationProblem()
+    {
+        var version = CatalogTestData.Draft();
+        var group = Group(version, Category(version, "BLOUSE_PATTERN"), "padding").Value.Id;
+
+        var refused = version.AddDesignOption(
+            CatalogTestData.Id("o1"), CatalogTestData.Id("o1k"), group,
+            OptionDetails("LIGHT") with { TimeImpactDays = int.MinValue }, CatalogTestData.Now, null);
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("catalog.time-impact-out-of-range");
+    }
+
+    [Fact]
+    public void RenamingAGroupMovesItsOptionsIllustrationReferencesWithIt()
+    {
+        var version = CatalogTestData.Draft();
+        var blouse = Category(version, "BLOUSE_PATTERN");
+        var lining = Group(version, blouse, "lining").Value;
+        var full = version.AddDesignOption(
+            CatalogTestData.Id("o-full"), CatalogTestData.Id("ok-full"), lining.Id,
+            OptionDetails("FULL") with { IllustrationKey = "design_blouse_v1#lining.FULL" },
+            CatalogTestData.Now, null);
+        full.IsSuccess.ShouldBeTrue(full.IsFailure ? full.Error.Message : string.Empty);
+        version.AddDesignOption(
+                CatalogTestData.Id("o-none"), CatalogTestData.Id("ok-none"), lining.Id,
+                OptionDetails("NONE"), CatalogTestData.Now, null)
+            .IsSuccess.ShouldBeTrue();
+
+        var renamed = version.EditDesignGroup(
+            lining.Id, lining.Details with { Code = "lining_style" }, CatalogTestData.Now, null);
+
+        renamed.IsSuccess.ShouldBeTrue(renamed.IsFailure ? renamed.Error.Message : string.Empty);
+        renamed.Value.FindOptionByCode("FULL")!.IllustrationKey.ShouldBe("design_blouse_v1#lining_style.FULL");
+        renamed.Value.FindOptionByCode("NONE")!.IllustrationKey.ShouldBeNull();
+
+        // The moved reference is the one the option would be refused with under the old code and
+        // accepted with under the new: editing the option in place keeps it.
+        var kept = version.EditDesignOption(
+            full.Value.Id, renamed.Value.FindOptionByCode("FULL")!.Details, CatalogTestData.Now, null);
+        kept.IsSuccess.ShouldBeTrue(kept.IsFailure ? kept.Error.Message : string.Empty);
     }
 
     [Fact]
