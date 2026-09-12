@@ -44,10 +44,13 @@ public sealed class GstRegistrationHandler(
 
         var registration = created.Value;
 
-        // The branch is Identity's record; a registration against an identifier that names none would be
-        // listable and never used, while the real branch stayed unregistered. Amend cannot move a
-        // registration between branches, so the check is here only.
-        if (await branches.FindAsync(registration.BranchId, cancellationToken) is null)
+        // The branch is Identity's record, and it must be this organisation's: a registration against an
+        // identifier that names none would be listable and never used, while the real branch stayed
+        // unregistered, and one against another organisation's branch would be that organisation's
+        // registration recorded here. Amend cannot move a registration between branches, so the check is
+        // here only.
+        if (await branches.FindAsync(registration.BranchId, cancellationToken) is not { } branch
+            || branch.OrganisationId != command.OrganisationId)
         {
             return Result.Failure<AdministeredRegistration>(BillingErrors.BranchNotFound("branchId"));
         }

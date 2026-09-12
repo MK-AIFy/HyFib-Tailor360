@@ -49,6 +49,10 @@ public interface IBranchDirectory
 /// The IANA zone the branch works in. A promised date is a date here, not an instant.
 /// </param>
 /// <param name="IsOpen">
+/// <param name="OrganisationId">
+/// The organisation the branch belongs to. A consumer is given identifiers by a caller and must check them
+/// against the caller's organisation: the directory answers about any branch it holds.
+/// </param>
 /// False once the branch has been closed. A closed branch keeps its records and takes no new work,
 /// which is a different thing from not existing.
 /// </param>
@@ -57,4 +61,5 @@ public sealed record BranchSummary(
     string Code,
     string Name,
     string TimeZoneId,
-    bool IsOpen);
+    bool IsOpen,
+    Guid OrganisationId);

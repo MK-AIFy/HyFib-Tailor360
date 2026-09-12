@@ -171,6 +171,11 @@ internal static class PriceListEndpoints
                     return Problems.From(Domain.BillingErrors.Required("taxInclusive"), context);
                 }
 
+                if (!request.SaysBranchIds)
+                {
+                    return Problems.From(Domain.BillingErrors.Required("branchIds"), context);
+                }
+
                 var result = await handler.CreateDraftAsync(
                     new CreatePriceListDraftCommand(
                         priceListId, caller.Context.OrganisationId, request.ToDetails(), request.CloneFromVersionId, request.Reason, caller.UserId),
@@ -236,6 +241,11 @@ internal static class PriceListEndpoints
                 {
                     // A money-bearing flag is never defaulted: an omitted one is refused, as every other field is.
                     return Problems.From(Domain.BillingErrors.Required("taxInclusive"), context);
+                }
+
+                if (!request.SaysBranchIds)
+                {
+                    return Problems.From(Domain.BillingErrors.Required("branchIds"), context);
                 }
 
                 var result = await handler.DescribeAsync(
