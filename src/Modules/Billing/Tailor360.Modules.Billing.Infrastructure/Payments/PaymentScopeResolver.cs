@@ -64,3 +64,22 @@ public sealed class ReceiptScopeResolver(BillingDbContext context) : IResourceSc
         return branchId is { } branch ? ResourceScope.Unassigned(BillingResourceKinds.Receipt, resourceId, branch) : null;
     }
 }
+
+/// <summary>Answers which branch a refund was paid at, for the routes that name one (ARCH-023).</summary>
+public sealed class RefundScopeResolver(BillingDbContext context) : IResourceScopeResolver
+{
+    /// <inheritdoc />
+    public string ResourceKind => BillingResourceKinds.Refund;
+
+    /// <inheritdoc />
+    public async ValueTask<ResourceScope?> ResolveAsync(Guid resourceId, CancellationToken cancellationToken)
+    {
+        var branchId = await context.Refunds
+            .IgnoreAutoIncludes()
+            .Where(refund => refund.Id == resourceId)
+            .Select(refund => (Guid?)refund.BranchId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return branchId is { } branch ? ResourceScope.Unassigned(BillingResourceKinds.Refund, resourceId, branch) : null;
+    }
+}

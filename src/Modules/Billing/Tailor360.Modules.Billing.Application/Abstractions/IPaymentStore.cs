@@ -7,17 +7,40 @@ namespace Tailor360.Modules.Billing.Application.Abstractions;
 /// <summary>Payments, their allocations and their advances, as persistence answers for them.</summary>
 public interface IPaymentStore
 {
-    /// <summary>One payment with its allocations and its advance, or null when it is not the organisation's.</summary>
+    /// <summary>One payment with its allocations, its advance, its reversal and its refunds, or null when it is not the organisation's.</summary>
     Task<Payment?> FindAsync(Guid paymentId, Guid organisationId, CancellationToken cancellationToken = default);
 
     /// <summary>The payments taken against an order, oldest first, with their allocations and advances.</summary>
     Task<IReadOnlyList<Payment>> ListForOrderAsync(Guid orderId, Guid organisationId, CancellationToken cancellationToken = default);
 
-    /// <summary>What has been allocated to each of the invoices named, from every payment; an invoice with nothing is absent.</summary>
+    /// <summary>What has been allocated to each of the invoices named, from every payment not reversed; an invoice with nothing is absent.</summary>
     Task<IReadOnlyDictionary<Guid, Money>> AllocatedByInvoiceAsync(IReadOnlyCollection<Guid> invoiceIds, CancellationToken cancellationToken = default);
 
-    /// <summary>What a cashier session took per mode, in all: the expected totals a close counts against.</summary>
+    /// <summary>What has been paid back against each of the invoices named; an invoice with nothing is absent.</summary>
+    Task<IReadOnlyDictionary<Guid, Money>> RefundedByInvoiceAsync(IReadOnlyCollection<Guid> invoiceIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// What a cashier session holds per mode, in all: the payments recorded in it and not reversed, less the
+    /// refunds paid out of it — the expected totals a close counts against (INV-CSH-03). A mode with nothing
+    /// net is present at zero when anything moved in it.
+    /// </summary>
     Task<IReadOnlyDictionary<string, Money>> TakenByModeAsync(Guid cashierSessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>Tracks a new reversal.</summary>
+    void AddReversal(PaymentReversal reversal);
+
+    /// <summary>Tracks a new refund.</summary>
+    void AddRefund(Refund refund);
+
+    /// <summary>One refund, or null when it is not the organisation's.</summary>
+    Task<Refund?> FindRefundAsync(Guid refundId, Guid organisationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Holds the payment's row for the rest of the current transaction, so two reversals or two refunds of
+    /// one advance serialise on it even where the order has no invoice row to hold. Outside a transaction
+    /// it throws.
+    /// </summary>
+    Task LockPaymentAsync(Guid paymentId, CancellationToken cancellationToken = default);
 
     /// <summary>Tracks a new payment.</summary>
     void Add(Payment payment);
@@ -80,7 +103,9 @@ public interface IPaymentStore
     /// Commits. A reference recorded before in the same mode comes back as
     /// <c>billing.payment-reference-duplicated</c>; the cashier's own client key recorded before as
     /// <c>billing.payment-duplicated</c>; a receipt number or payload already taken as
-    /// <c>billing.receipt-number-taken</c>, which no caller should see because the sequence row is held.
+    /// <c>billing.receipt-number-taken</c>, which no caller should see because the sequence row is held;
+    /// a second reversal of one payment as <c>billing.payment-already-reversed</c>; a refund's client key
+    /// recorded before as <c>billing.refund-duplicated</c>.
     /// </summary>
     Task<Result> SaveAsync(CancellationToken cancellationToken = default);
 }

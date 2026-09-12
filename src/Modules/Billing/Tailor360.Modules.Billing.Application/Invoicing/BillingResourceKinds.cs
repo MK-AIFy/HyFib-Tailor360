@@ -17,4 +17,7 @@ public static class BillingResourceKinds
 
     /// <summary>A receipt, reached by the branch that issued it.</summary>
     public const string Receipt = "billing.receipt";
+
+    /// <summary>A refund, reached by the branch it was paid at.</summary>
+    public const string Refund = "billing.refund";
 }

@@ -37,9 +37,11 @@ public sealed class PaymentStore(BillingDbContext context, ITransactionalSequenc
         }
 
         var wanted = invoiceIds.ToHashSet();
+
+        // An allocation of a reversed payment counts for nothing (E09-F03-3): the money never cleared.
         var sums = await context.PaymentAllocations
             .AsNoTracking()
-            .Where(allocation => wanted.Contains(allocation.InvoiceId))
+            .Where(allocation => wanted.Contains(allocation.InvoiceId) && !context.PaymentReversals.Any(reversal => reversal.PaymentId == allocation.PaymentId))
             .GroupBy(allocation => allocation.InvoiceId)
             .Select(group => new { InvoiceId = group.Key, Amount = group.Sum(allocation => allocation.Amount.Amount) })
             .ToListAsync(cancellationToken);
@@ -48,17 +50,70 @@ public sealed class PaymentStore(BillingDbContext context, ITransactionalSequenc
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<Guid, Money>> RefundedByInvoiceAsync(IReadOnlyCollection<Guid> invoiceIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(invoiceIds);
+
+        if (invoiceIds.Count == 0)
+        {
+            return new Dictionary<Guid, Money>();
+        }
+
+        var wanted = invoiceIds.ToHashSet();
+        var sums = await context.Refunds
+            .AsNoTracking()
+            .Where(refund => refund.InvoiceId != null && wanted.Contains(refund.InvoiceId.Value))
+            .GroupBy(refund => refund.InvoiceId!.Value)
+            .Select(group => new { InvoiceId = group.Key, Amount = group.Sum(refund => refund.Amount.Amount) })
+            .ToListAsync(cancellationToken);
+
+        return sums.ToDictionary(sum => sum.InvoiceId, sum => Money.Rupees(sum.Amount));
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyDictionary<string, Money>> TakenByModeAsync(Guid cashierSessionId, CancellationToken cancellationToken = default)
     {
-        var sums = await context.Payments
+        // What came in and was not reversed, less what went out: the drawer as the rows say it should be.
+        var taken = await context.Payments
             .AsNoTracking()
             .IgnoreAutoIncludes()
-            .Where(payment => payment.CashierSessionId == cashierSessionId)
+            .Where(payment => payment.CashierSessionId == cashierSessionId && !context.PaymentReversals.Any(reversal => reversal.PaymentId == payment.Id))
             .GroupBy(payment => payment.ModeCode)
             .Select(group => new { ModeCode = group.Key, Amount = group.Sum(payment => payment.Amount.Amount) })
             .ToListAsync(cancellationToken);
+        var refunded = await context.Refunds
+            .AsNoTracking()
+            .Where(refund => refund.CashierSessionId == cashierSessionId)
+            .GroupBy(refund => refund.ModeCode)
+            .Select(group => new { ModeCode = group.Key, Amount = group.Sum(refund => refund.Amount.Amount) })
+            .ToListAsync(cancellationToken);
 
-        return sums.ToDictionary(sum => sum.ModeCode, sum => Money.Rupees(sum.Amount), StringComparer.Ordinal);
+        var net = taken.ToDictionary(sum => sum.ModeCode, sum => Money.Rupees(sum.Amount), StringComparer.Ordinal);
+        foreach (var sum in refunded)
+        {
+            net[sum.ModeCode] = net.GetValueOrDefault(sum.ModeCode, Money.Zero) - Money.Rupees(sum.Amount);
+        }
+
+        return net;
+    }
+
+    /// <inheritdoc />
+    public void AddReversal(PaymentReversal reversal) => context.PaymentReversals.Add(reversal);
+
+    /// <inheritdoc />
+    public void AddRefund(Refund refund) => context.Refunds.Add(refund);
+
+    /// <inheritdoc />
+    public Task<Refund?> FindRefundAsync(Guid refundId, Guid organisationId, CancellationToken cancellationToken = default)
+        => context.Refunds.SingleOrDefaultAsync(refund => refund.Id == refundId && refund.OrganisationId == organisationId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task LockPaymentAsync(Guid paymentId, CancellationToken cancellationToken = default)
+    {
+        RequireTransaction();
+
+        // FOR NO KEY UPDATE: a hold, not a change, so the append-only trigger has nothing to refuse.
+        return context.Database.ExecuteSqlAsync($"SELECT id FROM billing.payments WHERE id = {paymentId} FOR NO KEY UPDATE", cancellationToken);
     }
 
     /// <inheritdoc />
@@ -207,6 +262,25 @@ public sealed class PaymentStore(BillingDbContext context, ITransactionalSequenc
             // Unreachable while the sequence row is held and the payload is minted per command; answered
             // as a conflict rather than a five hundred if it ever is.
             return Result.Failure(BillingErrors.ReceiptNumberTaken);
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: BillingDbContext.OneReversalPerPaymentIndex,
+            })
+        {
+            // Two reversals at once: the rival's row landed first.
+            return Result.Failure(BillingErrors.PaymentAlreadyReversed);
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: BillingDbContext.OneRefundPerClientKeyIndex,
+            })
+        {
+            return Result.Failure(BillingErrors.RefundDuplicated);
         }
     }
 

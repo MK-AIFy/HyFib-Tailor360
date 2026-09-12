@@ -5844,6 +5844,24 @@
               "string"
             ]
           },
+          "refundedFromAdvance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "reversal": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentReversalPayload"
+              }
+            ]
+          },
           "status": {
             "type": "string"
           },
@@ -5874,7 +5892,38 @@
           "unappliedAdvance",
           "allocations",
           "advance",
-          "receipt"
+          "receipt",
+          "reversal",
+          "refundedFromAdvance"
+        ],
+        "type": "object"
+      },
+      "PaymentReversalPayload": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reversedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reversedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "reversedAt",
+          "reversedBy"
         ],
         "type": "object"
       },
@@ -7291,6 +7340,59 @@
         ],
         "type": "object"
       },
+      "RecordRefundRequest": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "modeCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "paymentId",
+          "invoiceId",
+          "modeCode",
+          "amount",
+          "reference",
+          "reason"
+        ],
+        "type": "object"
+      },
       "RecoveryAcceptedPayload": {
         "properties": {
           "message": {
@@ -7372,6 +7474,104 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      },
+      "RefundPayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cashierId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cashierSessionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "modeCode": {
+            "type": "string"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "paymentId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "branchId",
+          "cashierSessionId",
+          "cashierId",
+          "customerId",
+          "orderId",
+          "source",
+          "paymentId",
+          "invoiceId",
+          "modeCode",
+          "amount",
+          "currency",
+          "reference",
+          "reason",
+          "recordedAt",
+          "recordedBy"
         ],
         "type": "object"
       },
@@ -7617,6 +7817,20 @@
           "on",
           "placeOfSupplyStateCode",
           "lines",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ReversePaymentRequest": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
           "reason"
         ],
         "type": "object"
@@ -15668,6 +15882,118 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/billing/payments/{paymentId}/reversal": {
+      "post": {
+        "description": "For money that never cleared. The payment's allocations and its advance count for nothing from here on and the invoices' paid status is recomputed from the rows that remain. Once per payment (409 on a second); refused where money has already been paid back from the payment. Step-up and a reason.",
+        "operationId": "ReversePayment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "The UPI transfer failed at the bank; the customer paid again in cash."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReversePaymentRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Reverse a payment recorded in error: a compensating record, the original untouched.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.reverse",
+        "x-tailor360-authorisation": "permission:payments.reverse",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/billing/price-lists": {
       "get": {
         "operationId": "ListPriceLists",
@@ -17606,6 +17932,170 @@
         "x-tailor360-audit": "billing.receipt.printed",
         "x-tailor360-authorisation": "permission:billing.print_receipt",
         "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/refunds": {
+      "post": {
+        "description": "Against exactly one source: a payment's advance not applied and not yet paid back (paymentId), or a posted invoice that holds more than it charges — a credit note's value, an over-payment (invoiceId). Never more than the source still holds. Refused without an open session (409), through a mode not allowed for refunds, or without the reference the mode requires. Step-up and a reason. Whether an advance is paid back on a cancellation is the Owner's policy (OD-04, OD-05); this is the mechanism.",
+        "operationId": "RecordRefund",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "amount": 300.00,
+                "invoiceId": null,
+                "modeCode": "CASH",
+                "paymentId": "019bd6b0-8888-7c3a-9d5e-2f4a6b8c0d1e",
+                "reason": "The order was cancelled before cutting; the advance is returned under the Owner's policy.",
+                "reference": null
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecordRefundRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Pay money back to the customer in the caller's open cashier session, through a mode allowed for refunds.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.refund",
+        "x-tailor360-authorisation": "permission:payments.refund",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/refunds/{refundId}": {
+      "get": {
+        "description": "A refund paid at another branch reads as 404.",
+        "operationId": "GetRefund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "refundId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one refund.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.record",
+        "x-tailor360-rate-limit": "default-user"
       }
     },
     "/api/v1/billing/tax-configuration/versions": {

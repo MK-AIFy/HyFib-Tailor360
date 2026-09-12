@@ -160,3 +160,71 @@ public sealed record InvoicePaidStatusChanged(
     /// <inheritdoc />
     public override string EventType => Type;
 }
+
+/// <summary>A payment recorded in error was reversed by a compensating record: its allocations and its advance count for nothing from here on.</summary>
+/// <param name="EventId">Identity of this occurrence.</param>
+/// <param name="OccurredAt">When.</param>
+/// <param name="AggregateId">The payment reversed.</param>
+/// <param name="OrganisationId">The organisation.</param>
+/// <param name="BranchId">The branch.</param>
+/// <param name="ReversalId">The reversal record.</param>
+/// <param name="OrderId">The order the payment was taken against.</param>
+/// <param name="Amount">The payment's amount, released, to the paisa.</param>
+/// <param name="Currency">The currency.</param>
+public sealed record PaymentReversed(
+    Guid EventId,
+    DateTimeOffset OccurredAt,
+    Guid AggregateId,
+    Guid OrganisationId,
+    Guid BranchId,
+    Guid ReversalId,
+    Guid OrderId,
+    decimal Amount,
+    string Currency)
+    : IntegrationEvent(EventId, OccurredAt, AggregateId)
+{
+    /// <summary>The wire name.</summary>
+    public const string Type = "billing.payment-reversed.v1";
+
+    /// <inheritdoc />
+    public override string EventType => Type;
+}
+
+/// <summary>Money was paid back to the customer, from a payment's advance or an invoice's surplus, through a mode allowed for it.</summary>
+/// <param name="EventId">Identity of this occurrence.</param>
+/// <param name="OccurredAt">When.</param>
+/// <param name="AggregateId">The refund.</param>
+/// <param name="OrganisationId">The organisation.</param>
+/// <param name="BranchId">The branch.</param>
+/// <param name="CashierSessionId">The session it was recorded in.</param>
+/// <param name="CustomerId">The customer, by identifier.</param>
+/// <param name="OrderId">The order the money came from.</param>
+/// <param name="Source">Advance or Invoice.</param>
+/// <param name="PaymentId">The payment whose advance was paid back, where the source is an advance.</param>
+/// <param name="InvoiceId">The invoice whose surplus was paid back, where the source is an invoice.</param>
+/// <param name="ModeCode">The mode it was paid through.</param>
+/// <param name="Amount">How much, to the paisa.</param>
+/// <param name="Currency">The currency.</param>
+public sealed record RefundRecorded(
+    Guid EventId,
+    DateTimeOffset OccurredAt,
+    Guid AggregateId,
+    Guid OrganisationId,
+    Guid BranchId,
+    Guid CashierSessionId,
+    Guid CustomerId,
+    Guid OrderId,
+    string Source,
+    Guid? PaymentId,
+    Guid? InvoiceId,
+    string ModeCode,
+    decimal Amount,
+    string Currency)
+    : IntegrationEvent(EventId, OccurredAt, AggregateId)
+{
+    /// <summary>The wire name.</summary>
+    public const string Type = "billing.refund-recorded.v1";
+
+    /// <inheritdoc />
+    public override string EventType => Type;
+}

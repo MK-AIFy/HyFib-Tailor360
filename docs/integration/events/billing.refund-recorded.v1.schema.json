@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.refund-recorded.v1.schema.json",
+  "title": "billing.refund-recorded.v1",
+  "description": "Money was paid back to the customer through a mode allowed for refunds, in the cashier's open session, against one source: a payment's advance not applied, or an invoice holding more than it charges. Identifiers and figures only.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "cashierSessionId",
+    "customerId",
+    "orderId",
+    "source",
+    "paymentId",
+    "invoiceId",
+    "modeCode",
+    "amount",
+    "currency",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The refund."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch."
+    },
+    "cashierSessionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The cashier session it was recorded in."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer, the order's. An identifier and nothing more."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the money came from."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "Advance",
+        "Invoice"
+      ],
+      "description": "What was paid back."
+    },
+    "paymentId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "The payment whose advance was paid back, where the source is an advance."
+    },
+    "invoiceId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "The invoice whose surplus was paid back, where the source is an invoice."
+    },
+    "modeCode": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 60,
+      "pattern": "^[A-Z][A-Z0-9_]+$",
+      "description": "The mode it was paid through."
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "How much, to the paisa, in currency."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217, INR today (conventions.md section 1.1)."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.refund-recorded.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

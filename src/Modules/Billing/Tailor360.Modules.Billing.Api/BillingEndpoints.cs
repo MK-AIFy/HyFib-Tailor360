@@ -38,7 +38,8 @@ public static class BillingEndpoints
             .MapPaymentModeEndpoints()
             .MapCashierSessionEndpoints()
             .MapPaymentEndpoints()
-            .MapReceiptEndpoints();
+            .MapReceiptEndpoints()
+            .MapRefundEndpoints();
 
         return endpoints;
     }

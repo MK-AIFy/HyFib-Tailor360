@@ -107,6 +107,18 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The receipts.</summary>
     public DbSet<Receipt> Receipts => Set<Receipt>();
 
+    /// <summary>One reversal per payment: a second is refused by the index.</summary>
+    public const string OneReversalPerPaymentIndex = "ux_payment_reversals_payment";
+
+    /// <summary>One refund per cashier and client key: the request's own twin is refused by the index.</summary>
+    public const string OneRefundPerClientKeyIndex = "ux_refunds_organisation_cashier_client_key";
+
+    /// <summary>The reversals of payments.</summary>
+    public DbSet<PaymentReversal> PaymentReversals => Set<PaymentReversal>();
+
+    /// <summary>The refunds.</summary>
+    public DbSet<Refund> Refunds => Set<Refund>();
+
     /// <summary>
     /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
     /// which the invoice's own trigger keeps equal to the parent's status, because a partial index cannot
@@ -573,6 +585,18 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
                 .HasForeignKey<Advance>(advance => advance.PaymentId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.Navigation(payment => payment.Advance).AutoInclude();
+            entity.HasOne(payment => payment.Reversal)
+                .WithOne()
+                .HasForeignKey<PaymentReversal>(reversal => reversal.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Navigation(payment => payment.Reversal).AutoInclude();
+            entity.HasMany(payment => payment.Refunds)
+                .WithOne()
+                .HasForeignKey(refund => refund.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Navigation(payment => payment.Refunds).AutoInclude();
+            entity.Ignore(payment => payment.IsReversed);
+            entity.Ignore(payment => payment.RefundedFromAdvance);
 
             // The transactional guard beside the idempotency record: the natural key of the effect.
             entity.HasIndex(payment => new { payment.OrganisationId, payment.ModeCode, payment.Reference })
@@ -609,6 +633,43 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
             entity.HasKey(advance => advance.Id);
             ConfigureMoney(entity.ComplexProperty(advance => advance.Amount), "amount");
             entity.HasIndex(advance => advance.PaymentId).IsUnique().HasDatabaseName("ux_advances_payment");
+        });
+
+        modelBuilder.Entity<PaymentReversal>(entity =>
+        {
+            entity.ToTable("payment_reversals");
+            entity.HasKey(reversal => reversal.Id);
+            entity.Property(reversal => reversal.Reason).HasMaxLength(Refund.MaximumReasonLength).IsRequired();
+
+            // Append-only by trigger (INV-PAY-01): written once with reversed_at/reversed_by, never changed.
+            entity.HasIndex(reversal => reversal.PaymentId).IsUnique().HasDatabaseName(OneReversalPerPaymentIndex);
+        });
+
+        modelBuilder.Entity<Refund>(entity =>
+        {
+            entity.ToTable("refunds", table =>
+            {
+                table.HasCheckConstraint("ck_refunds_amount_is_positive", "amount_amount > 0");
+                table.HasCheckConstraint("ck_refunds_source_names_one", "(source = 0 AND payment_id IS NOT NULL AND invoice_id IS NULL) OR (source = 1 AND invoice_id IS NOT NULL AND payment_id IS NULL)");
+            });
+            entity.HasKey(refund => refund.Id);
+            entity.Property(refund => refund.Source).HasConversion<int>();
+            entity.Property(refund => refund.ModeCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(refund => refund.Reference).HasMaxLength(PaymentReferences.MaximumLength);
+            entity.Property(refund => refund.ClientKey).HasMaxLength(Payment.MaximumClientKeyLength);
+            entity.Property(refund => refund.Reason).HasMaxLength(Refund.MaximumReasonLength).IsRequired();
+            ConfigureMoney(entity.ComplexProperty(refund => refund.Amount), "amount");
+
+            // Append-only by trigger (INV-PAY-01): no updated pair, no row version.
+            entity.HasOne<CashierSession>().WithMany().HasForeignKey(refund => refund.CashierSessionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Invoice>().WithMany().HasForeignKey(refund => refund.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(refund => new { refund.OrganisationId, refund.CashierId, refund.ClientKey })
+                .IsUnique()
+                .HasFilter("client_key IS NOT NULL")
+                .HasDatabaseName(OneRefundPerClientKeyIndex);
+            entity.HasIndex(refund => new { refund.OrganisationId, refund.OrderId, refund.RecordedAt }).HasDatabaseName("ix_refunds_organisation_order_recorded_at");
+            entity.HasIndex(refund => new { refund.CashierSessionId, refund.ModeCode }).HasDatabaseName("ix_refunds_session_mode");
+            entity.HasIndex(refund => refund.InvoiceId).HasDatabaseName("ix_refunds_invoice").HasFilter("invoice_id IS NOT NULL");
         });
 
         modelBuilder.Entity<Receipt>(entity =>

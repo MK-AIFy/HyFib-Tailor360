@@ -50,3 +50,16 @@ public sealed record RecordPaymentRequest(Guid OrderId, string? ModeCode, decima
 /// <param name="Amount">How much, in rupees to the paisa; never more than is held or than the invoice owes.</param>
 /// <param name="Reason">Why the rule is not being left to do it.</param>
 public sealed record AllocateAdvanceRequest(Guid InvoiceId, decimal Amount, string? Reason);
+
+/// <summary>Reverse a payment recorded in error.</summary>
+/// <param name="Reason">Why the money never cleared.</param>
+public sealed record ReversePaymentRequest(string? Reason);
+
+/// <summary>Pay money back to the customer against one source.</summary>
+/// <param name="PaymentId">The payment whose advance is paid back; omit when the source is an invoice.</param>
+/// <param name="InvoiceId">The posted invoice whose surplus is paid back; omit when the source is an advance.</param>
+/// <param name="ModeCode">The mode it is paid through, one allowed for refunds.</param>
+/// <param name="Amount">How much, in rupees to the paisa; never more than the source still holds.</param>
+/// <param name="Reference">The reference the mode requires, where it does.</param>
+/// <param name="Reason">Why.</param>
+public sealed record RecordRefundRequest(Guid? PaymentId, Guid? InvoiceId, string? ModeCode, decimal Amount, string? Reference, string? Reason);

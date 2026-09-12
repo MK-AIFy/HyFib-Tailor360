@@ -247,15 +247,15 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
-            var allocated = await AllocatedAsync(fresh, token);
-            var before = InvoiceBalance.Of(fresh, allocated, Money.Zero);
+            var (allocated, refunded) = await MoneyOnAsync(fresh, token);
+            var before = InvoiceBalance.Of(fresh, allocated, refunded);
             var cancel = fresh.Cancel(ids.NewId(), creditNoteId, number.Value, command.Reason, postedOn, now, command.By);
             if (cancel.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(cancel.Error);
             }
 
-            PublishPaidStatusIfMoved(fresh, before, allocated, now);
+            PublishPaidStatusIfMoved(fresh, before, allocated, refunded, now);
             events.Publish(new InvoiceCancelled(
                 ids.NewId(), now, fresh.Id, fresh.OrganisationId, fresh.BranchId, fresh.CustomerId, fresh.OrderId, fresh.InvoiceNumber!, creditNoteId));
             events.Publish(new CreditNotePosted(
@@ -329,15 +329,15 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
-            var allocated = await AllocatedAsync(fresh, token);
-            var before = InvoiceBalance.Of(fresh, allocated, Money.Zero);
+            var (allocated, refunded) = await MoneyOnAsync(fresh, token);
+            var before = InvoiceBalance.Of(fresh, allocated, refunded);
             var note = fresh.PostNote(noteId, command.Kind, number.Value, command.Lines, command.Reason, postedOn, now, command.By);
             if (note.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(note.Error);
             }
 
-            PublishPaidStatusIfMoved(fresh, before, allocated, now);
+            PublishPaidStatusIfMoved(fresh, before, allocated, refunded, now);
             var total = note.Value.Totals.GrandTotal;
             events.Publish(command.Kind == AdjustmentNoteKind.Credit
                 ? new CreditNotePosted(ids.NewId(), now, noteId, fresh.OrganisationId, fresh.BranchId, fresh.CustomerId, fresh.Id, number.Value, total.Amount, total.Currency)
@@ -360,18 +360,19 @@ public sealed class InvoiceHandler(
         return Result.Success(new AdministeredNote(after, postedNote, invoices.EntityTagOf(after)));
     }
 
-    /// <summary>What has been allocated to the invoice, read under the row's hold inside the transaction.</summary>
-    private async Task<Money> AllocatedAsync(Invoice invoice, CancellationToken cancellationToken)
-        => (await payments.AllocatedByInvoiceAsync([invoice.Id], cancellationToken)).GetValueOrDefault(invoice.Id, Money.Zero);
+    /// <summary>What has been allocated to the invoice and paid back against it, read under the row's hold inside the transaction.</summary>
+    private async Task<(Money Allocated, Money Refunded)> MoneyOnAsync(Invoice invoice, CancellationToken cancellationToken)
+        => ((await payments.AllocatedByInvoiceAsync([invoice.Id], cancellationToken)).GetValueOrDefault(invoice.Id, Money.Zero),
+            (await payments.RefundedByInvoiceAsync([invoice.Id], cancellationToken)).GetValueOrDefault(invoice.Id, Money.Zero));
 
     /// <summary>
     /// A note or a cancellation moves what the invoice owes as an allocation does (INV-PAY-06): a credit
     /// note for the whole balance pays it, a debit note reopens it, a cancellation cancels it. The paid
     /// status event goes on the outbox in the same transaction, as it does when money is applied.
     /// </summary>
-    private void PublishPaidStatusIfMoved(Invoice invoice, InvoiceBalance before, Money allocated, DateTimeOffset now)
+    private void PublishPaidStatusIfMoved(Invoice invoice, InvoiceBalance before, Money allocated, Money refunded, DateTimeOffset now)
     {
-        var after = InvoiceBalance.Of(invoice, allocated, Money.Zero);
+        var after = InvoiceBalance.Of(invoice, allocated, refunded);
         if (after.Status == before.Status)
         {
             return;

@@ -135,6 +135,23 @@ public static class PayloadExamples
             }
             """,
 
+        ["ReversePayment"] = """
+            {
+              "reason": "The UPI transfer failed at the bank; the customer paid again in cash."
+            }
+            """,
+
+        ["RecordRefund"] = """
+            {
+              "paymentId": "019bd6b0-8888-7c3a-9d5e-2f4a6b8c0d1e",
+              "invoiceId": null,
+              "modeCode": "CASH",
+              "amount": 300.00,
+              "reference": null,
+              "reason": "The order was cancelled before cutting; the advance is returned under the Owner's policy."
+            }
+            """,
+
         ["PrintReceipt"] = """
             {
               "copies": 1

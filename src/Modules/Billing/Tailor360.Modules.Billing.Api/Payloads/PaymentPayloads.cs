@@ -131,6 +131,8 @@ public sealed record AvailablePaymentModePayload(Guid Id, string Code, string Na
 /// <param name="Allocations">Where the money went, in the order it went there.</param>
 /// <param name="Advance">The remainder held at recording, or null when every rupee found an invoice.</param>
 /// <param name="Receipt">The receipt issued with it.</param>
+/// <param name="Reversal">The compensating record that says it never cleared, or null.</param>
+/// <param name="RefundedFromAdvance">What has been paid back from its advance.</param>
 public sealed record PaymentPayload(
     Guid Id,
     Guid BranchId,
@@ -149,7 +151,9 @@ public sealed record PaymentPayload(
     decimal UnappliedAdvance,
     IReadOnlyList<PaymentAllocationPayload> Allocations,
     AdvancePayload? Advance,
-    ReceiptPayload? Receipt)
+    ReceiptPayload? Receipt,
+    PaymentReversalPayload? Reversal,
+    decimal RefundedFromAdvance)
 {
     /// <summary>Projects a payment and the receipt issued with it.</summary>
     public static PaymentPayload From(Payment payment, Receipt? receipt)
@@ -162,7 +166,63 @@ public sealed record PaymentPayload(
             payment.RecordedAt, payment.RecordedBy, payment.Allocated.Amount, payment.UnappliedAdvance.Amount,
             payment.Allocations.Select(PaymentAllocationPayload.From).ToList(),
             payment.Advance is { } advance ? new AdvancePayload(advance.Id, advance.Amount.Amount, payment.UnappliedAdvance.Amount, advance.ReceivedAt) : null,
-            receipt is null ? null : ReceiptPayload.From(receipt));
+            receipt is null ? null : ReceiptPayload.From(receipt),
+            payment.Reversal is { } reversal ? new PaymentReversalPayload(reversal.Id, reversal.Reason, reversal.ReversedAt, reversal.ReversedBy) : null,
+            payment.RefundedFromAdvance.Amount);
+    }
+}
+
+/// <summary>The compensating record of a payment that never cleared.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="Reason">Why.</param>
+/// <param name="ReversedAt">When.</param>
+/// <param name="ReversedBy">Who.</param>
+public sealed record PaymentReversalPayload(Guid Id, string Reason, DateTimeOffset ReversedAt, Guid? ReversedBy);
+
+/// <summary>Money paid back to the customer.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="BranchId">The branch it was paid at.</param>
+/// <param name="CashierSessionId">The session it was recorded in.</param>
+/// <param name="CashierId">The cashier who paid it.</param>
+/// <param name="CustomerId">The customer, the order's.</param>
+/// <param name="OrderId">The order the money came from.</param>
+/// <param name="Source">Advance or Invoice.</param>
+/// <param name="PaymentId">The payment whose advance was paid back, where the source is an advance.</param>
+/// <param name="InvoiceId">The invoice whose surplus was paid back, where the source is an invoice.</param>
+/// <param name="ModeCode">The mode it was paid through.</param>
+/// <param name="Amount">How much.</param>
+/// <param name="Currency">The currency.</param>
+/// <param name="Reference">The reference the mode required, where it did.</param>
+/// <param name="Reason">Why.</param>
+/// <param name="RecordedAt">When.</param>
+/// <param name="RecordedBy">Who.</param>
+public sealed record RefundPayload(
+    Guid Id,
+    Guid BranchId,
+    Guid CashierSessionId,
+    Guid CashierId,
+    Guid CustomerId,
+    Guid OrderId,
+    string Source,
+    Guid? PaymentId,
+    Guid? InvoiceId,
+    string ModeCode,
+    decimal Amount,
+    string Currency,
+    string? Reference,
+    string Reason,
+    DateTimeOffset RecordedAt,
+    Guid? RecordedBy)
+{
+    /// <summary>Projects a refund.</summary>
+    public static RefundPayload From(Refund refund)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+
+        return new RefundPayload(
+            refund.Id, refund.BranchId, refund.CashierSessionId, refund.CashierId, refund.CustomerId, refund.OrderId, refund.Source.ToString(),
+            refund.PaymentId, refund.InvoiceId, refund.ModeCode, refund.Amount.Amount, refund.Amount.Currency, refund.Reference, refund.Reason,
+            refund.RecordedAt, refund.RecordedBy);
     }
 }
 
