@@ -39,6 +39,8 @@ export const measurementsEn = {
   'measurements.start.customer.search': 'Search',
   'measurements.start.customer.searching': 'Searching…',
   'measurements.start.customer.tooShort': 'Type at least {minimum} characters, then search.',
+  'measurements.start.customer.more':
+    'More customers match than are shown. Narrow the search — a customer number or the last digits of the telephone number finds one person.',
   'measurements.start.customer.results': 'Customer',
   'measurements.start.customer.none':
     'No customer matches. Check the spelling, or register the customer at the counter first.',
@@ -80,6 +82,7 @@ export const measurementsEn = {
     '{label} is asked for because its rule cannot be settled here: design choices only exist inside an order.',
   'measurements.wizard.diagram': 'Diagram: {alt}',
   'measurements.wizard.count.hint': 'A whole number.',
+  'measurements.wizard.clear': 'Clear {label}',
   'measurements.wizard.back': 'Back',
   'measurements.wizard.next': 'Next',
   'measurements.wizard.toReview': 'Review',
@@ -166,6 +169,9 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   // not translated — awaiting native-speaker review
   'measurements.start.customer.tooShort': 'Type at least {minimum} characters, then search.',
   // not translated — awaiting native-speaker review
+  'measurements.start.customer.more':
+    'More customers match than are shown. Narrow the search — a customer number or the last digits of the telephone number finds one person.',
+  // not translated — awaiting native-speaker review
   'measurements.start.customer.results': 'Customer',
   // not translated — awaiting native-speaker review
   'measurements.start.customer.none':
@@ -236,6 +242,8 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   'measurements.wizard.diagram': 'Diagram: {alt}',
   // not translated — awaiting native-speaker review
   'measurements.wizard.count.hint': 'A whole number.',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.clear': 'Clear {label}',
   // not translated — awaiting native-speaker review
   'measurements.wizard.back': 'Back',
   // not translated — awaiting native-speaker review

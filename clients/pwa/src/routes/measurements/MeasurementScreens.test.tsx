@@ -136,6 +136,65 @@ describe('starting a measurement', () => {
     expect(started?.headers.get('Idempotency-Key')).toMatch(/[0-9a-f-]{36}/)
   })
 
+  it('searches on Enter rather than starting, which is what the keyboard’s Search key does', async () => {
+    const user = userEvent.setup()
+    transport.route('GET /api/v1/customers/?term=Asha', () =>
+      jsonResponse({ customers: [aCustomerCard()], nextCursor: null }),
+    )
+    renderAt('/measurements/new')
+
+    await user.type(await screen.findByLabelText('Find the customer'), 'Asha{Enter}')
+
+    await screen.findByRole('radio', { name: 'Asha Example · C-000123 · ••••••4321' })
+    expect(transport.callsTo(`POST ${DRAFTS}`)).toHaveLength(0)
+    expect(
+      screen.queryByText('Choose a customer and a garment before starting.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('forgets a customer chosen from a list that is no longer on screen', async () => {
+    const user = userEvent.setup()
+    transport.route('GET /api/v1/customers/?term=Asha', () =>
+      jsonResponse({ customers: [aCustomerCard()], nextCursor: null }),
+    )
+    transport.route('GET /api/v1/customers/?term=Ravi', () =>
+      jsonResponse({ customers: [], nextCursor: null }),
+    )
+    renderAt('/measurements/new')
+
+    const term = await screen.findByLabelText('Find the customer')
+    await user.type(term, 'Asha{Enter}')
+    await user.click(
+      await screen.findByRole('radio', { name: 'Asha Example · C-000123 · ••••••4321' }),
+    )
+    await user.clear(term)
+    await user.type(term, 'Ravi{Enter}')
+    await screen.findByText(
+      'No customer matches. Check the spelling, or register the customer at the counter first.',
+    )
+
+    await user.selectOptions(screen.getByLabelText('Garment'), 'Pattern work — Blouse')
+    await user.click(screen.getByRole('button', { name: 'Start measuring' }))
+
+    // The person chosen from the first list is not started for: nothing on screen names them.
+    expect(screen.getByText('Choose a customer and a garment before starting.')).toBeInTheDocument()
+    expect(transport.callsTo(`POST ${DRAFTS}`)).toHaveLength(0)
+  })
+
+  it('says when more customers match than are shown, rather than showing page one as everyone', async () => {
+    const user = userEvent.setup()
+    transport.route('GET /api/v1/customers/?term=Asha', () =>
+      jsonResponse({ customers: [aCustomerCard()], nextCursor: 'page-2' }),
+    )
+    renderAt('/measurements/new')
+
+    await user.type(await screen.findByLabelText('Find the customer'), 'Asha{Enter}')
+
+    expect(
+      await screen.findByText(/More customers match than are shown\. Narrow the search/),
+    ).toBeInTheDocument()
+  })
+
   it('refuses to start until both the customer and the garment are chosen', async () => {
     const user = userEvent.setup()
     renderAt('/measurements/new')
@@ -310,6 +369,151 @@ describe('the capture wizard', () => {
     })
   })
 
+  it('re-reads after a conflict and saves against the tag the re-read carried, not the stale one', async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    transport.route(`GET ${DRAFT}`, () => {
+      reads += 1
+      return versionedResponse(aMeasurementDraft(), reads === 1 ? 'W/"1"' : 'W/"9"')
+    })
+    let saves = 0
+    transport.route(`POST ${DRAFT}/sections`, () => {
+      saves += 1
+      return saves === 1
+        ? problemResponse(409, 'measurements.draft-changed')
+        : versionedResponse(aMeasurementDraft(), 'W/"10"')
+    })
+    await openWizard()
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Somebody else saved this step first')
+
+    await user.click(screen.getByRole('button', { name: 'Reload' }))
+    // The wizard remounts on the tag the re-read carried, so the conflict and the typed values go
+    // with the stale draft, and the fields show what the colleague saved.
+    await waitFor(() => {
+      expect(screen.queryByText('Somebody else saved this step first')).not.toBeInTheDocument()
+    })
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('heading', { name: 'Sleeve' })
+
+    const [, second] = transport.callsTo(`POST ${DRAFT}/sections`)
+    expect(second?.headers.get('If-Match')).toBe('W/"9"')
+  })
+
+  it('saves a step left through a summary link before confirming, so the record holds what the review showed', async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    transport.route(`GET ${DRAFT}/check`, () => {
+      checks += 1
+      return jsonResponse(
+        checks === 1
+          ? aMeasurementCheck({
+              confirmable: false,
+              findings: [
+                {
+                  code: 'measurements.value-out-of-bounds',
+                  field: 'chest_bust',
+                  message: 'Chest / bust is outside what this field can hold.',
+                },
+                {
+                  code: 'measurements.value-needs-acknowledgement',
+                  field: 'sleeve_length',
+                  message: 'Sleeve length is unusual and has not been checked.',
+                },
+              ],
+            })
+          : aMeasurementCheck(),
+      )
+    })
+    let saves = 0
+    transport.route(`POST ${DRAFT}/sections`, () => {
+      saves += 1
+      return versionedResponse(aMeasurementDraft(), `W/"${String(saves + 1)}"`)
+    })
+    await openWizard()
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Confirm measurements',
+      }),
+    )
+
+    // Two findings; the first opens the bodice. The person corrects the chest, then follows the
+    // second finding's link to the sleeve — without pressing Next, so the bodice is unsaved.
+    await screen.findByRole('heading', { name: 'Bodice' })
+    await user.clear(screen.getByLabelText('Chest / bust — whole inches'))
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '38')
+    await user.click(screen.getByRole('radio', { name: '1/2' }))
+    await user.click(
+      screen.getByRole('button', { name: /Sleeve length is unusual and has not been checked/ }),
+    )
+    await screen.findByRole('heading', { name: 'Sleeve' })
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+    expect(screen.getByText('38 1/2 in')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Confirm measurements' }))
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Confirm measurements',
+      }),
+    )
+    await screen.findByText('Measurements confirmed')
+
+    // Bodice was saved twice: once on the first Next, and again — with the corrected chest and
+    // against the tag the last save answered — before the confirmation.
+    const bodiceSaves = transport
+      .callsTo(`POST ${DRAFT}/sections`)
+      .filter((call) => (call.body as { groupName: string }).groupName === 'Bodice')
+    expect(bodiceSaves).toHaveLength(2)
+    const last = bodiceSaves[1]
+    expect((last?.body as { values: { entered: number }[] }).values[0]?.entered).toBe(38.5)
+    expect(last?.headers.get('If-Match')).toBe('W/"2"')
+    const [confirmed] = transport.callsTo(`POST ${DRAFT}/confirm`)
+    expect(confirmed?.headers.get('If-Match')).toBe('W/"3"')
+  })
+
+  it('says an expired draft has expired when a save finds out, in the shop’s words', async () => {
+    const user = userEvent.setup()
+    transport.route(`POST ${DRAFT}/sections`, () =>
+      problemResponse(409, 'measurements.draft-expired'),
+    )
+    await openWizard()
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'This draft has expired' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Measure another customer' })).toBeInTheDocument()
+  })
+
+  it('explains a refused confirmation inside the dialog, in the shop’s words, and keeps it open', async () => {
+    const user = userEvent.setup()
+    transport.route(`POST ${DRAFT}/confirm`, () =>
+      problemResponse(409, 'measurements.consent-missing'),
+    )
+    await openWizard()
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm measurements' }))
+
+    expect(
+      await within(dialog).findByText(
+        'The customer has not agreed to their measurements being kept. Record the consent on the customer, then confirm.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('retries an interrupted confirmation with the same key, so it cannot make two versions', async () => {
     const user = userEvent.setup()
     let attempts = 0
@@ -325,28 +529,175 @@ describe('the capture wizard', () => {
     await user.click(await screen.findByRole('button', { name: 'Review' }))
 
     await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', {
-        name: 'Confirm measurements',
-      }),
-    )
-    await screen.findByText(
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm measurements' }))
+
+    // The dialog stays open with the refusal inside it — it is modal, and an alert behind it would
+    // sit under the backdrop — which is also what keeps the retry key for the next attempt.
+    await within(dialog).findByText(
       'The shop system could not finish this. It is not something you did wrong.',
     )
-
-    await user.click(screen.getByRole('button', { name: 'Confirm measurements' }))
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', {
-        name: 'Confirm measurements',
-      }),
-    )
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm measurements' }))
     await screen.findByText('Measurements confirmed')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     const keys = transport
       .callsTo(`POST ${DRAFT}/confirm`)
       .map((call) => call.headers.get('Idempotency-Key'))
     expect(keys).toHaveLength(2)
     expect(keys[0]).toBe(keys[1])
+  })
+
+  it('lets a pre-filled value be cleared, and saves the step without it', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(
+        aMeasurementDraft({
+          values: [
+            {
+              key: 'chest_bust',
+              millimetres: 927.1,
+              enteredUnit: 'Inch',
+              choice: null,
+              acknowledged: false,
+            },
+            {
+              key: 'closure',
+              millimetres: null,
+              enteredUnit: 'Inch',
+              choice: 'back_hooks',
+              acknowledged: false,
+            },
+            {
+              key: 'sleeve_length',
+              millimetres: 500,
+              enteredUnit: 'Inch',
+              choice: null,
+              acknowledged: false,
+            },
+          ],
+        }),
+        'W/"4"',
+      ),
+    )
+    await openWizard()
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('heading', { name: 'Sleeve' })
+
+    // Neither numeric control reports an emptied box, so clearing is an act of its own.
+    await user.click(screen.getByRole('button', { name: 'Clear Sleeve length' }))
+    expect(screen.queryByRole('button', { name: 'Clear Sleeve length' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+
+    const [saved] = transport.callsTo(`POST ${DRAFT}/sections`)
+    expect(saved?.body).toEqual({ groupName: 'Sleeve', values: [] })
+  })
+
+  it('enters a centimetre-only field in centimetres however the wizard is set', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}/template`, () => {
+      const template = aCaptureTemplate()
+      return jsonResponse({
+        ...template,
+        version: {
+          ...template.version,
+          fields: (template.version.fields ?? []).map((field) =>
+            field.key === 'sleeve_length'
+              ? { ...field, inchFraction: 0, centimetreDecimals: 1, displayUnits: ['Centimetre'] }
+              : field,
+          ),
+        },
+      })
+    })
+    await openWizard()
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('heading', { name: 'Sleeve' })
+
+    // Inches are chosen for the wizard; this field offers only centimetres, so it is a decimal
+    // box with a centimetre adornment, and the request says Centimetre.
+    expect(screen.queryByLabelText('Sleeve length — whole inches')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Sleeve length'), '50')
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+
+    const [, sleeve] = transport.callsTo(`POST ${DRAFT}/sections`)
+    expect(sleeve?.body).toEqual({
+      groupName: 'Sleeve',
+      values: [
+        {
+          key: 'sleeve_length',
+          entered: 50,
+          unit: 'Centimetre',
+          choice: null,
+          acknowledged: false,
+        },
+      ],
+    })
+    expect(screen.getByText('50.0 cm')).toBeInTheDocument()
+  })
+
+  it('saves a step whose field another step’s answer hid, so the record does not keep it', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}/template`, () => {
+      const template = aCaptureTemplate()
+      return jsonResponse({
+        ...template,
+        version: {
+          ...template.version,
+          fields: (template.version.fields ?? []).map((field) =>
+            field.key === 'sleeve_length'
+              ? {
+                  ...field,
+                  ruleDefinition: {
+                    effect: 'HiddenWhen',
+                    anyOf: [
+                      {
+                        scope: 'Field',
+                        name: 'closure',
+                        operator: 'IsAnyOf',
+                        values: ['front_hooks'],
+                      },
+                    ],
+                  },
+                }
+              : field,
+          ),
+        },
+      })
+    })
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(
+        aMeasurementDraft({
+          values: [
+            {
+              key: 'sleeve_length',
+              millimetres: 500,
+              enteredUnit: 'Inch',
+              choice: null,
+              acknowledged: false,
+            },
+          ],
+        }),
+        'W/"4"',
+      ),
+    )
+    await openWizard()
+    // Front hooks hide the sleeve length that an earlier session had saved.
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Sleeve length is not asked for with these answers.')
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+
+    // The sleeve step was saved although nobody typed in it, and without the hidden value.
+    const sleeveSaves = transport
+      .callsTo(`POST ${DRAFT}/sections`)
+      .filter((call) => (call.body as { groupName: string }).groupName === 'Sleeve')
+    expect(sleeveSaves).toHaveLength(1)
+    expect(sleeveSaves[0]?.body).toEqual({ groupName: 'Sleeve', values: [] })
+    expect(screen.getByText('Not asked for')).toBeInTheDocument()
   })
 
   it('states that a hidden field is not asked for, rather than leaving a gap', async () => {
