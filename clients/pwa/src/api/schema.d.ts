@@ -761,6 +761,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/cashier-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the branch's cashier sessions, newest first, optionally one status only.
+         * @description `status=open` is how a cashier finds the session they have open; at most one hundred are returned.
+         */
+        get: operations["ListCashierSessions"];
+        put?: never;
+        /**
+         * Open a cashier session at the caller's branch with the float put in the drawer.
+         * @description One open session per cashier per branch: a second is refused with 409. Until it is closed, every payment the cashier records is recorded in it.
+         */
+        post: operations["OpenCashierSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one cashier session with its count sheet, once it has one.
+         * @description A session at another branch reads as 404.
+         */
+        get: operations["GetCashierSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions/{sessionId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close a cashier session against its denomination count sheet and the counted totals by mode.
+         * @description Only the cashier who opened it closes it. The expected total per mode is computed from the session's own records, the float counted into cash; the cash counted is the sheet's sum. A variance beyond the configured threshold needs a reason. No If-Match: the close is a conditional update, so a second close of the same session is a 409, never a second record.
+         */
+        post: operations["CloseCashierSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/gst-registrations": {
         parameters: {
             query?: never;
@@ -1002,6 +1066,50 @@ export interface paths {
          * @description Through the print-queue port; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).
          */
         post: operations["PrintInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-modes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organisation's payment modes, active or not, by code.
+         * @description Configuration, not money: the flags a payment in each mode is taken under, and where it is offered.
+         */
+        get: operations["ListPaymentModes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-modes/{paymentModeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one payment mode with the ETag every change to it is made against.
+         * @description The list carries no token; a change is read here first, then sent with If-Match.
+         */
+        get: operations["GetPaymentMode"];
+        /**
+         * Change a payment mode's name, flags, branch restriction or active state.
+         * @description Every field is sent, against the ETag of the mode as read. The code never changes, and a payment already recorded keeps the mode it was taken in; deactivating a mode stops new use only.
+         */
+        put: operations["DescribePaymentMode"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2802,6 +2910,33 @@ export interface components {
             timeZoneId: string;
             version: string;
         };
+        CashierSessionPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            cashierId: string;
+            /** Format: date-time */
+            closedAt: null | string;
+            /** Format: uuid */
+            closedBy: null | string;
+            /** Format: double */
+            countedTotal: number | string;
+            currency: string;
+            denominations: components["schemas"]["DenominationCountPayload"][];
+            /** Format: double */
+            expectedTotal: number | string;
+            /** Format: uuid */
+            id: string;
+            modeTotals: components["schemas"]["ModeTotalPayload"][];
+            /** Format: date-time */
+            openedAt: string;
+            /** Format: double */
+            openingFloat: number | string;
+            status: string;
+            /** Format: double */
+            variance: number | string;
+            varianceReason: null | string;
+        };
         CatalogFindingPayload: {
             code: string;
             message: string;
@@ -2894,6 +3029,11 @@ export interface components {
             nameTamil: null | string;
             /** Format: uuid */
             parentCategoryId: null | string;
+            reason: null | string;
+        };
+        CloseCashierSessionRequest: {
+            denominations: null | components["schemas"]["DenominationCountRequest"][];
+            modeTotals: null | components["schemas"]["ModeCountRequest"][];
             reason: null | string;
         };
         CommunicationPreferencePayload: {
@@ -3142,6 +3282,28 @@ export interface components {
             name: null | string;
             reach: null | string;
             reason: null | string;
+        };
+        DenominationCountPayload: {
+            /** Format: double */
+            denomination: number | string;
+            /** Format: int32 */
+            quantity: number | string;
+            /** Format: double */
+            value: number | string;
+        };
+        DenominationCountRequest: {
+            /** Format: double */
+            denomination: number | string;
+            /** Format: int32 */
+            quantity: number | string;
+        };
+        DescribePaymentModeRequest: {
+            allowedForRefund: boolean;
+            branchIds: null | string[];
+            isActive: boolean;
+            name: null | string;
+            requiresProvider: boolean;
+            requiresReference: boolean;
         };
         DescribeRolePayload: {
             description: null | string;
@@ -3732,6 +3894,20 @@ export interface components {
             /** Format: int32 */
             periodSeconds: number | string;
         };
+        ModeCountRequest: {
+            /** Format: double */
+            counted: number | string;
+            modeCode: null | string;
+        };
+        ModeTotalPayload: {
+            /** Format: double */
+            counted: number | string;
+            /** Format: double */
+            expected: number | string;
+            modeCode: string;
+            /** Format: double */
+            variance: number | string;
+        };
         MultiFactorChallengeRequest: {
             code: null | string;
             factor: null | string;
@@ -3758,6 +3934,10 @@ export interface components {
             reason: null | string;
             state: null | string;
             timeZoneId: null | string;
+        };
+        OpenCashierSessionRequest: {
+            /** Format: double */
+            openingFloat: number | string;
         };
         OrderableCatalogPayload: {
             /** Format: uuid */
@@ -3812,6 +3992,19 @@ export interface components {
             ceremonyId: null | string;
             credential: components["schemas"]["JsonElement"];
             label: null | string;
+        };
+        PaymentModePayload: {
+            allowedForRefund: boolean;
+            branchIds: string[];
+            code: string;
+            /** Format: uuid */
+            id: string;
+            isActive: boolean;
+            name: string;
+            requiresProvider: boolean;
+            requiresReference: boolean;
+            /** Format: date-time */
+            updatedAt: string;
         };
         PermissionPayload: {
             description: string;
@@ -7011,6 +7204,212 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    ListCashierSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    OpenCashierSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "openingFloat": 2000
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["OpenCashierSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCashierSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CloseCashierSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "denominations": [
+                 *         {
+                 *           "denomination": 500,
+                 *           "quantity": 3
+                 *         },
+                 *         {
+                 *           "denomination": 200,
+                 *           "quantity": 2
+                 *         },
+                 *         {
+                 *           "denomination": 100,
+                 *           "quantity": 1
+                 *         }
+                 *       ],
+                 *       "modeTotals": [
+                 *         {
+                 *           "counted": 4350,
+                 *           "modeCode": "CARD"
+                 *         },
+                 *         {
+                 *           "counted": 1200,
+                 *           "modeCode": "UPI"
+                 *         }
+                 *       ],
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CloseCashierSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     ListGstRegistrations: {
         parameters: {
             query?: never;
@@ -7907,6 +8306,140 @@ export interface operations {
                 };
             };
             426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListPaymentModes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentModePayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPaymentMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentModeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentModePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DescribePaymentMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentModeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "allowedForRefund": false,
+                 *       "branchIds": [],
+                 *       "isActive": true,
+                 *       "name": "Card (terminal)",
+                 *       "requiresProvider": false,
+                 *       "requiresReference": true
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["DescribePaymentModeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentModePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

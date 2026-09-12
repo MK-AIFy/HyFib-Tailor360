@@ -1,0 +1,16 @@
+{
+  "eventId": "019bd6b0-7777-7acb-85dc-415263748701",
+  "occurredAt": "2026-09-12T14:30:00.0000000+00:00",
+  "aggregateId": "019bd6b0-6666-7d2b-8e46-5f6071829401",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "cashierId": "019bd0a1-3c40-7e82-9a17-2b3c4d5e6f71",
+  "openedAt": "2026-09-12T04:30:00.0000000+00:00",
+  "closedAt": "2026-09-12T14:30:00.0000000+00:00",
+  "expectedTotal": 2000.0,
+  "countedTotal": 1990.0,
+  "variance": -10.0,
+  "currency": "INR",
+  "eventType": "billing.cashier-session-closed.v1",
+  "schemaVersion": 1
+}

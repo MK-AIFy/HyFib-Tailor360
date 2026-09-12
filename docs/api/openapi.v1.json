@@ -686,6 +686,114 @@
         ],
         "type": "object"
       },
+      "CashierSessionPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cashierId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "closedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "closedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "countedTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "denominations": {
+            "items": {
+              "$ref": "#/components/schemas/DenominationCountPayload"
+            },
+            "type": "array"
+          },
+          "expectedTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "modeTotals": {
+            "items": {
+              "$ref": "#/components/schemas/ModeTotalPayload"
+            },
+            "type": "array"
+          },
+          "openedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "openingFloat": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "variance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "varianceReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "branchId",
+          "cashierId",
+          "status",
+          "openingFloat",
+          "openedAt",
+          "closedAt",
+          "closedBy",
+          "expectedTotal",
+          "countedTotal",
+          "variance",
+          "varianceReason",
+          "currency",
+          "denominations",
+          "modeTotals"
+        ],
+        "type": "object"
+      },
       "CatalogFindingPayload": {
         "properties": {
           "code": {
@@ -1120,6 +1228,40 @@
           "activeTo",
           "featureFlagKey",
           "branchIds",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CloseCashierSessionRequest": {
+        "properties": {
+          "denominations": {
+            "items": {
+              "$ref": "#/components/schemas/DenominationCountRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "modeTotals": {
+            "items": {
+              "$ref": "#/components/schemas/ModeCountRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "denominations",
+          "modeTotals",
           "reason"
         ],
         "type": "object"
@@ -2195,6 +2337,106 @@
           "description",
           "reach",
           "reason"
+        ],
+        "type": "object"
+      },
+      "DenominationCountPayload": {
+        "properties": {
+          "denomination": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "value": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "denomination",
+          "quantity",
+          "value"
+        ],
+        "type": "object"
+      },
+      "DenominationCountRequest": {
+        "properties": {
+          "denomination": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "denomination",
+          "quantity"
+        ],
+        "type": "object"
+      },
+      "DescribePaymentModeRequest": {
+        "properties": {
+          "allowedForRefund": {
+            "type": "boolean"
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requiresProvider": {
+            "type": "boolean"
+          },
+          "requiresReference": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "requiresReference",
+          "requiresProvider",
+          "allowedForRefund",
+          "isActive",
+          "branchIds"
         ],
         "type": "object"
       },
@@ -4724,6 +4966,67 @@
         ],
         "type": "object"
       },
+      "ModeCountRequest": {
+        "properties": {
+          "counted": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "modeCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "modeCode",
+          "counted"
+        ],
+        "type": "object"
+      },
+      "ModeTotalPayload": {
+        "properties": {
+          "counted": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "expected": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "modeCode": {
+            "type": "string"
+          },
+          "variance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "modeCode",
+          "expected",
+          "counted",
+          "variance"
+        ],
+        "type": "object"
+      },
       "MultiFactorChallengeRequest": {
         "properties": {
           "code": {
@@ -4865,6 +5168,22 @@
           "contactEmail",
           "gstRegistrationReference",
           "reason"
+        ],
+        "type": "object"
+      },
+      "OpenCashierSessionRequest": {
+        "properties": {
+          "openingFloat": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "openingFloat"
         ],
         "type": "object"
       },
@@ -5080,6 +5399,55 @@
           "ceremonyId",
           "credential",
           "label"
+        ],
+        "type": "object"
+      },
+      "PaymentModePayload": {
+        "properties": {
+          "allowedForRefund": {
+            "type": "boolean"
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requiresProvider": {
+            "type": "boolean"
+          },
+          "requiresReference": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "requiresReference",
+          "requiresProvider",
+          "allowedForRefund",
+          "isActive",
+          "branchIds",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -12258,6 +12626,349 @@
         "x-tailor360-rate-limit": "default-user"
       }
     },
+    "/api/v1/billing/cashier-sessions": {
+      "get": {
+        "description": "`status=open` is how a cashier finds the session they have open; at most one hundred are returned.",
+        "operationId": "ListCashierSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CashierSessionPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the branch's cashier sessions, newest first, optionally one status only.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.session",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "One open session per cashier per branch: a second is refused with 409. Until it is closed, every payment the cashier records is recorded in it.",
+        "operationId": "OpenCashierSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "openingFloat": 2000.00
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OpenCashierSessionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashierSessionPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Open a cashier session at the caller's branch with the float put in the drawer.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.open_session",
+        "x-tailor360-authorisation": "permission:payments.session",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/cashier-sessions/{sessionId}": {
+      "get": {
+        "description": "A session at another branch reads as 404.",
+        "operationId": "GetCashierSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashierSessionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one cashier session with its count sheet, once it has one.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.session",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/cashier-sessions/{sessionId}/close": {
+      "post": {
+        "description": "Only the cashier who opened it closes it. The expected total per mode is computed from the session's own records, the float counted into cash; the cash counted is the sheet's sum. A variance beyond the configured threshold needs a reason. No If-Match: the close is a conditional update, so a second close of the same session is a 409, never a second record.",
+        "operationId": "CloseCashierSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "denominations": [
+                  {
+                    "denomination": 500,
+                    "quantity": 3
+                  },
+                  {
+                    "denomination": 200,
+                    "quantity": 2
+                  },
+                  {
+                    "denomination": 100,
+                    "quantity": 1
+                  }
+                ],
+                "modeTotals": [
+                  {
+                    "counted": 4350.00,
+                    "modeCode": "CARD"
+                  },
+                  {
+                    "counted": 1200.00,
+                    "modeCode": "UPI"
+                  }
+                ],
+                "reason": null
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CloseCashierSessionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashierSessionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Close a cashier session against its denomination count sheet and the counted totals by mode.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.close_session",
+        "x-tailor360-authorisation": "permission:payments.session",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/billing/gst-registrations": {
       "get": {
         "operationId": "ListGstRegistrations",
@@ -13768,6 +14479,242 @@
         ],
         "x-tailor360-audit": "billing.invoice.printed",
         "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/payment-modes": {
+      "get": {
+        "description": "Configuration, not money: the flags a payment in each mode is taken under, and where it is offered.",
+        "operationId": "ListPaymentModes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentModePayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the organisation's payment modes, active or not, by code.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/payment-modes/{paymentModeId}": {
+      "get": {
+        "description": "The list carries no token; a change is read here first, then sent with If-Match.",
+        "operationId": "GetPaymentMode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentModeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentModePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one payment mode with the ETag every change to it is made against.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "Every field is sent, against the ETag of the mode as read. The code never changes, and a payment already recorded keeps the mode it was taken in; deactivating a mode stops new use only.",
+        "operationId": "DescribePaymentMode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentModeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "allowedForRefund": false,
+                "branchIds": [],
+                "isActive": true,
+                "name": "Card (terminal)",
+                "requiresProvider": false,
+                "requiresReference": true
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DescribePaymentModeRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentModePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Change a payment mode's name, flags, branch restriction or active state.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.payment_mode.changed",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
         "x-tailor360-rate-limit": "write"
       }
     },

@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Catalog.Application.Catalogue;
 using Tailor360.Modules.Customers.Application.Consent;
 using Tailor360.Modules.Customers.Application.Measurements;
@@ -48,6 +49,7 @@ public static class InitReferenceDataCommand
             var catalogue = scope.ServiceProvider.GetRequiredService<ICatalogReferenceDataSeeder>();
             var templates = scope.ServiceProvider
                 .GetRequiredService<IMeasurementTemplateReferenceDataSeeder>();
+            var billing = scope.ServiceProvider.GetRequiredService<IBillingReferenceDataSeeder>();
 
             Console.WriteLine($"Environment: {EnvironmentGuard.CurrentEnvironment}");
 
@@ -131,6 +133,23 @@ public static class InitReferenceDataCommand
                     + "measured against them yet. An Owner reviews each field set with the Tailor Master — the "
                     + "field list, the hard bounds, the confirmation bands and the inch steps — and publishes it "
                     + "with a reason. The draft's own notes say which section of the specification it came from.");
+            }
+
+            var paymentModes = await billing.SeedPaymentModesAsync(organisationId, cancellationToken);
+
+            Console.WriteLine(
+                $"Payment modes: {paymentModes.ModesCreated} created, {paymentModes.ModesUnchanged} already present "
+                + "and left as the Owner set them.");
+
+            if (paymentModes.ModesCreated > 0)
+            {
+                // The same shape as the seeds above: the flags a mode starts with — which modes carry a
+                // reference, which may pay a refund — are the seed's starting position for a shop with
+                // standalone terminals and no gateway (OD-03), and an Owner sets them.
+                Console.WriteLine(
+                    "  The modes start available at every branch, with cash the one mode a refund may be paid "
+                    + "through. An Owner sets each mode's reference, provider and refund flags and any branch "
+                    + "restriction, and renames a mode; this command never changes any of it back.");
             }
 
             return ExitCodes.Success;

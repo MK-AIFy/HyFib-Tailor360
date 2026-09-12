@@ -543,4 +543,73 @@ public static class BillingErrors
         "This code has been published under another spelling, and a published code never changes: "
         + "invoices already carry it. Add a new code and retire this one instead.",
         field);
+
+    /// <summary>The payment mode named is not one of the organisation's.</summary>
+    public static readonly Error PaymentModeNotFound = Error.NotFound(
+        "billing.payment-mode-not-found",
+        "No payment mode with that identifier belongs to this organisation.");
+
+    /// <summary>The payment mode changed since the caller read it.</summary>
+    public static readonly Error PaymentModeChanged = Error.PreconditionFailed(
+        "billing.payment-mode-changed",
+        "The payment mode has changed since you read it. Read it again and reapply your change.");
+
+    /// <summary>A mode code on a count sheet names no mode the session may hold money in.</summary>
+    /// <param name="field">The field that named it.</param>
+    public static Error PaymentModeNotKnown(string field) => Error.Validation(
+        "billing.payment-mode-not-known",
+        "That is not an active payment mode at this branch.",
+        field);
+
+    /// <summary>The cashier session named is not one of the organisation's.</summary>
+    public static readonly Error CashierSessionNotFound = Error.NotFound(
+        "billing.cashier-session-not-found",
+        "No cashier session with that identifier belongs to this organisation.");
+
+    /// <summary>The cashier already has a session open at this branch (INV-CSH-01).</summary>
+    public static readonly Error CashierSessionAlreadyOpen = Error.Conflict(
+        "billing.cashier-session-already-open",
+        "You already have a session open at this branch. Close it before opening another.");
+
+    /// <summary>The session was closed already, by this request's twin or by an earlier one.</summary>
+    public static readonly Error CashierSessionAlreadyClosed = Error.Conflict(
+        "billing.cashier-session-already-closed",
+        "This session is closed. A closed session never changes; a correction is a new record.");
+
+    /// <summary>The session changed under the caller between the read and the close.</summary>
+    public static readonly Error CashierSessionChanged = Error.Conflict(
+        "billing.cashier-session-changed",
+        "The session changed since you read it. Read it again before closing.");
+
+    /// <summary>Somebody other than the session's cashier tried to close it.</summary>
+    public static readonly Error CashierSessionNotYours = Error.Forbidden(
+        "billing.cashier-session-not-yours",
+        "Only the cashier who opened a session closes it.");
+
+    /// <summary>A denomination on the count sheet is not a rupee note or coin.</summary>
+    /// <param name="field">The field.</param>
+    public static Error DenominationNotKnown(string field) => Error.Validation(
+        "billing.denomination-not-known",
+        "That is not a note or coin the sheet counts.",
+        field);
+
+    /// <summary>A count on the sheet was negative.</summary>
+    /// <param name="field">The field.</param>
+    public static Error CountNotWellFormed(string field) => Error.Validation(
+        "billing.count-not-well-formed",
+        "A count is zero or more.",
+        field);
+
+    /// <summary>A cash total was given that does not agree with the denomination sheet.</summary>
+    /// <param name="field">The field.</param>
+    public static Error CashCountMismatch(string field) => Error.Validation(
+        "billing.cash-count-mismatch",
+        "The cash counted must equal the denomination sheet. Correct the sheet, or leave the cash line out.",
+        field);
+
+    /// <summary>The count differs from what the session should hold, and no reason was given.</summary>
+    public static readonly Error VarianceReasonRequired = Error.Validation(
+        "billing.variance-reason-required",
+        "The count differs from what the session should hold. Say why; the variance is recorded with it.",
+        "reason");
 }

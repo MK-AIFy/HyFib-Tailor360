@@ -23,6 +23,12 @@ internal static class BillingAudit
     /// <summary>An invoice.</summary>
     public const string InvoiceEntity = "billing.invoice";
 
+    /// <summary>A payment mode.</summary>
+    public const string PaymentModeEntity = "billing.payment_mode";
+
+    /// <summary>A cashier session.</summary>
+    public const string CashierSessionEntity = "billing.cashier_session";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,
