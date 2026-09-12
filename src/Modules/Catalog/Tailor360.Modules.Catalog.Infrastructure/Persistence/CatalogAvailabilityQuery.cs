@@ -142,6 +142,62 @@ public sealed class CatalogAvailabilityQuery(
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<CatalogPriceListItemReference>> PublishedPriceListItemReferencesAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        // Straight to the database, for the reason ReferencesMeasurementTemplateAsync gives: the answer decides
+        // whether a price-list version may be withdrawn from under what the counter offers, and the cache holds
+        // service types only — a design option's code is not in it.
+        var version = await context.CatalogVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.OrganisationId == organisationId && candidate.Status == CatalogStatus.Published,
+                cancellationToken);
+
+        if (version is null)
+        {
+            return [];
+        }
+
+        var references = new List<CatalogPriceListItemReference>();
+
+        foreach (var service in version.ServiceTypes)
+        {
+            if (service.PriceListItemCode is not { } code || version.Find(service.CategoryId) is not { } category)
+            {
+                continue;
+            }
+
+            references.Add(new CatalogPriceListItemReference(
+                $"{category.Code}.{service.Code}",
+                code,
+                service.BranchIds.Intersect(category.BranchIds).ToHashSet()));
+        }
+
+        foreach (var group in version.DesignGroups)
+        {
+            if (version.Find(group.CategoryId) is not { } category)
+            {
+                continue;
+            }
+
+            var branches = group.BranchIds.Intersect(category.BranchIds).ToHashSet();
+
+            foreach (var option in group.Options)
+            {
+                if (option.Active && option.PriceListItemCode is { } code)
+                {
+                    references.Add(new CatalogPriceListItemReference(
+                        $"{category.Code}.{group.Code}.{option.Code}", code, branches));
+                }
+            }
+        }
+
+        return [.. references.OrderBy(reference => reference.Reference, StringComparer.Ordinal)];
+    }
+
+    /// <inheritdoc />
     public async Task<CatalogServiceSnapshot?> GetServiceAsync(
         Guid serviceTypeId,
         CancellationToken cancellationToken = default)

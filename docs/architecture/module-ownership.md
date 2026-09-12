@@ -546,7 +546,7 @@ single-use exception that together form the shop's cash-protection control.
 
 | Table | Holds |
 | --- | --- |
-| `price_lists`, `price_list_versions`, `price_list_items` | Effective-dated base rates, inclusive/exclusive flags, discount and surcharge rules, approval thresholds |
+| `price_lists`, `price_list_versions`, `price_list_version_branches`, `price_list_items`, `discount_rules` | Effective-dated base rates, inclusive/exclusive flags, discount rules, surcharge items, the override threshold and the branches a version prices for (#146) |
 | `gst_registrations` | Branch GSTIN and state code — owned here even though the branch record is Identity's |
 | `tax_configuration_versions`, `tax_codes`, `tax_components` | Immutable, effective-dated tax codes, HSN/SAC mappings, rates and place-of-supply rules |
 | `calculation_snapshots` | The exact pricing result and the configuration versions used |

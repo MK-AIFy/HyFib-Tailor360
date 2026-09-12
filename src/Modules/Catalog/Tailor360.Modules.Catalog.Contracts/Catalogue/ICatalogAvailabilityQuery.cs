@@ -109,7 +109,40 @@ public interface ICatalogAvailabilityQuery
         Guid measurementTemplateId,
         Guid organisationId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Every price-list item code the published catalogue names, and where it is offered.</summary>
+    /// <remarks>
+    /// <para>
+    /// Asked by Billing before it publishes a price-list version (#146), because publishing one retires the
+    /// version it supersedes: a draft that dropped an item the catalogue names, or a branch the outgoing
+    /// version priced, would leave a service the counter can order with nothing to price it by — link 4's
+    /// mirror image of <see cref="ReferencesMeasurementTemplateAsync"/>.
+    /// </para>
+    /// <para>
+    /// It answers about the <em>published</em> version only, and about every service type and every active
+    /// design option carrying a code, whatever its active period: a code that is offered next month must be
+    /// priced when next month comes, and the version publishing today is the one that will be in force then.
+    /// </para>
+    /// </remarks>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The references, in qualified-reference order; empty when nothing is published.</returns>
+    Task<IReadOnlyList<CatalogPriceListItemReference>> PublishedPriceListItemReferencesAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken = default);
 }
+
+/// <summary>One place the published catalogue names a price-list item code.</summary>
+/// <param name="Reference">
+/// The qualified reference of what carries the code: <c>CATEGORY.SERVICE</c> for a service type,
+/// <c>CATEGORY.GROUP.OPTION</c> for a design option.
+/// </param>
+/// <param name="ItemCode">The price-list item code it names.</param>
+/// <param name="BranchIds">The branches it is offered at: its own branches within its category's.</param>
+public sealed record CatalogPriceListItemReference(
+    string Reference,
+    string ItemCode,
+    IReadOnlyCollection<Guid> BranchIds);
 
 /// <summary>What a branch may order, and the catalogue version that says so.</summary>
 /// <remarks>

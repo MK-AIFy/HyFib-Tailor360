@@ -4,9 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Billing.Application.Abstractions;
+using Tailor360.Modules.Billing.Application.Pricing;
 using Tailor360.Modules.Billing.Application.Registrations;
 using Tailor360.Modules.Billing.Application.Tax;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
+using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
@@ -42,6 +44,13 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<IGstRegistrationStore, GstRegistrationStore>();
         services.TryAddScoped<TaxConfigurationHandler>();
         services.TryAddScoped<GstRegistrationHandler>();
+        services.TryAddScoped<IPriceListStore, PriceListStore>();
+        services.TryAddScoped<PriceListHandler>();
+
+        // Link 4 of the catalogue's service types and design options — the price-list item code — is
+        // answered here. Enumerable, not TryAdd: every module that owns something a service type links
+        // to adds its own validator, and a second registration must join the list rather than replace it.
+        services.AddScoped<ICatalogDependencyValidator, PriceListCatalogValidator>();
 
         return services;
     }

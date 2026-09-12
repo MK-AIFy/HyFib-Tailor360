@@ -783,6 +783,229 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/price-lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the organisation's price lists, by code. */
+        get: operations["ListPriceLists"];
+        put?: never;
+        /** Create a price list. Most shops have one; a shop pricing branches differently has one per group of branches. */
+        post: operations["CreatePriceList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one price-list version and everything in it, whatever its status.
+         * @description The ETag is the token every change to the version is made against.
+         */
+        get: operations["GetPriceListVersion"];
+        /** Change a draft's name, notes, effective date, conventions and branches. Whole-value. */
+        put: operations["DescribePriceListVersion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/discount-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a discount rule — what kind, how much on the counter's own authority, how much with approval — to a draft. */
+        post: operations["AddDiscountRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/discount-rules/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a discount rule, whole-value. */
+        put: operations["EditDiscountRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/discount-rules/{ruleId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a discount rule from a draft. */
+        post: operations["RemoveDiscountRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an item — a service's base charge, a surcharge or a material — to a draft.
+         * @description The item's code is what the catalogue's service types and design options name; its tax code is one of the published tax configuration's, checked at publication so a half-entered list can be saved.
+         */
+        post: operations["AddPriceListItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about an item, whole-value. */
+        put: operations["EditPriceListItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/items/{itemId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove an item from a draft. */
+        post: operations["RemovePriceListItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a draft, retiring the list's published version in the same transaction.
+         * @description Refused while a publication check fails, with every finding in the problem detail. Publication changes what every future order is quoted at, so it demands a fresh second factor and a reason.
+         */
+        post: operations["PublishPriceListVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run the publication checks against a version and report what they found.
+         * @description An item naming a tax code nobody published, a branch another list already prices, a code re-spelled after the catalogue referred to it. They encode no rate.
+         */
+        get: operations["ValidatePriceListVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/{priceListId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one price list. The ETag is the token a rename is made against. */
+        get: operations["GetPriceList"];
+        /** Rename a price list. Its code never changes: seeds and exports refer to it. */
+        put: operations["RenamePriceList"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/{priceListId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a price list's versions, newest first. Summaries only. */
+        get: operations["ListPriceListVersions"];
+        put?: never;
+        /**
+         * Start a draft price-list version, empty or cloned from an existing version of the same list.
+         * @description Cloning the published version is the ordinary way to change a rate: a published version is immutable, so a change is a clone, an edit and a second publication. The clone carries the same items and rules as concepts with new rows of its own.
+         */
+        post: operations["CreatePriceListDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/tax-configuration/versions": {
         parameters: {
             query?: never;
@@ -2447,6 +2670,11 @@ export interface components {
             description: null | string;
             name: string;
         };
+        CreatePriceListRequest: {
+            code: null | string;
+            name: null | string;
+            reason: null | string;
+        };
         CreateTaxConfigurationDraftRequest: {
             /** Format: uuid */
             cloneFromVersionId: null | string;
@@ -2742,6 +2970,32 @@ export interface components {
             reason: null | string;
             type: null | string;
             why: null | string;
+        };
+        DiscountRulePayload: {
+            active: boolean;
+            code: string;
+            description: string;
+            /** Format: uuid */
+            discountRuleId: string;
+            /** Format: uuid */
+            discountRuleKey: string;
+            kind: string;
+            /** Format: double */
+            maximum: number | string;
+            /** Format: double */
+            maximumWithoutApproval: number | string;
+        };
+        DiscountRuleRequest: {
+            active: null | boolean;
+            code: null | string;
+            description: null | string;
+            kind: null | string;
+            /** Format: double */
+            maximum: null | number | string;
+            /** Format: double */
+            maximumWithoutApproval: null | number | string;
+            reason: null | string;
+            saysActive?: boolean;
         };
         DuplicateCandidatePayload: {
             confidence: string;
@@ -3112,6 +3366,94 @@ export interface components {
             theme: string;
             timeZoneId: string;
         };
+        PriceListItemPayload: {
+            active: boolean;
+            /** Format: double */
+            baseRate: number | string;
+            code: string;
+            description: string;
+            kind: string;
+            /** Format: uuid */
+            priceListItemId: string;
+            /** Format: uuid */
+            priceListItemKey: string;
+            taxCode: string;
+            unit: string;
+        };
+        PriceListItemRequest: {
+            active: null | boolean;
+            /** Format: double */
+            baseRate: null | number | string;
+            code: null | string;
+            description: null | string;
+            kind: null | string;
+            reason: null | string;
+            saysActive?: boolean;
+            taxCode: null | string;
+            unit: null | string;
+        };
+        PriceListPayload: {
+            code: string;
+            /** Format: date-time */
+            createdAt: string;
+            name: string;
+            /** Format: uuid */
+            priceListId: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PriceListPublicationPayload: {
+            findings: components["schemas"]["BillingFindingPayload"][];
+            published: components["schemas"]["PriceListVersionPayload"];
+            /** Format: uuid */
+            supersededVersionId: null | string;
+        };
+        PriceListVersionPayload: {
+            discountRules: components["schemas"]["DiscountRulePayload"][];
+            items: components["schemas"]["PriceListItemPayload"][];
+            version: components["schemas"]["PriceListVersionSummaryPayload"];
+        };
+        PriceListVersionRequest: {
+            branchIds: null | string[];
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
+            /** Format: date */
+            effectiveFrom: null | string;
+            name: null | string;
+            notes: null | string;
+            /** Format: double */
+            overrideThresholdPercent: null | number | string;
+            reason: null | string;
+            roundOff: null | string;
+            saysTaxInclusive?: boolean;
+            taxInclusive: null | boolean;
+        };
+        PriceListVersionSummaryPayload: {
+            branchIds: string[];
+            /** Format: uuid */
+            clonedFromVersionId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            name: string;
+            notes: null | string;
+            /** Format: double */
+            overrideThresholdPercent: number | string;
+            /** Format: uuid */
+            priceListId: string;
+            /** Format: uuid */
+            priceListVersionId: string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            roundOff: string;
+            status: string;
+            taxInclusive: boolean;
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
         /**
          * Problem details
          * @description RFC 9457 problem details. Every failure is reported in this shape, and never as a stack trace, an exception message or a bare status code.
@@ -3200,6 +3542,10 @@ export interface components {
             nativeName: null | string;
             phone: null | string;
             postcode: null | string;
+        };
+        RenamePriceListRequest: {
+            name: null | string;
+            reason: null | string;
         };
         ReplaceBranchesPayload: {
             branches: null | components["schemas"]["BranchAssignmentPayload"][];
@@ -6228,6 +6574,990 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListPriceLists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreatePriceList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "PL_CBE01",
+                 *       "name": "Coimbatore price list",
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreatePriceListRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DescribePriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "cloneFromVersionId": null,
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "Stitching up by 5%.",
+                 *       "overrideThresholdPercent": 10,
+                 *       "reason": "The effective date moved to the start of the financial year.",
+                 *       "roundOff": "NearestRupee",
+                 *       "taxInclusive": false
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddDiscountRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "FESTIVAL",
+                 *       "description": "Festival-season discount on stitching",
+                 *       "kind": "Percentage",
+                 *       "maximum": 15,
+                 *       "maximumWithoutApproval": 5,
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["DiscountRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscountRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditDiscountRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "FESTIVAL",
+                 *       "description": "Festival-season discount on stitching",
+                 *       "kind": "Percentage",
+                 *       "maximum": 20,
+                 *       "maximumWithoutApproval": 5,
+                 *       "reason": "The owner may now approve up to twenty percent."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DiscountRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscountRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveDiscountRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Withdrawn after the season."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddPriceListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "baseRate": 450,
+                 *       "code": "BLOUSE_PATTERN_STITCHING",
+                 *       "description": "Blouse stitching, pattern work",
+                 *       "kind": "Service",
+                 *       "reason": null,
+                 *       "taxCode": "STITCHING_5",
+                 *       "unit": "each"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListItemPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditPriceListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "baseRate": 472.5,
+                 *       "code": "BLOUSE_PATTERN_STITCHING",
+                 *       "description": "Blouse stitching, pattern work",
+                 *       "kind": "Service",
+                 *       "reason": "Up by 5% with the new year's list.",
+                 *       "taxCode": "STITCHING_5",
+                 *       "unit": "each"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListItemPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemovePriceListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Entered twice; the other row is the one the catalogue names."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PublishPriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPublicationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ValidatePriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingValidationReportPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPriceList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RenamePriceList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "name": "Coimbatore and Tiruppur price list",
+                 *       "reason": "The Tiruppur branch prices from the same list from April."
+                 *     }
+                 */
+                "application/json": components["schemas"]["RenamePriceListRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListPriceListVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionSummaryPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreatePriceListDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "Cloned from version 4; stitching up by 5%.",
+                 *       "overrideThresholdPercent": 10,
+                 *       "reason": null,
+                 *       "roundOff": "NearestRupee",
+                 *       "taxInclusive": false
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

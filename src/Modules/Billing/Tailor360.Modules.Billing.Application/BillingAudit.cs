@@ -11,6 +11,12 @@ internal static class BillingAudit
     /// <summary>The entity type of a GST registration in the audit trail.</summary>
     public const string RegistrationEntity = "billing.gst_registration";
 
+    /// <summary>The entity type of a price list in the audit trail.</summary>
+    public const string PriceListEntity = "billing.price_list";
+
+    /// <summary>The entity type of a price-list version in the audit trail.</summary>
+    public const string PriceListVersionEntity = "billing.price_list_version";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,

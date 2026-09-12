@@ -81,6 +81,58 @@ public static class BillingErrors
         "A tax component is one of Cgst, Sgst, Igst or Cess.",
         field);
 
+    /// <summary>A rate is not a non-negative amount of at most four decimal places.</summary>
+    /// <param name="field">The field.</param>
+    /// <returns>The error.</returns>
+    public static Error RateNotWellFormed(string field) => Error.Validation(
+        "billing.rate-not-well-formed",
+        "A rate is a non-negative amount with at most four decimal places.",
+        field);
+
+    /// <summary>An amount is not a non-negative value of at most two decimal places.</summary>
+    /// <param name="field">The field.</param>
+    /// <returns>The error.</returns>
+    public static Error AmountNotWellFormed(string field) => Error.Validation(
+        "billing.amount-not-well-formed",
+        "An amount is a non-negative value in rupees with at most two decimal places.",
+        field);
+
+    /// <summary>A unit is not a short lower-case word.</summary>
+    /// <param name="field">The field.</param>
+    /// <returns>The error.</returns>
+    public static Error UnitNotWellFormed(string field) => Error.Validation(
+        "billing.unit-not-well-formed",
+        "A unit is a short lower-case word such as each, metre or hour.",
+        field);
+
+    /// <summary>A discount rule's counter maximum exceeds its approved maximum.</summary>
+    /// <param name="field">The field.</param>
+    /// <returns>The error.</returns>
+    public static Error DiscountBoundsNotOrdered(string field) => Error.Validation(
+        "billing.discount-bounds-not-ordered",
+        "What the counter may give on its own cannot exceed what anyone may give with approval.",
+        field);
+
+    /// <summary>The price list is not one of the caller's organisation.</summary>
+    public static readonly Error PriceListNotFound = Error.NotFound(
+        "billing.price-list-not-found",
+        "That price list is not one of this organisation's.");
+
+    /// <summary>The price list moved since the caller read it.</summary>
+    public static readonly Error PriceListChanged = Error.PreconditionFailed(
+        "billing.price-list-changed",
+        "The price list changed since it was read. Reload it and try again.");
+
+    /// <summary>The item is not in this version.</summary>
+    public static readonly Error ItemNotFound = Error.NotFound(
+        "billing.item-not-found",
+        "That price-list item is not in this version.");
+
+    /// <summary>The discount rule is not in this version.</summary>
+    public static readonly Error DiscountRuleNotFound = Error.NotFound(
+        "billing.discount-rule-not-found",
+        "That discount rule is not in this version.");
+
     /// <summary>A pair of dates is the wrong way round.</summary>
     /// <param name="field">The field.</param>
     /// <returns>The error.</returns>
@@ -182,6 +234,13 @@ public static class BillingErrors
         "billing.publish-conflict",
         "Another version was published at the same moment. Read what is published now before deciding "
         + "whether this draft is still wanted.");
+
+    /// <summary>Two administrators published versions of different lists pricing the same branch in the same moment.</summary>
+    public static readonly Error BranchPublishConflict = Error.Conflict(
+        "billing.branch-publish-conflict",
+        "Another list's version pricing one of these branches was published at the same moment. A branch is "
+        + "priced by one published version; read what is published now before deciding whether this draft is "
+        + "still wanted.");
 
     /// <summary>A publication was refused by its checks.</summary>
     public static readonly Error PublishValidationFailed = Error.Validation(
