@@ -21,6 +21,7 @@ public sealed class Invoice
     public const int MaximumReasonLength = 500;
 
     private readonly List<InvoiceLine> _lines = [];
+    private readonly List<AdjustmentNote> _notes = [];
 
     private Invoice()
     {
@@ -111,8 +112,44 @@ public sealed class Invoice
     /// <summary>Why it was discarded.</summary>
     public string? DiscardReason { get; private set; }
 
+    /// <summary>
+    /// The order's revision the draft was made at, or last re-priced at. A draft is posted only while the
+    /// order is still at it: a revision that arrived since may have changed what the lines charge for.
+    /// </summary>
+    public int OrderRevisionNumber { get; private set; }
+
+    /// <summary>The number allocated at posting, or null while a draft; never reused, kept through a cancellation.</summary>
+    public string? InvoiceNumber { get; private set; }
+
+    /// <summary>The opaque <c>I-</c> barcode payload minted at posting, or null while a draft.</summary>
+    public string? BarcodePayload { get; private set; }
+
+    /// <summary>The financial year the number was drawn in, as the number's four-digit token.</summary>
+    public string? FinancialYear { get; private set; }
+
+    /// <summary>The branch-local date the invoice was posted on, which decides its financial year.</summary>
+    public DateOnly? PostedOn { get; private set; }
+
+    /// <summary>When it was posted.</summary>
+    public DateTimeOffset? PostedAt { get; private set; }
+
+    /// <summary>Who posted it.</summary>
+    public Guid? PostedBy { get; private set; }
+
+    /// <summary>The cancellation, once one has been appended; the invoice's own row never changes for it.</summary>
+    public InvoiceCancellation? Cancellation { get; private set; }
+
+    /// <summary>The credit and debit notes posted against the invoice, oldest first.</summary>
+    public IReadOnlyList<AdjustmentNote> Notes => _notes;
+
     /// <summary>Whether it may still change.</summary>
     public bool IsDraft => Status == InvoiceStatus.Draft;
+
+    /// <summary>True once posted: numbered and frozen.</summary>
+    public bool IsPosted => Status == InvoiceStatus.Posted;
+
+    /// <summary>True once a cancellation has been appended. Derived: the status column still says posted.</summary>
+    public bool IsCancelled => Cancellation is not null;
 
     /// <summary>The garment jobs the lines charge for.</summary>
     public IEnumerable<Guid> GarmentJobIds => _lines.Select(line => line.GarmentJobId).Distinct();
@@ -188,6 +225,150 @@ public sealed class Invoice
         Touch(now, by);
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Posts a draft: numbered, given its barcode, frozen. Everything about the figures was checked by the
+    /// caller against the stored calculation before the number was drawn; nothing here recomputes.
+    /// </summary>
+    /// <param name="invoiceNumber">The number allocated under the sequence lock.</param>
+    /// <param name="barcodePayload">The <c>I-</c> payload minted for it.</param>
+    /// <param name="financialYear">The financial year token the number was drawn in.</param>
+    /// <param name="postedOn">The branch-local date.</param>
+    /// <param name="now">When.</param>
+    /// <param name="by">Who.</param>
+    public Result Post(string invoiceNumber, string barcodePayload, string financialYear, DateOnly postedOn, DateTimeOffset now, Guid? by)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invoiceNumber);
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcodePayload);
+        ArgumentException.ThrowIfNullOrWhiteSpace(financialYear);
+
+        if (!IsDraft)
+        {
+            return Result.Failure(BillingErrors.InvoiceNotEditable);
+        }
+
+        if (_lines.Count == 0)
+        {
+            return Result.Failure(BillingErrors.LinesRequired);
+        }
+
+        Status = InvoiceStatus.Posted;
+        InvoiceNumber = invoiceNumber;
+        BarcodePayload = barcodePayload;
+        FinancialYear = financialYear;
+        PostedOn = postedOn;
+        PostedAt = now;
+        PostedBy = by;
+        Touch(now, by);
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Cancels a posted invoice by appending its cancellation and the credit note that relieves it in full
+    /// (<c>INV-INV-02</c>): the number, the lines and the totals stay exactly as posted.
+    /// </summary>
+    /// <param name="cancellationId">The record's identifier.</param>
+    /// <param name="creditNoteId">The credit note's identifier.</param>
+    /// <param name="creditNoteNumber">The number allocated for the credit note.</param>
+    /// <param name="reason">Why; required.</param>
+    /// <param name="now">When.</param>
+    /// <param name="by">Who.</param>
+    /// <returns>The credit note posted with it.</returns>
+    public Result<AdjustmentNote> Cancel(Guid cancellationId, Guid creditNoteId, string creditNoteNumber, string? reason, DateTimeOffset now, Guid? by)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(creditNoteNumber);
+
+        if (!IsPosted)
+        {
+            return Result.Failure<AdjustmentNote>(BillingErrors.InvoiceNotPosted);
+        }
+
+        if (IsCancelled)
+        {
+            return Result.Failure<AdjustmentNote>(BillingErrors.InvoiceAlreadyCancelled);
+        }
+
+        var reasoned = CheckReason(reason);
+        if (reasoned.IsFailure)
+        {
+            return Result.Failure<AdjustmentNote>(reasoned.Error);
+        }
+
+        var note = AdjustmentNote.ForCancellation(creditNoteId, this, creditNoteNumber, reason!.Trim(), now, by);
+        _notes.Add(note);
+        Cancellation = new InvoiceCancellation(cancellationId, this, creditNoteId, reason.Trim(), now, by);
+
+        return Result.Success(note);
+    }
+
+    /// <summary>Posts a credit or debit note against a posted, uncancelled invoice.</summary>
+    /// <param name="noteId">The note's identifier.</param>
+    /// <param name="kind">Credit or debit.</param>
+    /// <param name="number">The number allocated for it.</param>
+    /// <param name="lines">The garment jobs and the taxable value each moves.</param>
+    /// <param name="reason">Why; required.</param>
+    /// <param name="now">When.</param>
+    /// <param name="by">Who.</param>
+    public Result<AdjustmentNote> PostNote(Guid noteId, AdjustmentNoteKind kind, string number, IReadOnlyList<AdjustmentNoteLineRequest> lines, string? reason, DateTimeOffset now, Guid? by)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(number);
+
+        if (!IsPosted)
+        {
+            return Result.Failure<AdjustmentNote>(BillingErrors.InvoiceNotPosted);
+        }
+
+        if (IsCancelled)
+        {
+            return Result.Failure<AdjustmentNote>(BillingErrors.InvoiceAlreadyCancelled);
+        }
+
+        var reasoned = CheckReason(reason);
+        if (reasoned.IsFailure)
+        {
+            return Result.Failure<AdjustmentNote>(reasoned.Error);
+        }
+
+        var posted = AdjustmentNote.Post(noteId, this, kind, number, lines, reason!.Trim(), now, by);
+        if (posted.IsFailure)
+        {
+            return posted;
+        }
+
+        _notes.Add(posted.Value);
+
+        return posted;
+    }
+
+    /// <summary>Records the order's revision the draft's lines were made against.</summary>
+    /// <param name="revisionNumber">The order's revision, from Billing's own order fact.</param>
+    public void StampOrderRevision(int revisionNumber)
+    {
+        if (IsDraft)
+        {
+            OrderRevisionNumber = revisionNumber;
+        }
+    }
+
+    /// <summary>The taxable value of a line that credit notes have not yet relieved.</summary>
+    /// <param name="garmentJobId">The line, by its job.</param>
+    public Money RemainingTaxableValueOf(Guid garmentJobId)
+    {
+        var line = _lines.Find(candidate => candidate.GarmentJobId == garmentJobId);
+        if (line is null)
+        {
+            return Money.Zero;
+        }
+
+        var credited = _notes
+            .Where(note => note.Kind == AdjustmentNoteKind.Credit)
+            .SelectMany(note => note.Lines)
+            .Where(noteLine => noteLine.GarmentJobId == garmentJobId)
+            .Aggregate(Money.Zero, (total, noteLine) => total + noteLine.TaxableValue);
+
+        return line.TaxableValue - credited;
     }
 
     /// <summary>Abandons the draft, freeing its garment jobs for another invoice.</summary>

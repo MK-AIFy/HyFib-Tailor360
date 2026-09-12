@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.invoice-cancelled.v1.schema.json",
+  "title": "billing.invoice-cancelled.v1",
+  "description": "A posted invoice was cancelled by its compensating record: the invoice keeps its number, its lines and its totals, a credit note relieving the whole amount was posted with it in the same transaction, and the invoice's displayed status is now cancelled. The reason travels nowhere: it is what a member of staff typed about a named person's document, which conventions.md section 5.5 does not admit; audit (ARCH-008) is the authority on who and why.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "orderId",
+    "invoiceNumber",
+    "creditDocumentId",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the document belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch that issued the document."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer the document is issued to. An identifier and nothing more: the name and address on the document stay on the document."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The invoice."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order the invoice charged for; its garment jobs are free to be invoiced again."
+    },
+    "invoiceNumber": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The invoice's number, which it keeps."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.invoice-cancelled.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    },
+    "creditDocumentId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The credit note posted with the cancellation, announced by its own billing.credit-note-posted.v1."
+    }
+  }
+}

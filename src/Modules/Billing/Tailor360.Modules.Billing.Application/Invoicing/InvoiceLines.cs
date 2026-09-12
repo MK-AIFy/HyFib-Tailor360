@@ -75,14 +75,15 @@ public static class InvoiceLines
         var jobs = new List<Guid>(lines.Count);
         foreach (var line in lines)
         {
-            if (!Guid.TryParse(line.LineKey, out var jobId) || order.FindJob(jobId) is not { } job)
+            if (!Guid.TryParse(line.LineKey, out var jobId))
             {
                 return Result.Failure<IReadOnlyList<Guid>>(BillingErrors.LineNotAGarmentJob($"lines[{line.LineKey}].lineKey"));
             }
 
-            if (job.IsCancelled)
+            var checkedJob = CheckJob(jobId, order, $"lines[{line.LineKey}].lineKey");
+            if (checkedJob.IsFailure)
             {
-                return Result.Failure<IReadOnlyList<Guid>>(BillingErrors.JobCancelled($"lines[{line.LineKey}].lineKey"));
+                return Result.Failure<IReadOnlyList<Guid>>(checkedJob.Error);
             }
 
             if (jobs.Contains(jobId))
@@ -94,6 +95,22 @@ public static class InvoiceLines
         }
 
         return Result.Success<IReadOnlyList<Guid>>(jobs);
+    }
+
+    /// <summary>A garment job the invoice charges for is a live job of the order, now — checked again at posting.</summary>
+    /// <param name="garmentJobId">The job.</param>
+    /// <param name="order">The order as Billing knows it.</param>
+    /// <param name="field">The field named in a refusal.</param>
+    public static Result CheckJob(Guid garmentJobId, OrderFact order, string field)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        if (order.FindJob(garmentJobId) is not { } job)
+        {
+            return Result.Failure(BillingErrors.LineNotAGarmentJob(field));
+        }
+
+        return job.IsCancelled ? Result.Failure(BillingErrors.JobCancelled(field)) : Result.Success();
     }
 
     public static InvoiceTotals TotalsOf(PricingResult result)

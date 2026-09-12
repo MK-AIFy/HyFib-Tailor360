@@ -18,6 +18,11 @@ internal static class BillingHarness
     /// <param name="client">A client holding <c>admin.branches</c>.</param>
     /// <returns>The branch identifier.</returns>
     public static async Task<Guid> OpenBranchAsync(AdministrationHarness.AdministratorClient client)
+        => (await OpenBranchWithCodeAsync(client)).BranchId;
+
+    /// <summary><see cref="OpenBranchAsync"/>, and the code the branch was opened under, which every number drawn at it carries.</summary>
+    /// <param name="client">A client holding <c>admin.branches</c>.</param>
+    public static async Task<(Guid BranchId, string Code)> OpenBranchWithCodeAsync(AdministrationHarness.AdministratorClient client)
     {
         // A branch code is upper-case letters and digits, at most sixteen of them; a fresh token is one.
         var code = $"B{AdministrationHarness.UniqueToken(12).ToUpperInvariant()}";
@@ -40,6 +45,6 @@ internal static class BillingHarness
             ("Idempotency-Key", Guid.CreateVersion7().ToString()));
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
-        return body.RootElement.GetProperty("branchId").GetGuid();
+        return (body.RootElement.GetProperty("branchId").GetGuid(), code);
     }
 }

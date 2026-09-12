@@ -551,9 +551,9 @@ single-use exception that together form the shop's cash-protection control.
 | `tax_configuration_versions`, `tax_codes`, `tax_components` | Immutable, effective-dated tax codes, HSN/SAC mappings, rates and place-of-supply rules |
 | `calculation_snapshots` | The exact pricing result and the configuration versions used |
 | `order_facts`, `order_fact_jobs` | What Billing knows about an order — number, branch, customer, revision, status, and its garment jobs with their cancellations — written only by the consumers of Orders' events, never by reading Orders' tables (ARCH-010) |
-| `invoices`, `invoice_lines`, `invoice_line_surcharges`, `invoice_tax_components` | Draft to posted; posted rows never updated; a garment job charged on at most one live invoice |
-| `invoice_cancellations`, `credit_notes`, `debit_notes` | Appended compensating records |
-| `document_sequences` | The per-branch, per-financial-year number series, allocated through Platform's `ISequenceAllocator` |
+| `invoices`, `invoice_lines`, `invoice_line_surcharges`, `invoice_tax_components` | Draft to posted; posted rows never updated or deleted, at the database; a garment job charged on at most one live invoice; the number, the financial year and the `I-` barcode payload drawn at posting |
+| `invoice_cancellations` | The record a cancellation appends, from which the displayed status derives; the invoice keeps its number and totals, and its garment jobs are freed for another invoice. Append-only |
+| `adjustment_notes`, `adjustment_note_lines`, `adjustment_note_taxes` | Credit and debit notes against posted invoices, numbered from their own sequences, per line at the invoice line's rates. Append-only |
 | `document_artifacts` | Rendered PDFs under `documents/` with version and checksum |
 | `payment_modes`, `payments`, `payment_allocations`, `advances`, `refunds` | Append-only money movement and its application |
 | `receipts` | Numbered acknowledgements carrying an `R-…` barcode |

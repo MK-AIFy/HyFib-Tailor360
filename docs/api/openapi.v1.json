@@ -184,6 +184,135 @@
         ],
         "type": "object"
       },
+      "AdjustmentNoteLinePayload": {
+        "properties": {
+          "garmentJobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lineNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "lineTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxableValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxes": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceTaxComponentPayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "lineNumber",
+          "garmentJobId",
+          "taxableValue",
+          "taxes",
+          "taxTotal",
+          "lineTotal"
+        ],
+        "type": "object"
+      },
+      "AdjustmentNoteLineRequestPayload": {
+        "properties": {
+          "garmentJobId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "taxableValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "garmentJobId",
+          "taxableValue"
+        ],
+        "type": "object"
+      },
+      "AdjustmentNotePayload": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/AdjustmentNoteLinePayload"
+            },
+            "type": "array"
+          },
+          "noteId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "postedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/InvoiceTotalsPayload"
+          }
+        },
+        "required": [
+          "noteId",
+          "invoiceId",
+          "kind",
+          "number",
+          "reason",
+          "currency",
+          "lines",
+          "totals",
+          "postedAt"
+        ],
+        "type": "object"
+      },
       "AntiForgeryTokenResponse": {
         "properties": {
           "headerName": {
@@ -3195,6 +3324,32 @@
         ],
         "type": "object"
       },
+      "InvoiceCancellationPayload": {
+        "properties": {
+          "cancellationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "creditNoteId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cancellationId",
+          "creditNoteId",
+          "reason",
+          "cancelledAt"
+        ],
+        "type": "object"
+      },
       "InvoiceCustomerPayload": {
         "properties": {
           "addressLine": {
@@ -3456,12 +3611,31 @@
       },
       "InvoicePayload": {
         "properties": {
+          "barcodePayload": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "branchId": {
             "format": "uuid",
             "type": "string"
           },
           "calculation": {
             "$ref": "#/components/schemas/InvoiceCalculationPayload"
+          },
+          "cancellation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InvoiceCancellationPayload"
+              }
+            ]
+          },
+          "cancelled": {
+            "type": "boolean"
           },
           "createdAt": {
             "format": "date-time",
@@ -3490,13 +3664,31 @@
               "string"
             ]
           },
+          "financialYear": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "invoiceId": {
             "format": "uuid",
             "type": "string"
           },
+          "invoiceNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/InvoiceLinePayload"
+            },
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/AdjustmentNotePayload"
             },
             "type": "array"
           },
@@ -3506,6 +3698,28 @@
           },
           "orderNumber": {
             "type": "string"
+          },
+          "orderRevisionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "postedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postedOn": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "revision": {
             "format": "int32",
@@ -3542,12 +3756,24 @@
           "createdAt",
           "updatedAt",
           "discardedAt",
-          "discardReason"
+          "discardReason",
+          "orderRevisionNumber",
+          "invoiceNumber",
+          "barcodePayload",
+          "financialYear",
+          "postedOn",
+          "postedAt",
+          "cancelled",
+          "cancellation",
+          "notes"
         ],
         "type": "object"
       },
       "InvoiceSummaryPayload": {
         "properties": {
+          "cancelled": {
+            "type": "boolean"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -3570,6 +3796,12 @@
           "invoiceId": {
             "format": "uuid",
             "type": "string"
+          },
+          "invoiceNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "orderId": {
             "format": "uuid",
@@ -3595,7 +3827,9 @@
           "customerDisplayName",
           "grandTotal",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "invoiceNumber",
+          "cancelled"
         ],
         "type": "object"
       },
@@ -4829,6 +5063,30 @@
           "requiresMfa",
           "requiresStepUp",
           "requiresReason"
+        ],
+        "type": "object"
+      },
+      "PostAdjustmentNoteRequest": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/AdjustmentNoteLineRequestPayload"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "lines",
+          "reason"
         ],
         "type": "object"
       },
@@ -12543,6 +12801,342 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/billing/invoices/{invoiceId}/cancel": {
+      "post": {
+        "description": "Appends the cancellation and posts a credit note relieving the whole amount, in one transaction; the invoice keeps its number, its lines and its totals, and its displayed status becomes cancelled. Within the configured cancellation window where one is set. A reason is recorded, and the session must have re-authenticated recently. No If-Match: nothing on the invoice's row moves, so the row is locked and re-read in the transaction instead. The invoice's garment jobs are free to be invoiced again.",
+        "operationId": "CancelInvoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Issued to the wrong customer; re-invoiced as INV-MAIN-2627-000012."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BillingReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Cancel a posted invoice by its compensating record.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.cancelled",
+        "x-tailor360-authorisation": "permission:billing.cancel_invoice",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}/credit-notes": {
+      "post": {
+        "description": "Per line: each line names a garment job of the invoice and the taxable value relieved, taxed at that line's own rates and rounded once per component; a line is relieved at most to what it still carries. Numbered from the credit-note sequence, posted once, immutable.",
+        "operationId": "PostCreditNote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "lines": [
+                  {
+                    "garmentJobId": "0199c000-0000-7000-8000-000000000031",
+                    "taxableValue": 90.00
+                  }
+                ],
+                "reason": "Lining charged twice."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PostAdjustmentNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdjustmentNotePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Post a credit note against a posted invoice.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.credit_note.posted",
+        "x-tailor360-authorisation": "permission:billing.post_credit_note",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}/debit-notes": {
+      "post": {
+        "description": "Per line, as a credit note, adding to what the customer owes. The same permission as a credit note: both are the compensating documents a posted invoice is corrected by.",
+        "operationId": "PostDebitNote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "lines": [
+                  {
+                    "garmentJobId": "0199c000-0000-7000-8000-000000000031",
+                    "taxableValue": 50.00
+                  }
+                ],
+                "reason": "Express finishing agreed at collection."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PostAdjustmentNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdjustmentNotePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Post a debit note against a posted invoice.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.debit_note.posted",
+        "x-tailor360-authorisation": "permission:billing.post_credit_note",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/billing/invoices/{invoiceId}/discard": {
       "post": {
         "description": "A reason is recorded. A posted invoice is never discarded; it is cancelled by its compensating record.",
@@ -12662,6 +13256,128 @@
         ],
         "x-tailor360-audit": "billing.invoice.discarded",
         "x-tailor360-authorisation": "permission:billing.update_invoice",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}/post": {
+      "post": {
+        "description": "The draft's figures are recomputed from the calculation it was drafted from and must match; the number is drawn under the sequence lock in the transaction that freezes the row, so two posts at one branch are numbered one after the other and a post that fails returns its number. A replay of the same Idempotency-Key answers the original. After posting, nothing about the invoice changes: it is cancelled by its compensating record.",
+        "operationId": "PostInvoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": null
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BillingReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Post a draft: number it, mint its barcode and freeze it.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.posted",
+        "x-tailor360-authorisation": "permission:billing.post_invoice",
         "x-tailor360-rate-limit": "write"
       }
     },

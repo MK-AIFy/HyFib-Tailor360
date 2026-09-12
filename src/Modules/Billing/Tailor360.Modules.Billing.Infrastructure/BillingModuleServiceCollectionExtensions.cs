@@ -56,6 +56,8 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<IPricingService>(provider => provider.GetRequiredService<PricingService>());
         services.TryAddScoped<IOrderFactStore, OrderFactStore>();
         services.TryAddScoped<IInvoiceStore, InvoiceStore>();
+        services.TryAddScoped<IBillingEventPublisher, BillingEventPublisher>();
+        services.Configure<InvoiceOptions>(configuration.GetSection(InvoiceOptions.SectionName));
         services.TryAddScoped<OrderFactProjector>();
         services.TryAddScoped<InvoiceHandler>();
 

@@ -345,6 +345,70 @@ public static class BillingErrors
         "billing.invoice-changed",
         "The invoice changed since it was read. Reload it and try again.");
 
+    /// <summary>The invoice is a draft or discarded, and the command needs a posted one.</summary>
+    public static readonly Error InvoiceNotPosted = Error.Conflict(
+        "billing.invoice-not-posted",
+        "Only a posted invoice is cancelled or corrected by a note. Post it first, or discard the draft.");
+
+    /// <summary>The invoice has already been cancelled.</summary>
+    public static readonly Error InvoiceAlreadyCancelled = Error.Conflict(
+        "billing.invoice-already-cancelled",
+        "The invoice has already been cancelled, and its credit note posted. Nothing more is done to it.");
+
+    /// <summary>The cancellation window has closed.</summary>
+    public static readonly Error CancellationWindowClosed = Error.Conflict(
+        "billing.cancellation-window-closed",
+        "The invoice was posted too long ago to be cancelled. Post a credit note against it instead.");
+
+    /// <summary>The order was revised since the draft was made or last re-priced.</summary>
+    public static readonly Error OrderRevisedSinceDraft = Error.Conflict(
+        "billing.order-revised-since-draft",
+        "The order was revised after this draft was made. Re-price the draft against the order as it now stands "
+        + "before posting it.");
+
+    /// <summary>The draft's figures no longer match the calculation it was drafted from.</summary>
+    public static readonly Error TotalsMismatch = Error.Conflict(
+        "billing.totals-mismatch",
+        "The draft's totals do not match the calculation stored for it. Re-price the draft before posting it.");
+
+    /// <summary>The branch the invoice belongs to is not in the register.</summary>
+    public static readonly Error BranchNotKnown = Error.Conflict(
+        "billing.branch-not-known",
+        "The invoice's branch is not in the branch register, so no number can be drawn for it.");
+
+    /// <summary>A branch code is not as the register writes it.</summary>
+    public static readonly Error BranchCodeNotWellFormed = Error.Validation(
+        "billing.branch-code-not-well-formed",
+        "A branch code is upper-case letters and digits, at most sixteen of them.",
+        "branchCode");
+
+    /// <summary>A running number below one.</summary>
+    public static readonly Error SequenceOutOfRange = Error.Validation(
+        "billing.sequence-out-of-range",
+        "A document's running number starts at one.",
+        "sequence");
+
+    /// <summary>A note line names a garment job that is no line of the invoice.</summary>
+    /// <param name="field">The line.</param>
+    public static Error NoteLineNotOnInvoice(string field) => Error.Validation(
+        "billing.note-line-not-on-invoice",
+        "A note moves value on a line of the invoice, and this line names a garment job the invoice does not charge for.",
+        field);
+
+    /// <summary>A note line's value is not positive to the paisa.</summary>
+    /// <param name="field">The value.</param>
+    public static Error NoteValueNotWellFormed(string field) => Error.Validation(
+        "billing.note-value-not-well-formed",
+        "A note line's taxable value is a positive amount to the paisa.",
+        field);
+
+    /// <summary>A credit note would relieve more than the line still carries.</summary>
+    /// <param name="field">The value.</param>
+    public static Error NoteExceedsLine(string field) => Error.Validation(
+        "billing.note-exceeds-line",
+        "A credit note relieves at most what the invoice line still carries after the credit notes already posted.",
+        field);
+
     /// <summary>A calculation was already stored under the reference.</summary>
     public static readonly Error SnapshotExists = Error.Conflict(
         "billing.snapshot-exists",

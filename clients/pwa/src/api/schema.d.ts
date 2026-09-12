@@ -828,6 +828,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/invoices/{invoiceId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a posted invoice by its compensating record.
+         * @description Appends the cancellation and posts a credit note relieving the whole amount, in one transaction; the invoice keeps its number, its lines and its totals, and its displayed status becomes cancelled. Within the configured cancellation window where one is set. A reason is recorded, and the session must have re-authenticated recently. No If-Match: nothing on the invoice's row moves, so the row is locked and re-read in the transaction instead. The invoice's garment jobs are free to be invoiced again.
+         */
+        post: operations["CancelInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/credit-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a credit note against a posted invoice.
+         * @description Per line: each line names a garment job of the invoice and the taxable value relieved, taxed at that line's own rates and rounded once per component; a line is relieved at most to what it still carries. Numbered from the credit-note sequence, posted once, immutable.
+         */
+        post: operations["PostCreditNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/debit-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a debit note against a posted invoice.
+         * @description Per line, as a credit note, adding to what the customer owes. The same permission as a credit note: both are the compensating documents a posted invoice is corrected by.
+         */
+        post: operations["PostDebitNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/invoices/{invoiceId}/discard": {
         parameters: {
             query?: never;
@@ -842,6 +902,26 @@ export interface paths {
          * @description A reason is recorded. A posted invoice is never discarded; it is cancelled by its compensating record.
          */
         post: operations["DiscardInvoiceDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a draft: number it, mint its barcode and freeze it.
+         * @description The draft's figures are recomputed from the calculation it was drafted from and must match; the number is drawn under the sequence lock in the transaction that freezes the row, so two posts at one branch are numbered one after the other and a post that fails returns its number. A replay of the same Idempotency-Key answers the original. After posting, nothing about the invoice changes: it is cancelled by its compensating record.
+         */
+        post: operations["PostInvoice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2522,6 +2602,39 @@ export interface components {
             /** Format: int32 */
             unusedRecoveryCodes: number | string;
         };
+        AdjustmentNoteLinePayload: {
+            /** Format: uuid */
+            garmentJobId: string;
+            /** Format: int32 */
+            lineNumber: number | string;
+            /** Format: double */
+            lineTotal: number | string;
+            /** Format: double */
+            taxTotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+            taxes: components["schemas"]["InvoiceTaxComponentPayload"][];
+        };
+        AdjustmentNoteLineRequestPayload: {
+            /** Format: uuid */
+            garmentJobId: null | string;
+            /** Format: double */
+            taxableValue: null | number | string;
+        };
+        AdjustmentNotePayload: {
+            currency: string;
+            /** Format: uuid */
+            invoiceId: string;
+            kind: string;
+            lines: components["schemas"]["AdjustmentNoteLinePayload"][];
+            /** Format: uuid */
+            noteId: string;
+            number: string;
+            /** Format: date-time */
+            postedAt: string;
+            reason: string;
+            totals: components["schemas"]["InvoiceTotalsPayload"];
+        };
         AntiForgeryTokenResponse: {
             headerName: string;
             token: string;
@@ -3186,6 +3299,15 @@ export interface components {
             taxConfigurationVersionId: string;
             taxInclusive: boolean;
         };
+        InvoiceCancellationPayload: {
+            /** Format: uuid */
+            cancellationId: string;
+            /** Format: date-time */
+            cancelledAt: string;
+            /** Format: uuid */
+            creditNoteId: string;
+            reason: string;
+        };
         InvoiceCustomerPayload: {
             addressLine: null | string;
             customerNumber: string;
@@ -3243,9 +3365,12 @@ export interface components {
             nextCursor: null | string;
         };
         InvoicePayload: {
+            barcodePayload: null | string;
             /** Format: uuid */
             branchId: string;
             calculation: components["schemas"]["InvoiceCalculationPayload"];
+            cancellation: null | components["schemas"]["InvoiceCancellationPayload"];
+            cancelled: boolean;
             /** Format: date-time */
             createdAt: string;
             currency: string;
@@ -3255,12 +3380,21 @@ export interface components {
             discardReason: null | string;
             /** Format: date-time */
             discardedAt: null | string;
+            financialYear: null | string;
             /** Format: uuid */
             invoiceId: string;
+            invoiceNumber: null | string;
             lines: components["schemas"]["InvoiceLinePayload"][];
+            notes: components["schemas"]["AdjustmentNotePayload"][];
             /** Format: uuid */
             orderId: string;
             orderNumber: string;
+            /** Format: int32 */
+            orderRevisionNumber: number | string;
+            /** Format: date-time */
+            postedAt: null | string;
+            /** Format: date */
+            postedOn: null | string;
             /** Format: int32 */
             revision: number | string;
             status: string;
@@ -3269,6 +3403,7 @@ export interface components {
             updatedAt: string;
         };
         InvoiceSummaryPayload: {
+            cancelled: boolean;
             /** Format: date-time */
             createdAt: string;
             customerDisplayName: string;
@@ -3278,6 +3413,7 @@ export interface components {
             grandTotal: number | string;
             /** Format: uuid */
             invoiceId: string;
+            invoiceNumber: null | string;
             /** Format: uuid */
             orderId: string;
             orderNumber: string;
@@ -3589,6 +3725,10 @@ export interface components {
             requiresReason: boolean;
             requiresStepUp: boolean;
             scope: string;
+        };
+        PostAdjustmentNoteRequest: {
+            lines: null | components["schemas"]["AdjustmentNoteLineRequestPayload"][];
+            reason: null | string;
         };
         PreferencesPayload: {
             density: string;
@@ -7157,6 +7297,213 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    CancelInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Issued to the wrong customer; re-invoiced as INV-MAIN-2627-000012."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PostCreditNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "lines": [
+                 *         {
+                 *           "garmentJobId": "0199c000-0000-7000-8000-000000000031",
+                 *           "taxableValue": 90
+                 *         }
+                 *       ],
+                 *       "reason": "Lining charged twice."
+                 *     }
+                 */
+                "application/json": components["schemas"]["PostAdjustmentNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdjustmentNotePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PostDebitNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "lines": [
+                 *         {
+                 *           "garmentJobId": "0199c000-0000-7000-8000-000000000031",
+                 *           "taxableValue": 50
+                 *         }
+                 *       ],
+                 *       "reason": "Express finishing agreed at collection."
+                 *     }
+                 */
+                "application/json": components["schemas"]["PostAdjustmentNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdjustmentNotePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     DiscardInvoiceDraft: {
         parameters: {
             query?: never;
@@ -7171,6 +7518,80 @@ export interface operations {
                 /**
                  * @example {
                  *       "reason": "Drafted against the wrong order."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PostInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": null
                  *     }
                  */
                 "application/json": null | components["schemas"]["BillingReasonRequest"];
