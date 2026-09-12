@@ -32,6 +32,9 @@ internal static class BillingAudit
     /// <summary>A payment, with its allocations and its advance.</summary>
     public const string PaymentEntity = "billing.payment";
 
+    /// <summary>A receipt.</summary>
+    public const string ReceiptEntity = "billing.receipt";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,

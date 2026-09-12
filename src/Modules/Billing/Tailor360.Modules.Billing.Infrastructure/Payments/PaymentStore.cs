@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Domain;
@@ -6,11 +7,12 @@ using Tailor360.Modules.Billing.Domain.Payments;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Abstractions.Results;
+using Tailor360.Platform.Persistence.Sequencing;
 
 namespace Tailor360.Modules.Billing.Infrastructure.Payments;
 
 /// <summary>EF Core persistence for <see cref="Payment"/>, its allocations and its advance.</summary>
-public sealed class PaymentStore(BillingDbContext context) : IPaymentStore
+public sealed class PaymentStore(BillingDbContext context, ITransactionalSequenceAllocator sequences) : IPaymentStore
 {
     /// <inheritdoc />
     public Task<Payment?> FindAsync(Guid paymentId, Guid organisationId, CancellationToken cancellationToken = default)
@@ -61,6 +63,30 @@ public sealed class PaymentStore(BillingDbContext context) : IPaymentStore
 
     /// <inheritdoc />
     public void Add(Payment payment) => context.Payments.Add(payment);
+
+    /// <inheritdoc />
+    public void AddReceipt(Receipt receipt) => context.Receipts.Add(receipt);
+
+    /// <inheritdoc />
+    public Task<Receipt?> FindReceiptAsync(Guid receiptId, Guid organisationId, CancellationToken cancellationToken = default)
+        => context.Receipts.SingleOrDefaultAsync(receipt => receipt.Id == receiptId && receipt.OrganisationId == organisationId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<Receipt?> FindReceiptForPaymentAsync(Guid paymentId, Guid organisationId, CancellationToken cancellationToken = default)
+        => context.Receipts.SingleOrDefaultAsync(receipt => receipt.PaymentId == paymentId && receipt.OrganisationId == organisationId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<Receipt?> FindReceiptByBarcodeAsync(string barcodePayload, Guid organisationId, CancellationToken cancellationToken = default)
+        => context.Receipts.SingleOrDefaultAsync(receipt => receipt.BarcodePayload == barcodePayload && receipt.OrganisationId == organisationId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<long> AllocateAsync(string sequenceKey, string scope, CancellationToken cancellationToken = default)
+    {
+        var transaction = context.Database.CurrentTransaction
+            ?? throw new InvalidOperationException("A receipt number is drawn inside the transaction that records the payment.");
+
+        return sequences.NextAsync(sequenceKey, scope, transaction.GetDbTransaction(), cancellationToken);
+    }
 
     /// <inheritdoc />
     public Task LockOrderInvoicesAsync(Guid orderId, CancellationToken cancellationToken = default)
@@ -170,6 +196,17 @@ public sealed class PaymentStore(BillingDbContext context) : IPaymentStore
         {
             // The request's twin got in first, past the idempotency record: the row's own guard.
             return Result.Failure(BillingErrors.PaymentDuplicated);
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: BillingDbContext.OneReceiptPerNumberIndex or BillingDbContext.OneReceiptPerBarcodeIndex or BillingDbContext.OneReceiptPerPaymentIndex,
+            })
+        {
+            // Unreachable while the sequence row is held and the payload is minted per command; answered
+            // as a conflict rather than a five hundred if it ever is.
+            return Result.Failure(BillingErrors.ReceiptNumberTaken);
         }
     }
 

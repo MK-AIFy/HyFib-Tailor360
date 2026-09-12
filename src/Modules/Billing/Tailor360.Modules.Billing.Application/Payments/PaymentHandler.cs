@@ -3,7 +3,9 @@ using Tailor360.Modules.Billing.Contracts.Events;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Invoicing;
 using Tailor360.Modules.Billing.Domain.Payments;
+using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
+using Tailor360.Platform.Abstractions.Barcodes;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Abstractions.Results;
@@ -22,6 +24,7 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 /// <param name="orders">What Billing knows about the order.</param>
 /// <param name="sessions">The cashier's open session.</param>
 /// <param name="modes">The modes the branch takes money in.</param>
+/// <param name="branches">The branch register, for the code and the calendar the receipt number is drawn in.</param>
 /// <param name="events">Billing's outbox.</param>
 /// <param name="audit">The audit trail.</param>
 /// <param name="clock">The clock.</param>
@@ -32,6 +35,7 @@ public sealed class PaymentHandler(
     IOrderFactStore orders,
     ICashierSessionStore sessions,
     IPaymentModeStore modes,
+    IBranchDirectory branches,
     IBillingEventPublisher events,
     IAuditWriter audit,
     IClock clock,
@@ -52,7 +56,7 @@ public sealed class PaymentHandler(
     /// rather than as a missing session; the checks are then repeated inside the transaction over what
     /// is held, because a close, a cancellation or a rival payment may land between the two.
     /// </summary>
-    public async Task<Result<Payment>> RecordAsync(RecordPaymentCommand command, CancellationToken cancellationToken = default)
+    public async Task<Result<RecordedPayment>> RecordAsync(RecordPaymentCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
@@ -61,32 +65,42 @@ public sealed class PaymentHandler(
         var valid = Payment.Validate(modeCode, amount, command.Reference);
         if (valid.IsFailure)
         {
-            return Result.Failure<Payment>(valid.Error);
+            return Result.Failure<RecordedPayment>(valid.Error);
         }
 
         var checkedMode = await CheckModeAsync(modeCode, command.BranchId, command.OrganisationId, command.Reference, cancellationToken);
         if (checkedMode.IsFailure)
         {
-            return Result.Failure<Payment>(checkedMode.Error);
+            return Result.Failure<RecordedPayment>(checkedMode.Error);
         }
 
         var order = await orders.FindAsync(command.OrderId, command.OrganisationId, cancellationToken);
         var checkedOrder = CheckOrder(order, command.BranchId);
         if (checkedOrder.IsFailure)
         {
-            return Result.Failure<Payment>(checkedOrder.Error);
+            return Result.Failure<RecordedPayment>(checkedOrder.Error);
         }
 
         var session = await sessions.FindOpenAsync(command.BranchId, command.CashierId, command.OrganisationId, cancellationToken);
         if (session is null)
         {
-            return Result.Failure<Payment>(BillingErrors.CashierSessionRequired);
+            return Result.Failure<RecordedPayment>(BillingErrors.CashierSessionRequired);
         }
+
+        var branch = await BranchAsync(command.BranchId, command.OrganisationId, cancellationToken);
+        if (branch.IsFailure)
+        {
+            return Result.Failure<RecordedPayment>(branch.Error);
+        }
+
+        var (branchCode, timeZone) = branch.Value;
 
         // Minted once per command rather than per attempt: it is how a commit whose outcome the connection
         // lost is told apart from money that was never recorded.
         var paymentId = ids.NewId();
         var advanceId = ids.NewId();
+        var receiptId = ids.NewId();
+        var receiptBarcode = BarcodePayload.Mint(BarcodePayload.ReceiptNamespace).Value;
         var recorded = await payments.InAllocationTransactionAsync(
             command.OrderId,
             async token =>
@@ -97,7 +111,7 @@ public sealed class PaymentHandler(
                 var held = await sessions.FindAsync(session.Id, command.OrganisationId, token);
                 if (held is null || !held.IsOpen)
                 {
-                    return Result.Failure<Payment>(BillingErrors.CashierSessionRequired);
+                    return Result.Failure<RecordedPayment>(BillingErrors.CashierSessionRequired);
                 }
 
                 await orders.LockForReadAsync(command.OrderId, token);
@@ -105,7 +119,7 @@ public sealed class PaymentHandler(
                 var stillOpen = CheckOrder(current, command.BranchId);
                 if (stillOpen.IsFailure)
                 {
-                    return Result.Failure<Payment>(stillOpen.Error);
+                    return Result.Failure<RecordedPayment>(stillOpen.Error);
                 }
 
                 var posted = await invoices.ListPostedForOrderAsync(command.OrderId, command.OrganisationId, token);
@@ -118,7 +132,7 @@ public sealed class PaymentHandler(
                     modeCode, amount, command.Reference, command.ClientKey, now, command.By);
                 if (created.IsFailure)
                 {
-                    return Result.Failure<Payment>(created.Error);
+                    return Result.Failure<RecordedPayment>(created.Error);
                 }
 
                 var payment = created.Value;
@@ -126,7 +140,7 @@ public sealed class PaymentHandler(
                     balances.Select(balance => (balance.Before.InvoiceId, balance.Before.Outstanding)).ToList(), ids.NewId, advanceId, now, command.By);
                 if (applied.IsFailure)
                 {
-                    return Result.Failure<Payment>(applied.Error);
+                    return Result.Failure<RecordedPayment>(applied.Error);
                 }
 
                 payments.Add(payment);
@@ -147,8 +161,29 @@ public sealed class PaymentHandler(
                         advance.Amount.Amount, advance.Amount.Currency));
                 }
 
+                // The receipt, issued with the payment (the T4 boundary): its number drawn under the sequence
+                // row's lock in this transaction, so a refused payment burns none, and the figures the customer
+                // is handed frozen as they stand at this instant.
+                var issuedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime);
+                var financialYear = DocumentNumbers.FinancialYearToken(issuedOn);
+                var sequence = await payments.AllocateAsync(DocumentNumbers.ReceiptSequence, DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear), token);
+                var number = DocumentNumbers.Compose(DocumentNumbers.ReceiptPrefix, branchCode, financialYear, sequence);
+                if (number.IsFailure)
+                {
+                    return Result.Failure<RecordedPayment>(number.Error);
+                }
+
+                var outstanding = balances.Aggregate(Money.Zero, (sum, balance) => sum + balance.Before.Outstanding) - payment.Allocated;
+                var receipt = Receipt.Issue(receiptId, payment, number.Value, receiptBarcode, financialYear, issuedOn, outstanding, now, command.By);
+                if (receipt.IsFailure)
+                {
+                    return Result.Failure<RecordedPayment>(receipt.Error);
+                }
+
+                payments.AddReceipt(receipt.Value);
+
                 var saved = await payments.SaveAsync(token);
-                return saved.IsFailure ? Result.Failure<Payment>(saved.Error) : Result.Success(payment);
+                return saved.IsFailure ? Result.Failure<RecordedPayment>(saved.Error) : Result.Success(new RecordedPayment(payment, receipt.Value));
             },
             async token => await payments.FindAsync(paymentId, command.OrganisationId, token) is not null,
             cancellationToken);
@@ -159,12 +194,12 @@ public sealed class PaymentHandler(
 
         // No amount and no reference in the summary or the snapshot: the trail is read by more people than
         // the drawer is, and the reference is the terminal's, not ours to spread.
-        var recordedPayment = recorded.Value;
+        var recordedPayment = recorded.Value.Payment;
         await BillingAudit.RecordAsync(
             audit, RecordedAction, BillingAudit.PaymentEntity, recordedPayment.Id,
             recordedPayment.Advance is null
-                ? $"Payment recorded in {recordedPayment.ModeCode} against order {order!.OrderNumber}; allocated to {recordedPayment.Allocations.Count} invoice(s)."
-                : $"Payment recorded in {recordedPayment.ModeCode} against order {order!.OrderNumber}; allocated to {recordedPayment.Allocations.Count} invoice(s), the rest held as an advance.",
+                ? $"Payment recorded in {recordedPayment.ModeCode} against order {order!.OrderNumber}; allocated to {recordedPayment.Allocations.Count} invoice(s); receipt {recorded.Value.Receipt.ReceiptNumber} issued."
+                : $"Payment recorded in {recordedPayment.ModeCode} against order {order!.OrderNumber}; allocated to {recordedPayment.Allocations.Count} invoice(s), the rest held as an advance; receipt {recorded.Value.Receipt.ReceiptNumber} issued.",
             null, null, PaymentSnapshot.Of(recordedPayment), cancellationToken);
 
         return recorded;
@@ -333,6 +368,23 @@ public sealed class PaymentHandler(
         }
     }
 
+    private async Task<Result<(string BranchCode, TimeZoneInfo TimeZone)>> BranchAsync(Guid branchId, Guid organisationId, CancellationToken cancellationToken)
+    {
+        var branch = await branches.FindAsync(branchId, cancellationToken);
+        if (branch is null || branch.OrganisationId != organisationId)
+        {
+            return Result.Failure<(string, TimeZoneInfo)>(BillingErrors.BranchNotKnown);
+        }
+
+        var code = DocumentNumbers.NormaliseBranchCode(branch.Code);
+        if (code.IsFailure)
+        {
+            return Result.Failure<(string, TimeZoneInfo)>(code.Error);
+        }
+
+        return Result.Success((code.Value, TimeZoneInfo.FindSystemTimeZoneById(branch.TimeZoneId)));
+    }
+
     private async Task<Result> CheckModeAsync(string modeCode, Guid branchId, Guid organisationId, string? reference, CancellationToken cancellationToken)
     {
         var mode = (await modes.ListAsync(organisationId, cancellationToken)).FirstOrDefault(candidate => string.Equals(candidate.Code, modeCode, StringComparison.Ordinal));
@@ -422,6 +474,11 @@ public sealed record RecordPaymentCommand(
     string? Reference,
     string? ClientKey,
     Guid By);
+
+/// <summary>A payment as recorded, with the receipt issued for it in the same transaction.</summary>
+/// <param name="Payment">The payment, allocated.</param>
+/// <param name="Receipt">Its receipt.</param>
+public sealed record RecordedPayment(Payment Payment, Receipt Receipt);
 
 /// <summary>Apply a held advance by hand.</summary>
 /// <param name="PaymentId">The payment holding the advance.</param>

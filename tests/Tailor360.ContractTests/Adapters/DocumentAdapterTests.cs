@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -39,10 +40,57 @@ public sealed class DocumentAdapterTests
         note.Length.ShouldBeGreaterThan(1000);
 
         using var destination = new MemoryStream();
-        var refused = await renderer.RenderAsync("billing.receipt", model, destination, Token);
+        var refused = await renderer.RenderAsync("billing.estimate", model, destination, Token);
         refused.IsFailure.ShouldBeTrue();
         refused.Error.Code.ShouldBe("integration.template-not-known");
     }
+
+    [Fact]
+    public async Task RendersTheReceiptOnTheRollDeterministicallyWithItsFiguresAndBarcode()
+    {
+        var renderer = new QuestPdfRenderer();
+        var model = ReceiptModel("RCPT-MAIN-2627-000001");
+
+        var first = await RenderAsync(renderer, QuestPdfRenderer.ReceiptTemplate, model);
+        var second = await RenderAsync(renderer, QuestPdfRenderer.ReceiptTemplate, model);
+        var other = await RenderAsync(renderer, QuestPdfRenderer.ReceiptTemplate, ReceiptModel("RCPT-MAIN-2627-000002"));
+
+        first.Length.ShouldBeGreaterThan(500);
+        first[..5].ShouldBe("%PDF-"u8.ToArray());
+        Convert.ToHexStringLower(SHA256.HashData(first)).ShouldBe(Convert.ToHexStringLower(SHA256.HashData(second)), "a rendering is deterministic for its model");
+        Convert.ToHexStringLower(SHA256.HashData(other)).ShouldNotBe(Convert.ToHexStringLower(SHA256.HashData(first)));
+
+        // The roll: one page, 80 mm wide, whatever its length; the MediaBox says so in points (80 mm is 226.77 pt).
+        var text = System.Text.Encoding.Latin1.GetString(first);
+        var box = System.Text.RegularExpressions.Regex.Match(text, @"/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+[0-9.]+\s*\]");
+        box.Success.ShouldBeTrue(text[..Math.Min(text.Length, 1500)]);
+        decimal.Parse(box.Groups[1].Value, CultureInfo.InvariantCulture).ShouldBe(226.77m, 0.1m);
+        text.ShouldContain("/Count 1");
+    }
+
+    private static Dictionary<string, object?> ReceiptModel(string number) => new(StringComparer.Ordinal)
+    {
+        ["kind"] = "Receipt",
+        ["number"] = number,
+        ["issuedOn"] = "12-09-2026",
+        ["financialYear"] = "2627",
+        ["renderedAt"] = "2026-09-12T04:30:00.0000000+00:00",
+        ["currency"] = "INR",
+        ["barcodePayload"] = "R-7K3M9QW2XZ4B",
+        ["branchName"] = "Main branch",
+        ["orderNumber"] = "O-MAIN-2627-000001",
+        ["modeCode"] = "UPI",
+        ["modeName"] = "UPI",
+        ["reference"] = "UPI-426114-8QX2",
+        ["amount"] = 1000m,
+        ["allocated"] = 567m,
+        ["unappliedAdvance"] = 433m,
+        ["orderOutstanding"] = 0m,
+        ["allocations"] = new List<object?>
+        {
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["invoiceNumber"] = "INV-MAIN-2627-000001", ["amount"] = 567m },
+        },
+    };
 
     [Fact]
     public async Task DrawsCode128ThatCarriesThePayloadAndRefusesAnotherSymbology()

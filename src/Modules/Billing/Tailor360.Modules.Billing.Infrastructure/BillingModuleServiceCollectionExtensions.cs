@@ -101,6 +101,7 @@ public static class BillingModuleServiceCollectionExtensions
         services.AddScoped<IOutboxMessageHandler, InvoicePostedArtifactHandler>();
         services.AddScoped<IOutboxMessageHandler, CreditNotePostedArtifactHandler>();
         services.AddScoped<IOutboxMessageHandler, DebitNotePostedArtifactHandler>();
+        services.AddScoped<IOutboxMessageHandler, PaymentRecordedArtifactHandler>();
 
         // The rule that applies an order's held advances to the invoice it just posted (INV-PAY-05).
         services.AddScoped<IOutboxMessageHandler, InvoicePostedAdvanceHandler>();
@@ -110,6 +111,7 @@ public static class BillingModuleServiceCollectionExtensions
         services.AddScoped<IResourceScopeResolver, CashierSessionScopeResolver>();
         services.AddScoped<IResourceScopeResolver, PaymentScopeResolver>();
         services.AddScoped<IResourceScopeResolver, OrderFactScopeResolver>();
+        services.AddScoped<IResourceScopeResolver, ReceiptScopeResolver>();
 
         // Link 4 of the catalogue's service types and design options — the price-list item code — is
         // answered here. Enumerable, not TryAdd: every module that owns something a service type links

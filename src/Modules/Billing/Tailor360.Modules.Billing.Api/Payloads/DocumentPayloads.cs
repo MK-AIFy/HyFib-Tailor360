@@ -38,6 +38,10 @@ public sealed record BarcodeResolutionPayload(
 /// <param name="Copies">How many copies, one to five; one when omitted.</param>
 public sealed record PrintInvoiceRequest(int? Copies);
 
+/// <summary>Send a rendered receipt to the branch's print queue, on the receipt roll.</summary>
+/// <param name="Copies">How many copies, one to five; one when omitted.</param>
+public sealed record PrintReceiptRequest(int? Copies);
+
 /// <summary>The print job the queue acknowledged.</summary>
 /// <param name="PrintJobId">The job's identifier.</param>
 public sealed record PrintJobPayload(Guid PrintJobId);

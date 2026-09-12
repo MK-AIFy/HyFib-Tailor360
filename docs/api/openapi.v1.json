@@ -5817,6 +5817,16 @@
             "format": "uuid",
             "type": "string"
           },
+          "receipt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReceiptPayload"
+              }
+            ]
+          },
           "recordedAt": {
             "format": "date-time",
             "type": "string"
@@ -5863,7 +5873,8 @@
           "allocated",
           "unappliedAdvance",
           "allocations",
-          "advance"
+          "advance",
+          "receipt"
         ],
         "type": "object"
       },
@@ -6935,6 +6946,23 @@
         ],
         "type": "object"
       },
+      "PrintReceiptRequest": {
+        "properties": {
+          "copies": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "copies"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "description": "RFC 9457 problem details. Every failure is reported in this shape, and never as a stack trace, an exception message or a bare status code.",
         "properties": {
@@ -7029,6 +7057,90 @@
         },
         "required": [
           "reason"
+        ],
+        "type": "object"
+      },
+      "ReceiptPayload": {
+        "properties": {
+          "allocated": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "barcodePayload": {
+            "type": "string"
+          },
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "financialYear": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "issuedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "issuedOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "orderOutstanding": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "paymentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "receiptNumber": {
+            "type": "string"
+          },
+          "unappliedAdvance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "paymentId",
+          "branchId",
+          "receiptNumber",
+          "barcodePayload",
+          "financialYear",
+          "issuedOn",
+          "issuedAt",
+          "amount",
+          "allocated",
+          "unappliedAdvance",
+          "orderOutstanding",
+          "currency"
         ],
         "type": "object"
       },
@@ -15282,7 +15394,7 @@
     },
     "/api/v1/billing/payments": {
       "post": {
-        "description": "Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409.",
+        "description": "Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409. The receipt is numbered and issued in the same transaction; its document is rendered by the worker afterwards.",
         "operationId": "RecordPayment",
         "requestBody": {
           "content": {
@@ -15372,7 +15484,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Record a payment against an order in the caller's open cashier session and allocate it at once.",
+        "summary": "Record a payment against an order in the caller's open cashier session, allocate it at once and issue its receipt.",
         "tags": [
           "Billing"
         ],
@@ -17259,6 +17371,240 @@
         ],
         "x-tailor360-audit": "billing.pricing.previewed",
         "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/receipts/barcode/{payload}": {
+      "get": {
+        "description": "For a caller working in the branch that issued the receipt. Another branch's receipt, another organisation's, a payload whose check character does not hold, an I- payload and a payload of nothing all read alike as not found: the lookup confirms the existence of nothing it does not show. Its own route rather than a second answer shape on the invoice lookup, so that route's contract stays as published.",
+        "operationId": "ResolveReceiptBarcode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payload",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Resolve an R- barcode payload to the receipt it was printed on.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.print_receipt",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/receipts/{receiptId}/document": {
+      "get": {
+        "description": "The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is re-authorised in branch scope on every call, and the access is written to the audit trail against the receipt. Not available until the worker has rendered the document.",
+        "operationId": "DownloadReceiptDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receiptId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stream"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Stream the rendered receipt.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.receipt.downloaded",
+        "x-tailor360-authorisation": "permission:billing.print_receipt",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/receipts/{receiptId}/print": {
+      "post": {
+        "description": "Through the print-queue port, one to five copies; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).",
+        "operationId": "PrintReceipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receiptId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "copies": 1
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PrintReceiptRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobPayload"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Send the rendered receipt to the branch's print queue, on the receipt roll.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.receipt.printed",
+        "x-tailor360-authorisation": "permission:billing.print_receipt",
         "x-tailor360-rate-limit": "write"
       }
     },

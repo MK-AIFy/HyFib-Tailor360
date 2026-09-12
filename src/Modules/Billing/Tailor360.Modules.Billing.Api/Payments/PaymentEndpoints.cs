@@ -86,16 +86,17 @@ internal static class PaymentEndpoints
 
                 return result.IsFailure
                     ? Problems.From(result.Error, context)
-                    : Results.Created($"/api/v1/billing/payments/{result.Value.Id}", PaymentPayload.From(result.Value));
+                    : Results.Created($"/api/v1/billing/payments/{result.Value.Payment.Id}", PaymentPayload.From(result.Value.Payment, result.Value.Receipt));
             })
             .Produces<PaymentPayload>(StatusCodes.Status201Created)
             .WithName("RecordPayment")
-            .WithSummary("Record a payment against an order in the caller's open cashier session and allocate it at once.")
+            .WithSummary("Record a payment against an order in the caller's open cashier session, allocate it at once and issue its receipt.")
             .WithDescription(
                 "Refused without an open session (409). The money goes to the order's posted invoices oldest first; what "
                 + "is left is held as an advance and applied when the order posts its next invoice. The mode must be one "
                 + "the branch takes; a mode that requires a reference is refused without one, and a reference that reads "
-                + "as a card number is refused always. The same mode and reference twice is a 409.")
+                + "as a card number is refused always. The same mode and reference twice is a 409. The receipt is numbered "
+                + "and issued in the same transaction; its document is rendered by the worker afterwards.")
             .RequirePermission(BillingPermissions.RecordPayment, BranchScope.CurrentBranch)
             .TouchesNoBranchOwnedResource("The payment is created at the caller's own branch against an order the handler checks is the branch's; there is no resource yet.", "#162")
             .RequireRateLimiting(RateLimitPolicyNames.Write)
@@ -112,10 +113,13 @@ internal static class PaymentEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var payment = await store.FindAsync(paymentId, caller.Context.OrganisationId, cancellationToken);
+                if (payment is null)
+                {
+                    return Problems.From(BillingErrors.PaymentNotFound, context);
+                }
 
-                return payment is null
-                    ? Problems.From(BillingErrors.PaymentNotFound, context)
-                    : Results.Ok(PaymentPayload.From(payment));
+                var receipt = await store.FindReceiptForPaymentAsync(paymentId, caller.Context.OrganisationId, cancellationToken);
+                return Results.Ok(PaymentPayload.From(payment, receipt));
             })
             .Produces<PaymentPayload>(StatusCodes.Status200OK)
             .WithName("GetPayment")
@@ -132,6 +136,7 @@ internal static class PaymentEndpoints
                 AllocateAdvanceRequest? request,
                 HttpContext context,
                 PaymentHandler handler,
+                IPaymentStore store,
                 ICurrentUser caller,
                 CancellationToken cancellationToken) =>
             {
@@ -139,9 +144,13 @@ internal static class PaymentEndpoints
                     new AllocateAdvanceCommand(paymentId, caller.Context.OrganisationId, request?.InvoiceId ?? Guid.Empty, request?.Amount ?? 0m, request?.Reason, caller.UserId),
                     cancellationToken);
 
-                return result.IsFailure
-                    ? Problems.From(result.Error, context)
-                    : Results.Ok(PaymentPayload.From(result.Value));
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                var receipt = await store.FindReceiptForPaymentAsync(paymentId, caller.Context.OrganisationId, cancellationToken);
+                return Results.Ok(PaymentPayload.From(result.Value, receipt));
             })
             .Produces<PaymentPayload>(StatusCodes.Status200OK)
             .WithName("AllocateAdvance")
