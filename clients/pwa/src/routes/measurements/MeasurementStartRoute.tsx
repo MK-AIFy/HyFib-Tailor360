@@ -16,6 +16,7 @@ import { Select } from '../../design-system/components/forms/Select'
 import { TextField } from '../../design-system/components/forms/TextField'
 import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers/customersApi'
 import type { CustomerCard } from '../../customers/types'
+import { MeasurementProblemAlert } from '../../measurements/MeasurementProblemAlert'
 import { startMeasurementDraft } from '../../measurements/measurementsApi'
 import './measurements.css'
 
@@ -53,6 +54,7 @@ export function MeasurementStartRoute() {
   const [searching, setSearching] = useState(false)
   const [searchFailure, setSearchFailure] = useState<unknown>(null)
   const [results, setResults] = useState<readonly CustomerCard[] | null>(null)
+  const [truncated, setTruncated] = useState(false)
   const [tooShort, setTooShort] = useState(false)
 
   const [customerId, setCustomerId] = useState<string>(params.get('customerId') ?? '')
@@ -97,6 +99,11 @@ export function MeasurementStartRoute() {
     try {
       const page = await searchCustomers(wanted)
       setResults(page.customers)
+      setTruncated(page.nextCursor !== null)
+      // A choice made from the previous list does not survive a new one: the person can no longer
+      // see who it was, and starting a draft for somebody not on screen is how the wrong customer
+      // gets measured.
+      setCustomerId('')
     } catch (cause: unknown) {
       setSearchFailure(cause)
     } finally {
@@ -166,15 +173,19 @@ export function MeasurementStartRoute() {
           {intl.formatMessage({ id: 'measurements.start.catalogue.empty' })}
         </EmptyState>
       ) : (
-        <form
-          className="measurements__form"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault()
-            void start()
-          }}
-        >
-          <div className="measurements__search">
+        <div className="measurements__form">
+          {/*
+            Its own form, so Enter — and the keyboard's Search key, which is what `enterKeyHint`
+            promises — searches. Inside the start form it would have submitted Start instead.
+          */}
+          <form
+            className="measurements__search"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault()
+              void search()
+            }}
+          >
             <TextField
               autoComplete="off"
               description={intl.formatMessage(
@@ -197,95 +208,107 @@ export function MeasurementStartRoute() {
               type="search"
               value={term}
             />
-            <Button
-              busy={searching}
-              iconName="search"
-              onClick={() => {
-                void search()
-              }}
-              variant="secondary"
-            >
+            <Button busy={searching} iconName="search" type="submit" variant="secondary">
               {intl.formatMessage({
                 id: searching
                   ? 'measurements.start.customer.searching'
                   : 'measurements.start.customer.search',
               })}
             </Button>
-          </div>
+          </form>
 
           <AuthProblemAlert failure={searchFailure} />
 
-          {preselected && customerId !== '' ? (
-            <Alert live="off" tone="info">
-              {intl.formatMessage({ id: 'measurements.start.customer.preselected' })}
-            </Alert>
-          ) : null}
+          <form
+            className="measurements__form"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault()
+              void start()
+            }}
+          >
+            {preselected && customerId !== '' ? (
+              <Alert live="off" tone="info">
+                {intl.formatMessage({ id: 'measurements.start.customer.preselected' })}
+              </Alert>
+            ) : null}
 
-          {results === null ? null : results.length === 0 ? (
-            <Alert live="polite" tone="warning">
-              {intl.formatMessage({ id: 'measurements.start.customer.none' })}
-            </Alert>
-          ) : (
-            <RadioGroup
-              id="capture-customer"
-              label={intl.formatMessage({ id: 'measurements.start.customer.results' })}
-              name="customerId"
-              onValueChange={setCustomerId}
-              options={results.map((card) => ({ value: card.customerId, label: cardLabel(card) }))}
+            {results === null ? null : results.length === 0 ? (
+              <Alert live="polite" tone="warning">
+                {intl.formatMessage({ id: 'measurements.start.customer.none' })}
+              </Alert>
+            ) : (
+              <>
+                <RadioGroup
+                  id="capture-customer"
+                  label={intl.formatMessage({ id: 'measurements.start.customer.results' })}
+                  name="customerId"
+                  onValueChange={setCustomerId}
+                  options={results.map((card) => ({
+                    value: card.customerId,
+                    label: cardLabel(card),
+                  }))}
+                  required
+                  value={customerId}
+                />
+                {truncated ? (
+                  <Alert live="polite" tone="info">
+                    {intl.formatMessage({ id: 'measurements.start.customer.more' })}
+                  </Alert>
+                ) : null}
+              </>
+            )}
+
+            <Select
+              emptyLabel={intl.formatMessage({ id: 'measurements.start.garment.choose' })}
+              id="capture-garment"
+              label={intl.formatMessage({ id: 'measurements.start.garment.label' })}
+              name="serviceTypeId"
+              onValueChange={setServiceTypeId}
+              options={services.map((service) => ({
+                value: service.serviceTypeId,
+                label: intl.formatMessage(
+                  { id: 'measurements.start.garment.option' },
+                  { service: service.serviceName, category: service.categoryName },
+                ),
+              }))}
               required
-              value={customerId}
+              value={
+                serviceTypeId.startsWith('template:')
+                  ? (services.find(
+                      (service) =>
+                        service.measurementTemplateId === serviceTypeId.slice('template:'.length),
+                    )?.serviceTypeId ?? '')
+                  : serviceTypeId
+              }
             />
-          )}
 
-          <Select
-            emptyLabel={intl.formatMessage({ id: 'measurements.start.garment.choose' })}
-            id="capture-garment"
-            label={intl.formatMessage({ id: 'measurements.start.garment.label' })}
-            name="serviceTypeId"
-            onValueChange={setServiceTypeId}
-            options={services.map((service) => ({
-              value: service.serviceTypeId,
-              label: intl.formatMessage(
-                { id: 'measurements.start.garment.option' },
-                { service: service.serviceName, category: service.categoryName },
-              ),
-            }))}
-            required
-            value={
-              serviceTypeId.startsWith('template:')
-                ? (services.find(
-                    (service) =>
-                      service.measurementTemplateId === serviceTypeId.slice('template:'.length),
-                  )?.serviceTypeId ?? '')
-                : serviceTypeId
-            }
-          />
+            {incomplete ? (
+              <Alert live="assertive" tone="danger">
+                {intl.formatMessage({ id: 'measurements.start.incomplete' })}
+              </Alert>
+            ) : null}
 
-          {incomplete ? (
-            <Alert live="assertive" tone="danger">
-              {intl.formatMessage({ id: 'measurements.start.incomplete' })}
-            </Alert>
-          ) : null}
+            <MeasurementProblemAlert failure={failure} />
 
-          <AuthProblemAlert failure={failure} />
-
-          {network.online ? (
-            <>
-              <p className="measurements__note">
-                {intl.formatMessage({ id: 'measurements.start.resumes' })}
-              </p>
-              <Button busy={busy} iconName="ruler" size="primary" type="submit" variant="primary">
-                {intl.formatMessage({
-                  id: busy ? 'measurements.start.starting' : 'measurements.start.action',
-                })}
-              </Button>
-            </>
-          ) : (
-            <OfflineBlockedAction
-              action={intl.formatMessage({ id: 'measurements.start.offlineAction' })}
-            />
-          )}
-        </form>
+            {network.online ? (
+              <>
+                <p className="measurements__note">
+                  {intl.formatMessage({ id: 'measurements.start.resumes' })}
+                </p>
+                <Button busy={busy} iconName="ruler" size="primary" type="submit" variant="primary">
+                  {intl.formatMessage({
+                    id: busy ? 'measurements.start.starting' : 'measurements.start.action',
+                  })}
+                </Button>
+              </>
+            ) : (
+              <OfflineBlockedAction
+                action={intl.formatMessage({ id: 'measurements.start.offlineAction' })}
+              />
+            )}
+          </form>
+        </div>
       )}
     </section>
   )

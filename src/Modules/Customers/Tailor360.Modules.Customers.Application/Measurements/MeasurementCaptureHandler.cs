@@ -182,12 +182,11 @@ public sealed class MeasurementCaptureHandler(
             return Result.Failure<CapturedTemplate>(MeasurementErrors.DraftNotFound);
         }
 
-        var template = await templates.FindByVersionAsync(draft.TemplateVersionId, organisationId, cancellationToken);
-        var version = template?.Versions.SingleOrDefault(one => one.Id == draft.TemplateVersionId);
+        var pinned = await FindPinnedVersionAsync(draft, organisationId, cancellationToken);
 
-        return template is null || version is null
+        return pinned is null
             ? Result.Failure<CapturedTemplate>(MeasurementErrors.VersionNotFound)
-            : Result.Success(new CapturedTemplate(draft, template, version));
+            : Result.Success(new CapturedTemplate(draft, pinned.Value.Template, pinned.Value.Version));
     }
 
     /// <summary>Saves one wizard step.</summary>
@@ -591,14 +590,30 @@ public sealed class MeasurementCaptureHandler(
             return Result.Failure<(MeasurementDraft, TemplateVersion)>(MeasurementErrors.DraftChanged);
         }
 
+        var pinned = await FindPinnedVersionAsync(draft, organisationId, cancellationToken);
+
+        return pinned is null
+            ? Result.Failure<(MeasurementDraft, TemplateVersion)>(MeasurementErrors.VersionNotFound)
+            : Result.Success((draft, pinned.Value.Version));
+    }
+
+    /// <summary>The template version a draft is pinned to, and the template holding it.</summary>
+    /// <remarks>
+    /// One place, because a draft is confirmed against the version it was started against and never the one
+    /// being drafted to replace it — and two lookups that could drift would let a section save and the wizard's
+    /// own read of the version disagree about which that is.
+    /// </remarks>
+    private async Task<(MeasurementTemplate Template, TemplateVersion Version)?> FindPinnedVersionAsync(
+        MeasurementDraft draft,
+        Guid organisationId,
+        CancellationToken cancellationToken)
+    {
         var template = await templates.FindByVersionAsync(
             draft.TemplateVersionId, organisationId, cancellationToken);
 
         var version = template?.Versions.SingleOrDefault(one => one.Id == draft.TemplateVersionId);
 
-        return version is null
-            ? Result.Failure<(MeasurementDraft, TemplateVersion)>(MeasurementErrors.VersionNotFound)
-            : Result.Success((draft, version));
+        return template is null || version is null ? null : (template, version);
     }
 }
 

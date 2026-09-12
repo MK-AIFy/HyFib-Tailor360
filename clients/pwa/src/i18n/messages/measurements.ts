@@ -39,6 +39,8 @@ export const measurementsEn = {
   'measurements.start.customer.search': 'Search',
   'measurements.start.customer.searching': 'Searching…',
   'measurements.start.customer.tooShort': 'Type at least {minimum} characters, then search.',
+  'measurements.start.customer.more':
+    'More customers match than are shown. Narrow the search — a customer number or the last digits of the telephone number finds one person.',
   'measurements.start.customer.results': 'Customer',
   'measurements.start.customer.none':
     'No customer matches. Check the spelling, or register the customer at the counter first.',
@@ -165,6 +167,9 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   'measurements.start.customer.searching': 'Searching…',
   // not translated — awaiting native-speaker review
   'measurements.start.customer.tooShort': 'Type at least {minimum} characters, then search.',
+  // not translated — awaiting native-speaker review
+  'measurements.start.customer.more':
+    'More customers match than are shown. Narrow the search — a customer number or the last digits of the telephone number finds one person.',
   // not translated — awaiting native-speaker review
   'measurements.start.customer.results': 'Customer',
   // not translated — awaiting native-speaker review

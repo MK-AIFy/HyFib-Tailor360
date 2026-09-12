@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import type { TemplateField } from '../../admin/types'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
+import { MeasurementProblemAlert } from '../../measurements/MeasurementProblemAlert'
 import { ApiError } from '../../auth/apiClient'
 import { useShellStatus } from '../../components/layout/useShellStatus'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
@@ -150,7 +151,11 @@ export function MeasurementDraftRoute() {
         </EmptyState>
       ) : (
         <CaptureWizard
-          key={reloads}
+          // Keyed by the tag the read carried, not by the reload count: the resource keeps the old
+          // draft on screen while a re-read is in flight, so a key that changed on the press would
+          // remount the wizard with the stale draft and the stale tag — and the next save would
+          // meet the same conflict. A tag that changed is a draft that changed.
+          key={loaded.value.version ?? 'untagged'}
           draft={loaded.value.draft}
           initialVersion={loaded.value.version}
           template={loaded.value.template}
@@ -199,9 +204,19 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
   const [failure, setFailure] = useState<unknown>(null)
   const [conflict, setConflict] = useState(false)
   const [errors, setErrors] = useState<readonly FieldErrorEntry[]>([])
+  /**
+   * The fields changed since the last attempt. The summary keeps every entry until the next attempt
+   * — `FormErrorSummary` takes focus whenever its count changes, so shrinking it as a person types
+   * would pull focus out of the field under their hands — but the message *on* a field a person is
+   * correcting comes off at the first keystroke, so they are not told to fix what they are fixing.
+   */
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set())
   const [submission, setSubmission] = useState(0)
   const [confirming, setConfirming] = useState(false)
+  const [confirmFailure, setConfirmFailure] = useState<unknown>(null)
   const [confirmed, setConfirmed] = useState<MeasurementVersion | null>(null)
+  /** The draft is finished with, one way or the other, as a save or a confirmation found out. */
+  const [closed, setClosed] = useState<'expired' | 'confirmed' | null>(null)
 
   const stepIndex = steps.findIndex((step) => step.id === stepId)
   const currentGroup = groups.find((group) => stepIdOf(group) === stepId)
@@ -264,44 +279,51 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
     if (owner !== undefined) {
       setDirty((all) => new Set([...all, owner.name]))
     }
-    // A corrected field leaves the summary at once; the rest of the summary stays until the next
-    // attempt, so the person can work down the list.
-    setErrors((all) => all.filter((entry) => entry.name !== key))
+    setTouched((all) => new Set([...all, key]))
   }
 
-  /** Saves one group. Resolves true when the draft holds it, false when it does not. */
-  const save = async (group: FieldGroup): Promise<boolean> => {
-    if (!dirty.has(group.name)) {
-      return true
+  /** What a refusal means for the draft as a whole, when it means anything. */
+  const noteRefusal = (cause: unknown): void => {
+    if (!(cause instanceof ApiError)) {
+      return
     }
-    if (tag === undefined) {
-      // Fail closed: the read always carries a tag, so a missing one is a state not worth saving
-      // from. Ask for it again rather than send a precondition the server would have to guess at.
+    if (cause.code === 'measurements.draft-changed') {
       setConflict(true)
-      return false
+    } else if (cause.code === 'measurements.draft-expired') {
+      setClosed('expired')
+    } else if (cause.code === 'measurements.draft-already-confirmed') {
+      setClosed('confirmed')
     }
+  }
 
+  /**
+   * Saves one group against the tag given, and resolves to the tag the server answered with, or
+   * null when the save did not land.
+   *
+   * The tag travels as an argument and a result rather than through state, because two groups
+   * saved in one go — every dirty group before a confirmation — must each present the tag the
+   * *previous* save answered with, and state set in the first would not be visible to the second.
+   */
+  const saveGroup = async (group: FieldGroup, against: string): Promise<string | null> => {
     const id = `save:${group.name}`
-    setBusy(true)
-    setFailure(null)
     status.announceAutosave(intl.formatMessage({ id: 'measurements.wizard.saving' }))
 
     try {
       const saved = await saveMeasurementSection({
         draftId: draft.measurementDraftId,
         body: sectionRequestOf(group, state, unit),
-        version: tag,
+        version: against,
         idempotencyKey: keyFor(id),
       })
       forget(id)
-      setTag(saved.version)
       setDirty((all) => new Set([...all].filter((name) => name !== group.name)))
       status.announceAutosave(intl.formatMessage({ id: 'measurements.wizard.saved' }))
-      return true
+      // The server always answers a save with a tag; a missing one is a state not worth acting
+      // on, and is treated as the conflict it would become.
+      return saved.version ?? null
     } catch (cause: unknown) {
-      if (cause instanceof ApiError && cause.code === 'measurements.draft-changed') {
-        setConflict(true)
-      } else {
+      noteRefusal(cause)
+      if (!(cause instanceof ApiError && cause.code === 'measurements.draft-changed')) {
         setFailure(cause)
       }
       status.announceAutosave(
@@ -314,7 +336,43 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
           },
         ),
       )
-      return false
+      return null
+    }
+  }
+
+  /**
+   * Saves every dirty group among those given, in template order, each against the tag the one
+   * before answered with. Resolves to the tag the draft now carries, or null when a save did not
+   * land — returned rather than read back from state, because the caller's closure still holds
+   * the tag it rendered with.
+   */
+  const flush = async (candidates: readonly FieldGroup[]): Promise<string | null> => {
+    if (tag === undefined) {
+      // Fail closed. The read behind this screen always carries a tag, so a missing one means the
+      // screen is not showing a state worth saving from — ask for it again rather than send a
+      // precondition the server would have to guess at.
+      setConflict(true)
+      return null
+    }
+
+    const pending = candidates.filter((group) => dirty.has(group.name))
+    if (pending.length === 0) {
+      return tag
+    }
+
+    setBusy(true)
+    setFailure(null)
+    try {
+      let against = tag
+      for (const group of pending) {
+        const answered = await saveGroup(group, against)
+        if (answered === null) {
+          return null
+        }
+        against = answered
+        setTag(answered)
+      }
+      return against
     } finally {
       setBusy(false)
     }
@@ -326,6 +384,7 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
       focusHeading.current = true
       setStepId(step.id)
       setErrors([])
+      setTouched(new Set())
     }
   }
 
@@ -336,38 +395,48 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
     const found = localErrorsOf([currentGroup], state, formatBound, messages)
     setSubmission((count) => count + 1)
     setErrors(found)
+    setTouched(new Set())
     if (found.length > 0) {
       return
     }
-    if (await save(currentGroup)) {
+    if ((await flush([currentGroup])) !== null) {
       goTo(stepIndex + 1)
     }
   }
 
   const back = async (): Promise<void> => {
-    if (currentGroup !== undefined && !(await save(currentGroup))) {
+    if (currentGroup !== undefined && (await flush([currentGroup])) === null) {
       return
     }
     goTo(stepIndex - 1)
   }
 
+  /**
+   * Every dirty group, not only the one on screen: a summary link opens another step without
+   * saving the one it left, and a value the person changed there and can see in the review must
+   * not be the one thing the record does not hold.
+   */
   const leave = async (): Promise<void> => {
-    if (currentGroup !== undefined && !(await save(currentGroup))) {
+    if ((await flush(groups)) === null) {
       return
     }
     await navigate('/measurements')
   }
 
   const confirm = async (): Promise<void> => {
-    setConfirming(false)
-    if (tag === undefined) {
-      setConflict(true)
+    setConfirmFailure(null)
+    setSubmission((count) => count + 1)
+
+    // Nothing unsaved reaches the record: every dirty group first, each against the tag the one
+    // before answered with. A refusal here closes the dialog and is said on the screen behind it.
+    const against = await flush(groups)
+    if (against === null) {
+      setConfirming(false)
       return
     }
 
     setBusy(true)
     setFailure(null)
-    setSubmission((count) => count + 1)
 
     try {
       const check = await checkMeasurementDraft(draft.measurementDraftId)
@@ -387,6 +456,8 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
                 },
               ]
         setErrors(found)
+        setTouched(new Set())
+        setConfirming(false)
         const first = found[0]
         if (first?.stepId !== undefined && first.stepId !== REVIEW_STEP_ID) {
           setStepId(first.stepId)
@@ -397,16 +468,21 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
       const record = await confirmMeasurements({
         draftId: draft.measurementDraftId,
         body: { reason: null, correctsVersionId: null },
-        version: tag,
+        version: against,
         idempotencyKey: keyFor('confirm'),
       })
       forget('confirm')
+      setConfirming(false)
       setConfirmed(record)
     } catch (cause: unknown) {
+      // The dialog stays open on a refusal, with the refusal inside it: it is modal, so an alert
+      // behind it would sit under the backdrop and outside the focus trap. Staying open is also
+      // what keeps the retry key the next attempt must reuse.
+      noteRefusal(cause)
       if (cause instanceof ApiError && cause.code === 'measurements.draft-changed') {
-        setConflict(true)
+        setConfirming(false)
       } else {
-        setFailure(cause)
+        setConfirmFailure(cause)
       }
     } finally {
       setBusy(false)
@@ -414,7 +490,7 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
   }
 
   const errorFor = (key: string): string | undefined =>
-    errors.find((entry) => entry.name === key)?.message
+    touched.has(key) ? undefined : errors.find((entry) => entry.name === key)?.message
 
   const reviewValue = (field: TemplateField): string => {
     const held = state[field.key]
@@ -432,6 +508,33 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
     return kind === 'count'
       ? formatters.formatNumber(held.millimetres)
       : formatBound(field, held.millimetres)
+  }
+
+  if (closed !== null) {
+    return (
+      <EmptyState
+        iconName={closed === 'confirmed' ? 'check' : 'alert-circle'}
+        live="assertive"
+        title={intl.formatMessage({
+          id:
+            closed === 'confirmed'
+              ? 'measurements.wizard.consumed.title'
+              : 'measurements.wizard.expired.title',
+        })}
+        actions={
+          <Link to="/measurements/new">
+            {intl.formatMessage({ id: 'measurements.wizard.confirmed.another' })}
+          </Link>
+        }
+      >
+        {intl.formatMessage({
+          id:
+            closed === 'confirmed'
+              ? 'measurements.wizard.consumed.body'
+              : 'measurements.wizard.expired.body',
+        })}
+      </EmptyState>
+    )
   }
 
   if (confirmed !== null) {
@@ -512,7 +615,7 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
         </Alert>
       ) : null}
 
-      <AuthProblemAlert failure={failure} />
+      <MeasurementProblemAlert failure={failure} />
 
       <FormErrorSummary
         currentStepId={stepId}
@@ -696,8 +799,10 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
           cancelLabel={intl.formatMessage({ id: 'dialogs.cancel' })}
           confirmLabel={intl.formatMessage({ id: 'measurements.wizard.confirm' })}
           irreversible
+          problem={<MeasurementProblemAlert failure={confirmFailure} />}
           onCancel={() => {
             setConfirming(false)
+            setConfirmFailure(null)
           }}
           onConfirm={() => {
             void confirm()

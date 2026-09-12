@@ -138,12 +138,16 @@ export const STORY_USER = {
     reducedMotion: false,
     landingRoute: null,
   },
-  // Relative to now, not a date: a fixed instant fell into the past five days after it was written,
-  // and every story then opened under a "Your session ended" dialog.
-  session: {
-    idleExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    absoluteExpiresAt: new Date(Date.now() + 11 * 60 * 60 * 1000).toISOString(),
-    warningLeadSeconds: 120,
-    mfaSatisfied: true,
+  // Relative to the moment a story asks, not a date: a fixed instant fell into the past five days
+  // after it was written and every story opened under a "Your session ended" dialog; an instant
+  // fixed at import would do the same thirteen minutes into a Storybook session. A getter is
+  // evaluated by the spread and by `JSON.stringify`, which is every way a story reads this.
+  get session() {
+    return {
+      idleExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 11 * 60 * 60 * 1000).toISOString(),
+      warningLeadSeconds: 120,
+      mfaSatisfied: true,
+    }
   },
 } as const
