@@ -39,9 +39,10 @@ public sealed class PriceListCatalogValidatorTests
         var findings = await validator.ValidatePublicationAsync(
             Candidate(
             Service("STITCHING", "NOT_AN_ITEM", [BillingTestData.MainBranch, BillingTestData.SecondBranch]),
-            [Group("lining", [Option("FULL", "LINING_RETIRED"), Option("NONE", null)])]),
+            [Group("lining", [Option("FULL", "LINING_RETIRED"), Option("NONE", null), Option("OLD", "NOBODY_HOLDS_THIS", active: false)])]),
             TestContext.Current.CancellationToken);
 
+        // The retired option's code is history and is not asked about.
         findings.Select(finding => (finding.Severity, finding.Code, finding.Target)).ShouldBe(
         [
             // The second branch has no published version yet: a warning, so the catalogue can go first.
@@ -98,8 +99,8 @@ public sealed class PriceListCatalogValidatorTests
     private static CatalogDesignGroupView Group(string code, IReadOnlyList<CatalogDesignOptionView> options)
         => new(BillingTestData.Id($"g-{code}"), BillingTestData.Id($"gk-{code}"), Blouse, code, code, "SingleChoice", false, 0, null, null, [BillingTestData.MainBranch], options);
 
-    private static CatalogDesignOptionView Option(string code, string? itemCode)
-        => new(BillingTestData.Id($"o-{code}"), BillingTestData.Id($"ok-{code}"), code, code, true, true, true, true, itemCode, 0, 0);
+    private static CatalogDesignOptionView Option(string code, string? itemCode, bool active = true)
+        => new(BillingTestData.Id($"o-{code}"), BillingTestData.Id($"ok-{code}"), code, code, active, true, true, true, itemCode, 0, 0);
 
     private sealed class StubStore(IReadOnlyList<PriceListVersion> published) : IPriceListStore
     {

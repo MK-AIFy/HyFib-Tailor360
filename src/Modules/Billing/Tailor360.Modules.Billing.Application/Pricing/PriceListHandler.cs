@@ -149,7 +149,7 @@ public sealed class PriceListHandler(
             return Result.Failure<AdministeredPriceListVersion>(BillingErrors.PriceListNotFound);
         }
 
-        var known = await BranchesKnownAsync(command.Details, cancellationToken);
+        var known = await BranchesKnownAsync(command.Details, command.OrganisationId, cancellationToken);
         if (known.IsFailure)
         {
             return Result.Failure<AdministeredPriceListVersion>(known.Error);
@@ -210,7 +210,7 @@ public sealed class PriceListHandler(
             return Result.Failure<AdministeredPriceListVersion>(found.Error);
         }
 
-        var known = await BranchesKnownAsync(command.Details, cancellationToken);
+        var known = await BranchesKnownAsync(command.Details, command.OrganisationId, cancellationToken);
         if (known.IsFailure)
         {
             return Result.Failure<AdministeredPriceListVersion>(known.Error);
@@ -521,11 +521,13 @@ public sealed class PriceListHandler(
     }
 
     /// <summary>
-    /// Every branch a version prices must be one Identity knows. The branch is Identity's record; a version
-    /// pricing an identifier that names none would price nowhere until the catalogue's publication found
-    /// it, and the domain can check only that the identifier is not empty.
+    /// Every branch a version prices must be one Identity knows <em>and</em> one of the caller's
+    /// organisation. The branch is Identity's record; a version pricing an identifier that names none would
+    /// price nowhere until the catalogue's publication found it, and one pricing another organisation's
+    /// branch would claim it — the one-version-per-branch rule is judged over every organisation — and could
+    /// keep its owner from publishing. The domain can check only that the identifier is not empty.
     /// </summary>
-    private async Task<Result> BranchesKnownAsync(PriceListVersionDetails details, CancellationToken cancellationToken)
+    private async Task<Result> BranchesKnownAsync(PriceListVersionDetails details, Guid organisationId, CancellationToken cancellationToken)
     {
         var wanted = details.BranchIds.Where(branch => branch != Guid.Empty).Distinct().ToArray();
         if (wanted.Length == 0)
@@ -535,7 +537,7 @@ public sealed class PriceListHandler(
 
         var found = await branches.FindManyAsync(wanted, cancellationToken);
 
-        return found.Select(branch => branch.BranchId).ToHashSet().IsSupersetOf(wanted)
+        return found.Where(branch => branch.OrganisationId == organisationId).Select(branch => branch.BranchId).ToHashSet().IsSupersetOf(wanted)
             ? Result.Success()
             : Result.Failure(BillingErrors.BranchNotFound("branchIds"));
     }

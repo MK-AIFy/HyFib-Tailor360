@@ -53,6 +53,7 @@ public sealed class BranchDirectory(IdentityDbContext context) : IBranchDirector
                 branch.Code,
                 branch.Name,
                 branch.TimeZoneId,
-                branch.Status == BranchStatus.Active))
+                branch.Status == BranchStatus.Active,
+                branch.OrganisationId))
             .ToListAsync(cancellationToken);
 }

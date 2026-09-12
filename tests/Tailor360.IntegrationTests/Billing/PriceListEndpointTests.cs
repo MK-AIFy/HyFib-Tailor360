@@ -6,7 +6,10 @@ using Npgsql;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
 using Tailor360.Modules.Billing.Application.Abstractions;
+using Tailor360.Modules.Billing.Application.Pricing;
+using Tailor360.Modules.Billing.Application.Registrations;
 using Tailor360.Modules.Billing.Domain.Pricing;
+using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Time;
@@ -37,10 +40,17 @@ public sealed class PriceListEndpointTests(WebApplicationFixture fixture)
         var list = await CreateListAsync(owner, Code("PL_ADD"));
         var version = await DraftAsync(owner, list, "Round trip", [branch]);
 
-        // A branch Identity does not know is refused before anything is written.
+        // A branch Identity does not know is refused before anything is written, and so is a body that
+        // never said which branches at all.
         var phantom = await owner.PostAsync($"/api/v1/billing/price-lists/{list}/versions", VersionBody("Phantom", [Guid.CreateVersion7()]), Key());
         phantom.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await phantom.Content.ReadAsStringAsync(Token)).ShouldContain("billing.branch-not-found");
+        var unsaidBranches = await owner.PutAsync(
+            $"/api/v1/billing/price-lists/versions/{version}",
+            new { name = "No branches said", effectiveFrom = "2026-04-01", taxInclusive = false, roundOff = "NearestRupee", overrideThresholdPercent = 10m },
+            await VersionKeyAsync(owner, version));
+        unsaidBranches.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await unsaidBranches.Content.ReadAsStringAsync(Token)).ShouldContain("\"branchIds\"");
 
         var item = await owner.PostAsync($"/api/v1/billing/price-lists/versions/{version}/items", ItemBody(Code("STITCHING")), await VersionKeyAsync(owner, version));
         item.StatusCode.ShouldBe(HttpStatusCode.Created, await item.Content.ReadAsStringAsync(Token));
@@ -309,6 +319,40 @@ public sealed class PriceListEndpointTests(WebApplicationFixture fixture)
         // And with no tag at all, the request is not even considered.
         var untagged = await SendAsync(owner, operation, root, listRoot, itemId, ruleId, Key(), Key());
         untagged.StatusCode.ShouldBe(HttpStatusCode.PreconditionRequired, operation);
+    }
+
+    [Fact]
+    public async Task RefusesAnotherOrganisationsBranchToAVersionAndToARegistration()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // A real branch of this organisation, offered to the handlers by a caller of another organisation.
+        using var owner = await OwnerAsync("pl-foreign", "203.0.113.247");
+        var branch = await BranchAsync(owner);
+        var foreign = Guid.CreateVersion7();
+        using var scope = fixture.Services.CreateScope();
+
+        var priceLists = scope.ServiceProvider.GetRequiredService<PriceListHandler>();
+        var list = await priceLists.CreateListAsync(new CreatePriceListCommand(foreign, Code("PL_FOREIGN"), "Foreign", null, null), Token);
+        list.IsSuccess.ShouldBeTrue();
+        var draft = await priceLists.CreateDraftAsync(
+            new CreatePriceListDraftCommand(
+                list.Value.List.Id, foreign,
+                new PriceListVersionDetails("Claims a branch it does not own", null, new DateOnly(2026, 4, 1), false, RoundOffRule.NearestRupee, 10m, [branch]),
+                null, null, null),
+            Token);
+        draft.IsFailure.ShouldBeTrue();
+        draft.Error.Code.ShouldBe("billing.branch-not-found");
+
+        var registrations = scope.ServiceProvider.GetRequiredService<GstRegistrationHandler>();
+        var registered = await registrations.AddAsync(
+            new AddGstRegistrationCommand(
+                foreign,
+                new GstRegistrationDetails(branch, "33AAACH7409R1Z8", "33", "Example", null, new DateOnly(2026, 4, 1), null),
+                null, null),
+            Token);
+        registered.IsFailure.ShouldBeTrue();
+        registered.Error.Code.ShouldBe("billing.branch-not-found");
     }
 
     [Fact]
