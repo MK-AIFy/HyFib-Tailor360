@@ -228,7 +228,159 @@ public static class InvoiceEndpoints
             .RequireIfMatch()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
+        billing.MapPost("/invoices/{invoiceId:guid}/post", async Task<IResult> (
+                Guid invoiceId,
+                BillingReasonRequest? request,
+                HttpContext context,
+                InvoiceHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.PostAsync(
+                    new PostInvoiceCommand(invoiceId, caller.Context.OrganisationId, Precondition(context), request?.Reason, caller.UserId),
+                    cancellationToken);
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.SetEntityTag(result.Value.Tag);
+
+                return Results.Ok(InvoicePayload.From(result.Value.Invoice));
+            })
+            .Produces<InvoicePayload>(StatusCodes.Status200OK)
+            .WithName("PostInvoice")
+            .WithSummary("Post a draft: number it, mint its barcode and freeze it.")
+            .WithDescription(
+                "The draft's figures are recomputed from the calculation it was drafted from and must match; the number is "
+                + "drawn under the sequence lock in the transaction that freezes the row, so two posts at one branch are numbered "
+                + "one after the other and a post that fails returns its number. A replay of the same Idempotency-Key answers "
+                + "the original. After posting, nothing about the invoice changes: it is cancelled by its compensating record.")
+            .RequirePermission(BillingPermissions.PostInvoice, BranchScope.CurrentBranch)
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(InvoiceHandler.PostedAction)
+            .RequireIdempotency()
+            .RequireIfMatch()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
+        billing.MapPost("/invoices/{invoiceId:guid}/cancel", async Task<IResult> (
+                Guid invoiceId,
+                BillingReasonRequest? request,
+                HttpContext context,
+                InvoiceHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.CancelAsync(
+                    new CancelInvoiceCommand(invoiceId, caller.Context.OrganisationId, request?.Reason, caller.UserId),
+                    cancellationToken);
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.SetEntityTag(result.Value.Tag);
+
+                return Results.Ok(InvoicePayload.From(result.Value.Invoice));
+            })
+            .Produces<InvoicePayload>(StatusCodes.Status200OK)
+            .WithName("CancelInvoice")
+            .WithSummary("Cancel a posted invoice by its compensating record.")
+            .WithDescription(
+                "Appends the cancellation and posts a credit note relieving the whole amount, in one transaction; the invoice keeps "
+                + "its number, its lines and its totals, and its displayed status becomes cancelled. Within the configured cancellation "
+                + "window where one is set. A reason is recorded, and the session must have re-authenticated recently. No If-Match: "
+                + "nothing on the invoice's row moves, so the row is locked and re-read in the transaction instead. The invoice's "
+                + "garment jobs are free to be invoiced again.")
+            .RequirePermission(BillingPermissions.CancelInvoice, BranchScope.CurrentBranch)
+            .RequireStepUp()
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(InvoiceHandler.CancelledAction, reasonRequired: true)
+            .RequireIdempotency()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
+        billing.MapPost("/invoices/{invoiceId:guid}/credit-notes", async Task<IResult> (
+                Guid invoiceId,
+                PostAdjustmentNoteRequest request,
+                HttpContext context,
+                InvoiceHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+                await PostNoteAsync(invoiceId, AdjustmentNoteKind.Credit, request, context, handler, caller, cancellationToken))
+            .Produces<AdjustmentNotePayload>(StatusCodes.Status201Created)
+            .WithName("PostCreditNote")
+            .WithSummary("Post a credit note against a posted invoice.")
+            .WithDescription(
+                "Per line: each line names a garment job of the invoice and the taxable value relieved, taxed at that line's own "
+                + "rates and rounded once per component; a line is relieved at most to what it still carries. Numbered from the "
+                + "credit-note sequence, posted once, immutable.")
+            .RequirePermission(BillingPermissions.PostCreditNote, BranchScope.CurrentBranch)
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(InvoiceHandler.CreditNotePostedAction, reasonRequired: true)
+            .RequireIdempotency()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
+        billing.MapPost("/invoices/{invoiceId:guid}/debit-notes", async Task<IResult> (
+                Guid invoiceId,
+                PostAdjustmentNoteRequest request,
+                HttpContext context,
+                InvoiceHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+                await PostNoteAsync(invoiceId, AdjustmentNoteKind.Debit, request, context, handler, caller, cancellationToken))
+            .Produces<AdjustmentNotePayload>(StatusCodes.Status201Created)
+            .WithName("PostDebitNote")
+            .WithSummary("Post a debit note against a posted invoice.")
+            .WithDescription(
+                "Per line, as a credit note, adding to what the customer owes. The same permission as a credit note: both are the "
+                + "compensating documents a posted invoice is corrected by.")
+            .RequirePermission(BillingPermissions.PostCreditNote, BranchScope.CurrentBranch)
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(InvoiceHandler.DebitNotePostedAction, reasonRequired: true)
+            .RequireIdempotency()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
         return billing;
+    }
+
+    private static async Task<IResult> PostNoteAsync(
+        Guid invoiceId,
+        AdjustmentNoteKind kind,
+        PostAdjustmentNoteRequest request,
+        HttpContext context,
+        InvoiceHandler handler,
+        ICurrentUser caller,
+        CancellationToken cancellationToken)
+    {
+        foreach (var (line, index) in (request.Lines ?? []).Select((line, index) => (line, index)))
+        {
+            if (line?.GarmentJobId is null)
+            {
+                return Problems.From(Domain.BillingErrors.Required($"lines[{index}].garmentJobId"), context);
+            }
+
+            if (line.TaxableValue is null)
+            {
+                return Problems.From(Domain.BillingErrors.Required($"lines[{index}].taxableValue"), context);
+            }
+        }
+
+        var result = await handler.PostNoteAsync(
+            new PostAdjustmentNoteCommand(
+                invoiceId, caller.Context.OrganisationId, kind, request.ToLines(), request.Reason, caller.UserId),
+            cancellationToken);
+        if (result.IsFailure)
+        {
+            return Problems.From(result.Error, context);
+        }
+
+        context.Response.SetEntityTag(result.Value.Tag);
+
+        return Results.Created($"/api/v1/billing/invoices/{invoiceId}", AdjustmentNotePayload.From(result.Value.Note));
     }
 
     private static EntityTag Precondition(HttpContext context)

@@ -21,7 +21,16 @@ public sealed record InvoicePayload(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? DiscardedAt,
-    string? DiscardReason)
+    string? DiscardReason,
+    int OrderRevisionNumber,
+    string? InvoiceNumber,
+    string? BarcodePayload,
+    string? FinancialYear,
+    DateOnly? PostedOn,
+    DateTimeOffset? PostedAt,
+    bool Cancelled,
+    InvoiceCancellationPayload? Cancellation,
+    IReadOnlyList<AdjustmentNotePayload> Notes)
 {
     /// <summary>Projects an invoice.</summary>
     public static InvoicePayload From(Invoice invoice)
@@ -47,7 +56,72 @@ public sealed record InvoicePayload(
             invoice.CreatedAt,
             invoice.UpdatedAt,
             invoice.DiscardedAt,
-            invoice.DiscardReason);
+            invoice.DiscardReason,
+            invoice.OrderRevisionNumber,
+            invoice.InvoiceNumber,
+            invoice.BarcodePayload,
+            invoice.FinancialYear,
+            invoice.PostedOn,
+            invoice.PostedAt,
+            invoice.IsCancelled,
+            invoice.Cancellation is { } cancellation ? InvoiceCancellationPayload.From(cancellation) : null,
+            [.. invoice.Notes.Select(AdjustmentNotePayload.From)]);
+    }
+}
+
+/// <summary>The cancellation appended to a posted invoice: the invoice keeps its number and totals.</summary>
+public sealed record InvoiceCancellationPayload(Guid CancellationId, Guid CreditNoteId, string Reason, DateTimeOffset CancelledAt)
+{
+    /// <summary>Projects a cancellation.</summary>
+    public static InvoiceCancellationPayload From(InvoiceCancellation cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(cancellation);
+
+        return new InvoiceCancellationPayload(cancellation.Id, cancellation.CreditNoteId, cancellation.Reason, cancellation.CancelledAt);
+    }
+}
+
+/// <summary>A credit or debit note posted against an invoice.</summary>
+public sealed record AdjustmentNotePayload(
+    Guid NoteId,
+    Guid InvoiceId,
+    string Kind,
+    string Number,
+    string Reason,
+    string Currency,
+    IReadOnlyList<AdjustmentNoteLinePayload> Lines,
+    InvoiceTotalsPayload Totals,
+    DateTimeOffset PostedAt)
+{
+    /// <summary>Projects a note.</summary>
+    public static AdjustmentNotePayload From(AdjustmentNote note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+
+        return new AdjustmentNotePayload(
+            note.Id, note.InvoiceId, note.Kind.ToString(), note.Number, note.Reason, note.Totals.GrandTotal.Currency,
+            [.. note.Lines.Select(AdjustmentNoteLinePayload.From)], InvoiceTotalsPayload.From(note.Totals), note.PostedAt);
+    }
+}
+
+/// <summary>One line of a note: the invoice line it moves, by garment job.</summary>
+public sealed record AdjustmentNoteLinePayload(
+    int LineNumber,
+    Guid GarmentJobId,
+    decimal TaxableValue,
+    IReadOnlyList<InvoiceTaxComponentPayload> Taxes,
+    decimal TaxTotal,
+    decimal LineTotal)
+{
+    /// <summary>Projects a line.</summary>
+    public static AdjustmentNoteLinePayload From(AdjustmentNoteLine line)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+
+        return new AdjustmentNoteLinePayload(
+            line.LineNumber, line.GarmentJobId, line.TaxableValue.Amount,
+            [.. line.Taxes.Select(tax => new InvoiceTaxComponentPayload(tax.Kind, tax.RatePercent, tax.Amount.Amount))],
+            line.TaxTotal.Amount, line.LineTotal.Amount);
     }
 }
 
@@ -161,7 +235,9 @@ public sealed record InvoiceSummaryPayload(
     string CustomerDisplayName,
     decimal GrandTotal,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt,
+    string? InvoiceNumber,
+    bool Cancelled)
 {
     /// <summary>Projects a summary.</summary>
     public static InvoiceSummaryPayload From(Invoice invoice)
@@ -170,7 +246,8 @@ public sealed record InvoiceSummaryPayload(
 
         return new InvoiceSummaryPayload(
             invoice.Id, invoice.CustomerId, invoice.OrderId, invoice.OrderNumber, invoice.Status.ToString(),
-            invoice.Customer.DisplayName, invoice.Totals.GrandTotal.Amount, invoice.CreatedAt, invoice.UpdatedAt);
+            invoice.Customer.DisplayName, invoice.Totals.GrandTotal.Amount, invoice.CreatedAt, invoice.UpdatedAt,
+            invoice.InvoiceNumber, invoice.IsCancelled);
     }
 }
 

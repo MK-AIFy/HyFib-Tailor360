@@ -73,6 +73,9 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// </summary>
     public const string OneLiveInvoicePerJobIndex = "ux_invoice_lines_live_garment_job";
 
+    /// <summary>An invoice is cancelled once: the second cancellation of a race trips this rather than appending twice.</summary>
+    public const string OneCancellationPerInvoiceIndex = "ux_invoice_cancellations_invoice";
+
     /// <summary>What Billing knows about orders.</summary>
     public DbSet<OrderFact> OrderFacts => Set<OrderFact>();
 
@@ -81,6 +84,12 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
 
     /// <summary>The invoice lines.</summary>
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+
+    /// <summary>The cancellations appended to posted invoices.</summary>
+    public DbSet<InvoiceCancellation> InvoiceCancellations => Set<InvoiceCancellation>();
+
+    /// <summary>The credit and debit notes posted against invoices.</summary>
+    public DbSet<AdjustmentNote> AdjustmentNotes => Set<AdjustmentNote>();
 
     /// <summary>Version numbers are unique per price list.</summary>
     public const string PriceListVersionNumberIndex = "ux_price_list_versions_list_number";
@@ -151,14 +160,43 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
                 table.HasCheckConstraint(
                     "ck_invoices_lifecycle_is_consistent",
                     """
-                    (status = 2 AND discarded_at IS NOT NULL) OR (status <> 2 AND discarded_at IS NULL)
+                    ((status = 2 AND discarded_at IS NOT NULL) OR (status <> 2 AND discarded_at IS NULL))
+                    AND ((status = 1 AND invoice_number IS NOT NULL AND barcode_payload IS NOT NULL AND posted_at IS NOT NULL)
+                         OR (status <> 1 AND invoice_number IS NULL AND barcode_payload IS NULL AND posted_at IS NULL))
                     """));
             entity.HasKey(invoice => invoice.Id);
             entity.Property(invoice => invoice.OrderNumber).HasMaxLength(OrderFact.MaximumNumberLength).IsRequired();
             entity.Property(invoice => invoice.Status).HasConversion<int>();
             entity.Property(invoice => invoice.DiscardReason).HasMaxLength(Invoice.MaximumReasonLength);
+            entity.Property(invoice => invoice.InvoiceNumber).HasMaxLength(DocumentNumbers.MaximumLength);
+            entity.Property(invoice => invoice.BarcodePayload).HasMaxLength(Platform.Abstractions.Barcodes.BarcodePayload.Length);
+            entity.Property(invoice => invoice.FinancialYear).HasMaxLength(4);
             entity.Ignore(invoice => invoice.IsDraft);
+            entity.Ignore(invoice => invoice.IsPosted);
+            entity.Ignore(invoice => invoice.IsCancelled);
             entity.Ignore(invoice => invoice.GarmentJobIds);
+
+            // A number is drawn once and never reused, and a barcode payload resolves to one document:
+            // both unique within the organisation, over the posted rows alone.
+            entity.HasIndex(invoice => new { invoice.OrganisationId, invoice.InvoiceNumber })
+                .IsUnique()
+                .HasDatabaseName("ux_invoices_organisation_invoice_number")
+                .HasFilter("invoice_number IS NOT NULL");
+            entity.HasIndex(invoice => new { invoice.OrganisationId, invoice.BarcodePayload })
+                .IsUnique()
+                .HasDatabaseName("ux_invoices_organisation_barcode_payload")
+                .HasFilter("barcode_payload IS NOT NULL");
+
+            entity.HasOne(invoice => invoice.Cancellation)
+                .WithOne()
+                .HasForeignKey<InvoiceCancellation>(cancellation => cancellation.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(invoice => invoice.Cancellation).AutoInclude();
+            entity.HasMany(invoice => invoice.Notes)
+                .WithOne()
+                .HasForeignKey(note => note.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(invoice => invoice.Notes).AutoInclude();
 
             // The customer as the document names them: Personal data, kept as issued (data classification 5.10).
             entity.ComplexProperty(invoice => invoice.Customer, customer =>
@@ -277,6 +315,76 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         {
             entity.ToTable("invoice_tax_components");
             entity.HasKey(tax => new { tax.InvoiceId, tax.GarmentJobId, tax.Kind });
+            entity.Property(tax => tax.Kind).HasMaxLength(8).IsRequired();
+            entity.Property(tax => tax.RatePercent).HasPrecision(6, 3);
+            ConfigureMoney(entity.ComplexProperty(tax => tax.Amount), "amount");
+        });
+
+        modelBuilder.Entity<InvoiceCancellation>(entity =>
+        {
+            entity.ToTable("invoice_cancellations");
+            entity.HasKey(cancellation => cancellation.Id);
+            entity.Property(cancellation => cancellation.Reason).HasMaxLength(Invoice.MaximumReasonLength).IsRequired();
+            entity.HasIndex(cancellation => cancellation.InvoiceId)
+                .IsUnique()
+                .HasDatabaseName(OneCancellationPerInvoiceIndex);
+            entity.HasOne<AdjustmentNote>()
+                .WithMany()
+                .HasForeignKey(cancellation => cancellation.CreditNoteId)
+                .HasConstraintName("fk_invoice_cancellations_adjustment_notes")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AdjustmentNote>(entity =>
+        {
+            entity.ToTable("adjustment_notes");
+            entity.HasKey(note => note.Id);
+            entity.Property(note => note.Kind).HasConversion<int>();
+            entity.Property(note => note.Number).HasMaxLength(DocumentNumbers.MaximumLength).IsRequired();
+            entity.Property(note => note.Reason).HasMaxLength(Invoice.MaximumReasonLength).IsRequired();
+            entity.ComplexProperty(note => note.Totals, totals =>
+            {
+                totals.IsRequired();
+                ConfigureMoney(totals.ComplexProperty(t => t.Subtotal), "subtotal");
+                ConfigureMoney(totals.ComplexProperty(t => t.DiscountTotal), "discount_total");
+                ConfigureMoney(totals.ComplexProperty(t => t.TaxableValue), "taxable_value");
+                ConfigureMoney(totals.ComplexProperty(t => t.CentralTax), "central_tax");
+                ConfigureMoney(totals.ComplexProperty(t => t.StateTax), "state_tax");
+                ConfigureMoney(totals.ComplexProperty(t => t.IntegratedTax), "integrated_tax");
+                ConfigureMoney(totals.ComplexProperty(t => t.Cess), "cess");
+                ConfigureMoney(totals.ComplexProperty(t => t.RoundOff), "round_off");
+                ConfigureMoney(totals.ComplexProperty(t => t.GrandTotal), "grand_total");
+            });
+            entity.HasIndex(note => new { note.OrganisationId, note.Number })
+                .IsUnique()
+                .HasDatabaseName("ux_adjustment_notes_organisation_number");
+            entity.HasIndex(note => note.InvoiceId).HasDatabaseName("ix_adjustment_notes_invoice");
+            entity.HasMany(note => note.Lines)
+                .WithOne()
+                .HasForeignKey(line => line.NoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(note => note.Lines).AutoInclude();
+        });
+
+        modelBuilder.Entity<AdjustmentNoteLine>(entity =>
+        {
+            entity.ToTable("adjustment_note_lines");
+            entity.HasKey(line => new { line.NoteId, line.GarmentJobId });
+            ConfigureMoney(entity.ComplexProperty(line => line.TaxableValue), "taxable_value");
+            ConfigureMoney(entity.ComplexProperty(line => line.TaxTotal), "tax_total");
+            ConfigureMoney(entity.ComplexProperty(line => line.LineTotal), "line_total");
+            entity.HasMany(line => line.Taxes)
+                .WithOne()
+                .HasForeignKey(tax => new { tax.NoteId, tax.GarmentJobId })
+                .HasConstraintName("fk_adjustment_note_taxes_adjustment_note_lines")
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(line => line.Taxes).AutoInclude();
+        });
+
+        modelBuilder.Entity<AdjustmentNoteTax>(entity =>
+        {
+            entity.ToTable("adjustment_note_taxes");
+            entity.HasKey(tax => new { tax.NoteId, tax.GarmentJobId, tax.Kind });
             entity.Property(tax => tax.Kind).HasMaxLength(8).IsRequired();
             entity.Property(tax => tax.RatePercent).HasPrecision(6, 3);
             ConfigureMoney(entity.ComplexProperty(tax => tax.Amount), "amount");

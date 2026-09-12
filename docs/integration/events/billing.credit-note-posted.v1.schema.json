@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.credit-note-posted.v1.schema.json",
+  "title": "billing.credit-note-posted.v1",
+  "description": "A credit note was posted against a posted invoice, relieving part or all of what the customer owes — on its own, or as the whole-amount note a cancellation posts. Numbered from the credit-note sequence; immutable.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "customerId",
+    "invoiceId",
+    "documentNumber",
+    "grandTotal",
+    "currency",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation the document belongs to."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch that issued the document."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer the document is issued to. An identifier and nothing more: the name and address on the document stay on the document."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The credit note."
+    },
+    "invoiceId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The invoice relieved."
+    },
+    "documentNumber": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The note's display number, CN-<branch>-<FY>-000001 (interim format)."
+    },
+    "grandTotal": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "To the paisa, in currency."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217, INR today (conventions.md section 1.1)."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.credit-note-posted.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

@@ -59,6 +59,36 @@ public static class PayloadExamples
             }
             """,
 
+        ["PostInvoice"] = """
+            {
+              "reason": null
+            }
+            """,
+
+        ["CancelInvoice"] = """
+            {
+              "reason": "Issued to the wrong customer; re-invoiced as INV-MAIN-2627-000012."
+            }
+            """,
+
+        ["PostCreditNote"] = """
+            {
+              "lines": [
+                { "garmentJobId": "0199c000-0000-7000-8000-000000000031", "taxableValue": 90.00 }
+              ],
+              "reason": "Lining charged twice."
+            }
+            """,
+
+        ["PostDebitNote"] = """
+            {
+              "lines": [
+                { "garmentJobId": "0199c000-0000-7000-8000-000000000031", "taxableValue": 50.00 }
+              ],
+              "reason": "Express finishing agreed at collection."
+            }
+            """,
+
         ["PreviewPricing"] = """
             {
               "priceListVersionId": "0199c2f0-0000-7000-8000-0000000000e4",

@@ -161,7 +161,9 @@ public static class PlatformServiceCollectionExtensions
 
         services.TryAddScoped<IAuditContext, SystemAuditContext>();
         services.TryAddScoped<IAuditWriter, AuditWriter>();
-        services.TryAddScoped<ISequenceAllocator, SequenceAllocator>();
+        services.TryAddScoped<SequenceAllocator>();
+        services.TryAddScoped<ISequenceAllocator>(provider => provider.GetRequiredService<SequenceAllocator>());
+        services.TryAddScoped<ITransactionalSequenceAllocator>(provider => provider.GetRequiredService<SequenceAllocator>());
         services.TryAddScoped<IIdempotencyStore, IdempotencyStore>();
         services.TryAddScoped<IdempotencyStore>();
 

@@ -288,112 +288,22 @@ public sealed class InvoiceEndpointTests(WebApplicationFixture fixture)
         (await drafter.PostAsync($"/api/v1/billing/invoices/{invoiceId}/discard", new { reason = "No." }, Tagged(tag))).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---- the scene -------------------------------------------------------------------------------
+    // ---- the scene, and the shared helpers by their old names ----------------------------------
 
-    private sealed record Scene(
-        AdministrationHarness.AdministratorClient Owner,
-        Guid Branch,
-        string TaxCode,
-        string ItemCode,
-        Guid OrderId,
-        string OrderNumber,
-        Guid CustomerId,
-        Guid[] Jobs,
-        string Reference,
-        PricingResult Result);
-
-    /// <summary>
-    /// A branch with a registration and a published price list, a customer of the branch, an order with two
-    /// garment jobs known to Billing through the outbox, and the order priced under its reference.
-    /// </summary>
-    private async Task<Scene> SceneAsync(string prefix, string address, string stem)
-    {
-        var owner = await AdministrationHarness.AdministratorAsync(
-            fixture, prefix, address, BillingPermissions.ManagePriceLists, BillingPermissions.PublishPriceList, IdentityPermissions.Branches);
-        var branch = await BillingHarness.OpenBranchAsync(owner);
-        var taxCode = await EnsurePublishedTaxCodeAsync(owner, stem);
-        await RegisterAsync(owner, branch);
-        var itemCode = Code($"{stem}_STITCH");
-        var list = await CreateListAsync(owner, Code($"PL_{stem}"));
-        var version = await DraftAsync(owner, list, [branch]);
-        await AddItemAsync(owner, version, itemCode, 450m, taxCode);
-        await AddItemAsync(owner, version, Code($"{stem}_LINING"), 90m, taxCode, kind: "Surcharge");
-        await PublishAsync(owner, version);
-
-        var customerId = await CustomerHarness.CustomerAsync(fixture, branch);
-        var orderId = Guid.CreateVersion7();
-        var orderNumber = $"O-{RunToken}-{stem[..Math.Min(3, stem.Length)]}";
-        Guid[] jobs = [Guid.CreateVersion7(), Guid.CreateVersion7()];
-
-        // The jobs are published before the confirmation on purpose: the projector must cope with either order.
-        await PublishAsync(publisher =>
-        {
-            for (var index = 0; index < jobs.Length; index++)
-            {
-                publisher.Publish(new GarmentJobCreated(
-                    Guid.CreateVersion7(), Now(), jobs[index], SessionTestData.OrganisationId, branch, orderId, $"{orderNumber}-0{index + 1}", index + 1,
-                    "blouse", "stitching", Guid.CreateVersion7(), new DateOnly(2026, 9, 20)));
-            }
-
-            publisher.Publish(new OrderConfirmed(
-                Guid.CreateVersion7(), Now(), orderId, SessionTestData.OrganisationId, branch, customerId, orderNumber, Guid.CreateVersion7(), null,
-                new DateOnly(2026, 9, 20), jobs.Length, 1));
-        });
-        await DispatchAsync();
-
-        using (var scope = fixture.Services.CreateScope())
-        {
-            var fact = await scope.ServiceProvider.GetRequiredService<BillingDbContext>().OrderFacts.AsNoTracking()
-                .Include(order => order.Jobs).SingleAsync(order => order.OrderId == orderId, Token);
-            fact.CustomerId.ShouldBe(customerId);
-            fact.Jobs.Select(job => job.GarmentJobId).Order().ShouldBe(jobs.Order());
-        }
-
-        var reference = $"order:{orderId:N}:1";
-        var result = await PriceAsync(branch, reference, [.. jobs.Select(job => job.ToString())], itemCode, Code($"{stem}_LINING"));
-
-        return new Scene(owner, branch, taxCode, itemCode, orderId, orderNumber, customerId, jobs, reference, result);
-    }
+    private Task<InvoiceScene> SceneAsync(string prefix, string address, string stem) => InvoiceScenes.BuildAsync(fixture, prefix, address, stem, RunToken);
 
     private Task<AdministrationHarness.AdministratorClient> CashierAsync(string prefix, string address, Guid branch, params string[] alsoGrant)
-        => AdministrationHarness.AdministratorAtBranchAsync(fixture, prefix, address, branch, BillingPermissions.CreateInvoice, [BillingPermissions.UpdateInvoice, .. alsoGrant]);
+        => InvoiceScenes.CashierAsync(fixture, prefix, address, branch, alsoGrant);
 
-    private async Task PublishAsync(Action<IOrdersEventPublisher> publish)
-    {
-        // As Orders does it: into its own outbox, committed by its own save.
-        using var scope = fixture.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
-        publish(scope.ServiceProvider.GetRequiredService<IOrdersEventPublisher>());
-        await context.SaveChangesAsync(Token);
-    }
+    private Task PublishAsync(Action<IOrdersEventPublisher> publish) => InvoiceScenes.PublishAsync(fixture, publish);
 
-    private async Task DispatchAsync()
-    {
-        using var scope = fixture.Services.CreateScope();
-        var dispatcher = scope.ServiceProvider.GetRequiredService<OutboxDispatcher>();
-        for (var cycle = 0; cycle < 20; cycle++)
-        {
-            if (await dispatcher.RunCycleAsync("invoice-test", Token) == 0)
-            {
-                return;
-            }
-        }
-    }
+    private Task DispatchAsync() => InvoiceScenes.DispatchAsync(fixture);
 
-    private async Task<PricingResult> PriceAsync(Guid branch, string reference, string[] lineKeys, string itemCode, string? surcharge = null)
-    {
-        using var scope = fixture.Services.CreateScope();
-        var priced = await scope.ServiceProvider.GetRequiredService<IPricingService>().PriceAsync(
-            new PricingRequest(
-                SessionTestData.OrganisationId, branch, new DateOnly(2026, 9, 12), "33", reference,
-                [.. lineKeys.Select(key => new PricingLineRequest(key, itemCode, 1m, surcharge is null ? [] : [surcharge], null, null))]),
-            Token);
-        priced.IsSuccess.ShouldBeTrue(priced.IsFailure ? priced.Error.Message : string.Empty);
-        return priced.Value;
-    }
+    private Task<PricingResult> PriceAsync(Guid branch, string reference, string[] lineKeys, string itemCode, string? surcharge = null)
+        => InvoiceScenes.PriceAsync(fixture, branch, reference, lineKeys, itemCode, surcharge);
 
     /// <summary>A snapshot under the reference whose stored result says a figure the engine would not.</summary>
-    private async Task StoreTamperedSnapshotAsync(Scene scene, string reference)
+    private async Task StoreTamperedSnapshotAsync(InvoiceScene scene, string reference)
     {
         using var scope = fixture.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<ICalculationSnapshotStore>();
@@ -408,24 +318,14 @@ public sealed class InvoiceEndpointTests(WebApplicationFixture fixture)
         (await store.SaveAsync(Token)).IsSuccess.ShouldBeTrue();
     }
 
-    private static async Task Refused(Task<HttpResponseMessage> call, HttpStatusCode status, string code)
-    {
-        var response = await call;
-        var body = await response.Content.ReadAsStringAsync(Token);
-        response.StatusCode.ShouldBe(status, body);
-        body.ShouldContain(code);
-    }
+    private static Task Refused(Task<HttpResponseMessage> call, HttpStatusCode status, string code) => InvoiceScenes.Refused(call, status, code);
 
-    private DateTimeOffset Now()
-    {
-        using var scope = fixture.Services.CreateScope();
-        return scope.ServiceProvider.GetRequiredService<IClock>().UtcNow;
-    }
+    private DateTimeOffset Now() => InvoiceScenes.Now(fixture);
 
     private static object DraftBody(Guid orderId, string reference, Guid[]? jobs = null)
         => new { orderId, calculationReference = reference, garmentJobIds = jobs ?? [], reason = (string?)null };
 
-    private static object RepriceBody(Scene scene, Guid[] jobs)
+    private static object RepriceBody(InvoiceScene scene, Guid[] jobs)
         => new
         {
             on = "2026-09-12",
@@ -434,125 +334,22 @@ public sealed class InvoiceEndpointTests(WebApplicationFixture fixture)
             reason = (string?)null,
         };
 
-    private static CancellationToken Token => TestContext.Current.CancellationToken;
+    private static CancellationToken Token => InvoiceScenes.Token;
 
-    private static (string Name, string Value)[] Key() => [("Idempotency-Key", Guid.CreateVersion7().ToString())];
+    private static (string Name, string Value)[] Key() => InvoiceScenes.Key();
 
-    private static (string Name, string Value)[] Tagged(string tag) => [.. Key(), ("If-Match", tag)];
+    private static (string Name, string Value)[] Tagged(string tag) => InvoiceScenes.Tagged(tag);
 
     private static string Code(string stem) => $"{stem}_{RunToken}";
 
-    // ---- configuration through the routes, as the pricing tests do it ----------------------------
+    private static Task<Guid> CreateListAsync(AdministrationHarness.AdministratorClient client, string code) => InvoiceScenes.CreateListAsync(client, code);
 
-    private static async Task<(string Name, string Value)[]> VersionKeyAsync(AdministrationHarness.AdministratorClient client, Guid version)
-    {
-        using var read = await client.GetAsync($"/api/v1/billing/price-lists/versions/{version}");
-        read.StatusCode.ShouldBe(HttpStatusCode.OK);
-        return [.. Tagged(read.Headers.ETag!.ToString())];
-    }
+    private static Task<Guid> DraftAsync(AdministrationHarness.AdministratorClient client, Guid list, Guid[] branches) => InvoiceScenes.DraftAsync(client, list, branches);
 
-    private static async Task<Guid> CreateListAsync(AdministrationHarness.AdministratorClient client, string code)
-    {
-        var response = await client.PostAsync("/api/v1/billing/price-lists", new { code, name = code, reason = (string?)null }, Key());
-        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
-        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
-        return body.RootElement.GetProperty("priceListId").GetGuid();
-    }
+    private static Task AddItemAsync(AdministrationHarness.AdministratorClient client, Guid version, string code, decimal rate, string taxCode)
+        => InvoiceScenes.AddItemAsync(client, version, code, rate, taxCode);
 
-    private static async Task<Guid> DraftAsync(AdministrationHarness.AdministratorClient client, Guid list, Guid[] branches)
-    {
-        var response = await client.PostAsync(
-            $"/api/v1/billing/price-lists/{list}/versions",
-            new
-            {
-                name = "Priced",
-                notes = (string?)null,
-                effectiveFrom = "2026-04-01",
-                taxInclusive = false,
-                roundOff = "NearestRupee",
-                overrideThresholdPercent = 10m,
-                branchIds = branches,
-                cloneFromVersionId = (Guid?)null,
-                reason = (string?)null,
-            },
-            Key());
-        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
-        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
-        return body.RootElement.GetProperty("version").GetProperty("priceListVersionId").GetGuid();
-    }
+    private static Task PublishAsync(AdministrationHarness.AdministratorClient client, Guid version) => InvoiceScenes.PublishAsync(client, version);
 
-    private static async Task AddItemAsync(AdministrationHarness.AdministratorClient client, Guid version, string code, decimal rate, string taxCode, string kind = "Service")
-    {
-        var response = await client.PostAsync(
-            $"/api/v1/billing/price-lists/versions/{version}/items",
-            new { code, description = "A synthetic item", kind, baseRate = rate, unit = "each", taxCode, active = true, reason = (string?)null },
-            await VersionKeyAsync(client, version));
-        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
-    }
-
-    private static async Task PublishAsync(AdministrationHarness.AdministratorClient client, Guid version)
-    {
-        var response = await client.PostAsync($"/api/v1/billing/price-lists/versions/{version}/publish", new { reason = "Live." }, await VersionKeyAsync(client, version));
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(Token));
-    }
-
-    private static async Task RegisterAsync(AdministrationHarness.AdministratorClient client, Guid branch)
-    {
-        var response = await client.PostAsync(
-            "/api/v1/billing/gst-registrations",
-            new
-            {
-                branchId = branch,
-                gstin = "33AAACH7409R1Z8",
-                stateCode = "33",
-                legalName = "Example Tailors Private Limited",
-                tradeName = "Example Tailors",
-                effectiveFrom = new DateOnly(2026, 4, 1),
-                effectiveTo = (DateOnly?)null,
-                reason = "Written by an integration test.",
-            },
-            Key());
-        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
-    }
-
-    private static async Task<string> EnsurePublishedTaxCodeAsync(AdministrationHarness.AdministratorClient client, string stem)
-    {
-        var code = Code($"TAX_{stem}");
-        using var listed = JsonDocument.Parse(await (await client.GetAsync("/api/v1/billing/tax-configuration/versions")).Content.ReadAsStringAsync(Token));
-        var live = listed.RootElement.EnumerateArray().FirstOrDefault(row => row.GetProperty("status").GetString() == "Published");
-        Guid? cloneFrom = live.ValueKind == JsonValueKind.Object ? live.GetProperty("taxConfigurationVersionId").GetGuid() : null;
-
-        var draft = await client.PostAsync(
-            "/api/v1/billing/tax-configuration/versions",
-            new { name = $"Tax for invoices {RunToken} {stem}", notes = (string?)null, effectiveFrom = "2026-04-01", cloneFromVersionId = cloneFrom },
-            Key());
-        draft.StatusCode.ShouldBe(HttpStatusCode.Created, await draft.Content.ReadAsStringAsync(Token));
-        using var body = JsonDocument.Parse(await draft.Content.ReadAsStringAsync(Token));
-        var version = body.RootElement.GetProperty("version").GetProperty("taxConfigurationVersionId").GetGuid();
-
-        var added = await client.PostAsync(
-            $"/api/v1/billing/tax-configuration/versions/{version}/tax-codes",
-            new
-            {
-                code,
-                description = "Tailoring services",
-                classification = "998821",
-                kind = "Services",
-                active = true,
-                rates = new[] { new { kind = "Cgst", ratePercent = 2.5m }, new { kind = "Sgst", ratePercent = 2.5m }, new { kind = "Igst", ratePercent = 5m } },
-                reason = (string?)null,
-            },
-            await TaxKeyAsync(client, version));
-        added.StatusCode.ShouldBe(HttpStatusCode.Created, await added.Content.ReadAsStringAsync(Token));
-        var publish = await client.PostAsync($"/api/v1/billing/tax-configuration/versions/{version}/publish", new { reason = "For the invoice tests." }, await TaxKeyAsync(client, version));
-        publish.StatusCode.ShouldBe(HttpStatusCode.OK, await publish.Content.ReadAsStringAsync(Token));
-        return code;
-    }
-
-    private static async Task<(string Name, string Value)[]> TaxKeyAsync(AdministrationHarness.AdministratorClient client, Guid version)
-    {
-        using var read = await client.GetAsync($"/api/v1/billing/tax-configuration/versions/{version}");
-        read.StatusCode.ShouldBe(HttpStatusCode.OK);
-        return [.. Tagged(read.Headers.ETag!.ToString())];
-    }
+    private static Task RegisterAsync(AdministrationHarness.AdministratorClient client, Guid branch) => InvoiceScenes.RegisterAsync(client, branch);
 }

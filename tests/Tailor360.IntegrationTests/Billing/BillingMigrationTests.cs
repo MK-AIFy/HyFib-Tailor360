@@ -35,6 +35,10 @@ public sealed class BillingMigrationTests
         "invoice_lines",
         "invoice_line_surcharges",
         "invoice_tax_components",
+        "invoice_cancellations",
+        "adjustment_notes",
+        "adjustment_note_lines",
+        "adjustment_note_taxes",
         "outbox_messages",
         "inbox_messages",
     ];
