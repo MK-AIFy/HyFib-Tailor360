@@ -26,7 +26,15 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 /// <param name="modes">The modes the branch takes money in.</param>
 /// <param name="branches">The branch register, for the code and the calendar the receipt number is drawn in.</param>
 /// <param name="events">Billing's outbox.</param>
-/// <param name="audit">The audit trail.</param>
+/// <param name="audit">
+/// The audit trail used only by <see cref="ApplyAdvancesOnPostingAsync"/>, which stages its business
+/// writes for the dispatcher to save with the inbox row and so cannot also stage its audit entry on
+/// <paramref name="billingAudit"/>'s same context without saving those business writes early.
+/// </param>
+/// <param name="billingAudit">
+/// The audit trail used by <see cref="RecordAsync"/> and <see cref="AllocateManuallyAsync"/>, which own
+/// their transaction and can ride the entry on the save they already make.
+/// </param>
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
 public sealed class PaymentHandler(
@@ -38,6 +46,7 @@ public sealed class PaymentHandler(
     IBranchDirectory branches,
     IBillingEventPublisher events,
     IAuditWriter audit,
+    IBillingAuditWriter billingAudit,
     IClock clock,
     IIdGenerator ids)
 {
@@ -181,25 +190,22 @@ public sealed class PaymentHandler(
 
                 payments.AddReceipt(receipt.Value);
 
+                // Staged before the save so the entry rides the same SaveChangesAsync as the payment it
+                // describes, and the two commit or roll back together (issue #179). No amount and no
+                // reference in the summary or the snapshot: the trail is read by more people than the
+                // drawer is, and the reference is the terminal's, not ours to spread.
+                await BillingAudit.StageAsync(
+                    billingAudit, RecordedAction, BillingAudit.PaymentEntity, payment.Id,
+                    payment.Advance is null
+                        ? $"Payment recorded in {payment.ModeCode} against order {order!.OrderNumber}; allocated to {payment.Allocations.Count} invoice(s); receipt {receipt.Value.ReceiptNumber} issued."
+                        : $"Payment recorded in {payment.ModeCode} against order {order!.OrderNumber}; allocated to {payment.Allocations.Count} invoice(s), the rest held as an advance; receipt {receipt.Value.ReceiptNumber} issued.",
+                    null, null, PaymentSnapshot.Of(payment), token);
+
                 var saved = await payments.SaveAsync(token);
                 return saved.IsFailure ? Result.Failure<RecordedPayment>(saved.Error) : Result.Success(new RecordedPayment(payment, receipt.Value));
             },
             async token => await payments.FindAsync(paymentId, command.OrganisationId, token) is not null,
             cancellationToken);
-        if (recorded.IsFailure)
-        {
-            return recorded;
-        }
-
-        // No amount and no reference in the summary or the snapshot: the trail is read by more people than
-        // the drawer is, and the reference is the terminal's, not ours to spread.
-        var recordedPayment = recorded.Value.Payment;
-        await BillingAudit.RecordAsync(
-            audit, RecordedAction, BillingAudit.PaymentEntity, recordedPayment.Id,
-            recordedPayment.Advance is null
-                ? $"Payment recorded in {recordedPayment.ModeCode} against order {order!.OrderNumber}; allocated to {recordedPayment.Allocations.Count} invoice(s); receipt {recorded.Value.Receipt.ReceiptNumber} issued."
-                : $"Payment recorded in {recordedPayment.ModeCode} against order {order!.OrderNumber}; allocated to {recordedPayment.Allocations.Count} invoice(s), the rest held as an advance; receipt {recorded.Value.Receipt.ReceiptNumber} issued.",
-            null, null, PaymentSnapshot.Of(recordedPayment), cancellationToken);
 
         return recorded;
     }
@@ -262,20 +268,18 @@ public sealed class PaymentHandler(
                 PublishAdvanceApplied(fresh, allocation.Value, now);
                 PublishStatusIfMoved(invoice, before, before.Allocated + allocation.Value.Amount, now);
 
+                // Staged before the save so the entry rides the same SaveChangesAsync as the allocation
+                // it describes, and the two commit or roll back together (issue #179).
+                await BillingAudit.StageAsync(
+                    billingAudit, AllocatedManuallyAction, BillingAudit.PaymentEntity, fresh.Id,
+                    "An advance was applied to an invoice by hand.",
+                    command.Reason!.Trim(), PaymentSnapshot.Of(payment), PaymentSnapshot.Of(fresh), token);
+
                 var saved = await payments.SaveAsync(token);
                 return saved.IsFailure ? Result.Failure<Payment>(saved.Error) : Result.Success(fresh);
             },
             async token => (await payments.FindAsync(command.PaymentId, command.OrganisationId, token))?.Allocations.Any(allocation => allocation.Id == allocationId) == true,
             cancellationToken);
-        if (applied.IsFailure)
-        {
-            return applied;
-        }
-
-        await BillingAudit.RecordAsync(
-            audit, AllocatedManuallyAction, BillingAudit.PaymentEntity, applied.Value.Id,
-            "An advance was applied to an invoice by hand.",
-            command.Reason!.Trim(), PaymentSnapshot.Of(payment), PaymentSnapshot.Of(applied.Value), cancellationToken);
 
         return applied;
     }
@@ -503,6 +507,13 @@ public sealed record AllocateAdvanceCommand(
 /// <summary>What the audit trail records of a payment: identifiers, the mode, the counts — no amount, no reference.</summary>
 internal sealed record PaymentSnapshot(Guid BranchId, Guid CashierSessionId, Guid OrderId, string ModeCode, string Status, bool HasReference, int Allocations, bool HoldsAdvance, bool Reversed)
 {
-    public static PaymentSnapshot Of(Payment payment)
-        => new(payment.BranchId, payment.CashierSessionId, payment.OrderId, payment.ModeCode, payment.Status.ToString(), payment.Reference is not null, payment.Allocations.Count, !payment.UnappliedAdvance.IsZero, payment.IsReversed);
+    /// <param name="payment">The payment.</param>
+    /// <param name="reversed">
+    /// Overrides <c>payment.IsReversed</c> where the caller knows better than the in-memory graph — a
+    /// reversal just added to the store does not set the payment's own navigation property, so a
+    /// snapshot taken before a fresh read would otherwise read a reversal that in fact just landed as
+    /// not having happened.
+    /// </param>
+    public static PaymentSnapshot Of(Payment payment, bool? reversed = null)
+        => new(payment.BranchId, payment.CashierSessionId, payment.OrderId, payment.ModeCode, payment.Status.ToString(), payment.Reference is not null, payment.Allocations.Count, !payment.UnappliedAdvance.IsZero, reversed ?? payment.IsReversed);
 }

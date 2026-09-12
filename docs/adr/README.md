@@ -33,9 +33,11 @@ also lists ADR-0000, which is not a decision about the system but the decision a
 | 0012 | [`0012-integration-ports-and-adapters.md`](0012-integration-ports-and-adapters.md) | Reaching external systems only through ports, with replaceable adapters confined to `Integration.Infrastructure` and a strict outbound policy | Accepted — 2026-09-04 | D20, D15, D16 |
 | 0013 | [`0013-caching.md`](0013-caching.md) | Caching only in process, only with explicit invalidation, and never authoritatively | Accepted — 2026-09-04 | D21 |
 | 0014 | [`0014-document-rendering-and-object-storage.md`](0014-document-rendering-and-object-storage.md) | QuestPDF behind `IPdfRenderer`, ZXing.Net behind `IBarcodeRenderer`, MinIO's client behind `IObjectStorage`, and a logging print queue until the print bridge | Proposed — 2026-09-12 | D15, D4 |
+| 0015 | [`0015-shared-audit-ledger-mapped-into-module-contexts.md`](0015-shared-audit-ledger-mapped-into-module-contexts.md) | Mapping `platform.audit_events` a second time into a module's own `DbContext`, by name through `AuditEventMapping.Configure`, as ARCH-005's one named exception, rather than a per-module ledger relayed later or a shared transaction across two contexts | Accepted — 2026-09-12 | D3, D6 |
 
 Records 0001 to 0007 and the template were issued in the first batch of issue #18; records 0008 to 0013 complete
-the same issue and the same Wave 0 baseline. Every record listed here is in force.
+the same issue and the same Wave 0 baseline. Record 0015 fills in a mechanism ADR-0004 left open rather than
+completing that baseline. Every record listed here is in force except where its status says otherwise.
 
 ## 2. How the records relate
 
