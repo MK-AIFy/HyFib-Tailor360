@@ -91,6 +91,9 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The credit and debit notes posted against invoices.</summary>
     public DbSet<AdjustmentNote> AdjustmentNotes => Set<AdjustmentNote>();
 
+    /// <summary>The rendered documents, one row per posted document and version.</summary>
+    public DbSet<DocumentArtifact> DocumentArtifacts => Set<DocumentArtifact>();
+
     /// <summary>Version numbers are unique per price list.</summary>
     public const string PriceListVersionNumberIndex = "ux_price_list_versions_list_number";
 
@@ -221,6 +224,8 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
                 calculation.Property(c => c.PlaceOfSupplyStateCode).HasColumnName("place_of_supply_state_code").HasMaxLength(2).IsRequired();
                 calculation.Property(c => c.Scheme).HasColumnName("scheme").HasMaxLength(20).IsRequired();
                 calculation.Property(c => c.TaxInclusive).HasColumnName("tax_inclusive");
+                calculation.Property(c => c.SupplierLegalName).HasColumnName("supplier_legal_name").HasMaxLength(GstRegistrationDetails.MaximumNameLength).IsRequired();
+                calculation.Property(c => c.SupplierTradeName).HasColumnName("supplier_trade_name").HasMaxLength(GstRegistrationDetails.MaximumNameLength);
             });
 
             entity.ComplexProperty(invoice => invoice.Totals, totals =>
@@ -342,6 +347,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
             entity.Property(note => note.Kind).HasConversion<int>();
             entity.Property(note => note.Number).HasMaxLength(DocumentNumbers.MaximumLength).IsRequired();
             entity.Property(note => note.Reason).HasMaxLength(Invoice.MaximumReasonLength).IsRequired();
+            entity.Property(note => note.PostedOn).HasColumnType("date");
             entity.ComplexProperty(note => note.Totals, totals =>
             {
                 totals.IsRequired();
@@ -379,6 +385,38 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
                 .HasConstraintName("fk_adjustment_note_taxes_adjustment_note_lines")
                 .OnDelete(DeleteBehavior.Cascade);
             entity.Navigation(line => line.Taxes).AutoInclude();
+        });
+
+        modelBuilder.Entity<DocumentArtifact>(entity =>
+        {
+            entity.ToTable("document_artifacts", table =>
+                table.HasCheckConstraint(
+                    "ck_document_artifacts_completed_is_whole",
+                    """
+                    (status = 1 AND object_key IS NOT NULL AND sha256 IS NOT NULL AND size_bytes IS NOT NULL AND completed_at IS NOT NULL)
+                    OR (status <> 1 AND object_key IS NULL AND sha256 IS NULL AND size_bytes IS NULL AND completed_at IS NULL)
+                    """));
+            entity.HasKey(artifact => artifact.Id);
+            entity.Property(artifact => artifact.Kind).HasConversion<int>();
+            entity.Property(artifact => artifact.Status).HasConversion<int>();
+            entity.Property(artifact => artifact.DocumentNumber).HasMaxLength(DocumentNumbers.MaximumLength).IsRequired();
+            entity.Property(artifact => artifact.ObjectKey).HasMaxLength(200);
+            entity.Property(artifact => artifact.ContentType).HasMaxLength(100);
+            entity.Property(artifact => artifact.Sha256).HasMaxLength(64);
+            entity.Property(artifact => artifact.LastError).HasMaxLength(DocumentArtifact.MaximumErrorLength);
+            entity.Ignore(artifact => artifact.IsCompleted);
+
+            // One rendering per document and version; the worker's poll over the pending ones.
+            entity.HasIndex(artifact => new { artifact.Kind, artifact.DocumentId, artifact.Version })
+                .IsUnique()
+                .HasDatabaseName("ux_document_artifacts_document_version");
+            entity.HasIndex(artifact => new { artifact.Status, artifact.RequestedAt })
+                .HasDatabaseName("ix_document_artifacts_status_requested_at");
+            entity.HasIndex(artifact => artifact.ObjectKey)
+                .IsUnique()
+                .HasDatabaseName("ux_document_artifacts_object_key")
+                .HasFilter("object_key IS NOT NULL");
+            UseRowVersion(entity);
         });
 
         modelBuilder.Entity<AdjustmentNoteTax>(entity =>

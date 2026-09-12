@@ -409,6 +409,28 @@ public static class BillingErrors
         "A credit note relieves at most what the invoice line still carries after the credit notes already posted.",
         field);
 
+    /// <summary>A print asks for more copies than a counter prints, or none.</summary>
+    public static readonly Error CopiesOutOfRange = Error.Validation(
+        "billing.copies-out-of-range",
+        "Between one and five copies are printed at a time.",
+        "copies");
+
+    /// <summary>The artefact was already rendered and stored.</summary>
+    public static readonly Error DocumentAlreadyRendered = Error.Conflict(
+        "billing.document-already-rendered",
+        "The document has already been rendered and stored; a rendering is never replaced.");
+
+    /// <summary>No rendered document is available for the request yet.</summary>
+    public static readonly Error DocumentNotAvailable = Error.NotFound(
+        "billing.document-not-available",
+        "No rendered document is available for that record yet. A posted document is rendered by the worker "
+        + "shortly after posting; ask again in a moment.");
+
+    /// <summary>The document a request names is not one of the caller's.</summary>
+    public static readonly Error DocumentNotFound = Error.NotFound(
+        "billing.document-not-found",
+        "No such document.");
+
     /// <summary>A calculation was already stored under the reference.</summary>
     public static readonly Error SnapshotExists = Error.Conflict(
         "billing.snapshot-exists",

@@ -10,6 +10,8 @@ once at start-up does not. Docker and Kubernetes both mount secrets as files nat
 /run/secrets/
   Database__ConnectionString
   Notifications__Provider__ApiKey
+  ObjectStorage__AccessKey
+  ObjectStorage__SecretKey
 ```
 
 The key-per-file provider maps the file name to a configuration key, so `Database__ConnectionString`

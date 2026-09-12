@@ -61,6 +61,10 @@ namespace Tailor360.Modules.Billing.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("posted_by");
 
+                    b.Property<DateOnly>("PostedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("posted_on");
+
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -354,6 +358,114 @@ namespace Tailor360.Modules.Billing.Infrastructure.Migrations
                     b.ToTable("adjustment_note_taxes", "billing");
                 });
 
+            modelBuilder.Entity("Tailor360.Modules.Billing.Domain.Invoicing.DocumentArtifact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("document_number");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("object_key");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("requested_at");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_document_artifacts");
+
+                    b.HasIndex("ObjectKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_document_artifacts_object_key")
+                        .HasFilter("object_key IS NOT NULL");
+
+                    b.HasIndex("Status", "RequestedAt")
+                        .HasDatabaseName("ix_document_artifacts_status_requested_at");
+
+                    b.HasIndex("Kind", "DocumentId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ux_document_artifacts_document_version");
+
+                    b.ToTable("document_artifacts", "billing", t =>
+                        {
+                            t.HasCheckConstraint("ck_document_artifacts_completed_is_whole", "(status = 1 AND object_key IS NOT NULL AND sha256 IS NOT NULL AND size_bytes IS NOT NULL AND completed_at IS NOT NULL)\nOR (status <> 1 AND object_key IS NULL AND sha256 IS NULL AND size_bytes IS NULL AND completed_at IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("Tailor360.Modules.Billing.Domain.Invoicing.Invoice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -501,12 +613,25 @@ namespace Tailor360.Modules.Billing.Infrastructure.Migrations
                                 .HasColumnType("character varying(20)")
                                 .HasColumnName("scheme");
 
+                            b1.Property<string>("SupplierLegalName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .IsUnicode(true)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("supplier_legal_name");
+
                             b1.Property<string>("SupplierStateCode")
                                 .IsRequired()
                                 .HasMaxLength(2)
                                 .IsUnicode(true)
                                 .HasColumnType("character varying(2)")
                                 .HasColumnName("supplier_state_code");
+
+                            b1.Property<string>("SupplierTradeName")
+                                .HasMaxLength(200)
+                                .IsUnicode(true)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("supplier_trade_name");
 
                             b1.Property<Guid>("TaxConfigurationVersionId")
                                 .HasColumnType("uuid")

@@ -74,7 +74,11 @@ public sealed record InvoicedSurcharge(string ItemCode, string Description, deci
 /// <summary>A tax component of a line.</summary>
 public sealed record InvoicedTax(string Kind, decimal RatePercent, Money Amount);
 
-/// <summary>The configuration a calculation was made on, kept with the invoice (G-10, INV-INV-03).</summary>
+/// <summary>
+/// The configuration a calculation was made on, kept with the invoice (G-10, INV-INV-03) — and the
+/// supplier's names as the registration gave them at the time, because the document is rendered later and a
+/// registration amended in between must not change what a statutory record says was issued.
+/// </summary>
 public sealed record InvoiceCalculation(
     string Reference,
     Guid PriceListVersionId,
@@ -84,4 +88,6 @@ public sealed record InvoiceCalculation(
     string SupplierStateCode,
     string PlaceOfSupplyStateCode,
     string Scheme,
-    bool TaxInclusive);
+    bool TaxInclusive,
+    string SupplierLegalName,
+    string? SupplierTradeName);

@@ -47,7 +47,7 @@ public sealed class Invoice
         OrderNumber = orderNumber;
         Customer = customer;
         Status = InvoiceStatus.Draft;
-        Calculation = new InvoiceCalculation(string.Empty, Guid.Empty, Guid.Empty, Guid.Empty, string.Empty, string.Empty, string.Empty, string.Empty, false);
+        Calculation = new InvoiceCalculation(string.Empty, Guid.Empty, Guid.Empty, Guid.Empty, string.Empty, string.Empty, string.Empty, string.Empty, false, string.Empty, null);
         Totals = new InvoiceTotals(Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero, Money.Zero);
         CreatedAt = now;
         CreatedBy = by;
@@ -273,10 +273,11 @@ public sealed class Invoice
     /// <param name="creditNoteId">The credit note's identifier.</param>
     /// <param name="creditNoteNumber">The number allocated for the credit note.</param>
     /// <param name="reason">Why; required.</param>
+    /// <param name="postedOn">The branch-local date the credit note is posted on.</param>
     /// <param name="now">When.</param>
     /// <param name="by">Who.</param>
     /// <returns>The credit note posted with it.</returns>
-    public Result<AdjustmentNote> Cancel(Guid cancellationId, Guid creditNoteId, string creditNoteNumber, string? reason, DateTimeOffset now, Guid? by)
+    public Result<AdjustmentNote> Cancel(Guid cancellationId, Guid creditNoteId, string creditNoteNumber, string? reason, DateOnly postedOn, DateTimeOffset now, Guid? by)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(creditNoteNumber);
 
@@ -296,7 +297,7 @@ public sealed class Invoice
             return Result.Failure<AdjustmentNote>(reasoned.Error);
         }
 
-        var note = AdjustmentNote.ForCancellation(creditNoteId, this, creditNoteNumber, reason!.Trim(), now, by);
+        var note = AdjustmentNote.ForCancellation(creditNoteId, this, creditNoteNumber, reason!.Trim(), postedOn, now, by);
         _notes.Add(note);
         Cancellation = new InvoiceCancellation(cancellationId, this, creditNoteId, reason.Trim(), now, by);
 
@@ -309,9 +310,10 @@ public sealed class Invoice
     /// <param name="number">The number allocated for it.</param>
     /// <param name="lines">The garment jobs and the taxable value each moves.</param>
     /// <param name="reason">Why; required.</param>
+    /// <param name="postedOn">The branch-local date.</param>
     /// <param name="now">When.</param>
     /// <param name="by">Who.</param>
-    public Result<AdjustmentNote> PostNote(Guid noteId, AdjustmentNoteKind kind, string number, IReadOnlyList<AdjustmentNoteLineRequest> lines, string? reason, DateTimeOffset now, Guid? by)
+    public Result<AdjustmentNote> PostNote(Guid noteId, AdjustmentNoteKind kind, string number, IReadOnlyList<AdjustmentNoteLineRequest> lines, string? reason, DateOnly postedOn, DateTimeOffset now, Guid? by)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(number);
 
@@ -331,7 +333,7 @@ public sealed class Invoice
             return Result.Failure<AdjustmentNote>(reasoned.Error);
         }
 
-        var posted = AdjustmentNote.Post(noteId, this, kind, number, lines, reason!.Trim(), now, by);
+        var posted = AdjustmentNote.Post(noteId, this, kind, number, lines, reason!.Trim(), postedOn, now, by);
         if (posted.IsFailure)
         {
             return posted;

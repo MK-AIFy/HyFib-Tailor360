@@ -80,6 +80,12 @@ public static class PayloadExamples
             }
             """,
 
+        ["PrintInvoice"] = """
+            {
+              "copies": 1
+            }
+            """,
+
         ["PostDebitNote"] = """
             {
               "lines": [

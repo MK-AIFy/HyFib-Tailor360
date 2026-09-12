@@ -58,6 +58,12 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<IInvoiceStore, InvoiceStore>();
         services.TryAddScoped<IBillingEventPublisher, BillingEventPublisher>();
         services.Configure<InvoiceOptions>(configuration.GetSection(InvoiceOptions.SectionName));
+        services.AddOptions<DocumentOptions>()
+            .Bind(configuration.GetSection(DocumentOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.TryAddScoped<IDocumentArtifactStore, DocumentArtifactStore>();
+        services.TryAddScoped<DocumentArtifactHandler>();
         services.TryAddScoped<OrderFactProjector>();
         services.TryAddScoped<InvoiceHandler>();
 
@@ -69,6 +75,12 @@ public static class BillingModuleServiceCollectionExtensions
         services.AddScoped<IOutboxMessageHandler, OrderCancelledFactHandler>();
         services.AddScoped<IOutboxMessageHandler, GarmentJobCreatedFactHandler>();
         services.AddScoped<IOutboxMessageHandler, GarmentJobCancelledFactHandler>();
+
+        // Billing's own posting events, consumed by Billing: a rendering is requested for every posted
+        // document, and the worker renders it outside any transaction.
+        services.AddScoped<IOutboxMessageHandler, InvoicePostedArtifactHandler>();
+        services.AddScoped<IOutboxMessageHandler, CreditNotePostedArtifactHandler>();
+        services.AddScoped<IOutboxMessageHandler, DebitNotePostedArtifactHandler>();
 
         // The branch an invoice belongs to, for the routes that name one (ARCH-023).
         services.AddScoped<IResourceScopeResolver, InvoiceScopeResolver>();

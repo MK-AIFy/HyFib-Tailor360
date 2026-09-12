@@ -46,7 +46,6 @@ public sealed class ComposeConfigurationTests
     /// </remarks>
     private static readonly Dictionary<string, string> Unbound = new(StringComparer.Ordinal)
     {
-        ["ObjectStorage"] = "Declared for #31; no options type binds it yet.",
         ["MalwareScanner"] = "Declared for #31; no options type binds it yet.",
         ["Secrets"] = "Read directly by each host before the key-per-file provider is added, so there "
             + "is no options type to bind: it is the setting that says where the other settings come "

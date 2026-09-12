@@ -61,8 +61,8 @@ public sealed class InvoicePostingTests
         discarded.Post("INV-MAIN-2627-000001", "I-7K3M9QW2XZ4B", "2627", new DateOnly(2026, 9, 12), BillingTestData.Now, Cashier).Error.Code.ShouldBe("billing.invoice-not-editable");
 
         var draft = InvoiceTests.Draft([InvoiceTests.Line(JobOne, "BLOUSE")]).Value;
-        draft.Cancel(BillingTestData.Id("cancel"), BillingTestData.Id("cn"), "CN-MAIN-2627-000001", "Wrong customer.", BillingTestData.Now, Cashier).Error.Code.ShouldBe("billing.invoice-not-posted");
-        draft.PostNote(BillingTestData.Id("note"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000001", [new AdjustmentNoteLineRequest(JobOne, 90m)], "Lining twice.", BillingTestData.Now, Cashier)
+        draft.Cancel(BillingTestData.Id("cancel"), BillingTestData.Id("cn"), "CN-MAIN-2627-000001", "Wrong customer.", BillingTestData.Today, BillingTestData.Now, Cashier).Error.Code.ShouldBe("billing.invoice-not-posted");
+        draft.PostNote(BillingTestData.Id("note"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000001", [new AdjustmentNoteLineRequest(JobOne, 90m)], "Lining twice.", BillingTestData.Today, BillingTestData.Now, Cashier)
             .Error.Code.ShouldBe("billing.invoice-not-posted");
     }
 
@@ -72,9 +72,9 @@ public sealed class InvoicePostingTests
         var invoice = Posted([InvoiceTests.Line(JobOne, "BLOUSE"), InvoiceTests.Line(JobTwo, "SKIRT")]);
         var later = BillingTestData.Now.AddHours(1);
 
-        invoice.Cancel(BillingTestData.Id("cancel"), BillingTestData.Id("cn"), "CN-MAIN-2627-000001", "  ", later, Cashier).Error.Code.ShouldBe("billing.reason-required");
+        invoice.Cancel(BillingTestData.Id("cancel"), BillingTestData.Id("cn"), "CN-MAIN-2627-000001", "  ", BillingTestData.Today, later, Cashier).Error.Code.ShouldBe("billing.reason-required");
 
-        var cancelled = invoice.Cancel(BillingTestData.Id("cancel"), BillingTestData.Id("cn"), "CN-MAIN-2627-000001", " Issued to the wrong customer. ", later, Cashier);
+        var cancelled = invoice.Cancel(BillingTestData.Id("cancel"), BillingTestData.Id("cn"), "CN-MAIN-2627-000001", " Issued to the wrong customer. ", BillingTestData.Today, later, Cashier);
 
         cancelled.IsSuccess.ShouldBeTrue(cancelled.IsFailure ? cancelled.Error.Message : string.Empty);
         invoice.IsCancelled.ShouldBeTrue();
@@ -99,8 +99,8 @@ public sealed class InvoicePostingTests
         note.Totals.RoundOff.ShouldBe(invoice.Totals.RoundOff);
         note.Totals.TaxableValue.ShouldBe(invoice.Totals.TaxableValue);
 
-        invoice.Cancel(BillingTestData.Id("cancel2"), BillingTestData.Id("cn2"), "CN-MAIN-2627-000002", "Again.", later, Cashier).Error.Code.ShouldBe("billing.invoice-already-cancelled");
-        invoice.PostNote(BillingTestData.Id("note"), AdjustmentNoteKind.Debit, "DN-MAIN-2627-000001", [new AdjustmentNoteLineRequest(JobOne, 10m)], "More.", later, Cashier)
+        invoice.Cancel(BillingTestData.Id("cancel2"), BillingTestData.Id("cn2"), "CN-MAIN-2627-000002", "Again.", BillingTestData.Today, later, Cashier).Error.Code.ShouldBe("billing.invoice-already-cancelled");
+        invoice.PostNote(BillingTestData.Id("note"), AdjustmentNoteKind.Debit, "DN-MAIN-2627-000001", [new AdjustmentNoteLineRequest(JobOne, 10m)], "More.", BillingTestData.Today, later, Cashier)
             .Error.Code.ShouldBe("billing.invoice-already-cancelled");
         invoice.RemainingTaxableValueOf(JobOne).ShouldBe(Money.Zero);
     }
@@ -113,7 +113,7 @@ public sealed class InvoicePostingTests
         // 90 taxable at 2.5% + 2.5%: 2.25 each, 94.50 in all; 33.33 at 2.5% is 0.83325, rounded once to 0.83.
         var credit = invoice.PostNote(
             BillingTestData.Id("cn-1"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000001",
-            [new AdjustmentNoteLineRequest(JobOne, 90m), new AdjustmentNoteLineRequest(JobTwo, 33.33m)], "Lining charged twice.", BillingTestData.Now, Cashier);
+            [new AdjustmentNoteLineRequest(JobOne, 90m), new AdjustmentNoteLineRequest(JobTwo, 33.33m)], "Lining charged twice.", BillingTestData.Today, BillingTestData.Now, Cashier);
 
         credit.IsSuccess.ShouldBeTrue(credit.IsFailure ? $"{credit.Error.Code} {credit.Error.Target}" : string.Empty);
         var note = credit.Value;
@@ -130,9 +130,9 @@ public sealed class InvoicePostingTests
         invoice.RemainingTaxableValueOf(JobOne).ShouldBe(Money.Rupees(450m));
 
         // A credit note relieves at most what the line still carries; a debit note is not bounded.
-        invoice.PostNote(BillingTestData.Id("cn-2"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000002", [new AdjustmentNoteLineRequest(JobOne, 450.01m)], "Too much.", BillingTestData.Now, Cashier)
+        invoice.PostNote(BillingTestData.Id("cn-2"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000002", [new AdjustmentNoteLineRequest(JobOne, 450.01m)], "Too much.", BillingTestData.Today, BillingTestData.Now, Cashier)
             .Error.Code.ShouldBe("billing.note-exceeds-line");
-        var debit = invoice.PostNote(BillingTestData.Id("dn-1"), AdjustmentNoteKind.Debit, "DN-MAIN-2627-000001", [new AdjustmentNoteLineRequest(JobOne, 1000m)], "Express finishing.", BillingTestData.Now, Cashier);
+        var debit = invoice.PostNote(BillingTestData.Id("dn-1"), AdjustmentNoteKind.Debit, "DN-MAIN-2627-000001", [new AdjustmentNoteLineRequest(JobOne, 1000m)], "Express finishing.", BillingTestData.Today, BillingTestData.Now, Cashier);
         debit.IsSuccess.ShouldBeTrue();
         debit.Value.Totals.GrandTotal.ShouldBe(Money.Rupees(1050m));
         invoice.Notes.Count.ShouldBe(2);
@@ -152,11 +152,11 @@ public sealed class InvoicePostingTests
         Note([new AdjustmentNoteLineRequest(JobOne, -1m)]).Error.Code.ShouldBe("billing.note-value-not-well-formed");
         Note([new AdjustmentNoteLineRequest(JobOne, 10.001m)]).Error.Code.ShouldBe("billing.note-value-not-well-formed");
         Note([]).Error.Code.ShouldBe("billing.lines-required");
-        invoice.PostNote(BillingTestData.Id("n"), AdjustmentNoteKind.Credit, "CN-1", [new AdjustmentNoteLineRequest(JobOne, 10m)], null, BillingTestData.Now, Cashier).Error.Code.ShouldBe("billing.reason-required");
+        invoice.PostNote(BillingTestData.Id("n"), AdjustmentNoteKind.Credit, "CN-1", [new AdjustmentNoteLineRequest(JobOne, 10m)], null, BillingTestData.Today, BillingTestData.Now, Cashier).Error.Code.ShouldBe("billing.reason-required");
         invoice.Notes.ShouldBeEmpty();
 
         Tailor360.Platform.Abstractions.Results.Result<AdjustmentNote> Note(IReadOnlyList<AdjustmentNoteLineRequest> lines)
-            => invoice.PostNote(BillingTestData.Id("n"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000001", lines, "Because.", BillingTestData.Now, Cashier);
+            => invoice.PostNote(BillingTestData.Id("n"), AdjustmentNoteKind.Credit, "CN-MAIN-2627-000001", lines, "Because.", BillingTestData.Today, BillingTestData.Now, Cashier);
     }
 
     private static Invoice Posted(IReadOnlyList<InvoicedLine> lines)

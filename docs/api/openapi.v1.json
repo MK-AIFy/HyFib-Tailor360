@@ -460,6 +460,58 @@
         ],
         "type": "object"
       },
+      "BarcodeResolutionPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cancelled": {
+            "type": "boolean"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "grandTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoiceId",
+          "invoiceNumber",
+          "branchId",
+          "customerId",
+          "orderId",
+          "status",
+          "cancelled",
+          "grandTotal",
+          "currency"
+        ],
+        "type": "object"
+      },
       "BillingFindingPayload": {
         "properties": {
           "code": {
@@ -6070,6 +6122,35 @@
         ],
         "type": "object"
       },
+      "PrintInvoiceRequest": {
+        "properties": {
+          "copies": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "copies"
+        ],
+        "type": "object"
+      },
+      "PrintJobPayload": {
+        "properties": {
+          "printJobId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "printJobId"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "description": "RFC 9457 problem details. Every failure is reported in this shape, and never as a stack trace, an exception message or a bare status code.",
         "properties": {
@@ -7333,6 +7414,10 @@
           "cloneFromVersionId"
         ],
         "type": "object"
+      },
+      "Stream": {
+        "format": "binary",
+        "type": "string"
       },
       "TaxCodePayload": {
         "properties": {
@@ -12113,6 +12198,66 @@
         "x-tailor360-rate-limit": "recovery-anon"
       }
     },
+    "/api/v1/billing/barcodes/{payload}": {
+      "get": {
+        "description": "For a caller working in the branch that issued the invoice. Another branch's invoice, another organisation's, a payload whose check character does not hold and a payload of nothing all read alike as not found: the lookup confirms the existence of nothing it does not show. The payload's namespace, check character and branch are re-validated here on every call.",
+        "operationId": "ResolveInvoiceBarcode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payload",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarcodeResolutionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Resolve an I- barcode payload to the invoice it was printed on.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/billing/gst-registrations": {
       "get": {
         "operationId": "ListGstRegistrations",
@@ -13259,6 +13404,139 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/billing/invoices/{invoiceId}/document": {
+      "get": {
+        "description": "The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is re-authorised in branch scope on every call, and the access is written to the audit trail against the invoice. Not available until the worker has rendered the document.",
+        "operationId": "DownloadInvoiceDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stream"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Stream the rendered invoice.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.downloaded",
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}/notes/{noteId}/document": {
+      "get": {
+        "description": "As the invoice's document: re-authorised in branch scope through the invoice, audited against the invoice.",
+        "operationId": "DownloadNoteDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "noteId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stream"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Stream the rendered credit or debit note.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.downloaded",
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/billing/invoices/{invoiceId}/post": {
       "post": {
         "description": "The draft's figures are recomputed from the calculation it was drafted from and must match; the number is drawn under the sequence lock in the transaction that freezes the row, so two posts at one branch are numbered one after the other and a post that fails returns its number. A replay of the same Idempotency-Key answers the original. After posting, nothing about the invoice changes: it is cancelled by its compensating record.",
@@ -13378,6 +13656,118 @@
         ],
         "x-tailor360-audit": "billing.invoice.posted",
         "x-tailor360-authorisation": "permission:billing.post_invoice",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/invoices/{invoiceId}/print": {
+      "post": {
+        "description": "Through the print-queue port; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).",
+        "operationId": "PrintInvoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "copies": 1
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PrintInvoiceRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobPayload"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Send the rendered invoice to the branch's print queue.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.invoice.printed",
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
         "x-tailor360-rate-limit": "write"
       }
     },

@@ -108,7 +108,7 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredInvoice>(verified.Error);
         }
 
-        if (!FiguresMatch(invoice, verified.Value.Result))
+        if (!InvoiceLines.FiguresMatch(invoice, verified.Value.Result))
         {
             return Result.Failure<AdministeredInvoice>(BillingErrors.TotalsMismatch);
         }
@@ -235,7 +235,8 @@ public sealed class InvoiceHandler(
             }
 
             var now = clock.UtcNow;
-            var financialYear = DocumentNumbers.FinancialYearToken(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime));
+            var postedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime);
+            var financialYear = DocumentNumbers.FinancialYearToken(postedOn);
             var sequence = await invoices.AllocateAsync(DocumentNumbers.CreditNoteSequence, DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear), token);
             var number = DocumentNumbers.Compose(DocumentNumbers.CreditNotePrefix, branchCode, financialYear, sequence);
             if (number.IsFailure)
@@ -243,7 +244,7 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
-            var cancel = fresh.Cancel(ids.NewId(), creditNoteId, number.Value, command.Reason, now, command.By);
+            var cancel = fresh.Cancel(ids.NewId(), creditNoteId, number.Value, command.Reason, postedOn, now, command.By);
             if (cancel.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(cancel.Error);
@@ -313,7 +314,8 @@ public sealed class InvoiceHandler(
             }
 
             var now = clock.UtcNow;
-            var financialYear = DocumentNumbers.FinancialYearToken(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime));
+            var postedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, timeZone).DateTime);
+            var financialYear = DocumentNumbers.FinancialYearToken(postedOn);
             var sequence = await invoices.AllocateAsync(sequenceKey, DocumentNumbers.SequenceScope(command.OrganisationId, branchCode, financialYear), token);
             var number = DocumentNumbers.Compose(prefix, branchCode, financialYear, sequence);
             if (number.IsFailure)
@@ -321,7 +323,7 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
-            var note = fresh.PostNote(noteId, command.Kind, number.Value, command.Lines, command.Reason, now, command.By);
+            var note = fresh.PostNote(noteId, command.Kind, number.Value, command.Lines, command.Reason, postedOn, now, command.By);
             if (note.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(note.Error);
@@ -347,25 +349,6 @@ public sealed class InvoiceHandler(
             command.Reason, InvoiceSnapshot.Of(invoice), InvoiceSnapshot.Of(after), cancellationToken);
 
         return Result.Success(new AdministeredNote(after, postedNote, invoices.EntityTagOf(after)));
-    }
-
-    /// <summary>The draft's figures against the calculation's: every line total and the document totals, to the paisa.</summary>
-    private static bool FiguresMatch(Invoice invoice, PricingResult result)
-    {
-        if (invoice.Lines.Count != result.Lines.Count || invoice.Totals != InvoiceLines.TotalsOf(result))
-        {
-            return false;
-        }
-
-        foreach (var (line, priced) in invoice.Lines.OrderBy(line => line.LineNumber).Zip(result.Lines))
-        {
-            if (line.LineKey != priced.LineKey || line.LineTotal != priced.LineTotal || line.TaxableValue != priced.TaxableValue || line.TaxTotal != priced.TaxTotal)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /// <summary>What a posted draft asks of the order beyond <see cref="CheckOrder"/>: not revised since the draft, and every garment still live.</summary>
@@ -648,7 +631,8 @@ public sealed class InvoiceHandler(
 
         return Result.Success(new InvoiceCalculation(
             reference, result.PriceListVersionId, result.TaxConfigurationVersionId, registration.Id, registration.Gstin,
-            registration.StateCode, placeOfSupply, result.Scheme.ToString(), result.TaxInclusive));
+            registration.StateCode, placeOfSupply, result.Scheme.ToString(), result.TaxInclusive,
+            registration.LegalName, registration.TradeName));
     }
 
     private async Task<Result<Invoice>> LoadForChangeAsync(Guid invoiceId, Guid organisationId, EntityTag expectedVersion, CancellationToken cancellationToken)

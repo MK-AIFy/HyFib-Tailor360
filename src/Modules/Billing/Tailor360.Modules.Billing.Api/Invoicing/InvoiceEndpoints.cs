@@ -344,7 +344,119 @@ public static class InvoiceEndpoints
             .RequireIdempotency()
             .WithRequestTimeout(RequestTimeoutPolicies.Command);
 
+        billing.MapGet("/invoices/{invoiceId:guid}/document", async Task<IResult> (
+                Guid invoiceId,
+                HttpContext context,
+                DocumentArtifactHandler documents,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var opened = await documents.OpenInvoiceAsync(invoiceId, caller.Context.OrganisationId, caller.UserId, cancellationToken);
+                return opened.IsFailure ? Problems.From(opened.Error, context) : StreamDocument(context, opened.Value);
+            })
+            .Produces<Stream>(StatusCodes.Status200OK, DocumentArtifact.PdfContentType)
+            .WithName("DownloadInvoiceDocument")
+            .WithSummary("Stream the rendered invoice.")
+            .WithDescription(
+                "The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is "
+                + "re-authorised in branch scope on every call, and the access is written to the audit trail against the "
+                + "invoice. Not available until the worker has rendered the document.")
+            .RequirePermission(BillingPermissions.CreateInvoice, BranchScope.CurrentBranch)
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            // Declared although ARCH-008 does not demand it of a GET, and the entry is written by the handler
+            // rather than by this metadata: the sensitive read is visible where every other audit is.
+            .Audited(DocumentArtifactHandler.DownloadedAction)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
+        billing.MapGet("/invoices/{invoiceId:guid}/notes/{noteId:guid}/document", async Task<IResult> (
+                Guid invoiceId,
+                Guid noteId,
+                HttpContext context,
+                DocumentArtifactHandler documents,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var opened = await documents.OpenNoteAsync(invoiceId, noteId, caller.Context.OrganisationId, caller.UserId, cancellationToken);
+                return opened.IsFailure ? Problems.From(opened.Error, context) : StreamDocument(context, opened.Value);
+            })
+            .Produces<Stream>(StatusCodes.Status200OK, DocumentArtifact.PdfContentType)
+            .WithName("DownloadNoteDocument")
+            .WithSummary("Stream the rendered credit or debit note.")
+            .WithDescription("As the invoice's document: re-authorised in branch scope through the invoice, audited against the invoice.")
+            .RequirePermission(BillingPermissions.CreateInvoice, BranchScope.CurrentBranch)
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .Audited(DocumentArtifactHandler.DownloadedAction)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
+        billing.MapPost("/invoices/{invoiceId:guid}/print", async Task<IResult> (
+                Guid invoiceId,
+                PrintInvoiceRequest? request,
+                HttpContext context,
+                DocumentArtifactHandler documents,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                var queued = await documents.PrintInvoiceAsync(invoiceId, caller.Context.OrganisationId, request?.Copies ?? 1, caller.UserId, cancellationToken);
+                return queued.IsFailure ? Problems.From(queued.Error, context) : Results.Accepted(value: new PrintJobPayload(queued.Value));
+            })
+            .Produces<PrintJobPayload>(StatusCodes.Status202Accepted)
+            .WithName("PrintInvoice")
+            .WithSummary("Send the rendered invoice to the branch's print queue.")
+            .WithDescription(
+                "Through the print-queue port; acknowledged with the job's identifier and audited. Not available until the document "
+                + "is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and "
+                + "nothing is printed (ADR-0014).")
+            .RequirePermission(BillingPermissions.CreateInvoice, BranchScope.CurrentBranch)
+            .ScopedToResource(BillingResourceKinds.Invoice, "invoiceId")
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(DocumentArtifactHandler.PrintedAction)
+            .RequireIdempotency()
+            .WithRequestTimeout(RequestTimeoutPolicies.Command);
+
+        billing.MapGet("/barcodes/{payload}", async Task<IResult> (
+                string payload,
+                HttpContext context,
+                DocumentArtifactHandler documents,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                if (caller.Context.BranchId is not { } branchId)
+                {
+                    return Problems.From(Domain.BillingErrors.Required("branch"), context);
+                }
+
+                var invoice = await documents.ResolveBarcodeAsync(payload, caller.Context.OrganisationId, branchId, cancellationToken);
+                return invoice is null
+                    ? Problems.From(Domain.BillingErrors.DocumentNotFound, context)
+                    : Results.Ok(BarcodeResolutionPayload.From(invoice));
+            })
+            .Produces<BarcodeResolutionPayload>(StatusCodes.Status200OK)
+            .WithName("ResolveInvoiceBarcode")
+            .WithSummary("Resolve an I- barcode payload to the invoice it was printed on.")
+            .WithDescription(
+                "For a caller working in the branch that issued the invoice. Another branch's invoice, another organisation's, "
+                + "a payload whose check character does not hold and a payload of nothing all read alike as not found: the "
+                + "lookup confirms the existence of nothing it does not show. The payload's namespace, check character and "
+                + "branch are re-validated here on every call.")
+            .RequirePermission(BillingPermissions.CreateInvoice, BranchScope.CurrentBranch)
+            .TouchesNoBranchOwnedResource(
+                "The route parameter is an opaque barcode payload, not a resource identifier: nothing can be resolved before the "
+                + "handler validates the check character, and the handler answers only an invoice of the caller's own branch, "
+                + "answering everything else as not found.",
+                "#155")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
         return billing;
+    }
+
+    /// <summary>Streams a stored document, named by its number and nothing else, never cached.</summary>
+    private static IResult StreamDocument(HttpContext context, StoredDocument document)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.File(document.Content, document.ContentType, $"{document.DocumentNumber}.pdf");
     }
 
     private static async Task<IResult> PostNoteAsync(

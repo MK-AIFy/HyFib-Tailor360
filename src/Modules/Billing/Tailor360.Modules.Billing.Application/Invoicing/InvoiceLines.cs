@@ -113,6 +113,27 @@ public static class InvoiceLines
         return job.IsCancelled ? Result.Failure(BillingErrors.JobCancelled(field)) : Result.Success();
     }
 
+    /// <summary>The invoice's figures against the calculation's: every line total and the document totals, to the paisa.</summary>
+    /// <param name="invoice">The invoice.</param>
+    /// <param name="result">The calculation it was drafted from.</param>
+    public static bool FiguresMatch(Invoice invoice, PricingResult result)
+    {
+        if (invoice.Lines.Count != result.Lines.Count || invoice.Totals != InvoiceLines.TotalsOf(result))
+        {
+            return false;
+        }
+
+        foreach (var (line, priced) in invoice.Lines.OrderBy(line => line.LineNumber).Zip(result.Lines))
+        {
+            if (line.LineKey != priced.LineKey || line.LineTotal != priced.LineTotal || line.TaxableValue != priced.TaxableValue || line.TaxTotal != priced.TaxTotal)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static InvoiceTotals TotalsOf(PricingResult result)
     {
         ArgumentNullException.ThrowIfNull(result);

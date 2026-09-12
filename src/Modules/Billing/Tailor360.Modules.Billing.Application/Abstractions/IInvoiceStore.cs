@@ -16,6 +16,12 @@ public interface IInvoiceStore
     /// <summary>Which of the given garment jobs are already charged on a draft or a posted invoice.</summary>
     Task<IReadOnlySet<Guid>> AlreadyInvoicedAsync(Guid organisationId, IReadOnlyCollection<Guid> garmentJobIds, CancellationToken cancellationToken = default);
 
+    /// <summary>A note and the invoice it belongs to, tracked, or null.</summary>
+    Task<(Invoice Invoice, AdjustmentNote Note)?> FindNoteAsync(Guid noteId, Guid organisationId, CancellationToken cancellationToken = default);
+
+    /// <summary>The posted invoice a barcode payload resolves to within the organisation, or null.</summary>
+    Task<Invoice?> FindByBarcodeAsync(string barcodePayload, Guid organisationId, CancellationToken cancellationToken = default);
+
     /// <summary>Adds an invoice to the context.</summary>
     void Add(Invoice invoice);
 

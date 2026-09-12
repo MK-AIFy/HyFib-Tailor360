@@ -104,7 +104,7 @@ public sealed class InvoiceTests
             Calculation("order:1:1"), lines, Totals(567m * lines.Count), BillingTestData.Now, Cashier);
 
     internal static InvoiceCalculation Calculation(string reference)
-        => new(reference, BillingTestData.Id("plv-1"), BillingTestData.Id("tcv-1"), BillingTestData.Id("reg-1"), BillingTestData.WellFormedGstin, "33", "33", "IntraState", false);
+        => new(reference, BillingTestData.Id("plv-1"), BillingTestData.Id("tcv-1"), BillingTestData.Id("reg-1"), BillingTestData.WellFormedGstin, "33", "33", "IntraState", false, "Example Tailors Private Limited", "Example Tailors");
 
     /// <summary>The walkthrough blouse: 450 stitching plus 90 lining, 5% GST split in two, 567 all in.</summary>
     internal static InvoicedLine Line(Guid jobId, string itemCode)
