@@ -105,6 +105,11 @@ public static class CatalogModuleServiceCollectionExtensions
                     ModuleDbContext.MigrationsHistoryTable, CatalogDbContext.SchemaName);
                 npgsql.CommandTimeout(options.CommandTimeoutSeconds);
                 npgsql.EnableRetryOnFailure(3, TimeSpan.FromSeconds(2), null);
+                // A version auto-includes four sibling collections — categories, service types, design
+                // groups with their options, and rules. One query would join them into a cartesian
+                // product whose row count is their sizes multiplied; one query per collection is the
+                // shape the read actually has.
+                npgsql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
             })
             .UseSnakeCaseNamingConvention();
         });

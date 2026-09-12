@@ -865,6 +865,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/design-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a design option group to a category in a draft.
+         * @description A group belongs to one category of one version; a service type of that category offers it by naming it. The code is fixed once the version is published, because rules, snapshots and exports refer to it.
+         */
+        post: operations["AddCatalogDesignGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/design-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a requires, excludes, requires-attachment or note rule to a category in a draft.
+         * @description The rule's DR-nn number is allocated by the catalogue and never re-used. Its operands read groups of its own category; whether the options it names exist, and whether it agrees with the other rules, is checked at publication, where every finding arrives at once.
+         */
+        post: operations["AddCatalogDesignRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/presentation": {
         parameters: {
             query?: never;
@@ -899,6 +939,168 @@ export interface paths {
          * @description The five links may all be null here. Whether that is acceptable is decided at publication, where a missing link is an error unless the administrator accepted it with allowIncomplete, which flags the service not orderable.
          */
         post: operations["AddCatalogServiceType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a design option group. */
+        put: operations["EditCatalogDesignGroup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a design option group, its options and the rules that read it from a draft. */
+        post: operations["RemoveCatalogDesignGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an option to a design option group in a draft.
+         * @description Every option carries help text and alternative text, because the picker is a picture first and the job card is read in monochrome. NONE is the reserved code for 'the customer chose not to have this' and is selectable in every group.
+         */
+        post: operations["AddCatalogDesignOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/presentation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct the label, Tamil label or display order of a published design group.
+         * @description The one edit a published group admits. Nothing downstream reads a label, so the correction changes what is shown and nothing a confirmed garment is pinned to. A reason is required and the change is audited.
+         */
+        post: operations["CorrectCatalogDesignGroupPresentation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a design option. */
+        put: operations["EditCatalogDesignOption"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a design option from a draft. */
+        post: operations["RemoveCatalogDesignOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}/presentation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct the label, Tamil label, help text, alternative text or display order of a published design option.
+         * @description The help text and the alternative text are words for people, like the label; the illustration is not correctable here, because the drawing the customer was shown is part of what they agreed to.
+         */
+        post: operations["CorrectCatalogDesignOptionPresentation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-rules/{designRuleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a design rule. Its number and category never change. */
+        put: operations["EditCatalogDesignRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-rules/{designRuleId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a design rule from a draft. Its number is retired with it. */
+        post: operations["RemoveCatalogDesignRule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1920,6 +2122,8 @@ export interface components {
         };
         CatalogVersionPayload: {
             categories: components["schemas"]["CategoryPayload"][];
+            designGroups: components["schemas"]["DesignGroupPayload"][];
+            designRules: components["schemas"]["DesignRulePayload"][];
             serviceTypes: components["schemas"]["ServiceTypePayload"][];
             version: components["schemas"]["CatalogVersionSummaryPayload"];
         };
@@ -2207,6 +2411,123 @@ export interface components {
             description: null | string;
             name: null | string;
             reason: null | string;
+        };
+        DesignGroupPayload: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            branchIds: string[];
+            /** Format: uuid */
+            categoryId: string;
+            code: string;
+            /** Format: uuid */
+            designOptionGroupId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: string;
+            nameTamil: null | string;
+            options: components["schemas"]["DesignOptionPayload"][];
+            required: boolean;
+            selectionMode: string;
+        };
+        DesignGroupPresentationRequest: {
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+        };
+        DesignGroupRequest: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            branchIds: null | string[];
+            code: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+            required: boolean;
+            selectionMode: null | string;
+        };
+        DesignOperandPayload: {
+            form: string;
+            groupCode: null | string;
+            optionCodes: string[];
+        };
+        DesignOperandRequest: {
+            form: null | string;
+            groupCode: null | string;
+            optionCodes: null | string[];
+        };
+        DesignOptionPayload: {
+            active: boolean;
+            code: string;
+            /** Format: uuid */
+            designOptionGroupId: string;
+            /** Format: uuid */
+            designOptionId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: string;
+            illustrationAlt: string;
+            illustrationKey: null | string;
+            name: string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            /** Format: int32 */
+            timeImpactDays: number | string;
+        };
+        DesignOptionPresentationRequest: {
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: null | string;
+            illustrationAlt: null | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+        };
+        DesignOptionRequest: {
+            active: boolean;
+            code: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: null | string;
+            illustrationAlt: null | string;
+            illustrationKey: null | string;
+            name: null | string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            reason: null | string;
+            /** Format: int32 */
+            timeImpactDays: number | string;
+        };
+        DesignRulePayload: {
+            antecedent: components["schemas"]["DesignOperandPayload"];
+            blocks: boolean;
+            /** Format: uuid */
+            categoryId: string;
+            consequent: null | components["schemas"]["DesignOperandPayload"];
+            /** Format: uuid */
+            designRuleId: string;
+            identifier: string;
+            note: null | string;
+            /** Format: int32 */
+            number: number | string;
+            statement: string;
+            type: string;
+            why: null | string;
+        };
+        DesignRuleRequest: {
+            antecedent: null | components["schemas"]["DesignOperandRequest"];
+            consequent: null | components["schemas"]["DesignOperandRequest"];
+            note: null | string;
+            reason: null | string;
+            type: null | string;
+            why: null | string;
         };
         DuplicateCandidatePayload: {
             confidence: string;
@@ -5792,6 +6113,186 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    AddCatalogDesignGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "sleeve_style",
+                 *       "displayOrder": 3,
+                 *       "name": "Sleeve length",
+                 *       "nameTamil": null,
+                 *       "reason": null,
+                 *       "required": true,
+                 *       "selectionMode": "SingleChoice"
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignGroupPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddCatalogDesignRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "antecedent": {
+                 *         "form": "In",
+                 *         "groupCode": "padding",
+                 *         "optionCodes": [
+                 *           "LIGHT",
+                 *           "MOULDED_CUP"
+                 *         ]
+                 *       },
+                 *       "consequent": {
+                 *         "form": "In",
+                 *         "groupCode": "lining",
+                 *         "optionCodes": [
+                 *           "FULL",
+                 *           "KATORI_CUP"
+                 *         ]
+                 *       },
+                 *       "note": null,
+                 *       "reason": null,
+                 *       "type": "Requires",
+                 *       "why": "Padding stitched against a single layer shows through and works loose."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     CorrectCatalogCategoryPresentation: {
         parameters: {
             query?: never;
@@ -5920,6 +6421,725 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceTypePayload"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogDesignGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "sleeve_style",
+                 *       "displayOrder": 3,
+                 *       "name": "Sleeve length",
+                 *       "nameTamil": null,
+                 *       "reason": "Now offered at the second branch as well.",
+                 *       "required": true,
+                 *       "selectionMode": "SingleChoice"
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignGroupPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogDesignGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Added to the wrong category; it belongs on the gown."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddCatalogDesignOption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "THREE_QUARTER",
+                 *       "displayOrder": 4,
+                 *       "helpText": "Sleeve ends midway between elbow and wrist.",
+                 *       "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+                 *       "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.THREE_QUARTER",
+                 *       "name": "Three-quarter sleeve",
+                 *       "nameTamil": null,
+                 *       "priceListItemCode": null,
+                 *       "reason": null,
+                 *       "timeImpactDays": 0
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignOptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignOptionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCatalogDesignGroupPresentation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "displayOrder": 3,
+                 *       "name": "Sleeve length",
+                 *       "nameTamil": "கை நீளம்",
+                 *       "reason": "Tamil label supplied after the native-speaker review."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignGroupPresentationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogDesignOption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "FULL",
+                 *       "displayOrder": 5,
+                 *       "helpText": "Sleeve ends at the wrist.",
+                 *       "illustrationAlt": "A sleeve reaching the wrist, hemmed straight.",
+                 *       "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.FULL",
+                 *       "name": "Full sleeve",
+                 *       "nameTamil": null,
+                 *       "priceListItemCode": "PI_BLOUSE_FULL_SLEEVE",
+                 *       "reason": "The full sleeve now carries its price-list item.",
+                 *       "timeImpactDays": 0
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignOptionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignOptionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogDesignOption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Duplicated the cap sleeve under another code."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCatalogDesignOptionPresentation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "displayOrder": 4,
+                 *       "helpText": "Sleeve ends midway between elbow and wrist.",
+                 *       "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+                 *       "name": "Three-quarter sleeve",
+                 *       "nameTamil": null,
+                 *       "reason": "Clearer alternative text after the screen-reader walk."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignOptionPresentationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogDesignRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designRuleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "antecedent": {
+                 *         "form": "Equals",
+                 *         "groupCode": "padding",
+                 *         "optionCodes": [
+                 *           "MOULDED_CUP"
+                 *         ]
+                 *       },
+                 *       "consequent": null,
+                 *       "note": "Confirm the cup size against the customer's reference garment before cutting.",
+                 *       "reason": "Re-typed from an exclusion to a note after the owner review (OD-DES-04).",
+                 *       "type": "Note",
+                 *       "why": "Cup sizing is not in the measurement set."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogDesignRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designRuleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "A shop preference, not a craft constraint; deleted at review (OD-DES-04)."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {

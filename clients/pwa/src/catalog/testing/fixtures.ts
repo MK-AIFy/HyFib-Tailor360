@@ -91,6 +91,8 @@ export function aCatalogVersion(overrides: Partial<CatalogVersion> = {}): Catalo
     version: aCatalogVersionSummary(),
     categories: [aCategory()],
     serviceTypes: [aServiceType()],
+    designGroups: [],
+    designRules: [],
     ...overrides,
   }
 }

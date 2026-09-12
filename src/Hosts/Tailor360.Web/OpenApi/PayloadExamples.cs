@@ -142,6 +142,128 @@ public static class PayloadExamples
             }
             """,
 
+        ["AddCatalogDesignGroup"] = """
+            {
+              "code": "sleeve_style",
+              "name": "Sleeve length",
+              "nameTamil": null,
+              "selectionMode": "SingleChoice",
+              "required": true,
+              "displayOrder": 3,
+              "activeFrom": null,
+              "activeTo": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogDesignGroup"] = """
+            {
+              "code": "sleeve_style",
+              "name": "Sleeve length",
+              "nameTamil": null,
+              "selectionMode": "SingleChoice",
+              "required": true,
+              "displayOrder": 3,
+              "activeFrom": null,
+              "activeTo": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": "Now offered at the second branch as well."
+            }
+            """,
+
+        ["RemoveCatalogDesignGroup"] = """
+            {
+              "reason": "Added to the wrong category; it belongs on the gown."
+            }
+            """,
+
+        ["AddCatalogDesignOption"] = """
+            {
+              "code": "THREE_QUARTER",
+              "name": "Three-quarter sleeve",
+              "nameTamil": null,
+              "helpText": "Sleeve ends midway between elbow and wrist.",
+              "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.THREE_QUARTER",
+              "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+              "priceListItemCode": null,
+              "timeImpactDays": 0,
+              "displayOrder": 4,
+              "active": true,
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogDesignOption"] = """
+            {
+              "code": "FULL",
+              "name": "Full sleeve",
+              "nameTamil": null,
+              "helpText": "Sleeve ends at the wrist.",
+              "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.FULL",
+              "illustrationAlt": "A sleeve reaching the wrist, hemmed straight.",
+              "priceListItemCode": "PI_BLOUSE_FULL_SLEEVE",
+              "timeImpactDays": 0,
+              "displayOrder": 5,
+              "active": true,
+              "reason": "The full sleeve now carries its price-list item."
+            }
+            """,
+
+        ["RemoveCatalogDesignOption"] = """
+            {
+              "reason": "Duplicated the cap sleeve under another code."
+            }
+            """,
+
+        ["AddCatalogDesignRule"] = """
+            {
+              "type": "Requires",
+              "antecedent": { "groupCode": "padding", "form": "In", "optionCodes": ["LIGHT", "MOULDED_CUP"] },
+              "consequent": { "groupCode": "lining", "form": "In", "optionCodes": ["FULL", "KATORI_CUP"] },
+              "note": null,
+              "why": "Padding stitched against a single layer shows through and works loose.",
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogDesignRule"] = """
+            {
+              "type": "Note",
+              "antecedent": { "groupCode": "padding", "form": "Equals", "optionCodes": ["MOULDED_CUP"] },
+              "consequent": null,
+              "note": "Confirm the cup size against the customer's reference garment before cutting.",
+              "why": "Cup sizing is not in the measurement set.",
+              "reason": "Re-typed from an exclusion to a note after the owner review (OD-DES-04)."
+            }
+            """,
+
+        ["RemoveCatalogDesignRule"] = """
+            {
+              "reason": "A shop preference, not a craft constraint; deleted at review (OD-DES-04)."
+            }
+            """,
+
+        ["CorrectCatalogDesignGroupPresentation"] = """
+            {
+              "name": "Sleeve length",
+              "nameTamil": "கை நீளம்",
+              "displayOrder": 3,
+              "reason": "Tamil label supplied after the native-speaker review."
+            }
+            """,
+
+        ["CorrectCatalogDesignOptionPresentation"] = """
+            {
+              "name": "Three-quarter sleeve",
+              "nameTamil": null,
+              "helpText": "Sleeve ends midway between elbow and wrist.",
+              "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+              "displayOrder": 4,
+              "reason": "Clearer alternative text after the screen-reader walk."
+            }
+            """,
+
         ["CreateMeasurementTemplate"] = """
             {
               "code": "MT_BLOUSE_PATTERN",
