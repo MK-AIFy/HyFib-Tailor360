@@ -40,7 +40,8 @@ public static class BillingEndpoints
             .MapPaymentEndpoints()
             .MapReceiptEndpoints()
             .MapRefundEndpoints()
-            .MapReconciliationEndpoints();
+            .MapReconciliationEndpoints()
+            .MapDispatchExceptionEndpoints();
 
         return endpoints;
     }

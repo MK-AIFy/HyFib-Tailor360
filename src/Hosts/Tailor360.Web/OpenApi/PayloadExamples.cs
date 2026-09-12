@@ -164,6 +164,17 @@ public static class PayloadExamples
             }
             """,
 
+        ["ApproveDispatchException"] = """
+            {
+              "orderId": "019bd6c1-3333-7f2a-9c3d-5e7f8a9b0c1d",
+              "jobIds": ["0199c000-0000-7000-8000-000000000031", "0199c000-0000-7000-8000-000000000032"],
+              "maxOutstandingAmount": 500.00,
+              "reasonCode": "CUSTOMER_TRAVELLING",
+              "reasonText": "Customer is travelling tonight; balance to be settled on return within the week.",
+              "expiresAt": "2026-09-15T20:05:00Z"
+            }
+            """,
+
         ["PostDebitNote"] = """
             {
               "lines": [
