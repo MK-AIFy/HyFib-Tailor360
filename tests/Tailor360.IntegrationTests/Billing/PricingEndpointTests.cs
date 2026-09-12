@@ -202,6 +202,17 @@ public sealed class PricingEndpointTests(WebApplicationFixture fixture)
         answered.IsSuccess.ShouldBeTrue();
         answered.Value.CalculatedAt.ShouldBe(rivalResult.CalculatedAt);
         racing.Saves.ShouldBe(1, "the loser tried to write and was refused by the unique index");
+
+        // And a race lost to a rival that stored a different body is the conflict, not the rival's figure.
+        var otherRaced = $"order:{RunToken}:raced-differently";
+        store.Add(CalculationSnapshot.Create(
+            ids.NewId(), SessionTestData.OrganisationId, branch, otherRaced, rivalResult.PriceListVersionId, rivalResult.TaxConfigurationVersionId,
+            rivalResult.GstRegistrationId, PricingJson.Write(request with { Reference = otherRaced, Lines = [request.Lines[0] with { Quantity = 3m }] }),
+            PricingJson.Write(rivalResult), rivalResult.CalculatedAt, null).Value);
+        (await store.SaveAsync(Token)).IsSuccess.ShouldBeTrue();
+        var lostDifferently = await Service(scope, new StubUser(null, null), new RacingSnapshots(store, () => { })).PriceAsync(request with { Reference = otherRaced }, Token);
+        lostDifferently.IsFailure.ShouldBeTrue();
+        lostDifferently.Error.Code.ShouldBe("billing.snapshot-conflict");
     }
 
     [Fact]

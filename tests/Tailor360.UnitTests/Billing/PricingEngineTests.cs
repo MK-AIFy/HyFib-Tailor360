@@ -210,7 +210,9 @@ public sealed class PricingEngineTests
         Refusal(version, master, Line("g1", "NOBODY")).ShouldBe(("billing.item-not-priced", "lines[g1].itemCode"));
         Refusal(version, master, Line("g1", "RETIRED_ITEM")).ShouldBe(("billing.item-not-priced", "lines[g1].itemCode"));
         Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", surcharges: ["NOBODY"])).ShouldBe(("billing.item-not-priced", "lines[g1].surchargeItemCodes[0]"));
-        Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", surcharges: ["GOODS_12_CESS_1"])).ShouldBe(("billing.surcharge-taxed-differently", "lines[g1].surchargeItemCodes[0]"));
+        Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", surcharges: ["BLOUSE_PATTERN_STITCHING"])).ShouldBe(("billing.item-not-a-surcharge", "lines[g1].surchargeItemCodes[0]"));
+        Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", surcharges: ["MAT_AD_STONE_BEAD_KIT"])).ShouldBe(("billing.item-not-a-surcharge", "lines[g1].surchargeItemCodes[0]"));
+        Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", surcharges: ["PI_GOODS_SURCHARGE"])).ShouldBe(("billing.surcharge-taxed-differently", "lines[g1].surchargeItemCodes[0]"));
         Refusal(version, master, Line("g1", "ORPHAN_TAX_ITEM")).ShouldBe(("billing.configuration-missing", "lines[g1].itemCode"));
         Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", discount: new("NOBODY", 5m, null))).ShouldBe(("billing.discount-rule-not-in-force", "lines[g1].discount.ruleCode"));
         Refusal(version, master, Line("g1", "BLOUSE_PATTERN_STITCHING", discount: new("FESTIVAL", 16m, "Too much."))).ShouldBe(("billing.discount-above-maximum", "lines[g1].discount.value"));
@@ -311,6 +313,8 @@ public sealed class PricingEngineTests
 
             version.AddItem(BillingTestData.Id("gm-item-retired"), BillingTestData.Id("gm-itemkey-retired"),
                 new PriceListItemDetails("RETIRED_ITEM", "No longer offered", PriceItemKind.Service, 100m, "each", "SAC_998821_5", false), BillingTestData.Now, null).IsSuccess.ShouldBeTrue();
+            version.AddItem(BillingTestData.Id("gm-item-goods-surcharge"), BillingTestData.Id("gm-itemkey-goods-surcharge"),
+                new PriceListItemDetails("PI_GOODS_SURCHARGE", "A surcharge taxed as goods", PriceItemKind.Surcharge, 50m, "each", "HSN_2402_12_CESS_1", true), BillingTestData.Now, null).IsSuccess.ShouldBeTrue();
             version.AddItem(BillingTestData.Id("gm-item-orphan"), BillingTestData.Id("gm-itemkey-orphan"),
                 new PriceListItemDetails("ORPHAN_TAX_ITEM", "Names a tax code nobody published", PriceItemKind.Service, 100m, "each", "NOBODY_PUBLISHED", true), BillingTestData.Now, null).IsSuccess.ShouldBeTrue();
             foreach (var rule in DiscountRules)

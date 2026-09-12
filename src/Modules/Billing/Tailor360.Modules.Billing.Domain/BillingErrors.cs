@@ -312,6 +312,15 @@ public static class BillingErrors
         $"'{code}' is not an active item of the price-list version in force.",
         field);
 
+    /// <summary>A line's surcharge list named an item that is not a surcharge.</summary>
+    /// <param name="code">The item code.</param>
+    /// <param name="field">The field naming it.</param>
+    public static Error ItemNotASurcharge(string code, string field) => Error.Validation(
+        "billing.item-not-a-surcharge",
+        $"'{code}' is not a surcharge item. A service or a material is priced as a line of its own, never added on "
+        + "top of another.",
+        field);
+
     /// <summary>A surcharge item is taxed under a different code from the line's base item.</summary>
     /// <param name="code">The surcharge item code.</param>
     /// <param name="field">The field naming it.</param>

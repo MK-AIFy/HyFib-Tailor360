@@ -193,6 +193,13 @@ public static class PricingEngine
                 return Result.Failure<PricedLine>(BillingErrors.ItemNotPriced(code ?? string.Empty, Target(line, $"surchargeItemCodes[{index}]")));
             }
 
+            // Only a surcharge rides on another line: a service or a material named here would be the base
+            // item charged twice, or a line of its own hidden inside another.
+            if (surcharge.Kind != PriceItemKind.Surcharge)
+            {
+                return Result.Failure<PricedLine>(BillingErrors.ItemNotASurcharge(code!, Target(line, $"surchargeItemCodes[{index}]")));
+            }
+
             if (!string.Equals(surcharge.TaxCode, item.TaxCode, StringComparison.Ordinal))
             {
                 return Result.Failure<PricedLine>(BillingErrors.SurchargeTaxedDifferently(code!, Target(line, $"surchargeItemCodes[{index}]")));

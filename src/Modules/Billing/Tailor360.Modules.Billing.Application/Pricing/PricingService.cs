@@ -70,14 +70,7 @@ public sealed class PricingService(
 
             if (await snapshots.FindAsync(request.OrganisationId, reference.Trim(), cancellationToken) is { } stored)
             {
-                // Compared as the request, not as text: the column is jsonb, which keeps the document and not
-                // its spelling, so the stored text is read back and written again the one way this build writes.
-                return string.Equals(
-                    PricingJson.Write(PricingJson.ReadRequest(stored.RequestJson)),
-                    PricingJson.Write(Canonical(request)),
-                    StringComparison.Ordinal)
-                    ? Result.Success(PricingJson.ReadResult(stored.ResultJson))
-                    : Result.Failure<PricingResult>(BillingErrors.SnapshotConflict);
+                return Answer(stored, request);
             }
         }
 
@@ -171,6 +164,20 @@ public sealed class PricingService(
         return PricingEngine.Calculate(request, version, taxConfiguration, registration, mayOverride, clock.UtcNow);
     }
 
+    /// <summary>
+    /// What a stored snapshot answers a request under its reference: the stored figure when it is the
+    /// request that made it, the conflict otherwise. Compared as the request, not as text: the column is
+    /// jsonb, which keeps the document and not its spelling, so the stored text is read back and written
+    /// again the one way this build writes.
+    /// </summary>
+    private static Result<PricingResult> Answer(CalculationSnapshot stored, PricingRequest request)
+        => string.Equals(
+            PricingJson.Write(PricingJson.ReadRequest(stored.RequestJson)),
+            PricingJson.Write(Canonical(request)),
+            StringComparison.Ordinal)
+            ? Result.Success(PricingJson.ReadResult(stored.ResultJson))
+            : Result.Failure<PricingResult>(BillingErrors.SnapshotConflict);
+
     /// <summary>The request as it is stored and compared: the reference trimmed, nothing else touched.</summary>
     private static PricingRequest Canonical(PricingRequest request) => request with { Reference = request.Reference?.Trim() };
 
@@ -191,12 +198,13 @@ public sealed class PricingService(
         if (saved.IsFailure)
         {
             // Somebody stored a calculation under this reference between the read and the write. Theirs
-            // is the figure of record; this one is discarded unread.
+            // is the figure of record, and it is answered exactly as it would have been had the read seen
+            // it: the same request gets the stored figure, a different one gets the conflict.
             var winner = await snapshots.FindAsync(request.OrganisationId, reference, cancellationToken);
 
             return winner is null
                 ? Result.Failure<PricingResult>(saved.Error)
-                : Result.Success(PricingJson.ReadResult(winner.ResultJson));
+                : Answer(winner, request);
         }
 
         var overridden = result.Lines.Where(line => line.ApprovalExercised).ToArray();
