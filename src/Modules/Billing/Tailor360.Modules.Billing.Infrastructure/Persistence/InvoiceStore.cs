@@ -183,6 +183,14 @@ public sealed class InvoiceStore(BillingDbContext context, ITransactionalSequenc
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<Invoice>> ListPostedForOrderAsync(Guid orderId, Guid organisationId, CancellationToken cancellationToken = default)
+        => await context.Invoices
+            .Where(invoice => invoice.OrderId == orderId && invoice.OrganisationId == organisationId && invoice.Status == InvoiceStatus.Posted)
+            .OrderBy(invoice => invoice.PostedAt)
+            .ThenBy(invoice => invoice.Id)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task<Invoice?> FindByBarcodeAsync(string barcodePayload, Guid organisationId, CancellationToken cancellationToken = default)
         => await context.Invoices
             .SingleOrDefaultAsync(invoice => invoice.BarcodePayload == barcodePayload && invoice.OrganisationId == organisationId, cancellationToken);

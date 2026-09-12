@@ -82,6 +82,23 @@ public static class PayloadExamples
             }
             """,
 
+        ["RecordPayment"] = """
+            {
+              "orderId": "019bd6b0-1111-7c3a-9d5e-2f4a6b8c0d1e",
+              "modeCode": "UPI",
+              "amount": 1134.00,
+              "reference": "UPI-426114-8QX2"
+            }
+            """,
+
+        ["AllocateAdvance"] = """
+            {
+              "invoiceId": "019bd6b0-2222-7e4b-8f6a-3a5b7c9d1e2f",
+              "amount": 500.00,
+              "reason": "The customer asked for the advance to go against the second invoice first."
+            }
+            """,
+
         ["CloseCashierSession"] = """
             {
               "denominations": [

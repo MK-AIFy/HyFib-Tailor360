@@ -9,6 +9,7 @@ using Tailor360.Modules.Billing.Application.Payments;
 using Tailor360.Modules.Billing.Application.Pricing;
 using Tailor360.Modules.Billing.Application.Registrations;
 using Tailor360.Modules.Billing.Application.Tax;
+using Tailor360.Modules.Billing.Contracts.Payments;
 using Tailor360.Modules.Billing.Contracts.Pricing;
 using Tailor360.Modules.Billing.Infrastructure.Invoicing;
 using Tailor360.Modules.Billing.Infrastructure.Payments;
@@ -81,6 +82,11 @@ public static class BillingModuleServiceCollectionExtensions
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<CashierOptions>, CashierOptionsValidator>();
 
+        // E09-F03-2: payments, their allocations and advances, and the balance other modules ask for.
+        services.TryAddScoped<IPaymentStore, PaymentStore>();
+        services.TryAddScoped<PaymentHandler>();
+        services.TryAddScoped<IFinancialTotalsQuery, FinancialTotalsQuery>();
+
         // What Billing knows about orders arrives through the outbox, one consumer per event type, each
         // committed with its inbox row by the dispatcher. Enumerable, not TryAdd: the other modules' consumers
         // share the interface.
@@ -96,9 +102,14 @@ public static class BillingModuleServiceCollectionExtensions
         services.AddScoped<IOutboxMessageHandler, CreditNotePostedArtifactHandler>();
         services.AddScoped<IOutboxMessageHandler, DebitNotePostedArtifactHandler>();
 
+        // The rule that applies an order's held advances to the invoice it just posted (INV-PAY-05).
+        services.AddScoped<IOutboxMessageHandler, InvoicePostedAdvanceHandler>();
+
         // The branch an invoice belongs to, for the routes that name one (ARCH-023).
         services.AddScoped<IResourceScopeResolver, InvoiceScopeResolver>();
         services.AddScoped<IResourceScopeResolver, CashierSessionScopeResolver>();
+        services.AddScoped<IResourceScopeResolver, PaymentScopeResolver>();
+        services.AddScoped<IResourceScopeResolver, OrderFactScopeResolver>();
 
         // Link 4 of the catalogue's service types and design options — the price-list item code — is
         // answered here. Enumerable, not TryAdd: every module that owns something a service type links

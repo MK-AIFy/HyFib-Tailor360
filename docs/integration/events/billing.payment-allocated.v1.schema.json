@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.payment-allocated.v1.schema.json",
+  "title": "billing.payment-allocated.v1",
+  "description": "Money from a payment was applied to a posted invoice: by the rule at recording (oldest invoice first), by the rule when the order posted an invoice (from a held advance), or by hand under authority.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "allocationId",
+    "invoiceId",
+    "advanceId",
+    "amount",
+    "currency",
+    "kind",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The payment the money came from."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch."
+    },
+    "allocationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The allocation row: one application of one amount to one invoice."
+    },
+    "invoiceId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The invoice."
+    },
+    "advanceId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "The advance the money was held in first, or null when it was applied at recording."
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "How much was applied, to the paisa, in currency."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217, INR today (conventions.md section 1.1)."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "Automatic",
+        "AdvanceApplied",
+        "Manual"
+      ],
+      "description": "How it came to be: the rule at recording, the rule on posting, or by hand."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.payment-allocated.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

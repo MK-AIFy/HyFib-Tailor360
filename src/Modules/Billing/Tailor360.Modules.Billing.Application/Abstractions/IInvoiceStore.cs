@@ -22,6 +22,9 @@ public interface IInvoiceStore
     /// <summary>The posted invoice a barcode payload resolves to within the organisation, or null.</summary>
     Task<Invoice?> FindByBarcodeAsync(string barcodePayload, Guid organisationId, CancellationToken cancellationToken = default);
 
+    /// <summary>The order's posted invoices with their notes and cancellation, oldest posting first: the order a payment is allocated in.</summary>
+    Task<IReadOnlyList<Invoice>> ListPostedForOrderAsync(Guid orderId, Guid organisationId, CancellationToken cancellationToken = default);
+
     /// <summary>Adds an invoice to the context.</summary>
     void Add(Invoice invoice);
 

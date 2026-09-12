@@ -4,12 +4,14 @@ using Tailor360.Modules.Billing.Contracts.Events;
 using Tailor360.Modules.Billing.Contracts.Pricing;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Invoicing;
+using Tailor360.Modules.Billing.Domain.Payments;
 using Tailor360.Modules.Customers.Contracts.Customers;
 using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Barcodes;
 using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
+using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Abstractions.Time;
 
@@ -36,6 +38,7 @@ namespace Tailor360.Modules.Billing.Application.Invoicing;
 /// </remarks>
 public sealed class InvoiceHandler(
     IInvoiceStore invoices,
+    IPaymentStore payments,
     IOrderFactStore orders,
     IGstRegistrationStore registrations,
     IPricingService pricing,
@@ -244,12 +247,15 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
+            var allocated = await AllocatedAsync(fresh, token);
+            var before = InvoiceBalance.Of(fresh, allocated, Money.Zero);
             var cancel = fresh.Cancel(ids.NewId(), creditNoteId, number.Value, command.Reason, postedOn, now, command.By);
             if (cancel.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(cancel.Error);
             }
 
+            PublishPaidStatusIfMoved(fresh, before, allocated, now);
             events.Publish(new InvoiceCancelled(
                 ids.NewId(), now, fresh.Id, fresh.OrganisationId, fresh.BranchId, fresh.CustomerId, fresh.OrderId, fresh.InvoiceNumber!, creditNoteId));
             events.Publish(new CreditNotePosted(
@@ -323,12 +329,15 @@ public sealed class InvoiceHandler(
                 return Result.Failure<(Invoice, AdjustmentNote)>(number.Error);
             }
 
+            var allocated = await AllocatedAsync(fresh, token);
+            var before = InvoiceBalance.Of(fresh, allocated, Money.Zero);
             var note = fresh.PostNote(noteId, command.Kind, number.Value, command.Lines, command.Reason, postedOn, now, command.By);
             if (note.IsFailure)
             {
                 return Result.Failure<(Invoice, AdjustmentNote)>(note.Error);
             }
 
+            PublishPaidStatusIfMoved(fresh, before, allocated, now);
             var total = note.Value.Totals.GrandTotal;
             events.Publish(command.Kind == AdjustmentNoteKind.Credit
                 ? new CreditNotePosted(ids.NewId(), now, noteId, fresh.OrganisationId, fresh.BranchId, fresh.CustomerId, fresh.Id, number.Value, total.Amount, total.Currency)
@@ -349,6 +358,28 @@ public sealed class InvoiceHandler(
             command.Reason, InvoiceSnapshot.Of(invoice), InvoiceSnapshot.Of(after), cancellationToken);
 
         return Result.Success(new AdministeredNote(after, postedNote, invoices.EntityTagOf(after)));
+    }
+
+    /// <summary>What has been allocated to the invoice, read under the row's hold inside the transaction.</summary>
+    private async Task<Money> AllocatedAsync(Invoice invoice, CancellationToken cancellationToken)
+        => (await payments.AllocatedByInvoiceAsync([invoice.Id], cancellationToken)).GetValueOrDefault(invoice.Id, Money.Zero);
+
+    /// <summary>
+    /// A note or a cancellation moves what the invoice owes as an allocation does (INV-PAY-06): a credit
+    /// note for the whole balance pays it, a debit note reopens it, a cancellation cancels it. The paid
+    /// status event goes on the outbox in the same transaction, as it does when money is applied.
+    /// </summary>
+    private void PublishPaidStatusIfMoved(Invoice invoice, InvoiceBalance before, Money allocated, DateTimeOffset now)
+    {
+        var after = InvoiceBalance.Of(invoice, allocated, Money.Zero);
+        if (after.Status == before.Status)
+        {
+            return;
+        }
+
+        events.Publish(new InvoicePaidStatusChanged(
+            ids.NewId(), now, invoice.Id, invoice.OrganisationId, invoice.BranchId, invoice.OrderId,
+            before.Status.ToString(), after.Status.ToString(), after.Outstanding.Amount, after.Outstanding.Currency));
     }
 
     /// <summary>What a posted draft asks of the order beyond <see cref="CheckOrder"/>: not revised since the draft, and every garment still live.</summary>

@@ -244,7 +244,8 @@ public sealed class InvoicePostingTests(WebApplicationFixture fixture)
             .Where(message => message.AggregateId == invoiceId || message.AggregateId == creditNoteId || message.AggregateId == cancellationNoteId)
             .Select(message => message.EventType)
             .ToListAsync(Token);
-        events.ShouldBe([InvoicePosted.Type, CreditNotePosted.Type, InvoiceCancelled.Type, CreditNotePosted.Type], ignoreOrder: true);
+        // The cancellation moves the paid status too (Unpaid to Cancelled), and says so on the outbox.
+        events.ShouldBe([InvoicePosted.Type, CreditNotePosted.Type, InvoiceCancelled.Type, CreditNotePosted.Type, InvoicePaidStatusChanged.Type], ignoreOrder: true);
 
         // Audited under the actions the matrix names, and never with the customer on the row.
         var trail = await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().AuditEvents.AsNoTracking()
@@ -334,6 +335,7 @@ public sealed class InvoicePostingTests(WebApplicationFixture fixture)
         var provider = scope.ServiceProvider;
         var handler = new Modules.Billing.Application.Invoicing.InvoiceHandler(
             provider.GetRequiredService<Modules.Billing.Application.Abstractions.IInvoiceStore>(),
+            provider.GetRequiredService<Modules.Billing.Application.Abstractions.IPaymentStore>(),
             provider.GetRequiredService<Modules.Billing.Application.Abstractions.IOrderFactStore>(),
             provider.GetRequiredService<Modules.Billing.Application.Abstractions.IGstRegistrationStore>(),
             provider.GetRequiredService<Modules.Billing.Contracts.Pricing.IPricingService>(),

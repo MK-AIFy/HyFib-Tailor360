@@ -19,6 +19,25 @@ public interface ICashierSessionStore
     /// <summary>Tracks a new session.</summary>
     void Add(CashierSession session);
 
+    /// <summary>
+    /// Holds the session's row in share mode for the rest of the current transaction: a payment
+    /// recorded in the session takes this, so a close under way waits for it to commit and counts it,
+    /// and a payment that arrives during the close waits and then finds the session closed
+    /// (INV-CSH-02, INV-CSH-03). Outside a transaction it throws.
+    /// </summary>
+    Task LockForPaymentAsync(Guid sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs the close in one transaction that first locks the session's row against every payment, so
+    /// the expected totals the work reads are the totals the close commits over. A refused outcome
+    /// rolls the attempt back; the work reads everything it changes, because a retry replays it from
+    /// an empty change tracker, and a close already committed is found rather than run again.
+    /// </summary>
+    Task<Result<TOutcome>> CloseInTransactionAsync<TOutcome>(
+        Guid sessionId,
+        Func<CancellationToken, Task<Result<TOutcome>>> work,
+        CancellationToken cancellationToken = default);
+
     /// <summary>The optimistic-concurrency token of a tracked session.</summary>
     EntityTag EntityTagOf(CashierSession session);
 

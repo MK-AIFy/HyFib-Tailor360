@@ -8,4 +8,10 @@ public static class BillingResourceKinds
 
     /// <summary>A cashier session, reached by the branch whose drawer it is.</summary>
     public const string CashierSession = "billing.cashier_session";
+
+    /// <summary>A payment, reached by the branch it was taken at.</summary>
+    public const string Payment = "billing.payment";
+
+    /// <summary>An order as Billing knows it, reached by the branch the order was confirmed at.</summary>
+    public const string Order = "billing.order";
 }

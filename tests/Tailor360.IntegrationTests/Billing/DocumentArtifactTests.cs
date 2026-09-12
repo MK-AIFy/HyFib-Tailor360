@@ -149,7 +149,7 @@ public sealed class DocumentArtifactTests(WebApplicationFixture fixture)
 
         (await cashier.GetAsync($"/api/v1/billing/barcodes/{barcode.ToLowerInvariant()}")).StatusCode.ShouldBe(HttpStatusCode.OK, "a scanner's lower case reads");
         (await cashier.GetAsync($"/api/v1/billing/barcodes/{BarcodePayload.Mint(BarcodePayload.InvoiceNamespace).Value}")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        (await cashier.GetAsync($"/api/v1/billing/barcodes/{barcode[..^1]}X")).StatusCode.ShouldBe(HttpStatusCode.NotFound, "a check character that does not hold");
+        (await cashier.GetAsync($"/api/v1/billing/barcodes/{barcode[..^1]}{(barcode[^1] == 'X' ? 'Y' : 'X')}")).StatusCode.ShouldBe(HttpStatusCode.NotFound, "a check character that does not hold");
         (await cashier.GetAsync($"/api/v1/billing/barcodes/{number}")).StatusCode.ShouldBe(HttpStatusCode.NotFound, "a display number is not a payload");
 
         using var elsewhere = await CashierAsync(fixture, "doc-elsewhere", "203.0.113.182", await BillingHarness.OpenBranchAsync(scene.Owner));
@@ -204,6 +204,10 @@ public sealed class DocumentArtifactTests(WebApplicationFixture fixture)
 
         var scene = await BuildAsync(fixture, "doc-throw", "203.0.113.186", "THROW", RunToken);
         using var cashier = await CashierAsync(fixture, "doc-thrower", "203.0.113.187", scene.Branch, BillingPermissions.PostInvoice);
+
+        // The queue is drained first, so the throwing pass below meets this test's artefact and not a
+        // batch of the other classes' — a failure counted on theirs would be a failure they did not cause.
+        await RenderPendingAsync();
         var (invoiceId, tag) = await DraftAsync(cashier, scene.OrderId, scene.Reference);
         (await cashier.PostAsync($"/api/v1/billing/invoices/{invoiceId}/post", new { reason = (string?)null }, Tagged(tag))).StatusCode.ShouldBe(HttpStatusCode.OK);
         await DispatchAsync(fixture);
@@ -236,10 +240,26 @@ public sealed class DocumentArtifactTests(WebApplicationFixture fixture)
             .SingleAsync(candidate => candidate.DocumentId == documentId, Token);
     }
 
+    /// <summary>
+    /// Renders until a pass completes nothing: the queue holds every document the other classes posted and
+    /// never rendered, more than one batch of them, and a test's own artefact is wherever the requested
+    /// order put it. Answers how many completed in all.
+    /// </summary>
     private async Task<int> RenderPendingAsync()
     {
-        using var scope = fixture.Services.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<DocumentArtifactHandler>().RenderPendingAsync(cancellationToken: Token);
+        var completed = 0;
+        for (var pass = 0; pass < 40; pass++)
+        {
+            using var scope = fixture.Services.CreateScope();
+            var rendered = await scope.ServiceProvider.GetRequiredService<DocumentArtifactHandler>().RenderPendingAsync(cancellationToken: Token);
+            completed += rendered;
+            if (rendered == 0)
+            {
+                break;
+            }
+        }
+
+        return completed;
     }
 
     private sealed class ThrowingRenderer : IPdfRenderer

@@ -612,4 +612,97 @@ public static class BillingErrors
         "billing.variance-reason-required",
         "The count differs from what the session should hold. Say why; the variance is recorded with it.",
         "reason");
+
+    /// <summary>The payment named is not one of the organisation's.</summary>
+    public static readonly Error PaymentNotFound = Error.NotFound(
+        "billing.payment-not-found",
+        "No payment with that identifier belongs to this organisation.");
+
+    /// <summary>A payment was recorded with no cashier session open (INV-CSH-02).</summary>
+    public static readonly Error CashierSessionRequired = Error.Conflict(
+        "billing.cashier-session-required",
+        "Open a cashier session before recording a payment. The day's takings reconcile to it.");
+
+    /// <summary>The mode named is not one the branch takes money in today.</summary>
+    /// <param name="field">The field.</param>
+    public static Error PaymentModeNotAvailable(string field) => Error.Validation(
+        "billing.payment-mode-not-available",
+        "That is not an active payment mode at this branch.",
+        field);
+
+    /// <summary>The mode goes through a provider, and no provider is configured (OD-03).</summary>
+    /// <param name="field">The field.</param>
+    public static Error PaymentProviderNotConfigured(string field) => Error.Validation(
+        "billing.payment-provider-not-configured",
+        "This mode goes through a payment provider, and none is configured yet.",
+        field);
+
+    /// <summary>The mode requires a reference and none was given.</summary>
+    /// <param name="field">The field.</param>
+    public static Error ReferenceRequired(string field) => Error.Validation(
+        "billing.reference-required",
+        "This payment mode needs the reference the terminal or the bank gave.",
+        field);
+
+    /// <summary>A reference held a control character.</summary>
+    /// <param name="field">The field.</param>
+    public static Error ReferenceNotWellFormed(string field) => Error.Validation(
+        "billing.reference-not-well-formed",
+        "A reference is plain text.",
+        field);
+
+    /// <summary>A reference carried a run of digits that reads as a card number, which is never stored.</summary>
+    /// <param name="field">The field.</param>
+    public static Error ReferenceLooksLikeACard(string field) => Error.Validation(
+        "billing.reference-looks-like-a-card",
+        "That reads as a card number. Card numbers are never recorded; enter the terminal's authorisation code instead.",
+        field);
+
+    /// <summary>The same mode and reference were recorded before: a duplicate callback or a retyped receipt.</summary>
+    public static readonly Error PaymentReferenceDuplicated = Error.Conflict(
+        "billing.payment-reference-duplicated",
+        "A payment with this reference has been recorded already in this mode.");
+
+    /// <summary>The same client key was recorded before by this cashier: the request's own twin.</summary>
+    public static readonly Error PaymentDuplicated = Error.Conflict(
+        "billing.payment-duplicated",
+        "This payment has been recorded already. Read it back rather than recording it again.");
+
+    /// <summary>A payment was asked to allocate at recording twice.</summary>
+    public static readonly Error PaymentAlreadyAllocated = Error.Conflict(
+        "billing.payment-already-allocated",
+        "The payment has been allocated already.");
+
+    /// <summary>An advance was applied on a payment that holds none.</summary>
+    public static readonly Error NoAdvanceHeld = Error.Validation(
+        "billing.no-advance-held",
+        "This payment holds no advance to apply.",
+        "amount");
+
+    /// <summary>The automatic kind was used for an advance application.</summary>
+    public static readonly Error AllocationKindNotForAnAdvance = Error.Validation(
+        "billing.allocation-kind-not-for-an-advance",
+        "An advance is applied by the rule when an invoice posts, or by hand.",
+        "kind");
+
+    /// <summary>More was applied than the advance still holds.</summary>
+    /// <param name="field">The field.</param>
+    public static Error AdvanceExceeded(string field) => Error.Validation(
+        "billing.advance-exceeded",
+        "That is more than the advance still holds.",
+        field);
+
+    /// <summary>More was allocated than the invoice still owes (INV-PAY-03).</summary>
+    /// <param name="field">The field.</param>
+    public static Error AllocationExceedsInvoice(string field) => Error.Validation(
+        "billing.allocation-exceeds-invoice",
+        "That is more than the invoice still owes.",
+        field);
+
+    /// <summary>A hand allocation named an invoice that is not the payment's order's, or not posted.</summary>
+    /// <param name="field">The field.</param>
+    public static Error AllocationInvoiceNotOfOrder(string field) => Error.Validation(
+        "billing.allocation-invoice-not-of-order",
+        "An advance is applied to a posted invoice of the order it was taken against.",
+        field);
 }

@@ -29,6 +29,9 @@ internal static class BillingAudit
     /// <summary>A cashier session.</summary>
     public const string CashierSessionEntity = "billing.cashier_session";
 
+    /// <summary>A payment, with its allocations and its advance.</summary>
+    public const string PaymentEntity = "billing.payment";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,
