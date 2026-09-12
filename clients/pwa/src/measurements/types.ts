@@ -73,10 +73,70 @@ export interface MeasurementVersion {
   readonly versionNumber: number | string
   readonly takenAt: string
   readonly takenBy: string | null
+  /** Who took it, as the staff directory names them, or null when it no longer knows. */
+  readonly takenByName: string | null
   readonly reason: string | null
   readonly reusedFromVersionId: string | null
   readonly correctsVersionId: string | null
   readonly values: readonly MeasurementValue[]
+}
+
+/**
+ * One of a customer's measurements, as the list shows it — without the values.
+ *
+ * A list is for choosing which measurement to reuse, compare or correct, and the choice is made on
+ * the date, who took it and whether it corrected something. Carrying the values would put every
+ * measurement a customer has ever had into a response somebody only wanted a list from.
+ */
+export interface MeasurementSummary {
+  readonly measurementVersionId: string
+  readonly measurementTemplateId: string
+  readonly templateVersionId: string
+  readonly versionNumber: number | string
+  readonly takenAt: string
+  readonly takenBy: string | null
+  readonly takenByName: string | null
+  readonly branchId: string
+  readonly reason: string | null
+  readonly reusedFromVersionId: string | null
+  readonly correctsVersionId: string | null
+  readonly fieldCount: number | string
+}
+
+/** One field as it stood in each of two measurements. `Unchanged`, `Changed`, `Added` or `Dropped`. */
+export interface MeasurementDifference {
+  readonly key: string
+  readonly change: string
+  readonly before: MeasurementValue | null
+  readonly after: MeasurementValue | null
+}
+
+/** What changed between two of a customer's measurements, oldest first. */
+export interface MeasurementComparison {
+  readonly before: MeasurementSummary
+  readonly after: MeasurementSummary
+  readonly differences: readonly MeasurementDifference[]
+  readonly changedCount: number | string
+}
+
+/**
+ * A measurement as a tailor reads it: the values, the template version they render through, and
+ * nothing else about the customer. One read, because `measurements.read_sheet` is held by people
+ * who may not hold the capture key.
+ */
+export interface MeasurementSheet extends MeasurementVersion {
+  readonly templateCode: string
+  readonly templateName: string
+  readonly templateVersion: TemplateVersion
+}
+
+/** The template version a confirmed measurement renders through, read by way of the measurement. */
+export interface MeasurementVersionTemplate {
+  readonly measurementVersionId: string
+  readonly measurementTemplateId: string
+  readonly code: string
+  readonly name: string
+  readonly version: TemplateVersion
 }
 
 /** What a caller sends for one field: the number as typed, with the unit beside it. */

@@ -18,6 +18,8 @@ import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers
 import type { CustomerCard } from '../../customers/types'
 import { MeasurementProblemAlert } from '../../measurements/MeasurementProblemAlert'
 import { startMeasurementDraft } from '../../measurements/measurementsApi'
+import type { MeasurementSummary } from '../../measurements/types'
+import { EarlierMeasurements } from './EarlierMeasurements'
 import './measurements.css'
 
 /**
@@ -112,7 +114,15 @@ export function MeasurementStartRoute() {
     }
   }
 
-  const start = async (): Promise<void> => {
+  /**
+   * Starts the draft — fresh, pre-filled from an earlier version, or as a correction of one.
+   *
+   * A correction is a reuse whose confirmation carries a reason and names the version it replaces;
+   * the draft itself is the same server-side thing. Which of the two this is travels in the wizard's
+   * address, because a draft is shared within the branch and the address is what a colleague picks
+   * up.
+   */
+  const start = async (from: MeasurementSummary | null, correcting: boolean): Promise<void> => {
     const templateId = templateFor(serviceTypeId)
     if (customerId === '' || templateId === null) {
       setIncomplete(true)
@@ -129,17 +139,27 @@ export function MeasurementStartRoute() {
 
     try {
       const started = await startMeasurementDraft({
-        body: { customerId, measurementTemplateId: templateId, reuseFromVersionId: null },
+        body: {
+          customerId,
+          measurementTemplateId: templateId,
+          reuseFromVersionId: from?.measurementVersionId ?? null,
+        },
         idempotencyKey: key,
       })
       setStartKey(null)
-      await navigate(`/measurements/drafts/${started.value.measurementDraftId}`)
+      const corrects =
+        correcting && from !== null
+          ? `?${new URLSearchParams({ corrects: from.measurementVersionId }).toString()}`
+          : ''
+      await navigate(`/measurements/drafts/${started.value.measurementDraftId}${corrects}`)
     } catch (cause: unknown) {
       setFailure(cause)
     } finally {
       setBusy(false)
     }
   }
+
+  const chosenTemplateId = templateFor(serviceTypeId)
 
   const cardLabel = (card: CustomerCard): string =>
     card.visibleToCaller
@@ -225,7 +245,7 @@ export function MeasurementStartRoute() {
             noValidate
             onSubmit={(event) => {
               event.preventDefault()
-              void start()
+              void start(null, false)
             }}
           >
             {preselected && customerId !== '' ? (
@@ -283,6 +303,17 @@ export function MeasurementStartRoute() {
                   : serviceTypeId
               }
             />
+
+            {customerId !== '' && chosenTemplateId !== null ? (
+              <EarlierMeasurements
+                busy={busy}
+                customerId={customerId}
+                onStartFrom={(version, correcting) => {
+                  void start(version, correcting)
+                }}
+                templateId={chosenTemplateId}
+              />
+            ) : null}
 
             {incomplete ? (
               <Alert live="assertive" tone="danger">

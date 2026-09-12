@@ -12,4 +12,9 @@ export const MEASUREMENT_PERMISSIONS = {
   customersRead: 'customers.read',
   /** Reading what the branch may order, which is where the template for a garment comes from. */
   catalogRead: 'catalog.read',
+  /**
+   * Reading and printing a measurement sheet. Narrower than capture on purpose: a sheet is the
+   * widest audience a measurement gets, and the right to produce one is held by fewer people.
+   */
+  readSheet: 'measurements.read_sheet',
 } as const

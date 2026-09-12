@@ -4,8 +4,12 @@ import type { CustomerCard } from '../../customers/types'
 import type {
   MeasurementCaptureTemplate,
   MeasurementCheck,
+  MeasurementComparison,
   MeasurementDraft,
+  MeasurementSheet,
+  MeasurementSummary,
   MeasurementVersion,
+  MeasurementVersionTemplate,
 } from '../types'
 
 /**
@@ -119,6 +123,7 @@ export function aMeasurementVersion(
     versionNumber: 1,
     takenAt: '2026-09-11T04:20:00.000Z',
     takenBy: '0199aa00-0000-7000-8000-000000000001',
+    takenByName: 'Asha (counter)',
     reason: null,
     reusedFromVersionId: null,
     correctsVersionId: null,
@@ -175,6 +180,144 @@ export function anOrderableCatalog(overrides: Partial<OrderableCatalog> = {}): O
     branchId: '0199aa00-0000-7000-8000-0000000000aa',
     catalogVersionId: '0199dd00-0000-7000-8000-0000000000v1',
     services: [anOrderableService()],
+    ...overrides,
+  }
+}
+
+export const VERSION_ONE_ID = '0199cc00-0000-7000-8000-0000000000b1'
+export const VERSION_TWO_ID = '0199cc00-0000-7000-8000-0000000000b2'
+
+export function aMeasurementSummary(
+  overrides: Partial<MeasurementSummary> = {},
+): MeasurementSummary {
+  return {
+    measurementVersionId: VERSION_ONE_ID,
+    measurementTemplateId: TEMPLATE_ID,
+    templateVersionId: VERSION_ID,
+    versionNumber: 1,
+    takenAt: '2026-09-11T04:20:00.000Z',
+    takenBy: '0199aa00-0000-7000-8000-000000000001',
+    takenByName: 'Asha (counter)',
+    branchId: '0199aa00-0000-7000-8000-0000000000aa',
+    reason: null,
+    reusedFromVersionId: null,
+    correctsVersionId: null,
+    fieldCount: 2,
+    ...overrides,
+  }
+}
+
+/** Two measurements of the blouse: the chest grew half an inch, the closure changed, the sleeve was added. */
+export function aMeasurementComparison(
+  overrides: Partial<MeasurementComparison> = {},
+): MeasurementComparison {
+  return {
+    before: aMeasurementSummary(),
+    after: aMeasurementSummary({
+      measurementVersionId: VERSION_TWO_ID,
+      versionNumber: 2,
+      takenAt: '2026-09-11T06:00:00.000Z',
+      takenByName: 'Devi (owner)',
+      fieldCount: 3,
+    }),
+    differences: [
+      {
+        key: 'chest_bust',
+        change: 'Changed',
+        before: {
+          key: 'chest_bust',
+          millimetres: 914.4,
+          enteredUnit: 'Inch',
+          choice: null,
+          acknowledged: false,
+        },
+        after: {
+          key: 'chest_bust',
+          millimetres: 927.1,
+          enteredUnit: 'Inch',
+          choice: null,
+          acknowledged: false,
+        },
+      },
+      {
+        key: 'closure',
+        change: 'Unchanged',
+        before: {
+          key: 'closure',
+          millimetres: null,
+          enteredUnit: 'Inch',
+          choice: 'front_hooks',
+          acknowledged: false,
+        },
+        after: {
+          key: 'closure',
+          millimetres: null,
+          enteredUnit: 'Inch',
+          choice: 'front_hooks',
+          acknowledged: false,
+        },
+      },
+      {
+        key: 'sleeve_length',
+        change: 'Added',
+        before: null,
+        after: {
+          key: 'sleeve_length',
+          millimetres: 500,
+          enteredUnit: 'Inch',
+          choice: null,
+          acknowledged: false,
+        },
+      },
+    ],
+    changedCount: 2,
+    ...overrides,
+  }
+}
+
+export function aMeasurementSheet(overrides: Partial<MeasurementSheet> = {}): MeasurementSheet {
+  return {
+    ...aMeasurementVersion({
+      values: [
+        {
+          key: 'chest_bust',
+          millimetres: 927.1,
+          enteredUnit: 'Inch',
+          choice: null,
+          acknowledged: false,
+        },
+        {
+          key: 'closure',
+          millimetres: null,
+          enteredUnit: 'Inch',
+          choice: 'back_hooks',
+          acknowledged: false,
+        },
+        {
+          key: 'sleeve_length',
+          millimetres: 500,
+          enteredUnit: 'Inch',
+          choice: null,
+          acknowledged: false,
+        },
+      ],
+    }),
+    templateCode: 'MT_BLOUSE_PATTERN',
+    templateName: 'Blouse, pattern work',
+    templateVersion: aPublishedCaptureVersion(),
+    ...overrides,
+  }
+}
+
+export function aMeasurementVersionTemplate(
+  overrides: Partial<MeasurementVersionTemplate> = {},
+): MeasurementVersionTemplate {
+  return {
+    measurementVersionId: VERSION_TWO_ID,
+    measurementTemplateId: TEMPLATE_ID,
+    code: 'MT_BLOUSE_PATTERN',
+    name: 'Blouse, pattern work',
+    version: aPublishedCaptureVersion(),
     ...overrides,
   }
 }

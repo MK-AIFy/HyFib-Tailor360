@@ -22,7 +22,9 @@ import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
+import { MeasurementCompareRoute } from '../routes/measurements/MeasurementCompareRoute'
 import { MeasurementDraftRoute } from '../routes/measurements/MeasurementDraftRoute'
+import { MeasurementSheetRoute } from '../routes/measurements/MeasurementSheetRoute'
 import { MeasurementStartRoute } from '../routes/measurements/MeasurementStartRoute'
 import { MeasurementsHomeRoute } from '../routes/measurements/MeasurementsHomeRoute'
 import { AuthShell } from '../routes/auth/AuthShell'
@@ -187,6 +189,24 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
                 <MeasurementDraftRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'measurements/compare/:beforeId/:afterId',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementCompareRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // The sheet is gated on the narrower key: a sheet is the widest audience a measurement
+            // gets, and the right to produce one is held by fewer people than the right to take one.
+            path: 'measurements/:versionId/sheet',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.readSheet}>
+                <MeasurementSheetRoute />
               </RequirePermission>
             ),
           },

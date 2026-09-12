@@ -11,14 +11,25 @@ import { RequirePermission } from '../../admin/RequirePermission'
 import { PSEUDO_LOCALE } from '../../i18n/pseudo'
 import { MEASUREMENT_PERMISSIONS } from '../../measurements/measurementsPermissions'
 import {
+  CUSTOMER_ID,
   DRAFT_ID,
+  TEMPLATE_ID,
+  VERSION_ONE_ID,
+  VERSION_TWO_ID,
   aCaptureTemplate,
   aCustomerCard,
+  aMeasurementComparison,
   aMeasurementDraft,
+  aMeasurementSheet,
+  aMeasurementSummary,
+  aMeasurementVersion,
+  aMeasurementVersionTemplate,
   anOrderableCatalog,
   anOrderableService,
 } from '../../measurements/testing/fixtures'
+import { MeasurementCompareRoute } from './MeasurementCompareRoute'
 import { MeasurementDraftRoute } from './MeasurementDraftRoute'
+import { MeasurementSheetRoute } from './MeasurementSheetRoute'
 import { MeasurementStartRoute } from './MeasurementStartRoute'
 import './measurements.css'
 
@@ -54,11 +65,23 @@ const CAPTURE_USER = {
     MEASUREMENT_PERMISSIONS.capture,
     MEASUREMENT_PERMISSIONS.customersRead,
     MEASUREMENT_PERMISSIONS.catalogRead,
+    MEASUREMENT_PERMISSIONS.readSheet,
   ],
 }
 
-const DRAFTS = '/api/v1/customers/measurement-drafts'
+const CUSTOMERS = '/api/v1/customers'
+const DRAFTS = `${CUSTOMERS}/measurement-drafts`
 const DRAFT = `${DRAFTS}/${DRAFT_ID}`
+const MEASUREMENTS = `${CUSTOMERS}/measurements`
+const EARLIER = `${CUSTOMERS}/${CUSTOMER_ID}/measurements?templateId=${TEMPLATE_ID}`
+
+const NEWER = aMeasurementSummary({
+  measurementVersionId: VERSION_TWO_ID,
+  versionNumber: 2,
+  takenAt: '2026-09-11T06:00:00.000Z',
+  takenByName: 'Devi (owner)',
+  reusedFromVersionId: VERSION_ONE_ID,
+})
 
 const start = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
   link(online, () =>
@@ -73,6 +96,7 @@ const start = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
         'GET /api/v1/catalog/current': () => storyJson(anOrderableCatalog()),
         'GET /api/v1/customers/?term=Asha': () =>
           storyJson({ customers: [aCustomerCard()], nextCursor: null }),
+        [`GET ${EARLIER}`]: () => storyJson([NEWER, aMeasurementSummary()]),
         [`POST ${DRAFTS}`]: () => storyJson(aMeasurementDraft(), 'W/"1"'),
         ...routes,
       },
@@ -80,7 +104,11 @@ const start = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
     ),
   )
 
-const wizard = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+const wizard = (
+  routes: Parameters<typeof withAdminApi>[1],
+  online = true,
+  options: { readonly at?: string } = {},
+) =>
   link(online, () =>
     withAdminApi(
       <ShellStatusProvider>
@@ -95,9 +123,57 @@ const wizard = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
         [`GET ${DRAFT}/check`]: () =>
           storyJson({ measurementDraftId: DRAFT_ID, confirmable: true, findings: [] }),
         [`POST ${DRAFT}/sections`]: () => storyJson(aMeasurementDraft(), 'W/"2"'),
+        [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}`]: () =>
+          storyJson(
+            aMeasurementVersion({ measurementVersionId: VERSION_TWO_ID, versionNumber: 2 }),
+          ),
         ...routes,
       },
-      { path: '/measurements/drafts/:draftId', at: `/measurements/drafts/${DRAFT_ID}` },
+      {
+        path: '/measurements/drafts/:draftId',
+        at: `/measurements/drafts/${DRAFT_ID}${options.at ?? ''}`,
+      },
+    ),
+  )
+
+const compare = (routes: Parameters<typeof withAdminApi>[1]) =>
+  link(true, () =>
+    withAdminApi(
+      <ShellStatusProvider>
+        <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+          <MeasurementCompareRoute />
+        </RequirePermission>
+      </ShellStatusProvider>,
+      {
+        'GET /api/v1/me': () => storyJson(CAPTURE_USER),
+        [`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/compare/${VERSION_TWO_ID}`]: () =>
+          storyJson(aMeasurementComparison()),
+        [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/template`]: () =>
+          storyJson(aMeasurementVersionTemplate()),
+        ...routes,
+      },
+      {
+        path: '/measurements/compare/:beforeId/:afterId',
+        at: `/measurements/compare/${VERSION_ONE_ID}/${VERSION_TWO_ID}`,
+      },
+    ),
+  )
+
+const sheet = (routes: Parameters<typeof withAdminApi>[1]) =>
+  link(true, () =>
+    withAdminApi(
+      <ShellStatusProvider>
+        <RequirePermission permission={MEASUREMENT_PERMISSIONS.readSheet}>
+          <MeasurementSheetRoute />
+        </RequirePermission>
+      </ShellStatusProvider>,
+      {
+        'GET /api/v1/me': () => storyJson(CAPTURE_USER),
+        [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/sheet`]: () =>
+          storyJson(aMeasurementSheet({ measurementVersionId: VERSION_TWO_ID, versionNumber: 2 })),
+        ...routes,
+      },
+      { path: '/measurements/:versionId/sheet', at: `/measurements/${VERSION_TWO_ID}/sheet` },
     ),
   )
 
@@ -223,4 +299,69 @@ export const WizardOffline: Story = { render: () => wizard({}, false) }
 export const WizardPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => wizard({}),
+}
+
+/* Reuse, correction, comparison and the sheet (#124) ------------------------------------------ */
+
+/**
+ * The start screen once a customer and garment are chosen: two earlier measurements, each with
+ * Reuse, Correct, Compare and Sheet. Search "Asha", choose her, choose the garment.
+ */
+export const StartWithEarlierMeasurements: Story = { render: () => start({}) }
+
+/** The wizard as a correction of version 2: it says so, and confirming will demand a reason. */
+export const WizardCorrecting: Story = {
+  render: () => wizard({}, true, { at: `?corrects=${VERSION_TWO_ID}` }),
+}
+
+export const Compare: Story = { render: () => compare({}) }
+
+export const CompareLoading: Story = {
+  render: () =>
+    compare({
+      [`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/compare/${VERSION_TWO_ID}`]: storyPending,
+      [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/template`]: storyPending,
+    }),
+}
+
+/** Two measurements of different customers or templates are refused rather than compared. */
+export const CompareError: Story = {
+  render: () =>
+    compare({
+      [`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/compare/${VERSION_TWO_ID}`]: () =>
+        storyProblem(400, 'measurements.comparison-subjects-do-not-match'),
+    }),
+}
+
+export const CompareForbidden: Story = {
+  render: () => compare({ 'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }) }),
+}
+
+/** View-only and printable: the measurements, the version they render through, and nothing else. */
+export const Sheet: Story = { render: () => sheet({}) }
+
+export const SheetLoading: Story = {
+  render: () => sheet({ [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/sheet`]: storyPending }),
+}
+
+export const SheetError: Story = {
+  render: () =>
+    sheet({
+      [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/sheet`]: () =>
+        storyProblem(404, 'measurements.measurement-not-found'),
+    }),
+}
+
+/** Somebody holding the capture key but not the sheet key: a sentence and who to ask. */
+export const SheetForbidden: Story = {
+  render: () =>
+    sheet({
+      'GET /api/v1/me': () =>
+        storyJson({ ...STORY_USER, permissions: [MEASUREMENT_PERMISSIONS.capture] }),
+    }),
+}
+
+export const SheetPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => sheet({}),
 }

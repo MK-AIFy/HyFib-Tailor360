@@ -173,3 +173,66 @@
     margin-inline-start: auto;
   }
 }
+
+/*
+ * The comparison and the sheet (#124).
+ *
+ * The change column carries a glyph beside its word; the glyph is decoration on a word that stands
+ * alone, so colour is never the only signal. The printed sheet hides everything else in the
+ * document — `visibility` rather than `display`, so the sheet keeps its place — which is what stops
+ * a measurement sheet arriving as three pages of navigation, the same rule the recovery-code sheet
+ * follows.
+ */
+@layer components {
+  .compare__change {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    white-space: nowrap;
+  }
+
+  .measurements__earlier {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .measurements__earlier > h2 {
+    margin: 0;
+    font-size: var(--font-size-300);
+  }
+
+  .sheet__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .sheet__group > h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-300);
+  }
+
+  @media print {
+    body:has(.sheet__body) * {
+      visibility: hidden;
+    }
+
+    body:has(.sheet__body) .sheet,
+    body:has(.sheet__body) .sheet * {
+      visibility: visible;
+    }
+
+    .sheet {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      inline-size: 100%;
+    }
+
+    .sheet__actions,
+    .sheet .button {
+      display: none;
+    }
+  }
+}
