@@ -143,11 +143,33 @@ public sealed class DesignCatalogueTests
         refused.IsFailure.ShouldBeTrue();
         refused.Error.Code.ShouldBe("catalog.illustration-key-not-well-formed");
 
+        // Well formed, and anchored on another option: the picker would show that option's drawing.
+        var another = version.AddDesignOption(
+            CatalogTestData.Id("o3"), CatalogTestData.Id("o3k"), group,
+            OptionDetails("FULL") with { IllustrationKey = "design_kids_style_v1#lining.NONE" },
+            CatalogTestData.Now, null);
+        another.IsFailure.ShouldBeTrue();
+        another.Error.Code.ShouldBe("catalog.illustration-key-not-for-this-option");
+
         version.AddDesignOption(
                 CatalogTestData.Id("o2"), CatalogTestData.Id("o2k"), group,
                 OptionDetails("FULL") with { IllustrationKey = "design_kids_style_v1#lining.FULL" },
                 CatalogTestData.Now, null)
             .IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RefusesATimeImpactAtTheEdgeOfWhatAnIntegerHoldsAsAValidationProblem()
+    {
+        var version = CatalogTestData.Draft();
+        var group = Group(version, Category(version, "BLOUSE_PATTERN"), "padding").Value.Id;
+
+        var refused = version.AddDesignOption(
+            CatalogTestData.Id("o1"), CatalogTestData.Id("o1k"), group,
+            OptionDetails("LIGHT") with { TimeImpactDays = int.MinValue }, CatalogTestData.Now, null);
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("catalog.time-impact-out-of-range");
     }
 
     [Fact]

@@ -10,8 +10,8 @@ using Tailor360.Platform.Persistence.Conventions;
 namespace Tailor360.IntegrationTests.Catalog;
 
 /// <summary>
-/// The design catalogue migration (#137) applied, rolled back and re-applied against real PostgreSQL, in a
-/// scratch database of its own. <c>src/Modules/CLAUDE.md</c> section 6 asks that every <c>Down</c> has been
+/// The design catalogue migrations (#137, and the composite option key that followed it) applied, rolled back
+/// and re-applied against real PostgreSQL, in a scratch database of its own. <c>src/Modules/CLAUDE.md</c> section 6 asks that every <c>Down</c> has been
 /// executed at least once; this is where it is.
 /// </summary>
 [Trait("Category", "Integration")]
@@ -52,7 +52,8 @@ public sealed class CatalogMigrationTests
             var functions = await FunctionCountAsync(connectionString);
             var applied = await AppliedMigrationCountAsync(connectionString);
 
-            // Down one step: the design tables and their two trigger functions go; the rest of the schema stays.
+            // Down two steps: the composite option key, then the design tables and their two trigger functions
+            // go; the rest of the schema stays.
             await using (var context = CreateContext(connectionString))
             {
                 await context.GetService<IMigrator>().MigrateAsync(BeforeDesign, Token);
@@ -65,7 +66,7 @@ public sealed class CatalogMigrationTests
                 functions - 2,
                 "the two functions this migration created are gone; a function left behind makes the "
                 + "re-applied CREATE FUNCTION fail on a name already taken");
-            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(applied - 1);
+            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(applied - 2);
 
             await using (var context = CreateContext(connectionString))
             {

@@ -66,6 +66,24 @@ public static partial class DesignCode
            && key.Length <= MaximumIllustrationKeyLength
            && IllustrationShape().IsMatch(key);
 
+    /// <summary>
+    /// Whether an illustration reference is anchored on this group and this option — the two parts after
+    /// the sheet key. A reference of the right shape that names another option would show the customer
+    /// another option's drawing.
+    /// </summary>
+    /// <param name="key">The reference.</param>
+    /// <param name="groupCode">The owning group's code.</param>
+    /// <param name="optionCode">This option's code.</param>
+    /// <returns>True when the anchor is <c>groupCode.optionCode</c>.</returns>
+    public static bool IllustrationKeyNames(string key, string groupCode, string optionCode)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        var anchor = key.IndexOf('#', StringComparison.Ordinal);
+        return anchor >= 0
+               && string.Equals(key[(anchor + 1)..], $"{groupCode}.{optionCode}", StringComparison.Ordinal);
+    }
+
     [GeneratedRegex("^[a-z][a-z0-9_]*$", RegexOptions.CultureInvariant)]
     private static partial Regex GroupShape();
 
