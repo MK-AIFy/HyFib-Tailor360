@@ -229,6 +229,12 @@ public static class MeasurementCaptureEndpoints
             {
                 ArgumentNullException.ThrowIfNull(request);
 
+                // The name the answer will carry is the caller's own, resolved before the confirmation rather
+                // than after it: a decorative lookup must not be able to fail a command that has already
+                // committed and cannot be repeated.
+                var names = await handler.DisplayNamesAsync(
+                    caller.UserId is { } confirmingUser ? [confirmingUser] : [], cancellationToken);
+
                 var result = await handler.ConfirmAsync(
                     new ConfirmMeasurementsCommand(
                         draftId,
@@ -239,11 +245,15 @@ public static class MeasurementCaptureEndpoints
                         caller.UserId),
                     cancellationToken);
 
-                return result.IsFailure
-                    ? Problems.From(result.Error, context)
-                    : Results.Created(
-                        $"/api/v1/customers/measurements/{result.Value.Id}",
-                        MeasurementVersionPayload.From(result.Value));
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                return Results.Created(
+                    $"/api/v1/customers/measurements/{result.Value.Id}",
+                    MeasurementVersionPayload.From(
+                        result.Value, MeasurementCaptureHandler.NameOf(result.Value, names)));
             })
             .Produces<MeasurementVersionPayload>(StatusCodes.Status201Created)
             .WithName("ConfirmMeasurements")
@@ -270,9 +280,16 @@ public static class MeasurementCaptureEndpoints
                 var result = await handler.ReadVersionAsync(
                     measurementVersionId, caller.Context.OrganisationId, cancellationToken);
 
-                return result.IsFailure
-                    ? Problems.From(result.Error, context)
-                    : Results.Ok(MeasurementVersionPayload.From(result.Value));
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                var names = await handler.TakenByNamesAsync([result.Value], cancellationToken);
+
+                return Results.Ok(
+                    MeasurementVersionPayload.From(
+                        result.Value, MeasurementCaptureHandler.NameOf(result.Value, names)));
             })
             .Produces<MeasurementVersionPayload>(StatusCodes.Status200OK)
             .WithName("GetMeasurement")
@@ -304,7 +321,14 @@ public static class MeasurementCaptureEndpoints
                 var versions = await handler.ListAsync(
                     customerId, templateId, caller.Context.OrganisationId, cancellationToken);
 
-                return Results.Ok(versions.Select(MeasurementSummaryPayload.From).ToArray());
+                var names = await handler.TakenByNamesAsync(versions, cancellationToken);
+
+                return Results.Ok(
+                    versions
+                        .Select(version =>
+                            MeasurementSummaryPayload.From(
+                                version, MeasurementCaptureHandler.NameOf(version, names)))
+                        .ToArray());
             })
             .Produces<MeasurementSummaryPayload[]>(StatusCodes.Status200OK)
             .WithName("ListCustomerMeasurements")
@@ -335,9 +359,15 @@ public static class MeasurementCaptureEndpoints
                     var result = await handler.CompareAsync(
                         beforeId, afterId, caller.Context.OrganisationId, cancellationToken);
 
-                    return result.IsFailure
-                        ? Problems.From(result.Error, context)
-                        : Results.Ok(MeasurementComparisonPayload.From(result.Value));
+                    if (result.IsFailure)
+                    {
+                        return Problems.From(result.Error, context);
+                    }
+
+                    var names = await handler.TakenByNamesAsync(
+                        [result.Value.Before, result.Value.After], cancellationToken);
+
+                    return Results.Ok(MeasurementComparisonPayload.From(result.Value, names));
                 })
             .Produces<MeasurementComparisonPayload>(StatusCodes.Status200OK)
             .WithName("CompareMeasurements")
@@ -358,6 +388,37 @@ public static class MeasurementCaptureEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithRequestTimeout(RequestTimeoutPolicies.Read);
 
+        customers.MapGet("/measurements/{measurementVersionId:guid}/template", async Task<IResult> (
+                HttpContext context,
+                MeasurementCaptureHandler handler,
+                ICurrentUser caller,
+                Guid measurementVersionId,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.ReadVersionTemplateAsync(
+                    measurementVersionId, caller.Context.OrganisationId, cancellationToken);
+
+                return result.IsFailure
+                    ? Problems.From(result.Error, context)
+                    : Results.Ok(MeasurementVersionTemplatePayload.From(result.Value));
+            })
+            .Produces<MeasurementVersionTemplatePayload>(StatusCodes.Status200OK)
+            .WithName("GetMeasurementVersionTemplate")
+            .WithSummary("Read the template version a confirmed measurement renders through, with its fields.")
+            .WithDescription(
+                "The comparison screen and a correction both start from a confirmed measurement and need the "
+                + "labels, groups and units it was captured under — the version it renders through forever, "
+                + "whatever the template has become since. The capture-side read of a template by way of a "
+                + "measurement, as the draft route is by way of a draft; nothing about the customer travels here.")
+            .RequirePermission(CustomersPermissions.CaptureMeasurements, BranchScope.AssignedBranches)
+            .TouchesNoBranchOwnedResource(
+                "The route names a confirmed measurement, and a confirmed measurement is a fact about a customer "
+                + "for the reason the read of one gives above: docs/prd/workflows/branch-scenarios.md section 3.2 "
+                + "places the record organisation-wide. What it answers is a fact about the template.",
+                "#124")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
         customers.MapGet("/measurements/{measurementVersionId:guid}/sheet", async Task<IResult> (
                 HttpContext context,
                 MeasurementCaptureHandler handler,
@@ -370,17 +431,18 @@ public static class MeasurementCaptureEndpoints
 
                 return result.IsFailure
                     ? Problems.From(result.Error, context)
-                    : Results.Ok(MeasurementVersionPayload.From(result.Value));
+                    : Results.Ok(MeasurementSheetPayload.From(result.Value));
             })
-            .Produces<MeasurementVersionPayload>(StatusCodes.Status200OK)
+            .Produces<MeasurementSheetPayload>(StatusCodes.Status200OK)
             .WithName("ReadMeasurementSheet")
             .WithSummary("Read a customer's measurements as a tailor reads them.")
             .WithDescription(
                 "The measurements and nothing else about the customer — no name, no telephone number, no address "
-                + "— which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read "
-                + "(INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, "
-                + "because \"who looked at my measurements\" is a question she may ask and the answer has to be "
-                + "somewhere a person can find.")
+                + "— which is what lets the sheet be printed and handed to whoever is cutting. The template version "
+                + "the values render through travels with them, so the sheet is one read for a person who holds "
+                + "this key and not the capture key. A sensitive read (INV-MSR-06): the access is audited explicitly "
+                + "and appears on the customer's own timeline, because \"who looked at my measurements\" is a "
+                + "question she may ask and the answer has to be somewhere a person can find.")
             .RequirePermission(CustomersPermissions.ReadMeasurementSheet, BranchScope.AssignedBranches)
             .TouchesNoBranchOwnedResource(
                 "A confirmed measurement is a fact about a customer and is organisation-wide for the reason #121 "

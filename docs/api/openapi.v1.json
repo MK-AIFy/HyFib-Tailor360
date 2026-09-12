@@ -2311,6 +2311,109 @@
         ],
         "type": "object"
       },
+      "MeasurementSheetPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "correctsVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reusedFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "takenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "takenBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "takenByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateCode": {
+            "type": "string"
+          },
+          "templateName": {
+            "type": "string"
+          },
+          "templateVersion": {
+            "$ref": "#/components/schemas/TemplateVersionPayload"
+          },
+          "templateVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/MeasurementValuePayload"
+            },
+            "type": "array"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "measurementVersionId",
+          "customerId",
+          "branchId",
+          "measurementTemplateId",
+          "templateVersionId",
+          "versionNumber",
+          "takenAt",
+          "takenBy",
+          "takenByName",
+          "reason",
+          "reusedFromVersionId",
+          "correctsVersionId",
+          "values",
+          "templateCode",
+          "templateName",
+          "templateVersion"
+        ],
+        "type": "object"
+      },
       "MeasurementSummaryPayload": {
         "properties": {
           "branchId": {
@@ -2364,6 +2467,12 @@
               "string"
             ]
           },
+          "takenByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "templateVersionId": {
             "format": "uuid",
             "type": "string"
@@ -2384,6 +2493,7 @@
           "versionNumber",
           "takenAt",
           "takenBy",
+          "takenByName",
           "branchId",
           "reason",
           "reusedFromVersionId",
@@ -2558,6 +2668,12 @@
               "string"
             ]
           },
+          "takenByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "templateVersionId": {
             "format": "uuid",
             "type": "string"
@@ -2586,10 +2702,40 @@
           "versionNumber",
           "takenAt",
           "takenBy",
+          "takenByName",
           "reason",
           "reusedFromVersionId",
           "correctsVersionId",
           "values"
+        ],
+        "type": "object"
+      },
+      "MeasurementVersionTemplatePayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/TemplateVersionPayload"
+          }
+        },
+        "required": [
+          "measurementVersionId",
+          "measurementTemplateId",
+          "code",
+          "name",
+          "version"
         ],
         "type": "object"
       },
@@ -12770,7 +12916,7 @@
     },
     "/api/v1/customers/measurements/{measurementVersionId}/sheet": {
       "get": {
-        "description": "The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because \"who looked at my measurements\" is a question she may ask and the answer has to be somewhere a person can find.",
+        "description": "The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. The template version the values render through travels with them, so the sheet is one read for a person who holds this key and not the capture key. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because \"who looked at my measurements\" is a question she may ask and the answer has to be somewhere a person can find.",
         "operationId": "ReadMeasurementSheet",
         "parameters": [
           {
@@ -12788,7 +12934,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeasurementVersionPayload"
+                  "$ref": "#/components/schemas/MeasurementSheetPayload"
                 }
               }
             },
@@ -12827,6 +12973,67 @@
         ],
         "x-tailor360-audit": "customers.measurement.sheet.read",
         "x-tailor360-authorisation": "permission:measurements.read_sheet",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/customers/measurements/{measurementVersionId}/template": {
+      "get": {
+        "description": "The comparison screen and a correction both start from a confirmed measurement and need the labels, groups and units it was captured under — the version it renders through forever, whatever the template has become since. The capture-side read of a template by way of a measurement, as the draft route is by way of a draft; nothing about the customer travels here.",
+        "operationId": "GetMeasurementVersionTemplate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "measurementVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementVersionTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read the template version a confirmed measurement renders through, with its fields.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
         "x-tailor360-rate-limit": "default-user"
       }
     },

@@ -4,8 +4,12 @@ import type {
   ConfirmMeasurementsRequest,
   MeasurementCaptureTemplate,
   MeasurementCheck,
+  MeasurementComparison,
   MeasurementDraft,
+  MeasurementSheet,
+  MeasurementSummary,
   MeasurementVersion,
+  MeasurementVersionTemplate,
   SaveMeasurementSectionRequest,
   StartMeasurementDraftRequest,
 } from './types'
@@ -26,7 +30,9 @@ import type {
  * `409 measurements.draft-changed`, and the screen says so in words and offers the re-read.
  */
 
-const DRAFTS = '/api/v1/customers/measurement-drafts'
+const CUSTOMERS = '/api/v1/customers'
+const DRAFTS = `${CUSTOMERS}/measurement-drafts`
+const MEASUREMENTS = `${CUSTOMERS}/measurements`
 
 /** Starts measuring, or hands back the draft already open for this customer and template. */
 export async function startMeasurementDraft(input: {
@@ -97,5 +103,65 @@ export async function confirmMeasurements(input: {
     body: input.body,
     ifMatch: input.version,
     idempotencyKey: input.idempotencyKey,
+  })
+}
+
+/* What a measurement does after it exists (#124). ------------------------------------------- */
+
+/** Every measurement a customer has, newest first and without the values. */
+export async function listCustomerMeasurements(
+  customerId: string,
+  templateId: string | null,
+  signal?: AbortSignal,
+): Promise<readonly MeasurementSummary[]> {
+  const query = templateId === null ? '' : `?${new URLSearchParams({ templateId }).toString()}`
+
+  return await apiRequest<readonly MeasurementSummary[]>(
+    `${CUSTOMERS}/${customerId}/measurements${query}`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/** Reads one confirmed measurement. */
+export async function readMeasurement(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<MeasurementVersion> {
+  return await apiRequest<MeasurementVersion>(`${MEASUREMENTS}/${versionId}`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/** Reads the template version a confirmed measurement renders through, with its fields. */
+export async function readMeasurementVersionTemplate(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<MeasurementVersionTemplate> {
+  return await apiRequest<MeasurementVersionTemplate>(`${MEASUREMENTS}/${versionId}/template`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/** What changed between two of a customer's measurements, oldest first. */
+export async function compareMeasurements(
+  beforeId: string,
+  afterId: string,
+  signal?: AbortSignal,
+): Promise<MeasurementComparison> {
+  return await apiRequest<MeasurementComparison>(`${MEASUREMENTS}/${beforeId}/compare/${afterId}`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/**
+ * Reads a measurement as a tailor reads it. A sensitive read the server audits by name — so this
+ * is called once, when the sheet is opened, and never on a re-render.
+ */
+export async function readMeasurementSheet(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<MeasurementSheet> {
+  return await apiRequest<MeasurementSheet>(`${MEASUREMENTS}/${versionId}/sheet`, {
+    ...(signal === undefined ? {} : { signal }),
   })
 }

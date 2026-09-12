@@ -17,6 +17,7 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'measurements.draft-not-found': 'measurements.problem.draftNotFound',
   'measurements.confirmation-validation-failed': 'measurements.problem.validationFailed',
   'measurements.branch-required': 'measurements.problem.branchRequired',
+  'measurements.correction-subject-does-not-match': 'measurements.problem.correctionMismatch',
 }
 
 /** The code of a failure, when the server sent one. */

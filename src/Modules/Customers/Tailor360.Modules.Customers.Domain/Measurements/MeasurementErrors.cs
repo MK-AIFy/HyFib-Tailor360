@@ -435,6 +435,17 @@ public static class MeasurementErrors
         "Those measurements were taken for a different customer or a different template, so they cannot be "
         + "reused here.");
 
+    /// <summary>The measurement being corrected is another customer's, or another garment's.</summary>
+    /// <remarks>
+    /// The same refusal as a mismatched reuse, for the same reason and one more: a correction names the version
+    /// it replaces on the record, and a record pointing at another customer's measurement would be a false
+    /// statement about both of them.
+    /// </remarks>
+    public static readonly Error CorrectionSubjectDoesNotMatch = Error.Validation(
+        "measurements.correction-subject-does-not-match",
+        "The measurement named as corrected was taken for a different customer or a different template, so this "
+        + "cannot be recorded as a correction of it.");
+
     /// <summary>The draft was already turned into a version.</summary>
     /// <remarks>
     /// INV-MSR-02. A conflict rather than a second version: a retried confirmation whose answer was lost must

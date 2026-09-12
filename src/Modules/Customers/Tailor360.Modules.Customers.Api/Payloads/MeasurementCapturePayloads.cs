@@ -147,6 +147,7 @@ public sealed record MeasurementDraftPayload(
 /// <param name="VersionNumber">Which measurement this is for that customer and template.</param>
 /// <param name="TakenAt">When it was taken, in UTC.</param>
 /// <param name="TakenBy">Who took it.</param>
+/// <param name="TakenByName">Who took it, as the staff directory names them, or null when it no longer knows.</param>
 /// <param name="Reason">Why, where one was given.</param>
 /// <param name="ReusedFromVersionId">The measurement its values were pre-filled from, or null.</param>
 /// <param name="CorrectsVersionId">The measurement it replaces, or null.</param>
@@ -160,6 +161,7 @@ public sealed record MeasurementVersionPayload(
     int VersionNumber,
     DateTimeOffset TakenAt,
     Guid? TakenBy,
+    string? TakenByName,
     string? Reason,
     Guid? ReusedFromVersionId,
     Guid? CorrectsVersionId,
@@ -167,8 +169,9 @@ public sealed record MeasurementVersionPayload(
 {
     /// <summary>Renders one confirmed measurement.</summary>
     /// <param name="version">The measurement.</param>
+    /// <param name="takenByName">Who took it, as the directory names them, or null when it does not know.</param>
     /// <returns>The payload.</returns>
-    public static MeasurementVersionPayload From(MeasurementVersion version)
+    public static MeasurementVersionPayload From(MeasurementVersion version, string? takenByName)
     {
         ArgumentNullException.ThrowIfNull(version);
 
@@ -181,6 +184,7 @@ public sealed record MeasurementVersionPayload(
             version.VersionNumber,
             version.TakenAt,
             version.TakenBy,
+            takenByName,
             version.Reason,
             version.ReusedFromVersionId,
             version.CorrectsVersionId,
@@ -276,6 +280,7 @@ public sealed record MeasurementCheckPayload(
 /// <param name="VersionNumber">Which measurement this is for that customer and template.</param>
 /// <param name="TakenAt">When it was taken, in UTC. What a person chooses on.</param>
 /// <param name="TakenBy">Who took it. The other thing a person chooses on.</param>
+/// <param name="TakenByName">Who took it, as the staff directory names them — an identifier is not a who.</param>
 /// <param name="BranchId">The branch it was taken at.</param>
 /// <param name="Reason">Why, where one was given.</param>
 /// <param name="ReusedFromVersionId">The measurement its values were pre-filled from, or null.</param>
@@ -288,6 +293,7 @@ public sealed record MeasurementSummaryPayload(
     int VersionNumber,
     DateTimeOffset TakenAt,
     Guid? TakenBy,
+    string? TakenByName,
     Guid BranchId,
     string? Reason,
     Guid? ReusedFromVersionId,
@@ -296,8 +302,9 @@ public sealed record MeasurementSummaryPayload(
 {
     /// <summary>Renders one measurement as a list row.</summary>
     /// <param name="version">The measurement.</param>
+    /// <param name="takenByName">Who took it, as the directory names them, or null when it does not know.</param>
     /// <returns>The payload.</returns>
-    public static MeasurementSummaryPayload From(MeasurementVersion version)
+    public static MeasurementSummaryPayload From(MeasurementVersion version, string? takenByName)
     {
         ArgumentNullException.ThrowIfNull(version);
 
@@ -308,6 +315,7 @@ public sealed record MeasurementSummaryPayload(
             version.VersionNumber,
             version.TakenAt,
             version.TakenBy,
+            takenByName,
             version.BranchId,
             version.Reason,
             version.ReusedFromVersionId,
@@ -355,18 +363,131 @@ public sealed record MeasurementComparisonPayload(
 {
     /// <summary>Renders a comparison.</summary>
     /// <param name="result">What the comparison found.</param>
+    /// <param name="takenByNames">Display name by user identity, for whoever took either measurement.</param>
     /// <returns>The payload.</returns>
-    public static MeasurementComparisonPayload From(MeasurementComparisonResult result)
+    public static MeasurementComparisonPayload From(
+        MeasurementComparisonResult result,
+        IReadOnlyDictionary<Guid, string> takenByNames)
     {
         ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(takenByNames);
 
         var differences = result.Differences.Select(MeasurementDifferencePayload.From).ToArray();
 
         return new MeasurementComparisonPayload(
-            MeasurementSummaryPayload.From(result.Before),
-            MeasurementSummaryPayload.From(result.After),
+            MeasurementSummaryPayload.From(
+                result.Before, MeasurementCaptureHandler.NameOf(result.Before, takenByNames)),
+            MeasurementSummaryPayload.From(
+                result.After, MeasurementCaptureHandler.NameOf(result.After, takenByNames)),
             differences,
             differences.Count(difference =>
                 !string.Equals(difference.Change, nameof(MeasurementChange.Unchanged), StringComparison.Ordinal)));
+    }
+}
+
+/// <summary>A measurement as a tailor reads it: the values, the version they render through, and nothing else.</summary>
+/// <remarks>
+/// <para>
+/// Every member of <see cref="MeasurementVersionPayload"/>, plus the template version the values were captured
+/// under, so a sheet is one read — <c>measurements.read_sheet</c> is held by people who may not hold
+/// <c>measurements.capture</c>, and a sheet that needed a second read they cannot make would be a sheet nobody
+/// could print. The labels, groups and units are facts about the template; nothing about the customer beyond
+/// the identifier travels here, and <c>MeasurementCaptureEndpointTests</c> asserts it field by field.
+/// </para>
+/// </remarks>
+/// <param name="MeasurementVersionId">Identity of the measurement.</param>
+/// <param name="CustomerId">The customer.</param>
+/// <param name="BranchId">The branch it was taken at.</param>
+/// <param name="MeasurementTemplateId">The template it answers.</param>
+/// <param name="TemplateVersionId">The version it was captured against.</param>
+/// <param name="VersionNumber">Which measurement this is for that customer and template.</param>
+/// <param name="TakenAt">When it was taken, in UTC.</param>
+/// <param name="TakenBy">Who took it.</param>
+/// <param name="TakenByName">Who took it, as the staff directory names them, or null.</param>
+/// <param name="Reason">Why, where one was given.</param>
+/// <param name="ReusedFromVersionId">The measurement its values were pre-filled from, or null.</param>
+/// <param name="CorrectsVersionId">The measurement it replaces, or null.</param>
+/// <param name="Values">What was measured.</param>
+/// <param name="TemplateCode">The template's stable code.</param>
+/// <param name="TemplateName">What the template is called.</param>
+/// <param name="TemplateVersion">The version the values render through, with its fields.</param>
+public sealed record MeasurementSheetPayload(
+    Guid MeasurementVersionId,
+    Guid CustomerId,
+    Guid BranchId,
+    Guid MeasurementTemplateId,
+    Guid TemplateVersionId,
+    int VersionNumber,
+    DateTimeOffset TakenAt,
+    Guid? TakenBy,
+    string? TakenByName,
+    string? Reason,
+    Guid? ReusedFromVersionId,
+    Guid? CorrectsVersionId,
+    IReadOnlyList<MeasurementValuePayload> Values,
+    string TemplateCode,
+    string TemplateName,
+    TemplateVersionPayload TemplateVersion)
+{
+    /// <summary>Renders a sheet.</summary>
+    /// <param name="sheet">The measurement with the version it renders through.</param>
+    /// <returns>The payload.</returns>
+    public static MeasurementSheetPayload From(MeasurementSheet sheet)
+    {
+        ArgumentNullException.ThrowIfNull(sheet);
+
+        var version = sheet.Version;
+
+        return new MeasurementSheetPayload(
+            version.Id,
+            version.CustomerId,
+            version.BranchId,
+            version.TemplateId,
+            version.TemplateVersionId,
+            version.VersionNumber,
+            version.TakenAt,
+            version.TakenBy,
+            sheet.TakenByName,
+            version.Reason,
+            version.ReusedFromVersionId,
+            version.CorrectsVersionId,
+            [.. version.Values.Select(MeasurementValuePayload.From)],
+            sheet.Template.Code,
+            sheet.Template.Name,
+            TemplateVersionPayload.From(sheet.TemplateVersion, withFields: true));
+    }
+}
+
+/// <summary>The template version a confirmed measurement renders through, read by way of the measurement.</summary>
+/// <remarks>
+/// The comparison screen and a correction both start from a confirmed measurement and need the labels, groups
+/// and units it was captured under (#124). Nothing about the customer travels here: the measurement already
+/// names them, and the version is a fact about the template.
+/// </remarks>
+/// <param name="MeasurementVersionId">The measurement the version was read through.</param>
+/// <param name="MeasurementTemplateId">The template.</param>
+/// <param name="Code">The template's stable code.</param>
+/// <param name="Name">What the template is called.</param>
+/// <param name="Version">The version the measurement renders through, with its fields.</param>
+public sealed record MeasurementVersionTemplatePayload(
+    Guid MeasurementVersionId,
+    Guid MeasurementTemplateId,
+    string Code,
+    string Name,
+    TemplateVersionPayload Version)
+{
+    /// <summary>Renders the version a measurement renders through.</summary>
+    /// <param name="measured">The measurement, its template and the version.</param>
+    /// <returns>The payload.</returns>
+    public static MeasurementVersionTemplatePayload From(MeasuredTemplate measured)
+    {
+        ArgumentNullException.ThrowIfNull(measured);
+
+        return new MeasurementVersionTemplatePayload(
+            measured.Version.Id,
+            measured.Template.Id,
+            measured.Template.Code,
+            measured.Template.Name,
+            TemplateVersionPayload.From(measured.TemplateVersion, withFields: true));
     }
 }

@@ -26,8 +26,12 @@ import type {
   ConfirmMeasurementsRequest,
   MeasurementCaptureTemplate,
   MeasurementCheck,
+  MeasurementComparison,
   MeasurementDraft,
+  MeasurementSheet,
+  MeasurementSummary,
   MeasurementVersion,
+  MeasurementVersionTemplate,
   SaveMeasurementSectionRequest,
   StartMeasurementDraftRequest,
 } from '../measurements/types'
@@ -349,4 +353,31 @@ export type SaveMeasurementSectionRequestConforms = Conforms<
 export type ConfirmMeasurementsRequestConforms = Conforms<
   ConfirmMeasurementsRequest,
   Immutable<RequestBody<'ConfirmMeasurements'>>
+>
+
+/* Reuse, comparison and the sheet (#124). ------------------------------------------------------ */
+
+export type MeasurementSummaryConforms = Conforms<
+  MeasurementSummary,
+  Immutable<components['schemas']['MeasurementSummaryPayload']>
+>
+
+export type MeasurementComparisonConforms = Conforms<
+  MeasurementComparison,
+  Immutable<Response200<'CompareMeasurements'>>
+>
+
+export type MeasurementSheetConforms = Conforms<
+  MeasurementSheet,
+  Immutable<Response200<'ReadMeasurementSheet'>>
+>
+
+export type MeasurementVersionTemplateConforms = Conforms<
+  MeasurementVersionTemplate,
+  Immutable<Response200<'GetMeasurementVersionTemplate'>>
+>
+
+export type MeasurementListConforms = Conforms<
+  readonly MeasurementSummary[],
+  Immutable<Response200<'ListCustomerMeasurements'>>
 >

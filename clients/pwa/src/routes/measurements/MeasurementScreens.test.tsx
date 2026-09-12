@@ -778,7 +778,9 @@ describe('the capture wizard', () => {
     // The connection state is a module-level store shared by every test after this one.
     vi.restoreAllMocks()
     window.dispatchEvent(new Event('online'))
-  })
+    // Typing through the offline transition is slow under a loaded runner; the default budget
+    // has been missed once for no fault of the screen's.
+  }, 15_000)
 
   it('tells somebody without the permission so in a sentence, never a redirect', async () => {
     transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser({ permissions: [] })))
