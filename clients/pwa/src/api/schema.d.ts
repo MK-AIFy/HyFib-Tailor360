@@ -1140,6 +1140,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/measurement-drafts/{draftId}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the template version a draft is pinned to, with its fields.
+         * @description The capture-side read of a template. The administration reads demand catalog.templates.edit, which a counter does not hold; this one answers through the draft, so it demands what starting the draft demanded and reaches only the version the draft will be confirmed against. The wizard renders its steps, fields, bands and diagrams from this and from nothing else.
+         */
+        get: operations["GetMeasurementDraftTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/measurement-templates": {
         parameters: {
             query?: never;
@@ -2221,6 +2241,15 @@ export interface components {
             userName: null | string;
         };
         JsonElement: unknown;
+        MeasurementCaptureTemplatePayload: {
+            code: string;
+            /** Format: uuid */
+            measurementDraftId: string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            name: string;
+            version: components["schemas"]["TemplateVersionPayload"];
+        };
         MeasurementCheckPayload: {
             confirmable: boolean;
             findings: components["schemas"]["MeasurementFindingPayload"][];
@@ -6685,6 +6714,35 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetMeasurementDraftTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementCaptureTemplatePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

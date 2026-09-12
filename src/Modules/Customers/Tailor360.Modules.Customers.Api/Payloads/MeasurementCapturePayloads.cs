@@ -188,6 +188,40 @@ public sealed record MeasurementVersionPayload(
     }
 }
 
+/// <summary>The template version a draft is pinned to, as the wizard renders it.</summary>
+/// <remarks>
+/// The whole version with its fields, and the template's name and code beside it, so the wizard can say which
+/// template and which version is open (checklist item A11Y-RJ-02, step 1) without a second read it is not
+/// permitted to make. Nothing about the customer travels here: the draft already names them.
+/// </remarks>
+/// <param name="MeasurementDraftId">The draft the version was read through.</param>
+/// <param name="MeasurementTemplateId">The template.</param>
+/// <param name="Code">The template's stable code, such as <c>MT_BLOUSE_PATTERN</c>.</param>
+/// <param name="Name">What the template is called.</param>
+/// <param name="Version">The version the draft will be confirmed against, with its fields.</param>
+public sealed record MeasurementCaptureTemplatePayload(
+    Guid MeasurementDraftId,
+    Guid MeasurementTemplateId,
+    string Code,
+    string Name,
+    TemplateVersionPayload Version)
+{
+    /// <summary>Renders the version a draft is pinned to.</summary>
+    /// <param name="captured">The draft, its template and the version.</param>
+    /// <returns>The payload.</returns>
+    public static MeasurementCaptureTemplatePayload From(CapturedTemplate captured)
+    {
+        ArgumentNullException.ThrowIfNull(captured);
+
+        return new MeasurementCaptureTemplatePayload(
+            captured.Draft.Id,
+            captured.Template.Id,
+            captured.Template.Code,
+            captured.Template.Name,
+            TemplateVersionPayload.From(captured.Version, withFields: true));
+    }
+}
+
 /// <summary>One thing standing between a draft and a confirmed measurement.</summary>
 /// <remarks>
 /// It names the <strong>field</strong> and never the value. "Chest is outside what this field can hold" is

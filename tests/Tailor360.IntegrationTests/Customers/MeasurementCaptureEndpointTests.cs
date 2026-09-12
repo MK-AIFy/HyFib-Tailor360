@@ -229,6 +229,50 @@ public sealed class MeasurementCaptureEndpointTests(WebApplicationFixture fixtur
     }
 
     [Fact]
+    public async Task ReadsTheTemplateVersionADraftIsPinnedToWithoutTheAdministrationKey()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // The counter holds measurements.capture and none of the template keys, which is the whole point of the
+        // route: the wizard renders the version the draft is pinned to, and the administration read would have
+        // refused this caller.
+        using var counter = await CounterAsync("msr-tmpl", "203.0.113.246");
+
+        var customerId = await CustomerAsync();
+        var templateId = await PublishedTemplateAsync("TMPL");
+        var draftId = await StartAsync(counter, customerId, templateId);
+
+        var administration = await counter.GetAsync($"/api/v1/customers/measurement-templates/{templateId}");
+        administration.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var read = await counter.GetAsync($"{Drafts}/{draftId}/template");
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var body = JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token));
+
+        body.RootElement.GetProperty("measurementDraftId").GetGuid().ShouldBe(draftId);
+        body.RootElement.GetProperty("measurementTemplateId").GetGuid().ShouldBe(templateId);
+        body.RootElement.GetProperty("code").GetString()!.ShouldStartWith("MT_CAP_TMPL_");
+
+        var version = body.RootElement.GetProperty("version");
+        version.GetProperty("status").GetString().ShouldBe("Published");
+
+        var field = version.GetProperty("fields").EnumerateArray().Single();
+        field.GetProperty("key").GetString().ShouldBe("chest_bust");
+        field.GetProperty("groupName").GetString().ShouldBe("Bodice");
+        field.GetProperty("minimumMillimetres").GetDecimal().ShouldBe(550m);
+
+        // Nothing about the customer rides along: the draft already names them, and the version is a fact about
+        // the template. A wizard that needed the customer's name asks the customer routes, which decide who may
+        // read it.
+        body.RootElement.TryGetProperty("customerId", out _).ShouldBeFalse();
+        body.RootElement.TryGetProperty("customer", out _).ShouldBeFalse();
+
+        var missing = await counter.GetAsync($"{Drafts}/{Guid.CreateVersion7()}/template");
+        missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task ReusesAnEarlierMeasurementAndSaysWhereTheNumbersCameFrom()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);

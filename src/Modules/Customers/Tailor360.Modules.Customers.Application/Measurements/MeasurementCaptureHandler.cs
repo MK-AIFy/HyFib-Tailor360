@@ -159,6 +159,37 @@ public sealed class MeasurementCaptureHandler(
             : Result.Success(new CapturedDraft(draft, store.EntityTagOf(draft)));
     }
 
+    /// <summary>Reads the template version a draft is pinned to, for the wizard to render it through.</summary>
+    /// <remarks>
+    /// The capture-side read of a template. The administration read demands <c>catalog.templates.edit</c>, which
+    /// a counter does not hold; this one answers through the draft, so it demands what starting the draft
+    /// demanded and reaches only the version that draft will be confirmed against — never the one being drafted
+    /// to replace it.
+    /// </remarks>
+    /// <param name="draftId">The draft.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The draft, its template and the pinned version, or the reason they could not be read.</returns>
+    public async Task<Result<CapturedTemplate>> ReadTemplateAsync(
+        Guid draftId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        var draft = await store.FindDraftAsync(draftId, organisationId, cancellationToken);
+
+        if (draft is null)
+        {
+            return Result.Failure<CapturedTemplate>(MeasurementErrors.DraftNotFound);
+        }
+
+        var template = await templates.FindByVersionAsync(draft.TemplateVersionId, organisationId, cancellationToken);
+        var version = template?.Versions.SingleOrDefault(one => one.Id == draft.TemplateVersionId);
+
+        return template is null || version is null
+            ? Result.Failure<CapturedTemplate>(MeasurementErrors.VersionNotFound)
+            : Result.Success(new CapturedTemplate(draft, template, version));
+    }
+
     /// <summary>Saves one wizard step.</summary>
     /// <param name="command">The step and everything measured in it.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

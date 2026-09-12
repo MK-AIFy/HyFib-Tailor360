@@ -192,6 +192,33 @@ public static class MeasurementCaptureEndpoints
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
             .WithRequestTimeout(RequestTimeoutPolicies.Read);
 
+        customers.MapGet("/measurement-drafts/{draftId:guid}/template", async Task<IResult> (
+                HttpContext context,
+                MeasurementCaptureHandler handler,
+                ICurrentUser caller,
+                Guid draftId,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await handler.ReadTemplateAsync(
+                    draftId, caller.Context.OrganisationId, cancellationToken);
+
+                return result.IsFailure
+                    ? Problems.From(result.Error, context)
+                    : Results.Ok(MeasurementCaptureTemplatePayload.From(result.Value));
+            })
+            .Produces<MeasurementCaptureTemplatePayload>(StatusCodes.Status200OK)
+            .WithName("GetMeasurementDraftTemplate")
+            .WithSummary("Read the template version a draft is pinned to, with its fields.")
+            .WithDescription(
+                "The capture-side read of a template. The administration reads demand catalog.templates.edit, "
+                + "which a counter does not hold; this one answers through the draft, so it demands what starting "
+                + "the draft demanded and reaches only the version the draft will be confirmed against. The wizard "
+                + "renders its steps, fields, bands and diagrams from this and from nothing else.")
+            .RequirePermission(CustomersPermissions.CaptureMeasurements, BranchScope.CurrentBranch)
+            .ScopedToResource(MeasurementResourceKinds.MeasurementDraft, "draftId")
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
         customers.MapPost("/measurement-drafts/{draftId:guid}/confirm", async Task<IResult> (
                 HttpContext context,
                 MeasurementCaptureHandler handler,
