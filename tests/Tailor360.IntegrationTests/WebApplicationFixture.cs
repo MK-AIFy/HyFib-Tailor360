@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
@@ -113,8 +114,19 @@ public sealed class WebApplicationFixture : WebApplicationFactory<WebEntryPoint>
             .UseSnakeCaseNamingConvention()
             .Options;
 
-        await using var orders = new OrdersDbContext(ordersOptions);
-        await orders.Database.MigrateAsync();
+        await using (var orders = new OrdersDbContext(ordersOptions))
+        {
+            await orders.Database.MigrateAsync();
+        }
+
+        var billingOptions = new DbContextOptionsBuilder<BillingDbContext>()
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
+                ModuleDbContext.MigrationsHistoryTable, BillingDbContext.SchemaName))
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        await using var billing = new BillingDbContext(billingOptions);
+        await billing.Database.MigrateAsync();
     }
 }
 

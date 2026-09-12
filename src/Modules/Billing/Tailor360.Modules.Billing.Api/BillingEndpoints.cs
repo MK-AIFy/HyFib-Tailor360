@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Tailor360.Modules.Billing.Api.Registrations;
+using Tailor360.Modules.Billing.Api.Tax;
 
 namespace Tailor360.Modules.Billing.Api;
 
@@ -23,8 +25,10 @@ public static class BillingEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        _ = endpoints.MapGroup(GroupPrefix)
-            .WithTags(OpenApiTag);
+        endpoints.MapGroup(GroupPrefix)
+            .WithTags(OpenApiTag)
+            .MapTaxConfigurationEndpoints()
+            .MapGstRegistrationEndpoints();
 
         return endpoints;
     }

@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Billing.Contracts\Tailor360.Modules.Billing.Contracts.csproj" />
     <ProjectReference Include="..\Tailor360.Modules.Billing.Domain\Tailor360.Modules.Billing.Domain.csproj" />
+    <ProjectReference Include="..\..\Identity\Tailor360.Modules.Identity.Contracts\Tailor360.Modules.Identity.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
   </ItemGroup>

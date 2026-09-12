@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tailor360.Modules.Billing.Infrastructure;
 using Tailor360.Modules.Catalog.Infrastructure;
 using Tailor360.Modules.Customers.Infrastructure;
 using Tailor360.Modules.Identity.Infrastructure;
@@ -82,6 +83,9 @@ public static class CliHost
         // the runner. Without this line the migration exists, compiles and is unreachable: `migrate` reports
         // nothing pending and the web host then refuses to serve against a schema that was never created.
         builder.Services.AddOrdersModule(builder.Configuration);
+
+        // Billing owns the `billing` schema from #145 on; the same reasoning as Orders.
+        builder.Services.AddBillingModule(builder.Configuration);
 
         return builder.Build();
     }

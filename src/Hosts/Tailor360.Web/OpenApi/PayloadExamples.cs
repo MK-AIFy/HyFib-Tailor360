@@ -26,6 +26,94 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["CreateTaxConfigurationDraft"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "Cloned from version 2; the accountant's revised classification list.",
+              "effectiveFrom": "2027-04-01",
+              "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000d2"
+            }
+            """,
+
+        ["DescribeTaxConfigurationVersion"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "The accountant's revised classification list.",
+              "effectiveFrom": "2027-04-01",
+              "reason": "The effective date moved to the start of the financial year."
+            }
+            """,
+
+        ["AddTaxCode"] = """
+            {
+              "code": "STITCHING_5",
+              "description": "Tailoring services",
+              "classification": "998822",
+              "kind": "Services",
+              "active": true,
+              "rates": [
+                { "kind": "Cgst", "ratePercent": 2.5 },
+                { "kind": "Sgst", "ratePercent": 2.5 },
+                { "kind": "Igst", "ratePercent": 5 }
+              ],
+              "reason": null
+            }
+            """,
+
+        ["EditTaxCode"] = """
+            {
+              "code": "STITCHING_5",
+              "description": "Tailoring services, as the accountant classifies them",
+              "classification": "998822",
+              "kind": "Services",
+              "active": true,
+              "rates": [
+                { "kind": "Cgst", "ratePercent": 2.5 },
+                { "kind": "Sgst", "ratePercent": 2.5 },
+                { "kind": "Igst", "ratePercent": 5 }
+              ],
+              "reason": "Description aligned with the accountant's wording."
+            }
+            """,
+
+        ["RemoveTaxCode"] = """
+            {
+              "reason": "Entered twice; the other row is the one the price list names."
+            }
+            """,
+
+        ["PublishTaxConfigurationVersion"] = """
+            {
+              "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+            }
+            """,
+
+        ["AddGstRegistration"] = """
+            {
+              "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+              "gstin": "33AAACH7409R1Z8",
+              "stateCode": "33",
+              "legalName": "Example Tailors Private Limited",
+              "tradeName": "Example Tailors",
+              "effectiveFrom": "2026-04-01",
+              "effectiveTo": null,
+              "reason": null
+            }
+            """,
+
+        ["AmendGstRegistration"] = """
+            {
+              "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+              "gstin": "33AAACH7409R1Z8",
+              "stateCode": "33",
+              "legalName": "Example Tailors Private Limited",
+              "tradeName": "Example Tailors",
+              "effectiveFrom": "2026-04-01",
+              "effectiveTo": "2027-03-31",
+              "reason": "Re-registered under a new number from 1 April 2027."
+            }
+            """,
+
         ["CreateCatalogDraft"] = """
             {
               "name": "Add the Kids age bands",
