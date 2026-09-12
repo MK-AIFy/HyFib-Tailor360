@@ -37,10 +37,14 @@ public sealed record TaxCodeRequest(
     string? Classification,
     string? Kind,
     bool Active,
-    IReadOnlyList<TaxRateRequest>? Rates,
+    IReadOnlyList<TaxRateRequest?>? Rates,
     string? Reason)
 {
-    /// <summary>The details as the domain reads them.</summary>
+    /// <summary>
+    /// The details as the domain reads them. A null element in the rate list — <c>"rates": [null]</c>
+    /// survives deserialisation — becomes a rate the domain refuses, so it is a field error rather than a
+    /// null dereference.
+    /// </summary>
     public TaxCodeDetails ToDetails()
         => new(
             Code ?? string.Empty,
@@ -48,7 +52,7 @@ public sealed record TaxCodeRequest(
             Classification ?? string.Empty,
             Enum.TryParse<TaxCodeKind>(Kind, ignoreCase: false, out var kind) ? kind : (TaxCodeKind)(-1),
             Active,
-            [.. (Rates ?? []).Select(rate => rate.ToRate())]);
+            [.. (Rates ?? []).Select(rate => rate?.ToRate() ?? new TaxRate((TaxComponentKind)(-1), -1m))]);
 }
 
 /// <summary>A reason alone.</summary>

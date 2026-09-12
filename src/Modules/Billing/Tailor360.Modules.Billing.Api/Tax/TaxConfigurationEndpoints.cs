@@ -205,11 +205,18 @@ internal static class TaxConfigurationEndpoints
                         caller.UserId),
                     cancellationToken);
 
-                return result.IsFailure
-                    ? Problems.From(result.Error, context)
-                    : Results.Created(
-                        $"/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{result.Value.Id}",
-                        TaxCodePayload.From(result.Value));
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                // The version's row moved with its child: the tag the caller sent is stale, and the one on
+                // this response is what the next write must carry.
+                context.Response.SetEntityTag(result.Value.VersionTag);
+
+                return Results.Created(
+                    $"/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{result.Value.Code.Id}",
+                    TaxCodePayload.From(result.Value.Code));
             })
             .Produces<TaxCodePayload>(StatusCodes.Status201Created)
             .WithName("AddTaxCode")
@@ -244,9 +251,14 @@ internal static class TaxConfigurationEndpoints
                         caller.UserId),
                     cancellationToken);
 
-                return result.IsFailure
-                    ? Problems.From(result.Error, context)
-                    : Results.Ok(TaxCodePayload.From(result.Value));
+                if (result.IsFailure)
+                {
+                    return Problems.From(result.Error, context);
+                }
+
+                context.Response.SetEntityTag(result.Value.VersionTag);
+
+                return Results.Ok(TaxCodePayload.From(result.Value.Code));
             })
             .Produces<TaxCodePayload>(StatusCodes.Status200OK)
             .WithName("EditTaxCode")
@@ -280,7 +292,14 @@ internal static class TaxConfigurationEndpoints
                             caller.UserId),
                         cancellationToken);
 
-                    return result.IsFailure ? Problems.From(result.Error, context) : Results.NoContent();
+                    if (result.IsFailure)
+                    {
+                        return Problems.From(result.Error, context);
+                    }
+
+                    context.Response.SetEntityTag(result.Value);
+
+                    return Results.NoContent();
                 })
             .Produces(StatusCodes.Status204NoContent)
             .WithName("RemoveTaxCode")

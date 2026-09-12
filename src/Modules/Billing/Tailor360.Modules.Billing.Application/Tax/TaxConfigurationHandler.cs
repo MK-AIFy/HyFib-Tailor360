@@ -136,7 +136,7 @@ public sealed class TaxConfigurationHandler(
     }
 
     /// <summary>Adds a tax code to a draft.</summary>
-    public async Task<Result<TaxCode>> AddTaxCodeAsync(
+    public async Task<Result<AdministeredTaxCode>> AddTaxCodeAsync(
         AddTaxCodeCommand command,
         CancellationToken cancellationToken = default)
     {
@@ -145,20 +145,20 @@ public sealed class TaxConfigurationHandler(
         var found = await LoadForChangeAsync(command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
         if (found.IsFailure)
         {
-            return Result.Failure<TaxCode>(found.Error);
+            return Result.Failure<AdministeredTaxCode>(found.Error);
         }
 
         var version = found.Value;
         var added = version.AddTaxCode(ids.NewId(), ids.NewId(), command.Details, clock.UtcNow, command.By);
         if (added.IsFailure)
         {
-            return added;
+            return Result.Failure<AdministeredTaxCode>(added.Error);
         }
 
         var saved = await store.SaveAsync(cancellationToken);
         if (saved.IsFailure)
         {
-            return Result.Failure<TaxCode>(saved.Error);
+            return Result.Failure<AdministeredTaxCode>(saved.Error);
         }
 
         await BillingAudit.RecordAsync(
@@ -166,11 +166,11 @@ public sealed class TaxConfigurationHandler(
             $"Tax code {added.Value.Code} added to tax configuration version {version.VersionNumber}.",
             command.Reason, null, TaxCodeSnapshot.Of(added.Value), cancellationToken);
 
-        return added;
+        return Result.Success(new AdministeredTaxCode(added.Value, store.EntityTagOf(version)));
     }
 
     /// <summary>Replaces what a draft says about a tax code.</summary>
-    public async Task<Result<TaxCode>> EditTaxCodeAsync(
+    public async Task<Result<AdministeredTaxCode>> EditTaxCodeAsync(
         EditTaxCodeCommand command,
         CancellationToken cancellationToken = default)
     {
@@ -179,7 +179,7 @@ public sealed class TaxConfigurationHandler(
         var found = await LoadForChangeAsync(command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
         if (found.IsFailure)
         {
-            return Result.Failure<TaxCode>(found.Error);
+            return Result.Failure<AdministeredTaxCode>(found.Error);
         }
 
         var version = found.Value;
@@ -187,13 +187,13 @@ public sealed class TaxConfigurationHandler(
         var edited = version.EditTaxCode(command.TaxCodeId, command.Details, clock.UtcNow, command.By);
         if (edited.IsFailure)
         {
-            return edited;
+            return Result.Failure<AdministeredTaxCode>(edited.Error);
         }
 
         var saved = await store.SaveAsync(cancellationToken);
         if (saved.IsFailure)
         {
-            return Result.Failure<TaxCode>(saved.Error);
+            return Result.Failure<AdministeredTaxCode>(saved.Error);
         }
 
         await BillingAudit.RecordAsync(
@@ -201,11 +201,11 @@ public sealed class TaxConfigurationHandler(
             $"Tax code {edited.Value.Code} of tax configuration version {version.VersionNumber} changed.",
             command.Reason, before, TaxCodeSnapshot.Of(edited.Value), cancellationToken);
 
-        return edited;
+        return Result.Success(new AdministeredTaxCode(edited.Value, store.EntityTagOf(version)));
     }
 
     /// <summary>Removes a tax code from a draft.</summary>
-    public async Task<Result> RemoveTaxCodeAsync(
+    public async Task<Result<EntityTag>> RemoveTaxCodeAsync(
         RemoveTaxCodeCommand command,
         CancellationToken cancellationToken = default)
     {
@@ -214,7 +214,7 @@ public sealed class TaxConfigurationHandler(
         var found = await LoadForChangeAsync(command.VersionId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
         if (found.IsFailure)
         {
-            return Result.Failure(found.Error);
+            return Result.Failure<EntityTag>(found.Error);
         }
 
         var version = found.Value;
@@ -222,13 +222,13 @@ public sealed class TaxConfigurationHandler(
         var removed = version.RemoveTaxCode(command.TaxCodeId, clock.UtcNow, command.By);
         if (removed.IsFailure)
         {
-            return removed;
+            return Result.Failure<EntityTag>(removed.Error);
         }
 
         var saved = await store.SaveAsync(cancellationToken);
         if (saved.IsFailure)
         {
-            return saved;
+            return Result.Failure<EntityTag>(saved.Error);
         }
 
         await BillingAudit.RecordAsync(
@@ -236,7 +236,7 @@ public sealed class TaxConfigurationHandler(
             $"Tax code {before?.Code} removed from tax configuration version {version.VersionNumber}.",
             command.Reason, before, null, cancellationToken);
 
-        return Result.Success();
+        return Result.Success(store.EntityTagOf(version));
     }
 
     /// <summary>Runs the publication checks against a version without publishing it.</summary>
@@ -283,8 +283,11 @@ public sealed class TaxConfigurationHandler(
         var now = clock.UtcNow;
         if (outgoing is not null)
         {
+            // The retirement's own reason is the fact; the administrator's reason rides on the audit entry
+            // below, where its length was already checked, rather than being appended here where it could
+            // push the sentence past what the column holds.
             var superseded = outgoing.Retire(
-                now, command.By, $"Superseded by tax configuration version {draft.VersionNumber}: {command.Reason}");
+                now, command.By, $"Superseded by tax configuration version {draft.VersionNumber}.");
             if (superseded.IsFailure)
             {
                 return Result.Failure<TaxConfigurationPublication>(superseded.Error);
@@ -403,6 +406,12 @@ public sealed record PublishTaxConfigurationCommand(
 
 /// <summary>A version beside the tag a client sends back with its next change.</summary>
 public sealed record AdministeredTaxConfiguration(TaxConfigurationVersion Version, EntityTag Tag);
+
+/// <summary>
+/// A tax code as written, with the tag its version carries after the write: the parent row moved with
+/// the child, so the tag the caller sent is stale the moment this returns.
+/// </summary>
+public sealed record AdministeredTaxCode(TaxCode Code, EntityTag VersionTag);
 
 /// <summary>What a publication produced.</summary>
 public sealed record TaxConfigurationPublication(

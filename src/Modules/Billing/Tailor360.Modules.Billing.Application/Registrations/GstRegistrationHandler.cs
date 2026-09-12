@@ -1,6 +1,7 @@
 using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Registrations;
+using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
@@ -17,6 +18,7 @@ namespace Tailor360.Modules.Billing.Application.Registrations;
 /// </remarks>
 public sealed class GstRegistrationHandler(
     IGstRegistrationStore store,
+    IBranchDirectory branches,
     IAuditWriter audit,
     IClock clock,
     IIdGenerator ids)
@@ -41,6 +43,15 @@ public sealed class GstRegistrationHandler(
         }
 
         var registration = created.Value;
+
+        // The branch is Identity's record; a registration against an identifier that names none would be
+        // listable and never used, while the real branch stayed unregistered. Amend cannot move a
+        // registration between branches, so the check is here only.
+        if (await branches.FindAsync(registration.BranchId, cancellationToken) is null)
+        {
+            return Result.Failure<AdministeredRegistration>(BillingErrors.BranchNotFound("branchId"));
+        }
+
         var overlapping = await OverlapsAsync(registration, cancellationToken);
         if (overlapping)
         {

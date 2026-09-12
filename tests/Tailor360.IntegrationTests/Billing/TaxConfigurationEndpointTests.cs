@@ -27,6 +27,32 @@ public sealed class TaxConfigurationEndpointTests(WebApplicationFixture fixture)
     private static int _preconditionClientNumber;
 
     [Fact]
+    public async Task RefusesANullRateElementAsAFieldErrorRatherThanAFiveHundred()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("tax-nullrate", "203.0.113.239");
+        var version = await DraftAsync(owner, "Null rate element");
+
+        // `"rates": [null]` survives deserialisation as a null element; it is a field error, not a crash.
+        var response = await owner.PostAsync(
+            $"/api/v1/billing/tax-configuration/versions/{version}/tax-codes",
+            new
+            {
+                code = Code("NULL_RATE"),
+                description = "Tailoring services",
+                classification = "998822",
+                kind = "Services",
+                active = true,
+                rates = new object?[] { null },
+                reason = (string?)null,
+            },
+            await VersionKeyAsync(owner, version));
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync(Token));
+        (await response.Content.ReadAsStringAsync(Token)).ShouldContain("rates");
+    }
+
+    [Fact]
     public async Task AnAdministratorDraftsAVersionAddsCodesAndReadsThemBack()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
@@ -229,7 +255,15 @@ public sealed class TaxConfigurationEndpointTests(WebApplicationFixture fixture)
 
         using var owner = await OwnerAsync("gst-add", "203.0.113.243");
         // A branch of this run's own, so registrations left by earlier runs cannot overlap.
-        var branch = Guid.CreateVersion7();
+        var branch = await BillingHarness.OpenBranchAsync(owner);
+
+        // A branch Identity does not know is refused before anything is written.
+        var unknown = await owner.PostAsync(
+            "/api/v1/billing/gst-registrations",
+            RegistrationBody(Guid.CreateVersion7(), from: new DateOnly(2026, 4, 1), to: null),
+            Key());
+        unknown.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await unknown.Content.ReadAsStringAsync(Token)).ShouldContain("billing.branch-not-found");
 
         var recorded = await owner.PostAsync(
             "/api/v1/billing/gst-registrations",
@@ -256,7 +290,7 @@ public sealed class TaxConfigurationEndpointTests(WebApplicationFixture fixture)
 
         var malformed = await owner.PostAsync(
             "/api/v1/billing/gst-registrations",
-            RegistrationBody(Guid.CreateVersion7(), from: new DateOnly(2026, 4, 1), to: null, gstin: "33AAACH7409R1ZW"),
+            RegistrationBody(branch, from: new DateOnly(2026, 4, 1), to: null, gstin: "33AAACH7409R1ZW"),
             Key());
         malformed.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await malformed.Content.ReadAsStringAsync(Token)).ShouldContain("billing.gstin-not-well-formed");
@@ -405,7 +439,7 @@ public sealed class TaxConfigurationEndpointTests(WebApplicationFixture fixture)
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
 
         using var owner = await OwnerAsync("gst-exclude", "203.0.113.248");
-        var branch = Guid.CreateVersion7();
+        var branch = await BillingHarness.OpenBranchAsync(owner);
         var recorded = await owner.PostAsync(
             "/api/v1/billing/gst-registrations",
             RegistrationBody(branch, from: new DateOnly(2026, 4, 1), to: null),
@@ -507,7 +541,7 @@ public sealed class TaxConfigurationEndpointTests(WebApplicationFixture fixture)
 
     private Task<AdministrationHarness.AdministratorClient> OwnerAsync(string prefix, string address)
         => AdministrationHarness.AdministratorAsync(
-            fixture, prefix, address, BillingPermissions.ManagePriceLists, BillingPermissions.PublishPriceList);
+            fixture, prefix, address, BillingPermissions.ManagePriceLists, BillingPermissions.PublishPriceList, IdentityPermissions.Branches);
 
     private static async Task<Guid> DraftAsync(
         AdministrationHarness.AdministratorClient client, string name, Guid? cloneFrom = null)
@@ -543,6 +577,10 @@ public sealed class TaxConfigurationEndpointTests(WebApplicationFixture fixture)
         var response = await client.PostAsync(
             $"/api/v1/billing/tax-configuration/versions/{version}/tax-codes", CodeBody(code), await VersionKeyAsync(client, version));
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
+
+        // The write moved the version, and the response carries the tag the next write must send.
+        response.Headers.ETag.ShouldNotBeNull();
+        response.Headers.ETag.ToString().ShouldBe((await VersionKeyAsync(client, version)).Single(header => header.Name == "If-Match").Value);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
         return body.RootElement.GetProperty("taxCodeId").GetGuid();
     }

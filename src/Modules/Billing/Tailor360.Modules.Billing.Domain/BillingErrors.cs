@@ -128,6 +128,13 @@ public static class BillingErrors
         + "Record the other branch's registration separately.",
         "branchId");
 
+    /// <summary>A branch identifier names no branch of the caller's organisation.</summary>
+    /// <param name="field">The field that named it.</param>
+    public static Error BranchNotFound(string field) => Error.Validation(
+        "billing.branch-not-found",
+        "That is not a branch of this organisation.",
+        field);
+
     /// <summary>The registration is not one of the caller's organisation.</summary>
     public static readonly Error RegistrationNotFound = Error.NotFound(
         "billing.registration-not-found",
