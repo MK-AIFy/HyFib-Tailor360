@@ -44,7 +44,8 @@ public static class InvoiceEndpoints
                 InvoiceStatus? wanted = null;
                 if (status is not null)
                 {
-                    if (!Enum.TryParse<InvoiceStatus>(status, ignoreCase: false, out var parsed))
+                    // By name only: Enum.TryParse would take "99" as a status the enumeration does not define.
+                    if (status.Length == 0 || char.IsAsciiDigit(status[0]) || !Enum.TryParse<InvoiceStatus>(status, ignoreCase: false, out var parsed) || !Enum.IsDefined(parsed))
                     {
                         return Problems.From(Domain.BillingErrors.Required("filter[status]"), context);
                     }

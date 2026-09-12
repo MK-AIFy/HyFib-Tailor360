@@ -42,7 +42,7 @@ public sealed record InvoicePayload(
                 invoice.Calculation.GstRegistrationId, invoice.Calculation.Gstin, invoice.Calculation.SupplierStateCode,
                 invoice.Calculation.PlaceOfSupplyStateCode, invoice.Calculation.Scheme, invoice.Calculation.TaxInclusive),
             invoice.Totals.GrandTotal.Currency,
-            [.. invoice.Lines.Select(InvoiceLinePayload.From)],
+            [.. invoice.Lines.OrderBy(line => line.LineNumber).Select(InvoiceLinePayload.From)],
             InvoiceTotalsPayload.From(invoice.Totals),
             invoice.CreatedAt,
             invoice.UpdatedAt,

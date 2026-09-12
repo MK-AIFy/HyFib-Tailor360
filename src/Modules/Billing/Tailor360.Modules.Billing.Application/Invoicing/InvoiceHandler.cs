@@ -61,7 +61,9 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredInvoice>(checkedOrder.Error);
         }
 
-        var verified = await pricing.VerifySnapshotAsync(command.OrganisationId, command.CalculationReference, cancellationToken);
+        // Trimmed once, so the reference the invoice carries is the key the snapshot is stored under.
+        var reference = command.CalculationReference.Trim();
+        var verified = await pricing.VerifySnapshotAsync(command.OrganisationId, reference, cancellationToken);
         if (verified.IsFailure)
         {
             return Result.Failure<AdministeredInvoice>(verified.Error);
@@ -90,7 +92,7 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredInvoice>(BillingErrors.JobAlreadyInvoiced);
         }
 
-        var calculation = await CalculationOf(verified.Value.Result, command.CalculationReference, verified.Value.Request.PlaceOfSupplyStateCode, command.OrganisationId, cancellationToken);
+        var calculation = await CalculationOf(verified.Value.Result, reference, verified.Value.Request.PlaceOfSupplyStateCode, command.OrganisationId, cancellationToken);
         if (calculation.IsFailure)
         {
             return Result.Failure<AdministeredInvoice>(calculation.Error);
@@ -121,7 +123,7 @@ public sealed class InvoiceHandler(
         await BillingAudit.RecordAsync(
             audit, DraftedAction, BillingAudit.InvoiceEntity, created.Value.Id,
             $"Invoice drafted for order {order.OrderNumber} with {created.Value.Lines.Count} line(s) from calculation "
-            + $"'{command.CalculationReference}'.",
+            + $"'{reference}'.",
             command.Reason, null, InvoiceSnapshot.Of(created.Value), cancellationToken);
 
         return Result.Success(Administered(created.Value));
