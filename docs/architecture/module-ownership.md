@@ -709,13 +709,20 @@ dispatcher, the claim semantics and the dead-letter handling, not the rows. Its 
 not everybody's: a shared table would be a second connection and a second transaction for every other module, which
 is the one thing a transactional outbox exists to rule out (issue #77).
 
-For the identical reason, `audit_events` is *mapped* — never migrated, never owned — by a module's own context too,
-where that module has given itself an `IAuditWriter` binding of its own (`Billing`'s `IBillingAuditWriter`, over
-`AuditWriter<BillingDbContext>`): the entry is tracked by that context's own change tracker and saved by the same
-`SaveChangesAsync` call as the change it describes, so the two commit or roll back together (issue #179). This is
-still access through Platform's port, not a second owner: the table is still created, altered and hash-chained only
-by `Tailor360.Platform.Persistence` and `t360_migrator`, `ExcludeFromMigrations()` on every context that maps it
-except `PlatformDbContext`, and the application role still holds `INSERT` only.
+The same problem — a change and its record on two connections is two commits, either of which can leave the other
+stranded — meets a different shape here, because there is one hash-chained ledger, not one table per module: giving
+every module its own `audit_events` would give it its own chain, which is not what CI-08 means by "the chain is
+unbroken". So rather than duplicating the table per schema the way `outbox_messages` does, `audit_events` is
+*mapped a second time* — never migrated, never owned — by a module's own context too, where that module has given
+itself an `IAuditWriter` binding of its own (`Billing`'s `IBillingAuditWriter`, over `AuditWriter<BillingDbContext>`):
+the entry is tracked by that context's own change tracker and saved by the same `SaveChangesAsync` call as the
+change it describes, so the two commit or roll back together (issue #179). This is still access through Platform's
+port, not a second owner: the table is still created, altered and hash-chained only by `Tailor360.Platform.Persistence`
+and `t360_migrator`, `ExcludeFromMigrations()` on every context that maps it except `PlatformDbContext`, and the
+application role still holds `INSERT` only. It is ARCH-005's one named exception, by table and by call site —
+[`ADR-0015`](../adr/0015-shared-audit-ledger-mapped-into-module-contexts.md) records why this shape was chosen over
+the per-module table above and over the shared-transaction mechanism ADR-0004 originally sketched for this exact
+crossing.
 
 **Owned object-storage prefix.** None.
 

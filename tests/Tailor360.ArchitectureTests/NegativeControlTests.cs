@@ -138,6 +138,69 @@ public sealed partial class NegativeControlTests
             "the sample is deliberately a cross-module Infrastructure reference, which ARCH-004 forbids.");
     }
 
+    /// <summary>
+    /// ARCH-005's extended detector must reject a module context that maps a table into a foreign
+    /// schema by name — an explicit <c>ToTable(name, schema)</c> literal that is not the one named
+    /// exception — and must accept nothing else as that exception: not the right schema with the wrong
+    /// table, and not the right table with the wrong schema.
+    /// </summary>
+    [Fact]
+    public void Arch005DetectorCatchesAnUnsanctionedForeignSchemaMapping()
+    {
+        const string offending = """
+            namespace Sample;
+            public sealed class RogueMapping
+            {
+                public RogueMapping(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder)
+                {
+                    modelBuilder.Entity<Widget>().ToTable("widgets", "orders");
+                }
+            }
+            """;
+
+        var mappings = SourceConventionTests.ForeignSchemaMappings(offending).ToArray();
+
+        mappings.ShouldHaveSingleItem();
+        mappings[0].Schema.ShouldBe("orders");
+        mappings[0].Table.ShouldBe("widgets");
+        SourceConventionTests.IsSanctionedSharedMechanismTable(mappings[0].Schema, mappings[0].Table)
+            .ShouldBeFalse("a table named 'widgets' in schema 'orders' is not ARCH-005's named exception.");
+
+        SourceConventionTests
+            .IsSanctionedSharedMechanismTable("platform", "outbox_messages")
+            .ShouldBeFalse("the exception names 'audit_events' specifically, not every platform-owned table.");
+        SourceConventionTests
+            .IsSanctionedSharedMechanismTable("billing", "audit_events")
+            .ShouldBeFalse("the exception names the 'platform' schema specifically, not a same-name table elsewhere.");
+    }
+
+    /// <summary>
+    /// The one named exception ARCH-005 recognises: a call to <c>AuditEventMapping.Configure</c> reads
+    /// as declaring exactly <c>platform</c>/<c>audit_events</c>, so the real detector does not report a
+    /// module context that adopts it — proving the exception is precise rather than the check having
+    /// been switched off.
+    /// </summary>
+    [Fact]
+    public void Arch005DetectorAcceptsOnlyTheNamedAuditEventMappingCall()
+    {
+        const string sanctioned = """
+            namespace Sample;
+            public sealed class SampleDbContext
+            {
+                protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder)
+                {
+                    AuditEventMapping.Configure(modelBuilder);
+                }
+            }
+            """;
+
+        var mappings = SourceConventionTests.ForeignSchemaMappings(sanctioned).ToArray();
+
+        mappings.ShouldHaveSingleItem();
+        SourceConventionTests.IsSanctionedSharedMechanismTable(mappings[0].Schema, mappings[0].Table)
+            .ShouldBeTrue("AuditEventMapping.Configure maps only platform.audit_events, ARCH-005's named exception.");
+    }
+
     [GeneratedRegex(@"\bDateTime(Offset)?\s*\.\s*(UtcNow|Now|Today)\b", RegexOptions.None, 500)]
     private static partial Regex AmbientClockPattern();
 
