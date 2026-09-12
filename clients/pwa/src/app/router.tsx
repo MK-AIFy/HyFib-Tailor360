@@ -21,6 +21,10 @@ import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEdito
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
+import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
+import { MeasurementDraftRoute } from '../routes/measurements/MeasurementDraftRoute'
+import { MeasurementStartRoute } from '../routes/measurements/MeasurementStartRoute'
+import { MeasurementsHomeRoute } from '../routes/measurements/MeasurementsHomeRoute'
 import { AuthShell } from '../routes/auth/AuthShell'
 import { AuthenticatorEnrolmentRoute } from '../routes/auth/AuthenticatorEnrolmentRoute'
 import { LoginRoute } from '../routes/auth/LoginRoute'
@@ -158,6 +162,34 @@ export const router = createBrowserRouter([
           { path: 'account/security', element: <SecurityRoute /> },
           { path: 'account/security/authenticator', element: <AuthenticatorEnrolmentRoute /> },
           { path: 'account/sessions', element: <SessionsRoute /> },
+          // Measuring a customer (#123). Three addresses: the destination the shells navigate to,
+          // the start screen the phone shell's primary action opens, and the draft itself — which
+          // has an address of its own because a draft is shared within the branch and survives an
+          // interruption, so a colleague can pick it up on their own device.
+          {
+            path: 'measurements',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementsHomeRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'measurements/new',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementStartRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'measurements/drafts/:draftId',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementDraftRoute />
+              </RequirePermission>
+            ),
+          },
           // The administration section. Each screen guards itself as well as being filtered out of
           // the sub-navigation, and the server guards itself again — three layers, of which only the
           // innermost is the authorisation.

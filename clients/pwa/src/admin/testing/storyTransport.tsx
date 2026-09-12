@@ -138,8 +138,10 @@ export const STORY_USER = {
     reducedMotion: false,
     landingRoute: null,
   },
+  // Relative to now, not a date: a fixed instant fell into the past five days after it was written,
+  // and every story then opened under a "Your session ended" dialog.
   session: {
-    idleExpiresAt: '2026-09-07T18:00:00.000Z',
-    absoluteExpiresAt: '2026-09-07T21:00:00.000Z',
+    idleExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    absoluteExpiresAt: new Date(Date.now() + 11 * 60 * 60 * 1000).toISOString(),
   },
 } as const
