@@ -208,7 +208,8 @@ the same pull request, or the baseline is measured against a narrower pipeline t
 | Job (as reported) | Timeout | Run 1 | Run 2 | Run 3 | Median | Notes |
 | --- | ---: | --- | --- | --- | --- | --- |
 | `Pull-request policy` | 5:00 | | | | | |
-| `.NET build and tests` | 30:00 | | | | | Four test tiers and a real PostgreSQL service container |
+| `.NET build and tests` | 30:00 | | | | | Four test tiers and a real PostgreSQL service container. The critical path: measured at 8:54 of a 8:58 pipeline on run 201, of which the integration tier was 4:59 |
+| `.NET formatting` | 10:00 | | | | | Split out of `.NET build and tests`, where it was 1:26 of serial time ahead of the build |
 | `PWA build and tests` | 20:00 | | | | | |
 | `Documentation links` | 5:00 | | | | | |
 | `Security checks` | 15:00 | | | | | gitleaks scans the whole history |
@@ -219,7 +220,7 @@ the same pull request, or the baseline is measured against a narrower pipeline t
 | `Software bill of materials` | 20:00 | | | | | Restores and builds all 66 projects a second time |
 | **Whole pipeline (wall clock)** | — | | | | | Budget: **≤ 15:00** |
 
-The timeout column is a ceiling that stops a hung job, not an expectation: five of the ten permit more than the
+The timeout column is a ceiling that stops a hung job, not an expectation: five of the eleven permit more than the
 whole budget on their own. Whether the pipeline fits is what the Median column is for, and until it has numbers
 nothing anywhere should be read as a claim that it does.
 
