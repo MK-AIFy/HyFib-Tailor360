@@ -143,5 +143,7 @@ export const STORY_USER = {
   session: {
     idleExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     absoluteExpiresAt: new Date(Date.now() + 11 * 60 * 60 * 1000).toISOString(),
+    warningLeadSeconds: 120,
+    mfaSatisfied: true,
   },
 } as const

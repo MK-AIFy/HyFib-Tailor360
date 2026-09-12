@@ -12,6 +12,15 @@
  * the shell reads, so focus moved into the last field of a step lands above the bar.
  */
 @layer components {
+  /*
+   * A heading that is one long word — the pseudo-locale's `〖Méééášüüréémééñţš〗` at 320 px — breaks
+   * inside the word rather than pushing the page wider (1.4.10). Real headings never reach it.
+   */
+  .measurements h1,
+  .measurements h2 {
+    overflow-wrap: anywhere;
+  }
+
   .measurements__lede {
     max-inline-size: 60ch;
     color: var(--colour-ink-muted);
