@@ -1,6 +1,7 @@
 import { useIntl } from 'react-intl'
 import type { TemplateField } from '../admin/types'
 import { Alert } from '../components/primitives/Alert'
+import { Button } from '../components/primitives/Button'
 import { MeasurementField } from '../design-system/components/forms/MeasurementField'
 import { NumericStepper } from '../design-system/components/forms/NumericStepper'
 import { Select } from '../design-system/components/forms/Select'
@@ -10,6 +11,7 @@ import {
   captureControlId,
   captureKindOf,
   centimetreDecimalsOf,
+  effectiveUnitOf,
   fractionStepOf,
   visibilityOf,
 } from './capture'
@@ -50,6 +52,8 @@ export function CaptureField({ field, state, unit, error, onChange }: CaptureFie
   const verdict = visibilityOf(field, state)
   const kind = captureKindOf(field)
   const id = captureControlId(field.key)
+  const fieldUnit = effectiveUnitOf(field, unit)
+  const answered = kind === 'choice' ? false : held?.millimetres !== undefined
 
   if (!verdict.isShown) {
     return (
@@ -112,7 +116,7 @@ export function CaptureField({ field, state, unit, error, onChange }: CaptureFie
           acknowledged={held?.acknowledged ?? false}
           bounds={boundsOf(field)}
           centimetreDecimals={centimetreDecimalsOf(field)}
-          displayUnit={unit}
+          displayUnit={fieldUnit}
           fractionStep={fractionStepOf(field)}
           onAcknowledgedChange={(next) => {
             onChange(field.key, { ...held, acknowledged: next })
@@ -125,6 +129,23 @@ export function CaptureField({ field, state, unit, error, onChange }: CaptureFie
           {...(held?.millimetres === undefined ? {} : { value: held.millimetres })}
         />
       )}
+
+      {/*
+        Neither numeric control reports an emptied box — both keep the last good value on blur, which
+        is right for a tape but leaves no way to take back a pre-filled or optional value. Clearing is
+        therefore an act of its own, and a saved step without the field is how the server clears it.
+      */}
+      {answered ? (
+        <Button
+          iconName="close"
+          onClick={() => {
+            onChange(field.key, { acknowledged: false })
+          }}
+          variant="subtle"
+        >
+          {intl.formatMessage({ id: 'measurements.wizard.clear' }, { label: field.label })}
+        </Button>
+      ) : null}
     </div>
   )
 }

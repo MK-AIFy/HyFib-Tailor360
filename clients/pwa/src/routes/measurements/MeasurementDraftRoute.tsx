@@ -27,7 +27,9 @@ import {
   captureKindOf,
   centimetreDecimalsOf,
   defaultDisplayUnitOf,
+  effectiveUnitOf,
   findingErrorsOf,
+  groupsWithVisibilityChanged,
   fractionStepOf,
   localErrorsOf,
   sectionRequestOf,
@@ -256,15 +258,17 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
         which === 'cm' ? 'measurements.wizard.unit.centimetres' : 'measurements.wizard.unit.inches',
     })
 
-  const formatBound = (field: TemplateField, millimetres: number): string =>
-    formatters.formatMeasurement(millimetres, {
-      unit,
+  const formatBound = (field: TemplateField, millimetres: number): string => {
+    const fieldUnit = effectiveUnitOf(field, unit)
+    return formatters.formatMeasurement(millimetres, {
+      unit: fieldUnit,
       step: fractionStepOf(field),
       decimals: centimetreDecimalsOf(field),
       unitLabel: intl.formatMessage({
-        id: unit === 'cm' ? 'units.centimetre.symbol' : 'units.inch.symbol',
+        id: fieldUnit === 'cm' ? 'units.centimetre.symbol' : 'units.inch.symbol',
       }),
     })
+  }
 
   const messages = {
     required: (label: string) =>
@@ -274,11 +278,16 @@ function CaptureWizard({ draft, initialVersion, template, onReload }: CaptureWiz
   }
 
   const change = (key: string, next: CapturedFieldState): void => {
-    setState((all) => ({ ...all, [key]: next }))
+    const after = { ...state, [key]: next }
+    setState(after)
     const owner = groups.find((group) => group.fields.some((field) => field.key === key))
-    if (owner !== undefined) {
-      setDirty((all) => new Set([...all, owner.name]))
-    }
+    // The field's own group, and any group holding a field this answer just showed or hid: a
+    // hidden field is dropped from its group's save, and a group that is not saved keeps it.
+    const affected = [
+      ...(owner === undefined ? [] : [owner.name]),
+      ...groupsWithVisibilityChanged(groups, state, after),
+    ]
+    setDirty((all) => new Set([...all, ...affected]))
     setTouched((all) => new Set([...all, key]))
   }
 

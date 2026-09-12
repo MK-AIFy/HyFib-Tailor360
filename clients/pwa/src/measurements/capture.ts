@@ -106,6 +106,34 @@ export function centimetreDecimalsOf(field: TemplateField): CentimetreDecimals {
   return (decimals > 0 ? decimals : 1) as CentimetreDecimals
 }
 
+/**
+ * The unit a field is actually entered in, given the one chosen for the wizard.
+ *
+ * A published field may offer only inches or only centimetres (`inchFraction` or
+ * `centimetreDecimals` of zero says which), and the server refuses at confirmation a value entered
+ * in a unit the field does not offer. So the chosen unit is honoured where the field offers it and
+ * the field's own unit is used where it does not — the same rule the administration preview's
+ * `unitForBands` applies, so what a tailor meets cannot drift from what an administrator saw.
+ */
+export function effectiveUnitOf(
+  field: TemplateField,
+  chosen: MeasurementDisplayUnit,
+): MeasurementDisplayUnit {
+  const inches = Number(field.inchFraction) > 0
+  const centimetres = Number(field.centimetreDecimals) > 0
+
+  if (inches && centimetres) {
+    return chosen
+  }
+  if (inches) {
+    return 'in'
+  }
+  if (centimetres) {
+    return 'cm'
+  }
+  return chosen
+}
+
 /** The unit the wizard opens in, as the version declares it. Anything unrecognised opens in inches. */
 export function defaultDisplayUnitOf(version: TemplateVersion): MeasurementDisplayUnit {
   return version.defaultDisplayUnit === 'Centimetre' ? 'cm' : 'in'
@@ -177,7 +205,7 @@ export function enteredFor(
     return { entered: Math.round(millimetres), unit: 'Count' }
   }
 
-  if (unit === 'cm') {
+  if (effectiveUnitOf(field, unit) === 'cm') {
     return {
       entered: millimetresToCentimetres(millimetres, centimetreDecimalsOf(field)),
       unit: 'Centimetre',
@@ -359,4 +387,27 @@ export function findingErrorsOf(
   }
 
   return entries
+}
+
+/**
+ * The groups holding a field whose visibility a change flipped.
+ *
+ * A rule reads another field, often in another group: choosing a closure in the bodice can hide a
+ * lining length in the sleeve step. A group is saved when it is dirty, and a hidden field is dropped
+ * from the save — so a group whose field just became hidden has to count as dirty, or the value
+ * stays in the draft on the server while the review says "not asked for", and confirmation keeps
+ * it.
+ */
+export function groupsWithVisibilityChanged(
+  groups: readonly FieldGroup[],
+  before: CaptureState,
+  after: CaptureState,
+): readonly string[] {
+  return groups
+    .filter((group) =>
+      group.fields.some(
+        (field) => visibilityOf(field, before).isShown !== visibilityOf(field, after).isShown,
+      ),
+    )
+    .map((group) => group.name)
 }

@@ -548,6 +548,158 @@ describe('the capture wizard', () => {
     expect(keys[0]).toBe(keys[1])
   })
 
+  it('lets a pre-filled value be cleared, and saves the step without it', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(
+        aMeasurementDraft({
+          values: [
+            {
+              key: 'chest_bust',
+              millimetres: 927.1,
+              enteredUnit: 'Inch',
+              choice: null,
+              acknowledged: false,
+            },
+            {
+              key: 'closure',
+              millimetres: null,
+              enteredUnit: 'Inch',
+              choice: 'back_hooks',
+              acknowledged: false,
+            },
+            {
+              key: 'sleeve_length',
+              millimetres: 500,
+              enteredUnit: 'Inch',
+              choice: null,
+              acknowledged: false,
+            },
+          ],
+        }),
+        'W/"4"',
+      ),
+    )
+    await openWizard()
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('heading', { name: 'Sleeve' })
+
+    // Neither numeric control reports an emptied box, so clearing is an act of its own.
+    await user.click(screen.getByRole('button', { name: 'Clear Sleeve length' }))
+    expect(screen.queryByRole('button', { name: 'Clear Sleeve length' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+
+    const [saved] = transport.callsTo(`POST ${DRAFT}/sections`)
+    expect(saved?.body).toEqual({ groupName: 'Sleeve', values: [] })
+  })
+
+  it('enters a centimetre-only field in centimetres however the wizard is set', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}/template`, () => {
+      const template = aCaptureTemplate()
+      return jsonResponse({
+        ...template,
+        version: {
+          ...template.version,
+          fields: (template.version.fields ?? []).map((field) =>
+            field.key === 'sleeve_length'
+              ? { ...field, inchFraction: 0, centimetreDecimals: 1, displayUnits: ['Centimetre'] }
+              : field,
+          ),
+        },
+      })
+    })
+    await openWizard()
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('heading', { name: 'Sleeve' })
+
+    // Inches are chosen for the wizard; this field offers only centimetres, so it is a decimal
+    // box with a centimetre adornment, and the request says Centimetre.
+    expect(screen.queryByLabelText('Sleeve length — whole inches')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Sleeve length'), '50')
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+
+    const [, sleeve] = transport.callsTo(`POST ${DRAFT}/sections`)
+    expect(sleeve?.body).toEqual({
+      groupName: 'Sleeve',
+      values: [
+        {
+          key: 'sleeve_length',
+          entered: 50,
+          unit: 'Centimetre',
+          choice: null,
+          acknowledged: false,
+        },
+      ],
+    })
+    expect(screen.getByText('50.0 cm')).toBeInTheDocument()
+  })
+
+  it('saves a step whose field another step’s answer hid, so the record does not keep it', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}/template`, () => {
+      const template = aCaptureTemplate()
+      return jsonResponse({
+        ...template,
+        version: {
+          ...template.version,
+          fields: (template.version.fields ?? []).map((field) =>
+            field.key === 'sleeve_length'
+              ? {
+                  ...field,
+                  ruleDefinition: {
+                    effect: 'HiddenWhen',
+                    anyOf: [
+                      {
+                        scope: 'Field',
+                        name: 'closure',
+                        operator: 'IsAnyOf',
+                        values: ['front_hooks'],
+                      },
+                    ],
+                  },
+                }
+              : field,
+          ),
+        },
+      })
+    })
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(
+        aMeasurementDraft({
+          values: [
+            {
+              key: 'sleeve_length',
+              millimetres: 500,
+              enteredUnit: 'Inch',
+              choice: null,
+              acknowledged: false,
+            },
+          ],
+        }),
+        'W/"4"',
+      ),
+    )
+    await openWizard()
+    // Front hooks hide the sleeve length that an earlier session had saved.
+    await fillBodice(user)
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Sleeve length is not asked for with these answers.')
+    await user.click(screen.getByRole('button', { name: 'Review' }))
+    await screen.findByRole('heading', { name: 'Review and confirm' })
+
+    // The sleeve step was saved although nobody typed in it, and without the hidden value.
+    const sleeveSaves = transport
+      .callsTo(`POST ${DRAFT}/sections`)
+      .filter((call) => (call.body as { groupName: string }).groupName === 'Sleeve')
+    expect(sleeveSaves).toHaveLength(1)
+    expect(sleeveSaves[0]?.body).toEqual({ groupName: 'Sleeve', values: [] })
+    expect(screen.getByText('Not asked for')).toBeInTheDocument()
+  })
+
   it('states that a hidden field is not asked for, rather than leaving a gap', async () => {
     transport.route(`GET ${DRAFT}/template`, () => {
       const template = aCaptureTemplate()
