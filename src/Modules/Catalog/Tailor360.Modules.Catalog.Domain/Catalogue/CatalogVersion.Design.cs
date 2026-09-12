@@ -539,13 +539,30 @@ public sealed partial class CatalogVersion
             return validated;
         }
 
-        var codes = DesignGroupsOf(categoryId).Select(group => group.Code).ToHashSet(StringComparer.Ordinal);
+        var groups = DesignGroupsOf(categoryId).ToDictionary(group => group.Code, StringComparer.Ordinal);
 
-        return details.GroupCodes.All(codes.Contains)
-            ? Result.Success()
-            : Result.Failure(CatalogErrors.RuleGroupNotInCategory(
-                details.Antecedent.GroupCode is { } antecedent && !codes.Contains(antecedent)
+        if (!details.GroupCodes.All(groups.ContainsKey))
+        {
+            return Result.Failure(CatalogErrors.RuleGroupNotInCategory(
+                details.Antecedent.GroupCode is { } antecedent && !groups.ContainsKey(antecedent)
                     ? "antecedent.groupCode"
                     : "consequent.groupCode"));
+        }
+
+        // Section 4 rule 3, exactly: the two sides resolved over the group's own options. The details
+        // refused what the forms alone decide; this is the rest, such as two negations over a group of
+        // two options.
+        if (details.Consequent is { GroupCode: { } shared } consequent
+            && string.Equals(details.Antecedent.GroupCode, shared, StringComparison.Ordinal))
+        {
+            var universe = groups[shared].Options.Select(option => option.Code).ToArray();
+            if (details.Antecedent.SatisfyingSet(universe).Overlaps(consequent.SatisfyingSet(universe)))
+            {
+                return Result.Failure(CatalogErrors.OperandMalformed(
+                    "consequent", "The two sides of a rule are satisfied by the same option."));
+            }
+        }
+
+        return Result.Success();
     }
 }

@@ -76,6 +76,8 @@ public static class CatalogModuleServiceCollectionExtensions
         // Enumerable, not TryAdd: every module that owns something a service type links to adds its
         // own, and a second registration must join the list rather than replace this one.
         services.AddScoped<ICatalogDependencyValidator, BuiltInCatalogValidator>();
+        services.AddScoped<ICatalogDependencyValidator, DesignRuleValidator>();
+        services.TryAddScoped<IDesignSelectionValidator, DesignSelectionValidator>();
 
         // A singleton, because the point of it is to survive the request that filled it. The
         // implementation is registered as itself as well as through the port, because the query reads

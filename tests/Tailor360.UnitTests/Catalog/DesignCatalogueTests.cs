@@ -287,6 +287,43 @@ public sealed class DesignCatalogueTests
     }
 
     [Fact]
+    public void RefusesARuleWhoseTwoSidesAreSatisfiedByTheSameOption()
+    {
+        // Section 4 rule 3, resolved over the group's own options rather than the codes each side names.
+        var version = CatalogTestData.Draft();
+        var blouse = Category(version, "BLOUSE_PATTERN");
+        var lining = Group(version, blouse, "lining").Value.Id;
+        Option(version, lining, "NONE").IsSuccess.ShouldBeTrue();
+        Option(version, lining, "FULL").IsSuccess.ShouldBeTrue();
+
+        // FULL satisfies `lining = FULL` and `lining ≠ NONE` alike: decidable from the forms alone.
+        var namedOnce = AddRule(version, blouse, 1, Requires(
+            new DesignRuleOperand("lining", DesignOperandForm.Equals, ["FULL"]),
+            new DesignRuleOperand("lining", DesignOperandForm.NotEquals, ["NONE"])));
+        namedOnce.Error.Code.ShouldBe("catalog.rule-operand-malformed");
+        namedOnce.Error.Target.ShouldBe("consequent");
+
+        // Over two options `lining ≠ NONE` is FULL and `lining ≠ FULL` is NONE — disjoint, and only the
+        // group's option list can tell; with a third option they would share it.
+        AddRule(version, blouse, 1, new DesignRuleDetails(
+            DesignRuleType.Excludes,
+            new DesignRuleOperand("lining", DesignOperandForm.NotEquals, ["NONE"]),
+            new DesignRuleOperand("lining", DesignOperandForm.NotEquals, ["FULL"]),
+            null,
+            null)).IsSuccess.ShouldBeTrue();
+
+        Option(version, lining, "KATORI_CUP").IsSuccess.ShouldBeTrue();
+        var sharedByAThird = AddRule(version, blouse, 2, new DesignRuleDetails(
+            DesignRuleType.Excludes,
+            new DesignRuleOperand("lining", DesignOperandForm.NotEquals, ["NONE"]),
+            new DesignRuleOperand("lining", DesignOperandForm.NotEquals, ["FULL"]),
+            null,
+            null));
+        sharedByAThird.Error.Code.ShouldBe("catalog.rule-operand-malformed");
+        sharedByAThird.Error.Target.ShouldBe("consequent");
+    }
+
+    [Fact]
     public void AcceptsAnAlwaysRuleAndANoteAndSaysNeitherNamesAnOption()
     {
         var version = CatalogTestData.Draft();
