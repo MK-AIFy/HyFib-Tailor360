@@ -39,3 +39,36 @@ public sealed record CashierSessionClosed(
     /// <inheritdoc />
     public override string EventType => Type;
 }
+
+/// <summary>
+/// A cashier session's variance, beyond the configured threshold, was approved by someone other than
+/// the cashier who closed it (INV-CSH-04, INV-CSH-06). Identifiers and figures only; the approver's
+/// reason stays on the record.
+/// </summary>
+/// <param name="EventId">Identity of this occurrence.</param>
+/// <param name="OccurredAt">When.</param>
+/// <param name="AggregateId">The reconciliation batch.</param>
+/// <param name="OrganisationId">The organisation.</param>
+/// <param name="BranchId">The branch whose drawer it was.</param>
+/// <param name="CashierSessionId">The session reconciled.</param>
+/// <param name="ApprovedBy">Who approved it.</param>
+/// <param name="Variance">Recorded minus expected, over every mode, as the close computed it.</param>
+/// <param name="Currency">The currency.</param>
+public sealed record ReconciliationApproved(
+    Guid EventId,
+    DateTimeOffset OccurredAt,
+    Guid AggregateId,
+    Guid OrganisationId,
+    Guid BranchId,
+    Guid CashierSessionId,
+    Guid ApprovedBy,
+    decimal Variance,
+    string Currency)
+    : IntegrationEvent(EventId, OccurredAt, AggregateId)
+{
+    /// <summary>The wire name. Subscribe by this constant rather than by a literal.</summary>
+    public const string Type = "billing.reconciliation-approved.v1";
+
+    /// <inheritdoc />
+    public override string EventType => Type;
+}

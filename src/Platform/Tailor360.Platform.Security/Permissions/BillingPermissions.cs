@@ -68,6 +68,9 @@ public static class BillingPermissions
     /// <summary>Open and close a cashier session with its denomination count.</summary>
     public const string Session = "payments.session";
 
+    /// <summary>Approve a cashier session's variance, by someone other than who closed it (INV-CSH-04).</summary>
+    public const string ApproveReconciliation = "payments.approve_reconciliation";
+
     /// <summary>Every permission in this group, in declaration order.</summary>
     public static IReadOnlyCollection<Permission> All { get; } =
     [
@@ -101,5 +104,7 @@ public static class BillingPermissions
             PermissionModules.Billing, RequiresMfa: true, RequiresStepUp: true, RequiresReason: true),
         new(Session, "Open and close a cashier session with its denomination count.",
             PermissionModules.Billing, RequiresMfa: true),
+        new(ApproveReconciliation, "Approve a cashier session's variance, by someone other than who closed it.",
+            PermissionModules.Billing, RequiresMfa: true, RequiresStepUp: true, RequiresReason: true),
     ];
 }

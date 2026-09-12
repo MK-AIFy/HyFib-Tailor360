@@ -119,6 +119,12 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>The refunds.</summary>
     public DbSet<Refund> Refunds => Set<Refund>();
 
+    /// <summary>One reconciliation batch per closed session: the one-to-one relationship's own index (INV-CSH-06).</summary>
+    public const string OneBatchPerSessionIndex = "ux_reconciliation_batches_cashier_session";
+
+    /// <summary>The reconciliation batches opened at a session's close.</summary>
+    public DbSet<ReconciliationBatch> ReconciliationBatches => Set<ReconciliationBatch>();
+
     /// <summary>
     /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
     /// which the invoice's own trigger keeps equal to the parent's status, because a partial index cannot
@@ -179,6 +185,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigurePaymentModes(modelBuilder);
         ConfigureCashierSessions(modelBuilder);
         ConfigurePayments(modelBuilder);
+        ConfigureReconciliationBatches(modelBuilder);
         ConfigureOrderFacts(modelBuilder);
         ConfigureInvoices(modelBuilder);
     }
@@ -554,6 +561,51 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
             entity.Navigation(session => session.Counts).AutoInclude();
             entity.Navigation(session => session.ModeTotals).AutoInclude();
 
+            // Opened once, at the close, in the same unit of work: EF's relationship fixup sets this
+            // navigation when the handler adds the batch, exactly as Payment.Reversal is set.
+            entity.HasOne(session => session.ReconciliationBatch)
+                .WithOne()
+                .HasForeignKey<ReconciliationBatch>(batch => batch.CashierSessionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Navigation(session => session.ReconciliationBatch).AutoInclude();
+
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigureReconciliationBatches(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<ReconciliationBatch>(entity =>
+        {
+            entity.ToTable("reconciliation_batches");
+            entity.HasKey(batch => batch.Id);
+            entity.Property(batch => batch.Type).HasConversion<int>();
+            entity.Property(batch => batch.Status).HasConversion<int>();
+            entity.Property(batch => batch.CloseReason).HasMaxLength(ReconciliationBatch.MaximumReasonLength);
+            entity.Property(batch => batch.ApprovalReason).HasMaxLength(ReconciliationBatch.MaximumReasonLength);
+            ConfigureMoney(entity.ComplexProperty(batch => batch.ExpectedTotal), "expected_total");
+            ConfigureMoney(entity.ComplexProperty(batch => batch.RecordedTotal), "recorded_total");
+            ConfigureMoney(entity.ComplexProperty(batch => batch.Variance), "variance");
+            entity.Ignore(batch => batch.ApprovalRequired);
+            entity.Ignore(batch => batch.IsApproved);
+
+            // One batch per session: the one-to-one relationship configured from CashierSession's side
+            // needs this unique index, which EF would otherwise infer without a chosen name.
+            entity.HasIndex(batch => batch.CashierSessionId).IsUnique().HasDatabaseName(OneBatchPerSessionIndex);
+
+            entity.OwnsMany(batch => batch.ModeLines, lines =>
+            {
+                lines.ToTable("reconciliation_batch_mode_lines");
+                lines.WithOwner().HasForeignKey(line => line.BatchId);
+                lines.HasKey(line => new { line.BatchId, line.ModeCode });
+                lines.Property(line => line.ModeCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+                lines.Property(line => line.Expected).HasPrecision(18, Money.DocumentScale);
+                lines.Property(line => line.Recorded).HasPrecision(18, Money.DocumentScale);
+                lines.Property(line => line.Variance).HasPrecision(18, Money.DocumentScale);
+            });
+            entity.Navigation(batch => batch.ModeLines).AutoInclude();
+
+            // Written once at open (Pending or NotRequired), takes exactly one further write (its
+            // approval) and no version convention: append-only by trigger (INV-CSH-06), no updated
+            // pair, an xmin token as the session itself carries for the same one-transition shape.
             UseRowVersion(entity);
         });
 

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.reconciliation-approved.v1.schema.json",
+  "title": "billing.reconciliation-approved.v1",
+  "description": "A cashier session's variance, beyond the configured threshold, was approved by someone other than the cashier who closed it (INV-CSH-04, INV-CSH-06). Identifiers and figures only; the approver's reason stays on the record.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "cashierSessionId",
+    "approvedBy",
+    "variance",
+    "currency",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The reconciliation batch."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch whose drawer it was."
+    },
+    "cashierSessionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The session reconciled."
+    },
+    "approvedBy": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Who approved it."
+    },
+    "variance": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "Recorded minus expected, over every mode, as the close computed it, to the paisa, in currency."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217, INR today (conventions.md section 1.1)."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.reconciliation-approved.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

@@ -100,6 +100,13 @@ public sealed class CashierSession
     /// <summary>Expected against counted per mode, written at close.</summary>
     public IReadOnlyCollection<CashierSessionModeTotal> ModeTotals => _modeTotals;
 
+    /// <summary>
+    /// The reconciliation batch opened when this session closed (INV-CSH-06); null until then. Set by
+    /// EF Core's relationship fixup when the close adds the batch to the same unit of work, exactly as
+    /// <see cref="Payment.Reversal"/> is — nothing here ever assigns it.
+    /// </summary>
+    public ReconciliationBatch? ReconciliationBatch { get; private set; }
+
     /// <summary>When the row was created.</summary>
     public DateTimeOffset CreatedAt { get; private set; }
 

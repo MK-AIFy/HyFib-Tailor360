@@ -20,6 +20,7 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 /// <param name="sessions">The store.</param>
 /// <param name="modes">The payment modes, deciding which modes a close counts.</param>
 /// <param name="payments">The payments, whose sums per mode a close is counted against.</param>
+/// <param name="batches">The reconciliation batches, one opened per close (INV-CSH-06).</param>
 /// <param name="events">Billing's outbox.</param>
 /// <param name="options">The variance threshold.</param>
 /// <param name="audit">The audit trail.</param>
@@ -29,6 +30,7 @@ public sealed class CashierSessionHandler(
     ICashierSessionStore sessions,
     IPaymentModeStore modes,
     IPaymentStore payments,
+    IReconciliationBatchStore batches,
     IBillingEventPublisher events,
     IOptions<CashierOptions> options,
     IAuditWriter audit,
@@ -117,6 +119,10 @@ public sealed class CashierSessionHandler(
                 ids.NewId(), now, session.Id, session.OrganisationId, session.BranchId, session.CashierId,
                 session.OpenedAt, session.ClosedAt!.Value,
                 session.ExpectedTotal.Amount, session.CountedTotal.Amount, session.Variance.Amount, session.CountedTotal.Currency));
+
+            // Opened in the same transaction as the close it reconciles (INV-CSH-06); the batch itself
+            // decides, from the same threshold, whether the variance it just recorded needs approval.
+            batches.Add(ReconciliationBatch.OpenForClose(ids.NewId(), session, Money.Rupees(options.Value.VarianceReasonThreshold), now));
 
             var saved = await sessions.SaveAsync(token);
             return saved.IsFailure ? Result.Failure<CashierSession>(saved.Error) : Result.Success(session);

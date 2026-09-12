@@ -99,9 +99,9 @@ new installation is expected to put somebody in the role — `no` marks a role t
 <!-- matrix:roles -->
 | Role key | Display name | Reach | Assign at onboarding | Permissions | What the role is for |
 | --- | --- | --- | --- | --- | --- |
-| `owner` | Owner | organisation | yes | 51 | Approves the catalogue, prices, tax configuration, the permission matrix and alert policies; approves dispatch exceptions; reads across every branch. |
+| `owner` | Owner | organisation | yes | 52 | Approves the catalogue, prices, tax configuration, the permission matrix and alert policies; approves dispatch exceptions; reads across every branch. |
 | `admin` | Admin | organisation | yes | 22 | Administers users, branches, roles, templates and integrations across the organisation. Holds no shop-floor permission and cannot publish the catalogue or change a price. |
-| `branch_manager` | Branch Manager | branch | yes | 77 | Supervises the day in the assigned branches: exception queues, holds, reschedules, reconciliation cases, stocktake and variance approvals, service recovery. |
+| `branch_manager` | Branch Manager | branch | yes | 78 | Supervises the day in the assigned branches: exception queues, holds, reschedules, reconciliation cases, stocktake and variance approvals, service recovery. |
 | `reception` | Reception | branch | yes | 25 | The counter: finds or creates the customer, records consent, captures measurements and images, builds and confirms the order, prints labels and takes the advance. |
 | `measurement_staff` | Measurement Staff | branch | no | 7 | The measurement bundle on its own, for a shop that staffs the measurements queue separately from the counter. Assigned to nobody by default: the same permissions are granted to Reception, so either reading of OD-13 works without a change here. |
 | `tailor_master` | Tailor Master | branch | yes | 21 | The workshop lead: starts production, pins the workflow version, assigns garment jobs, runs the workboard, records quality results and decides rework. |
@@ -149,6 +149,7 @@ equal by test.
 | `billing.update_invoice` | Billing | branch | no | no | no | `branch_manager`, `cashier` | #42 | A draft may be amended; a posted invoice may not |
 | `payments.allocate` | Billing | branch | no | no | no | `branch_manager`, `cashier` | #43 | Allocation under the automatic rule |
 | `payments.allocate_manual` | Billing | branch | yes | yes | yes | `branch_manager`, `cashier` | #43 | Allocating against the automatic rule moves money between invoices; step-up and a reason (`raci.md` row 5) |
+| `payments.approve_reconciliation` | Billing | branch | yes | yes | yes | `owner`, `branch_manager` | #172 | Above threshold, by a different user from the cashier who closed the session; step-up and a reason (INV-CSH-04) |
 | `payments.record` | Billing | branch | no | no | no | `branch_manager`, `reception`, `cashier` | #43 | Reception may record an advance and the Cashier is accountable for the money (`raci.md` footnote (5)) |
 | `payments.record_intent` | Billing | branch | no | no | no | `branch_manager`, `reception`, `cashier` | #43 | The intent recorded before a provider is called, so a timeout is resolvable rather than assumed |
 | `payments.refund` | Billing | branch | yes | yes | yes | `owner`, `branch_manager`, `cashier` | #43 | Money leaving the business |
@@ -248,10 +249,10 @@ equal by test.
 
 | | Count |
 | --- | --- |
-| Permissions declared | 104 |
-| Demanding multi-factor authentication | 36 |
-| Demanding a fresh re-authentication as well | 24 |
-| Demanding a stated reason | 54 |
+| Permissions declared | 105 |
+| Demanding multi-factor authentication | 37 |
+| Demanding a fresh re-authentication as well | 25 |
+| Demanding a stated reason | 55 |
 | Organisation-scoped | 27 |
 
 **Which roles this forces into enrolment.** Multi-factor enrolment is demanded of any principal whose effective
@@ -262,7 +263,7 @@ default grants that resolves to:
 | Role | Must enrol a second factor | Because |
 | --- | --- | --- |
 | Owner, Admin, Auditor | Yes | Named roles, and organisation-scoped flagged permissions |
-| Branch Manager | Yes | Holds `customers.merge`, `inventory.approve_variance`, `payments.refund` and twelve other flagged permissions |
+| Branch Manager | Yes | Holds `customers.merge`, `inventory.approve_variance`, `payments.refund` and thirteen other flagged permissions |
 | Cashier | Yes | Named role, and holds `payments.session`, `payments.refund` and `billing.cancel_invoice` |
 | HyFib Super User | Yes | `admin.feature_flags` |
 | Reception, Tailor Master, Tailor, Inventory Clerk, Delivery Staff, Measurement Staff | No | No flagged permission and no configured prefix. Reception holds `payments.record`, which is not flagged; the Cashier holds the receipt and the session |
@@ -393,6 +394,7 @@ is the route a reader looks at first.
 | `POST` | `/api/v1/billing/payments/{paymentId}/reversal` | permission | `payments.reverse` | current-branch | `billing.payment` | `payments.reverse` | Reverses a payment recorded in error by a compensating record, the original row untouched: its allocations and advance count for nothing from here on and the paid status is recomputed from rows (INV-PAY-01, INV-PAY-06). Once per payment (409), never for a payment money has been paid back from. Step-up and a reason (`raci.md` row 5). Idempotent |
 | `POST` | `/api/v1/billing/refunds` | permission | `payments.refund` | current-branch | — | `payments.refund` | Pays money back in the caller's open cashier session through a mode allowed for refunds, against a payment's unapplied advance or an invoice's surplus, never more than the source holds; refused without a session (409). Step-up and a reason. Idempotent, and the cashier-and-key is unique on the row. No resource scope: the refund is created at the caller's own branch against a source the handler checks is the branch's |
 | `GET` | `/api/v1/billing/refunds/{refundId}` | permission | `payments.record` | current-branch | `billing.refund` | — | Reads one refund; another branch's reads as 404 |
+| `POST` | `/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve` | permission | `payments.approve_reconciliation` | current-branch | `billing.cashier_session` | `payments.approve_reconciliation` | Approves a closed session's variance, by someone other than the cashier who closed it (INV-CSH-04); refused where no variance on the batch was ever beyond the threshold, and refused twice. Step-up and a reason. Idempotent. The batch itself is read back on the session's own payload, not through a separate route |
 | `POST` | `/api/v1/billing/pricing/preview` | permission | `billing.manage_price_lists` | organisation | — | `billing.pricing.previewed` | Runs the pricing engine against a named price-list version, draft or published, and answers the result without storing it; an override beyond the version's threshold or a discount beyond its rule's counter maximum is refused unless the caller also holds `billing.override_price` |
 | `GET` | `/api/v1/billing/price-lists` | permission | `billing.manage_price_lists` | organisation | — | — | Lists the organisation's price lists, by code (#41, #146). Price-list structure is Internal; the rates inside a version are Confidential, which is why every route here is on the administration permission |
 | `POST` | `/api/v1/billing/price-lists` | permission | `billing.manage_price_lists` | organisation | — | `billing.price_list.created` | Creates a price list. Most shops have one; a shop pricing branches differently has one per group of branches |

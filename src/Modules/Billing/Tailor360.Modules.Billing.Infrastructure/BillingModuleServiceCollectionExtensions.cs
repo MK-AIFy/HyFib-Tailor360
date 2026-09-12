@@ -90,6 +90,10 @@ public static class BillingModuleServiceCollectionExtensions
         // E09-F03-3: the compensating records — a reversal, a refund.
         services.TryAddScoped<RefundHandler>();
 
+        // E09-F03-3b: the reconciliation batch opened at every close, and the approval of its variance.
+        services.TryAddScoped<IReconciliationBatchStore, ReconciliationBatchStore>();
+        services.TryAddScoped<ReconciliationHandler>();
+
         // What Billing knows about orders arrives through the outbox, one consumer per event type, each
         // committed with its inbox row by the dispatcher. Enumerable, not TryAdd: the other modules' consumers
         // share the interface.

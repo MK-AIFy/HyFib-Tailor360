@@ -38,6 +38,9 @@ internal static class BillingAudit
     /// <summary>A refund.</summary>
     public const string RefundEntity = "billing.refund";
 
+    /// <summary>A reconciliation batch.</summary>
+    public const string ReconciliationBatchEntity = "billing.reconciliation_batch";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,

@@ -158,6 +158,12 @@ public static class PayloadExamples
             }
             """,
 
+        ["ApproveReconciliation"] = """
+            {
+              "reason": "Counted twice with the Branch Manager present; the shortfall was change given from the wrong tray."
+            }
+            """,
+
         ["PostDebitNote"] = """
             {
               "lines": [

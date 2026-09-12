@@ -63,3 +63,7 @@ public sealed record ReversePaymentRequest(string? Reason);
 /// <param name="Reference">The reference the mode requires, where it does.</param>
 /// <param name="Reason">Why.</param>
 public sealed record RecordRefundRequest(Guid? PaymentId, Guid? InvoiceId, string? ModeCode, decimal Amount, string? Reference, string? Reason);
+
+/// <summary>Approve a cashier session's variance, by someone other than who closed it.</summary>
+/// <param name="Reason">Why the variance is accepted.</param>
+public sealed record ApproveReconciliationRequest(string? Reason);
