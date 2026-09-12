@@ -229,6 +229,12 @@ public static class MeasurementCaptureEndpoints
             {
                 ArgumentNullException.ThrowIfNull(request);
 
+                // The name the answer will carry is the caller's own, resolved before the confirmation rather
+                // than after it: a decorative lookup must not be able to fail a command that has already
+                // committed and cannot be repeated.
+                var names = await handler.DisplayNamesAsync(
+                    caller.UserId is { } confirmingUser ? [confirmingUser] : [], cancellationToken);
+
                 var result = await handler.ConfirmAsync(
                     new ConfirmMeasurementsCommand(
                         draftId,
@@ -244,11 +250,10 @@ public static class MeasurementCaptureEndpoints
                     return Problems.From(result.Error, context);
                 }
 
-                var names = await handler.TakenByNamesAsync([result.Value], cancellationToken);
-
                 return Results.Created(
                     $"/api/v1/customers/measurements/{result.Value.Id}",
-                    MeasurementVersionPayload.From(result.Value, TakenByName(result.Value, names)));
+                    MeasurementVersionPayload.From(
+                        result.Value, MeasurementCaptureHandler.NameOf(result.Value, names)));
             })
             .Produces<MeasurementVersionPayload>(StatusCodes.Status201Created)
             .WithName("ConfirmMeasurements")
@@ -282,7 +287,9 @@ public static class MeasurementCaptureEndpoints
 
                 var names = await handler.TakenByNamesAsync([result.Value], cancellationToken);
 
-                return Results.Ok(MeasurementVersionPayload.From(result.Value, TakenByName(result.Value, names)));
+                return Results.Ok(
+                    MeasurementVersionPayload.From(
+                        result.Value, MeasurementCaptureHandler.NameOf(result.Value, names)));
             })
             .Produces<MeasurementVersionPayload>(StatusCodes.Status200OK)
             .WithName("GetMeasurement")
@@ -318,7 +325,9 @@ public static class MeasurementCaptureEndpoints
 
                 return Results.Ok(
                     versions
-                        .Select(version => MeasurementSummaryPayload.From(version, TakenByName(version, names)))
+                        .Select(version =>
+                            MeasurementSummaryPayload.From(
+                                version, MeasurementCaptureHandler.NameOf(version, names)))
                         .ToArray());
             })
             .Produces<MeasurementSummaryPayload[]>(StatusCodes.Status200OK)
@@ -447,9 +456,6 @@ public static class MeasurementCaptureEndpoints
 
         return customers;
     }
-
-    private static string? TakenByName(MeasurementVersion version, IReadOnlyDictionary<Guid, string> names)
-        => version.TakenBy is { } takenBy && names.TryGetValue(takenBy, out var name) ? name : null;
 
     /// <summary>Reads the <c>If-Match</c> the route already refused the request without.</summary>
     /// <remarks>

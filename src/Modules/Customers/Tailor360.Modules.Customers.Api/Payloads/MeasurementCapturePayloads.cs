@@ -375,15 +375,14 @@ public sealed record MeasurementComparisonPayload(
         var differences = result.Differences.Select(MeasurementDifferencePayload.From).ToArray();
 
         return new MeasurementComparisonPayload(
-            MeasurementSummaryPayload.From(result.Before, NameOf(result.Before, takenByNames)),
-            MeasurementSummaryPayload.From(result.After, NameOf(result.After, takenByNames)),
+            MeasurementSummaryPayload.From(
+                result.Before, MeasurementCaptureHandler.NameOf(result.Before, takenByNames)),
+            MeasurementSummaryPayload.From(
+                result.After, MeasurementCaptureHandler.NameOf(result.After, takenByNames)),
             differences,
             differences.Count(difference =>
                 !string.Equals(difference.Change, nameof(MeasurementChange.Unchanged), StringComparison.Ordinal)));
     }
-
-    private static string? NameOf(MeasurementVersion version, IReadOnlyDictionary<Guid, string> names)
-        => version.TakenBy is { } takenBy && names.TryGetValue(takenBy, out var name) ? name : null;
 }
 
 /// <summary>A measurement as a tailor reads it: the values, the version they render through, and nothing else.</summary>

@@ -400,6 +400,43 @@ public sealed class MeasurementCaptureEndpointTests(WebApplicationFixture fixtur
     }
 
     [Fact]
+    public async Task RefusesToRecordACorrectionOfAnotherCustomersMeasurement()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("msr-xcorr", "203.0.113.248");
+
+        var templateId = await PublishedTemplateAsync("XCORR");
+
+        // Somebody else's measurement, confirmed and real.
+        var otherCustomerId = await CustomerAsync();
+        var otherDraft = await StartAsync(counter, otherCustomerId, templateId);
+        await SaveBodiceAsync(counter, otherDraft, inches: 34m);
+        using var other = JsonDocument.Parse(
+            await (await ConfirmAsync(counter, otherDraft)).Content.ReadAsStringAsync(Token));
+        var otherVersionId = other.RootElement.GetProperty("measurementVersionId").GetGuid();
+
+        // This customer's draft, confirmed as a "correction" of it: a client-supplied identifier is not trusted
+        // to name this customer's measurement, because the version named goes on the record.
+        var customerId = await CustomerAsync();
+        var draftId = await StartAsync(counter, customerId, templateId);
+        await SaveBodiceAsync(counter, draftId, inches: 36m);
+
+        var refused = await counter.PostAsync(
+            $"{Drafts}/{draftId}/confirm",
+            new { reason = "Re-measured.", correctsVersionId = otherVersionId },
+            [.. Key(), ("If-Match", await TagAsync(counter, draftId))]);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        using var problem = JsonDocument.Parse(await refused.Content.ReadAsStringAsync(Token));
+        problem.RootElement.GetProperty("code").GetString()
+            .ShouldBe("measurements.correction-subject-does-not-match");
+
+        (await MeasurementCountAsync(customerId)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task RefusesACorrectionWithNoReason()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);

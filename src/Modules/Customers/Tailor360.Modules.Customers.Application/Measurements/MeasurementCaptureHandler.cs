@@ -231,27 +231,54 @@ public sealed class MeasurementCaptureHandler(
     /// <param name="versions">The measurements.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Display name by user identity, for every identity the directory knows.</returns>
-    public async Task<IReadOnlyDictionary<Guid, string>> TakenByNamesAsync(
+    public Task<IReadOnlyDictionary<Guid, string>> TakenByNamesAsync(
         IEnumerable<MeasurementVersion> versions,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(versions);
 
-        var userIds = versions
-            .Select(version => version.TakenBy)
-            .Where(userId => userId is not null)
-            .Select(userId => userId!.Value)
-            .Distinct()
-            .ToArray();
+        return DisplayNamesAsync(
+            versions.Select(version => version.TakenBy).OfType<Guid>(),
+            cancellationToken);
+    }
 
-        if (userIds.Length == 0)
+    /// <summary>The display names of the given staff, by user identity.</summary>
+    /// <remarks>
+    /// The form the confirmation route uses <em>before</em> confirming: the name it will show belongs to the
+    /// caller, and resolving it first keeps a decorative lookup from failing a command that has already
+    /// committed and cannot be repeated.
+    /// </remarks>
+    /// <param name="userIds">The staff.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Display name by user identity, for every identity the directory knows.</returns>
+    public async Task<IReadOnlyDictionary<Guid, string>> DisplayNamesAsync(
+        IEnumerable<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userIds);
+
+        var distinct = userIds.Distinct().ToArray();
+
+        if (distinct.Length == 0)
         {
             return new Dictionary<Guid, string>();
         }
 
-        var members = await users.FindManyAsync(userIds, cancellationToken);
+        var members = await users.FindManyAsync(distinct, cancellationToken);
 
         return members.ToDictionary(member => member.UserId, member => member.DisplayName);
+    }
+
+    /// <summary>Who took a measurement, as the directory names them, or null when it does not know.</summary>
+    /// <param name="version">The measurement.</param>
+    /// <param name="names">Display name by user identity, as <see cref="TakenByNamesAsync"/> answers.</param>
+    /// <returns>The name, or null.</returns>
+    public static string? NameOf(MeasurementVersion version, IReadOnlyDictionary<Guid, string> names)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        ArgumentNullException.ThrowIfNull(names);
+
+        return version.TakenBy is { } takenBy && names.TryGetValue(takenBy, out var name) ? name : null;
     }
 
     /// <summary>Saves one wizard step.</summary>
@@ -340,6 +367,20 @@ public sealed class MeasurementCaptureHandler(
         if (command.CorrectsVersionId is not null && string.IsNullOrWhiteSpace(command.Reason))
         {
             return Result.Failure<MeasurementVersion>(MeasurementErrors.Required("reason"));
+        }
+
+        // The version a correction names goes on the record, so it has to be this customer's measurement for
+        // this template; a client-supplied identifier is not trusted to be.
+        if (command.CorrectsVersionId is { } correctsId)
+        {
+            var corrected = await store.FindVersionAsync(correctsId, command.OrganisationId, cancellationToken);
+
+            if (corrected is null
+                || corrected.CustomerId != draft.CustomerId
+                || corrected.TemplateId != draft.TemplateId)
+            {
+                return Result.Failure<MeasurementVersion>(MeasurementErrors.CorrectionSubjectDoesNotMatch);
+            }
         }
 
         // The refusal is a single error carrying a code the client branches on; the findings themselves come
@@ -553,10 +594,7 @@ public sealed class MeasurementCaptureHandler(
             cancellationToken);
 
         return Result.Success(new MeasurementSheet(
-            found,
-            pinned.Value.Template,
-            pinned.Value.Version,
-            found.TakenBy is { } takenBy && names.TryGetValue(takenBy, out var name) ? name : null));
+            found, pinned.Value.Template, pinned.Value.Version, NameOf(found, names)));
     }
 
     /// <summary>Pre-fills a fresh draft from an earlier measurement of the same template.</summary>
