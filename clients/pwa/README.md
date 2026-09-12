@@ -66,6 +66,9 @@ clients/pwa
 │   ├── app/router.tsx          # data router: home and 404
 │   ├── app/version.ts          # GET /api/version → { version, buildHash, environment }
 │   ├── components/             # shell components and their tests
+│   ├── customers/              # the customer search the counter screens use
+│   ├── measurements/           # measurement capture: API, pure wizard logic, the field control
+│   ├── routes/measurements/    # the start screen and the capture wizard (#123)
 │   ├── i18n/                   # en-IN (complete) and ta-IN (awaiting native-speaker review)
 │   └── styles/                 # design tokens and base layer
 └── vite.config.ts              # react plugin, PWA plugin, dev proxy, chunking, Vitest

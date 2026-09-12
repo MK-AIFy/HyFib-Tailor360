@@ -2099,6 +2099,35 @@
         "type": "object"
       },
       "JsonElement": {},
+      "MeasurementCaptureTemplatePayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "measurementDraftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/TemplateVersionPayload"
+          }
+        },
+        "required": [
+          "measurementDraftId",
+          "measurementTemplateId",
+          "code",
+          "name",
+          "version"
+        ],
+        "type": "object"
+      },
       "MeasurementCheckPayload": {
         "properties": {
           "confirmable": {
@@ -11061,6 +11090,67 @@
         "x-tailor360-audit": "customers.measurement.section.saved",
         "x-tailor360-authorisation": "permission:measurements.capture",
         "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/customers/measurement-drafts/{draftId}/template": {
+      "get": {
+        "description": "The capture-side read of a template. The administration reads demand catalog.templates.edit, which a counter does not hold; this one answers through the draft, so it demands what starting the draft demanded and reaches only the version the draft will be confirmed against. The wizard renders its steps, fields, bands and diagrams from this and from nothing else.",
+        "operationId": "GetMeasurementDraftTemplate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementCaptureTemplatePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read the template version a draft is pinned to, with its fields.",
+        "tags": [
+          "Customers"
+        ],
+        "x-tailor360-authorisation": "permission:measurements.capture",
+        "x-tailor360-rate-limit": "default-user"
       }
     },
     "/api/v1/customers/measurement-templates": {

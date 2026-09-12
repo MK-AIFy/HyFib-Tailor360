@@ -70,3 +70,9 @@ public sealed record ConfirmMeasurementsCommand(
 /// <param name="Draft">The draft.</param>
 /// <param name="Tag">Its <c>xmin</c>, as the <c>ETag</c> the client sends back as <c>If-Match</c>.</param>
 public sealed record CapturedDraft(MeasurementDraft Draft, EntityTag Tag);
+
+/// <summary>A draft together with the template version it is pinned to.</summary>
+/// <param name="Draft">The draft.</param>
+/// <param name="Template">The template the draft answers.</param>
+/// <param name="Version">The version the draft will be confirmed against.</param>
+public sealed record CapturedTemplate(MeasurementDraft Draft, MeasurementTemplate Template, TemplateVersion Version);

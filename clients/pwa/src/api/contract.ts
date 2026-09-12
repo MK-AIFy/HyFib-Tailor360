@@ -21,6 +21,16 @@ import type {
   PresentationRequest,
   ServiceTypeRequest,
 } from '../catalog/types'
+import type { CustomerCard, CustomerPage } from '../customers/types'
+import type {
+  ConfirmMeasurementsRequest,
+  MeasurementCaptureTemplate,
+  MeasurementCheck,
+  MeasurementDraft,
+  MeasurementVersion,
+  SaveMeasurementSectionRequest,
+  StartMeasurementDraftRequest,
+} from '../measurements/types'
 import type {
   AssignedAccess,
   AuditPage,
@@ -295,4 +305,48 @@ export type ServiceTypeEditRequestConforms = Conforms<
 export type PresentationRequestConforms = Conforms<
   PresentationRequest,
   Immutable<RequestBody<'CorrectCatalogCategoryPresentation'>>
+>
+
+/* The customer search and the measurement capture (#26, #121, #123). ------------------------- */
+
+export type CustomerCardConforms = Conforms<
+  CustomerCard,
+  Immutable<components['schemas']['CustomerCardPayload']>
+>
+
+export type CustomerPageConforms = Conforms<CustomerPage, Immutable<Response200<'SearchCustomers'>>>
+
+export type MeasurementDraftConforms = Conforms<
+  MeasurementDraft,
+  Immutable<Response200<'GetMeasurementDraft'>>
+>
+
+export type MeasurementCaptureTemplateConforms = Conforms<
+  MeasurementCaptureTemplate,
+  Immutable<Response200<'GetMeasurementDraftTemplate'>>
+>
+
+export type MeasurementCheckConforms = Conforms<
+  MeasurementCheck,
+  Immutable<Response200<'CheckMeasurementDraft'>>
+>
+
+export type MeasurementVersionConforms = Conforms<
+  MeasurementVersion,
+  Immutable<components['schemas']['MeasurementVersionPayload']>
+>
+
+export type StartMeasurementDraftRequestConforms = Conforms<
+  StartMeasurementDraftRequest,
+  Immutable<RequestBody<'StartMeasurementDraft'>>
+>
+
+export type SaveMeasurementSectionRequestConforms = Conforms<
+  SaveMeasurementSectionRequest,
+  Immutable<RequestBody<'SaveMeasurementSection'>>
+>
+
+export type ConfirmMeasurementsRequestConforms = Conforms<
+  ConfirmMeasurementsRequest,
+  Immutable<RequestBody<'ConfirmMeasurements'>>
 >
