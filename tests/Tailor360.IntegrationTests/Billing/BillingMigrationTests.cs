@@ -28,6 +28,7 @@ public sealed class BillingMigrationTests
         "price_list_version_branches",
         "price_list_items",
         "discount_rules",
+        "calculation_snapshots",
         "outbox_messages",
         "inbox_messages",
     ];

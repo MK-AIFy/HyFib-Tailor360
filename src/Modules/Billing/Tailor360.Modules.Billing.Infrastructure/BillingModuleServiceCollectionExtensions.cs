@@ -7,6 +7,7 @@ using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Application.Pricing;
 using Tailor360.Modules.Billing.Application.Registrations;
 using Tailor360.Modules.Billing.Application.Tax;
+using Tailor360.Modules.Billing.Contracts.Pricing;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Platform.Persistence;
@@ -46,6 +47,10 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<GstRegistrationHandler>();
         services.TryAddScoped<IPriceListStore, PriceListStore>();
         services.TryAddScoped<PriceListHandler>();
+        services.TryAddScoped<ICalculationSnapshotStore, CalculationSnapshotStore>();
+        services.TryAddScoped<PricingService>();
+        // The contract other modules price through is the same instance as the service the preview route uses.
+        services.TryAddScoped<IPricingService>(provider => provider.GetRequiredService<PricingService>());
 
         // Link 4 of the catalogue's service types and design options — the price-list item code — is
         // answered here. Enumerable, not TryAdd: every module that owns something a service type links

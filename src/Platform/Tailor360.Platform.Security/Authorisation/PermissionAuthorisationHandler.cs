@@ -62,7 +62,7 @@ public sealed class PermissionAuthorisationHandler(
             return Task.CompletedTask;
         }
 
-        if (permission.RequiresStepUp && !IsStepUpFresh())
+        if (permission.RequiresStepUp && !StepUpFreshness.IsFresh(currentUser, clock, stepUpOptions.Value))
         {
             context.Fail(new RefusalReason(
                 this, AuthorisationRefusal.StepUpRequired, "Recent re-authentication required."));
@@ -73,9 +73,4 @@ public sealed class PermissionAuthorisationHandler(
         return Task.CompletedTask;
     }
 
-    private bool IsStepUpFresh()
-    {
-        var last = currentUser.LastReauthenticatedAt;
-        return last is not null && clock.UtcNow - last.Value <= stepUpOptions.Value.Freshness;
-    }
 }

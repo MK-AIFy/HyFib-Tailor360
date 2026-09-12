@@ -106,6 +106,9 @@ public sealed class PriceListCatalogValidatorTests
     {
         public int Reads { get; private set; }
 
+        public Task<PriceListVersion?> FindPublishedForBranchAsync(Guid branchId, Guid organisationId, CancellationToken cancellationToken = default)
+            => Task.FromResult(published.FirstOrDefault(version => version.Covers(branchId)));
+
         public Task<IReadOnlyList<PriceListVersion>> PublishedVersionsAsync(Guid organisationId, CancellationToken cancellationToken = default)
         {
             Reads++;

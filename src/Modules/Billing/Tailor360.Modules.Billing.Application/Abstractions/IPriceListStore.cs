@@ -32,6 +32,9 @@ public interface IPriceListStore
     /// <summary>A list's published version, loaded whole, or null.</summary>
     Task<PriceListVersion?> FindPublishedAsync(Guid priceListId, Guid organisationId, CancellationToken cancellationToken = default);
 
+    /// <summary>The published version pricing a branch, loaded whole, or null when none does.</summary>
+    Task<PriceListVersion?> FindPublishedForBranchAsync(Guid branchId, Guid organisationId, CancellationToken cancellationToken = default);
+
     /// <summary>Every published version of the organisation, across its lists, loaded whole.</summary>
     Task<IReadOnlyList<PriceListVersion>> PublishedVersionsAsync(Guid organisationId, CancellationToken cancellationToken = default);
 

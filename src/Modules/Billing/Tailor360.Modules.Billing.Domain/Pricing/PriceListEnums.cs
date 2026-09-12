@@ -29,7 +29,7 @@ public enum PriceItemKind
 /// <summary>How a discount rule states its value.</summary>
 public enum DiscountKind
 {
-    /// <summary>A percentage of the line's base amount.</summary>
+    /// <summary>A percentage of the line's gross amount: its base and its surcharges together.</summary>
     Percentage = 0,
 
     /// <summary>A fixed amount off the line.</summary>

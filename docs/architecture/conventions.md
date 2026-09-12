@@ -45,6 +45,7 @@ Rules:
 | Line amount and each line tax component | Round **half away from zero** to two decimal places — paise — exactly once, at the end of the line calculation |
 | Document total | Sum the rounded line values. Never re-round a sum of already-rounded values |
 | Document round-off | Round the document total to the nearest rupee under the configured rule, and record the difference as an explicit round-off value on the document. The round-off is shown, never absorbed silently |
+| Inclusive rate | Where a price-list version quotes rates inclusive of tax, each tax component is taken from the net inclusive amount and rounded once, and the taxable value is the inclusive amount less those components — so the line total is the quoted price to the paisa, and the rounding lands on the taxable value rather than on what the customer pays (recorded under **OD-05**, #147) |
 | Allocation of a rounding difference across lines | Deterministic and repeatable: the same inputs always produce the same allocation |
 | Reversal, credit note, refund | Recompute from the original snapshot's values, never from a re-rounded total |
 

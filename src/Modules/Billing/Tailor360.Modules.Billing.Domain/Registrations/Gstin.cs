@@ -27,6 +27,12 @@ public static partial class Gstin
            && Shape().IsMatch(value)
            && CheckCharacter(value.AsSpan(0, Length - 1)) == value[Length - 1];
 
+    /// <summary>Whether a value is a two-digit GST state code; <c>00</c> is not one.</summary>
+    /// <param name="value">The value.</param>
+    /// <returns>True when it is.</returns>
+    public static bool IsWellFormedStateCode(string? value)
+        => value is { Length: 2 } && value.All(char.IsAsciiDigit) && value != "00";
+
     /// <summary>The state code a GSTIN begins with.</summary>
     /// <param name="value">A well-formed GSTIN.</param>
     /// <returns>Its first two characters.</returns>
