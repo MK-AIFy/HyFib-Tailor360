@@ -15,6 +15,7 @@ import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
 import { useNetworkState } from '../../components/states/useNetworkState'
+import { Checkbox } from '../../design-system/components/forms/Checkbox'
 import { FormErrorSummary } from '../../design-system/components/forms/FormErrorSummary'
 import { Select } from '../../design-system/components/forms/Select'
 import { formattersForLocale } from '../../design-system/components/forms/formatting'
@@ -104,12 +105,16 @@ export function MeasurementDraftRoute() {
     `measurement-draft:${draftId ?? ''}:${corrects ?? ''}:${String(reloads)}`,
     async (signal) => {
       const id = draftId ?? ''
-      const [draft, template, corrected] = await Promise.all([
-        readMeasurementDraft(id, signal),
+      const draft = await readMeasurementDraft(id, signal)
+      // The version this draft came from: the one the address names, else the one the draft was
+      // pre-filled from. Either can be offered as the version a correction replaces; the draft is
+      // read first because it is what says whether there is a second candidate at all.
+      const sourceId = corrects ?? draft.value.reusedFromVersionId
+      const [template, source] = await Promise.all([
         readMeasurementDraftTemplate(id, signal),
-        corrects === null ? Promise.resolve(null) : readMeasurement(corrects, signal),
+        sourceId === null ? Promise.resolve(null) : readSourceOrNull(sourceId, signal),
       ])
-      return { draft: draft.value, version: draft.version, template, corrected }
+      return { draft: draft.value, version: draft.version, template, source }
     },
   )
 
@@ -165,8 +170,9 @@ export function MeasurementDraftRoute() {
           // remount the wizard with the stale draft and the stale tag — and the next save would
           // meet the same conflict. A tag that changed is a draft that changed.
           key={loaded.value.version ?? 'untagged'}
-          corrects={loaded.value.corrected}
+          correctsRequested={corrects !== null}
           draft={loaded.value.draft}
+          source={loaded.value.source}
           initialVersion={loaded.value.version}
           template={loaded.value.template}
           onReload={() => {
@@ -178,10 +184,31 @@ export function MeasurementDraftRoute() {
   )
 }
 
+/**
+ * The source version, or null when it cannot be read. A reuse whose source has since become
+ * unreadable is still a draft worth finishing, so a refusal here is not a refusal of the wizard;
+ * what it costs is the offer to record the result as a correction, and the screen says so.
+ */
+async function readSourceOrNull(
+  versionId: string,
+  signal: AbortSignal,
+): Promise<MeasurementVersion | null> {
+  try {
+    return await readMeasurement(versionId, signal)
+  } catch (cause: unknown) {
+    if (cause instanceof ApiError) {
+      return null
+    }
+    throw cause
+  }
+}
+
 interface CaptureWizardProps {
   readonly draft: MeasurementDraft
-  /** The measurement this draft corrects, or null for a fresh one or a plain reuse. */
-  readonly corrects: MeasurementVersion | null
+  /** Whether the address named a version to correct, as distinct from the draft having a source. */
+  readonly correctsRequested: boolean
+  /** The version the draft came from, when it has one and it could be read. */
+  readonly source: MeasurementVersion | null
   /** The tag the read carried. Undefined only if the server sent none, which it never does here. */
   readonly initialVersion: string | undefined
   readonly template: MeasurementCaptureTemplate
@@ -190,7 +217,8 @@ interface CaptureWizardProps {
 
 function CaptureWizard({
   draft,
-  corrects,
+  correctsRequested,
+  source,
   initialVersion,
   template,
   onReload,
@@ -200,6 +228,27 @@ function CaptureWizard({
   const network = useNetworkState()
   const status = useShellStatus()
   const formatters = formattersForLocale(intl.locale)
+
+  /**
+   * The version a correction may name: the source, if it is one of this customer's measurements
+   * for this garment. The server refuses a correction of anything else, so the offer is withheld
+   * here rather than made and then refused — and an address naming a version that does not belong
+   * is said to be wrong, not silently treated as a plain reuse.
+   */
+  const correctable =
+    source !== null &&
+    source.customerId === draft.customerId &&
+    source.measurementTemplateId === draft.measurementTemplateId
+      ? source
+      : null
+  const sourceMismatch = correctsRequested && correctable === null
+  /**
+   * Whether the confirmation records a correction. Chosen on the review step, pre-set when the
+   * address asked for one: a draft reused from an earlier version is by default a new
+   * measurement, and turning it into a correction is a decision the person makes, with a reason.
+   */
+  const [correcting, setCorrecting] = useState(correctsRequested && correctable !== null)
+  const corrects = correcting ? correctable : null
 
   const version = template.version
   const groups = captureGroups(version)
@@ -623,6 +672,12 @@ function CaptureWizard({
         </Alert>
       )}
 
+      {sourceMismatch ? (
+        <Alert live="off" tone="warning">
+          {intl.formatMessage({ id: 'measurements.wizard.correction.mismatch' })}
+        </Alert>
+      ) : null}
+
       {draft.reusedFromVersionId === null || corrects !== null ? null : (
         <Alert live="off" tone="info">
           {intl.formatMessage({ id: 'measurements.wizard.reused' })}
@@ -680,6 +735,20 @@ function CaptureWizard({
             {intl.formatMessage({ id: 'measurements.wizard.review.title' })}
           </h2>
           <p>{intl.formatMessage({ id: 'measurements.wizard.review.hint' })}</p>
+
+          {correctable === null ? null : (
+            <Checkbox
+              description={intl.formatMessage({ id: 'measurements.wizard.correction.toggle.hint' })}
+              id="capture-correcting"
+              label={intl.formatMessage(
+                { id: 'measurements.wizard.correction.toggle' },
+                { number: String(correctable.versionNumber) },
+              )}
+              name="correcting"
+              onValueChange={setCorrecting}
+              value={correcting}
+            />
+          )}
 
           {groups.map((group) => (
             <div className="capture__reviewGroup" key={group.name}>

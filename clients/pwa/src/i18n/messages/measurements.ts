@@ -202,6 +202,16 @@ export const measurementsEn = {
   'measurements.sheet.reused': 'Pre-filled from an earlier version and checked against the tape.',
   'measurements.sheet.notAsked': 'Not asked for',
   'measurements.sheet.units': 'Values are shown in the unit they were taken in.',
+  'measurements.wizard.correction.toggle': 'Record this as a correction of version {number}',
+  'measurements.wizard.correction.toggle.hint':
+    'Ticked, confirming asks for a reason and names version {number} as corrected; it stays readable. Unticked, this is a fresh measurement pre-filled from it.',
+  'measurements.wizard.correction.mismatch':
+    'The version named in the address is not one of this customer’s measurements for this garment, so this cannot be recorded as a correction of it.',
+  'measurements.compare.offlineAction': 'Comparing the measurements',
+  'measurements.sheet.offlineAction': 'Reading the measurement sheet',
+  'measurements.earlier.offlineAction': 'Listing the earlier measurements',
+  'measurements.problem.correctionMismatch':
+    'The measurement named as corrected belongs to a different customer or garment, so this cannot be recorded as a correction of it.',
 } as const
 
 export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
@@ -529,4 +539,24 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   'measurements.sheet.notAsked': 'Not asked for',
   // not translated — awaiting native-speaker review
   'measurements.sheet.units': 'Values are shown in the unit they were taken in.',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.correction.toggle': 'Record this as a correction of version {number}',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.correction.toggle.hint':
+    // not translated — awaiting native-speaker review
+    'Ticked, confirming asks for a reason and names version {number} as corrected; it stays readable. Unticked, this is a fresh measurement pre-filled from it.',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.correction.mismatch':
+    // not translated — awaiting native-speaker review
+    'The version named in the address is not one of this customer’s measurements for this garment, so this cannot be recorded as a correction of it.',
+  // not translated — awaiting native-speaker review
+  'measurements.compare.offlineAction': 'Comparing the measurements',
+  // not translated — awaiting native-speaker review
+  'measurements.sheet.offlineAction': 'Reading the measurement sheet',
+  // not translated — awaiting native-speaker review
+  'measurements.earlier.offlineAction': 'Listing the earlier measurements',
+  // not translated — awaiting native-speaker review
+  'measurements.problem.correctionMismatch':
+    // not translated — awaiting native-speaker review
+    'The measurement named as corrected belongs to a different customer or garment, so this cannot be recorded as a correction of it.',
 }

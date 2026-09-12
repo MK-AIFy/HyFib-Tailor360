@@ -8,6 +8,8 @@ import { DataTable } from '../../components/primitives/DataTable'
 import { Icon } from '../../components/primitives/Icon'
 import type { IconName } from '../../components/primitives/icons'
 import { LoadingState } from '../../components/states/LoadingState'
+import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
+import { useNetworkState } from '../../components/states/useNetworkState'
 import { Select } from '../../design-system/components/forms/Select'
 import { formattersForLocale } from '../../design-system/components/forms/formatting'
 import type { MeasurementDisplayUnit } from '../../design-system/components/forms/measurement'
@@ -56,7 +58,7 @@ const CHANGES: Readonly<Record<string, { readonly message: MessageKey; readonly 
 export function MeasurementCompareRoute() {
   const intl = useIntl()
   const { beforeId, afterId } = useParams()
-  const formatters = formattersForLocale(intl.locale)
+  const network = useNetworkState()
 
   const loaded = useAdminResource(`compare:${beforeId ?? ''}:${afterId ?? ''}`, async (signal) => {
     const [comparison, template] = await Promise.all([
@@ -68,39 +70,6 @@ export function MeasurementCompareRoute() {
 
   const [unit, setUnit] = useState<MeasurementDisplayUnit | null>(null)
 
-  const render = (field: TemplateField | undefined, value: MeasurementValue | null): string => {
-    if (value === null) {
-      return intl.formatMessage({ id: 'measurements.compare.empty' })
-    }
-    if (value.choice !== null) {
-      return field?.options.find((option) => option.code === value.choice)?.label ?? value.choice
-    }
-    if (value.millimetres === null) {
-      return intl.formatMessage({ id: 'measurements.compare.empty' })
-    }
-    const millimetres = Number(value.millimetres)
-    if (field === undefined || captureKindOf(field) === 'count') {
-      return formatters.formatNumber(millimetres)
-    }
-    const chosen =
-      unit ?? (loaded.value ? defaultDisplayUnitOf(loaded.value.template.version) : 'in')
-    const fieldUnit = effectiveUnitOf(field, chosen)
-    return formatters.formatMeasurement(millimetres, {
-      unit: fieldUnit,
-      step: fractionStepOf(field),
-      decimals: centimetreDecimalsOf(field),
-      unitLabel: intl.formatMessage({
-        id: fieldUnit === 'cm' ? 'units.centimetre.symbol' : 'units.inch.symbol',
-      }),
-    })
-  }
-
-  const unitName = (which: MeasurementDisplayUnit): string =>
-    intl.formatMessage({
-      id:
-        which === 'cm' ? 'measurements.wizard.unit.centimetres' : 'measurements.wizard.unit.inches',
-    })
-
   return (
     <section className="page measurements">
       <h1>
@@ -111,13 +80,16 @@ export function MeasurementCompareRoute() {
 
       {loaded.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'measurements.compare.loading' })} />
-      ) : loaded.value === null ? null : (
+      ) : loaded.value !== null ? (
         <CompareBody
           value={loaded.value}
           unit={unit ?? defaultDisplayUnitOf(loaded.value.template.version)}
           onUnitChange={setUnit}
-          render={render}
-          unitName={unitName}
+        />
+      ) : network.online ? null : (
+        <OfflineBlockedAction
+          action={intl.formatMessage({ id: 'measurements.compare.offlineAction' })}
+          onRetry={loaded.reload}
         />
       )}
 
@@ -137,14 +109,56 @@ interface CompareBodyProps {
   }
   readonly unit: MeasurementDisplayUnit
   readonly onUnitChange: (unit: MeasurementDisplayUnit) => void
-  readonly render: (field: TemplateField | undefined, value: MeasurementValue | null) => string
-  readonly unitName: (unit: MeasurementDisplayUnit) => string
 }
 
-function CompareBody({ value, unit, onUnitChange, render, unitName }: CompareBodyProps) {
+function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
   const intl = useIntl()
   const formatters = formattersForLocale(intl.locale)
   const { comparison, template } = value
+
+  const unitName = (which: MeasurementDisplayUnit): string =>
+    intl.formatMessage({
+      id:
+        which === 'cm' ? 'measurements.wizard.unit.centimetres' : 'measurements.wizard.unit.inches',
+    })
+
+  const unitLabel = (which: MeasurementDisplayUnit): string =>
+    intl.formatMessage({ id: which === 'cm' ? 'units.centimetre.symbol' : 'units.inch.symbol' })
+
+  /**
+   * One value as text. A field the newer template knows is shown in the unit chosen on screen,
+   * to that field's step; a dropped one is shown the way it was entered, because the only unit
+   * anything knows for it is the one it was taken in.
+   */
+  const render = (field: TemplateField | undefined, value: MeasurementValue | null): string => {
+    if (value === null || (value.choice === null && value.millimetres === null)) {
+      return intl.formatMessage({ id: 'measurements.compare.empty' })
+    }
+    if (value.choice !== null) {
+      return field?.options.find((option) => option.code === value.choice)?.label ?? value.choice
+    }
+    const millimetres = Number(value.millimetres)
+    if (field === undefined) {
+      if (value.enteredUnit === 'Count') {
+        return formatters.formatNumber(millimetres)
+      }
+      const enteredIn: MeasurementDisplayUnit = value.enteredUnit === 'Centimetre' ? 'cm' : 'in'
+      return formatters.formatMeasurement(millimetres, {
+        unit: enteredIn,
+        unitLabel: unitLabel(enteredIn),
+      })
+    }
+    if (captureKindOf(field) === 'count') {
+      return formatters.formatNumber(millimetres)
+    }
+    const fieldUnit = effectiveUnitOf(field, unit)
+    return formatters.formatMeasurement(millimetres, {
+      unit: fieldUnit,
+      step: fractionStepOf(field),
+      decimals: centimetreDecimalsOf(field),
+      unitLabel: unitLabel(fieldUnit),
+    })
+  }
 
   const fields = new Map(
     captureGroups(template.version).flatMap((group) =>

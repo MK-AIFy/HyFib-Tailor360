@@ -67,7 +67,15 @@ export function MeasurementStartRoute() {
   })
 
   const [incomplete, setIncomplete] = useState(false)
-  const [startKey, setStartKey] = useState<string | null>(null)
+  /**
+   * The retry key of a start committed to and not yet succeeded, with what it was for. A key is a
+   * replay of one request: a fresh start, a reuse of version N and a correction of it are three
+   * different requests, and presenting one's key with another's body is refused as key reuse.
+   */
+  const [startKey, setStartKey] = useState<{
+    readonly fingerprint: string
+    readonly key: string
+  } | null>(null)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
 
@@ -133,9 +141,11 @@ export function MeasurementStartRoute() {
     setBusy(true)
     setFailure(null)
 
-    // Minted when the person commits, held across a failure, forgotten on success.
-    const key = startKey ?? crypto.randomUUID()
-    setStartKey(key)
+    // Minted when the person commits, held across a failure of the same request, forgotten on success.
+    const fingerprint = `${customerId}:${templateId}:${from?.measurementVersionId ?? ''}`
+    const key =
+      startKey !== null && startKey.fingerprint === fingerprint ? startKey.key : crypto.randomUUID()
+    setStartKey({ fingerprint, key })
 
     try {
       const started = await startMeasurementDraft({

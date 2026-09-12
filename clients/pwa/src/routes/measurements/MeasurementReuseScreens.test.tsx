@@ -242,6 +242,10 @@ describe('correcting a measurement', () => {
     await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
     await user.click(screen.getByRole('button', { name: 'Next' }))
     await user.click(await screen.findByRole('button', { name: 'Review' }))
+    // The review step says what the confirmation will record, and it can still be turned off.
+    expect(
+      await screen.findByRole('checkbox', { name: 'Record this as a correction of version 2' }),
+    ).toBeChecked()
     await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
 
     const confirmDialog = await screen.findByRole('dialog')
@@ -263,6 +267,78 @@ describe('correcting a measurement', () => {
       correctsVersionId: VERSION_TWO_ID,
     })
     expect(screen.getByText(/It corrects version 2, which stays readable/)).toBeInTheDocument()
+  })
+
+  it('offers a reuse as a correction on the review step, unset until the person chooses it', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+    )
+    renderAt(`/measurements/drafts/${DRAFT_ID}`)
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    expect(screen.getByText(/pre-filled from an earlier measurement/)).toBeInTheDocument()
+    expect(screen.queryByText(/Correcting version 2/)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '36')
+    await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+
+    const toggle = await screen.findByRole('checkbox', {
+      name: 'Record this as a correction of version 2',
+    })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    expect(screen.getByText(/Correcting version 2, taken/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Confirm measurements' }))
+    const confirmDialog = await screen.findByRole('dialog')
+    expect(confirmDialog).toHaveTextContent('Confirm the correction?')
+    await user.type(within(confirmDialog).getByLabelText('Reason'), 'Taken again at the fitting')
+    await user.click(within(confirmDialog).getByRole('button', { name: 'Confirm correction' }))
+    await screen.findByText('Measurements confirmed')
+
+    const [confirmed] = transport.callsTo(`POST ${DRAFT}/confirm`)
+    expect(confirmed?.body).toEqual({
+      reason: 'Taken again at the fitting',
+      correctsVersionId: VERSION_TWO_ID,
+    })
+  })
+
+  it('refuses to correct a version that is not this customer’s, and says so rather than confirming one', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${MEASUREMENTS}/${VERSION_TWO_ID}`, () =>
+      jsonResponse(
+        aMeasurementVersion({
+          measurementVersionId: VERSION_TWO_ID,
+          versionNumber: 2,
+          customerId: '0199bb00-0000-7000-8000-0000000000ff',
+        }),
+      ),
+    )
+    renderAt(`/measurements/drafts/${DRAFT_ID}?corrects=${VERSION_TWO_ID}`)
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    expect(
+      screen.getByText(/not one of this customer’s measurements for this garment/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Correcting version 2/)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '36')
+    await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    expect(screen.queryByRole('checkbox', { name: /Record this as a correction/ })).toBeNull()
+
+    await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
+    const confirmDialog = await screen.findByRole('dialog')
+    expect(confirmDialog).toHaveTextContent('Confirm these measurements?')
+    await user.click(within(confirmDialog).getByRole('button', { name: 'Confirm measurements' }))
+    await screen.findByText('Measurements confirmed')
+
+    const [confirmed] = transport.callsTo(`POST ${DRAFT}/confirm`)
+    expect(confirmed?.body).toEqual({ reason: null, correctsVersionId: null })
   })
 })
 
@@ -314,6 +390,28 @@ describe('comparing two measurements', () => {
     // A field the newer template version dropped is shown as dropped, by its key, not quietly missing.
     const dropped = within(table).getByRole('row', { name: /old_hip/ })
     expect(dropped).toHaveTextContent('Dropped — not on the newer template version')
+    // Its value is shown in the unit it was entered in: nothing else knows a unit for it.
+    expect(dropped).toHaveTextContent('39 3/8 in')
+  })
+
+  it('says a comparison needs a connection when it could not be read offline', async () => {
+    transport.route(`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/compare/${VERSION_TWO_ID}`, () => {
+      throw new TypeError('Failed to fetch')
+    })
+    renderAt(`/measurements/compare/${VERSION_ONE_ID}/${VERSION_TWO_ID}`)
+    // The store listens only while the screen is mounted, and the screen mounts once the session
+    // has answered — so the drop is signalled after the read has failed, not before.
+    await screen.findByText(/The connection dropped/)
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    expect(await screen.findByText(/Comparing the measurements/)).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument()
+
+    // The connection state is a module-level store shared by every test after this one.
+    vi.restoreAllMocks()
+    window.dispatchEvent(new Event('online'))
   })
 
   it('has no accessibility violations', async () => {

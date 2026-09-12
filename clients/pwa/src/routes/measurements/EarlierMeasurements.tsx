@@ -8,6 +8,8 @@ import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import { Button } from '../../components/primitives/Button'
 import { DataTable } from '../../components/primitives/DataTable'
 import { LoadingState } from '../../components/states/LoadingState'
+import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
+import { useNetworkState } from '../../components/states/useNetworkState'
 import { formattersForLocale } from '../../design-system/components/forms/formatting'
 import { listCustomerMeasurements } from '../../measurements/measurementsApi'
 import { MEASUREMENT_PERMISSIONS } from '../../measurements/measurementsPermissions'
@@ -63,6 +65,7 @@ export function EarlierMeasurements({
   const formatters = formattersForLocale(intl.locale)
   const { permissions } = useCurrentUser()
   const canReadSheet = permissions.includes(MEASUREMENT_PERMISSIONS.readSheet)
+  const network = useNetworkState()
 
   const earlier = useAdminResource(`earlier-measurements:${customerId}:${templateId}`, (signal) =>
     listCustomerMeasurements(customerId, templateId, signal),
@@ -101,7 +104,12 @@ export function EarlierMeasurements({
 
       <AuthProblemAlert failure={earlier.failure} />
 
-      {earlier.loading ? (
+      {!network.online && earlier.value === null ? (
+        <OfflineBlockedAction
+          action={intl.formatMessage({ id: 'measurements.earlier.offlineAction' })}
+          onRetry={earlier.reload}
+        />
+      ) : earlier.loading ? (
         <LoadingState
           headingLevel={3}
           what={intl.formatMessage({ id: 'measurements.earlier.loading' })}

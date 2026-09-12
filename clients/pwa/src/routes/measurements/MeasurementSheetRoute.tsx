@@ -5,6 +5,8 @@ import { useAdminResource } from '../../admin/useAdminResource'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { Button } from '../../components/primitives/Button'
 import { LoadingState } from '../../components/states/LoadingState'
+import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
+import { useNetworkState } from '../../components/states/useNetworkState'
 import { formattersForLocale } from '../../design-system/components/forms/formatting'
 import {
   captureGroups,
@@ -43,6 +45,7 @@ import './measurements.css'
 export function MeasurementSheetRoute() {
   const intl = useIntl()
   const { versionId } = useParams()
+  const network = useNetworkState()
 
   const sheet = useAdminResource(`sheet:${versionId ?? ''}`, (signal) =>
     readMeasurementSheet(versionId ?? '', signal),
@@ -56,7 +59,12 @@ export function MeasurementSheetRoute() {
 
       <AuthProblemAlert failure={sheet.failure} />
 
-      {sheet.loading ? (
+      {!network.online && sheet.value === null ? (
+        <OfflineBlockedAction
+          action={intl.formatMessage({ id: 'measurements.sheet.offlineAction' })}
+          onRetry={sheet.reload}
+        />
+      ) : sheet.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'measurements.sheet.loading' })} />
       ) : sheet.value === null ? null : (
         <SheetBody sheet={sheet.value} />
@@ -128,6 +136,11 @@ function SheetBody({ sheet }: { readonly sheet: MeasurementSheet }) {
             { id: 'measurements.sheet.correction' },
             { reason: sheet.reason ?? '—' },
           )}
+        </p>
+      )}
+      {sheet.reusedFromVersionId === null || sheet.correctsVersionId !== null ? null : (
+        <p className="measurements__note">
+          {intl.formatMessage({ id: 'measurements.sheet.reused' })}
         </p>
       )}
       <p className="measurements__note">{intl.formatMessage({ id: 'measurements.sheet.units' })}</p>

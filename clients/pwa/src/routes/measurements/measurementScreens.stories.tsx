@@ -136,8 +136,8 @@ const wizard = (
     ),
   )
 
-const compare = (routes: Parameters<typeof withAdminApi>[1]) =>
-  link(true, () =>
+const compare = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+  link(online, () =>
     withAdminApi(
       <ShellStatusProvider>
         <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
@@ -159,8 +159,8 @@ const compare = (routes: Parameters<typeof withAdminApi>[1]) =>
     ),
   )
 
-const sheet = (routes: Parameters<typeof withAdminApi>[1]) =>
-  link(true, () =>
+const sheet = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+  link(online, () =>
     withAdminApi(
       <ShellStatusProvider>
         <RequirePermission permission={MEASUREMENT_PERMISSIONS.readSheet}>
@@ -176,6 +176,11 @@ const sheet = (routes: Parameters<typeof withAdminApi>[1]) =>
       { path: '/measurements/:versionId/sheet', at: `/measurements/${VERSION_TWO_ID}/sheet` },
     ),
   )
+
+/** What `fetch` does with no connection: rejects before any response exists. */
+function storyUnreachable(): Promise<Response> {
+  return Promise.reject(new TypeError('Failed to fetch'))
+}
 
 /**
  * Sets the link state the network hook reads, and tells it so.
@@ -337,6 +342,15 @@ export const CompareForbidden: Story = {
   render: () => compare({ 'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }) }),
 }
 
+/** No connection and nothing read yet: a comparison is never queued, and the screen says so. */
+export const CompareOffline: Story = {
+  render: () =>
+    compare(
+      { [`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/compare/${VERSION_TWO_ID}`]: storyUnreachable },
+      false,
+    ),
+}
+
 /** View-only and printable: the measurements, the version they render through, and nothing else. */
 export const Sheet: Story = { render: () => sheet({}) }
 
@@ -359,6 +373,10 @@ export const SheetForbidden: Story = {
       'GET /api/v1/me': () =>
         storyJson({ ...STORY_USER, permissions: [MEASUREMENT_PERMISSIONS.capture] }),
     }),
+}
+
+export const SheetOffline: Story = {
+  render: () => sheet({ [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/sheet`]: storyUnreachable }, false),
 }
 
 export const SheetPseudoLocale: Story = {
