@@ -2,8 +2,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tailor360.Modules.Catalog.Infrastructure;
 using Tailor360.Modules.Customers.Infrastructure;
 using Tailor360.Modules.Identity.Infrastructure;
+using Tailor360.Modules.Media.Infrastructure;
+using Tailor360.Modules.Orders.Infrastructure;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Security;
 
@@ -65,6 +68,20 @@ public static class CliHost
         // refused to serve.
         builder.Services.AddIdentityModule(builder.Configuration);
         builder.Services.AddCustomersModule(builder.Configuration);
+
+        // Catalog and Media were composed into both hosts but never into this one, and the omission was
+        // invisible until something asked the tool to build: their schemas were never migrated, and in
+        // Development — where the host builder validates the container — Customers' own
+        // MeasurementTemplateHandler could not be constructed at all, because ICatalogAvailabilityQuery
+        // had no registration. `migrate` therefore threw before it reached a database. Composing the same
+        // modules the hosts compose is what ARCH-006 asks of every host, and this is one.
+        builder.Services.AddCatalogModule(builder.Configuration);
+        builder.Services.AddMediaModule(builder.Configuration);
+
+        // Orders owns the `orders` schema, so AddOrdersModule is what puts InitialOrdersSchema in front of
+        // the runner. Without this line the migration exists, compiles and is unreachable: `migrate` reports
+        // nothing pending and the web host then refuses to serve against a schema that was never created.
+        builder.Services.AddOrdersModule(builder.Configuration);
 
         return builder.Build();
     }

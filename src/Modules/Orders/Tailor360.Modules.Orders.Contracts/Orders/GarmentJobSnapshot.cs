@@ -132,29 +132,41 @@ public sealed record GarmentJobSnapshot(
 /// </para>
 /// <para>
 /// <strong>The reference is a configured code or a display number, and the type refuses anything else.</strong>
-/// The module's own <c>ReadyGateBlock</c> bounds it at two hundred characters and validates nothing about its
-/// shape, because there it is an internal screen field; publishing it through
-/// <see cref="IOrderSnapshotQuery"/> is what would carry it across a boundary to Custody, Billing and Reporting
-/// on every ready-state read, so this projection is narrower than the domain value it is built from. The
-/// <see cref="ReadyBlockReason.DocumentationComplete"/> predicate is the one that makes the difference: it names
-/// the <em>kind</em> of evidence the checklist requires, by its configured code, and <strong>never a media object
-/// identifier and never an evidence key</strong>. Evidence images are Sensitive Personal under
-/// <c>docs/nfr/data-classification.md</c> section 5.6, section 5.5 keeps customer material out of anything but a
-/// data-subject export, and security rule 9 makes an identifier on a row nobody re-authorised the first half of a
-/// link — which is the same ground on which <see cref="GarmentJobSnapshot"/> refuses reference media identifiers
-/// outright. <see cref="Of"/> enforces it: an identity in any GUID form is refused, so is anything
-/// carrying a space, a full stop, a slash or any other character outside a code, and so is anything longer than
-/// <see cref="MaximumReferenceLength"/>. Free text and an object key are both excluded by construction rather
-/// than by asking a producer to be careful.
+/// Publishing it through <see cref="IOrderSnapshotQuery"/> carries it across a boundary to Custody, Billing and
+/// Reporting on every ready-state read. The <see cref="ReadyBlockReason.DocumentationComplete"/> predicate is the
+/// one that makes the difference: it names the <em>kind</em> of evidence the checklist requires, by its
+/// configured code, and <strong>never a media object identifier and never an evidence key</strong>. Evidence
+/// images are Sensitive Personal under <c>docs/nfr/data-classification.md</c> section 5.6, section 5.5 keeps
+/// customer material out of anything but a data-subject export, and security rule 9 makes an identifier on a row
+/// nobody re-authorised the first half of a link — which is the same ground on which
+/// <see cref="GarmentJobSnapshot"/> refuses reference media identifiers outright. <see cref="Of"/> enforces it:
+/// an identity in any GUID form is refused, so is anything carrying a space, a full stop, a slash or any other
+/// character outside a code, and so is anything longer than <see cref="MaximumReferenceLength"/>. Free text and
+/// an object key are both excluded by construction rather than by asking a producer to be careful.
+/// </para>
+/// <para>
+/// <strong>The module refuses to store what this cannot carry, so the two agree by construction.</strong> The
+/// rule used to live only here, and the projection that builds these blocks re-stated it by hand and dropped any
+/// reference that failed — which both duplicated a rule that would drift and lost information across a boundary
+/// without saying so. The module's own <c>ReadyGateBlock.IsCarriable</c> is now the same rule, applied where a
+/// reference enters the module: on the facts the application gathers for the gate, and on a garment job's hold
+/// reason code. What moved <em>here</em> was the length. Forty was Catalog's code length, and it was too short
+/// for the other thing this field carries — <see cref="ReadyBlockReason.DependenciesMet"/> names a sibling's
+/// garment job number, whose own column is forty-eight — so a legitimate parcel block would have been refused by
+/// the boundary that was supposed to be protecting it. Forty-eight is the length of the longest of the two.
 /// </para>
 /// </remarks>
 public sealed record ReadyStateBlock
 {
     /// <summary>
-    /// The longest reference this contract publishes. Shorter than the domain's two hundred characters on
-    /// purpose: a code a person reads off a queue screen and a display number both fit, and a sentence does not.
+    /// The longest reference this contract publishes: the longer of the two things it carries, which are a
+    /// configured code (Catalog bounds one at forty) and a garment job number (the module's
+    /// <c>GarmentJobNumber.MaximumLength</c> bounds one at forty-eight). Declared locally rather than read from
+    /// the module, because a published contract carries no reference to the domain that produces it; the module's
+    /// <c>ReadyGateBlock.MaximumReferenceLength</c> states the same number, and a unit test holds the two
+    /// together. A sentence still does not fit.
     /// </summary>
-    public const int MaximumReferenceLength = 40;
+    public const int MaximumReferenceLength = 48;
 
     private ReadyStateBlock(ReadyBlockReason reason, string? reference)
     {

@@ -30,6 +30,30 @@ namespace Tailor360.Modules.Orders.Domain.Snapshots;
 public sealed record PriceSnapshot
 {
     /// <summary>
+    /// The constructor the persistence layer materialises instances through.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Private, like the one below it, so it is no more a way in than that one is: it takes nothing, sets
+    /// nothing, and <see cref="Create"/> remains the only route a caller has. <c>with</c> is still refused,
+    /// because the properties are get-only rather than <c>init</c>.
+    /// </para>
+    /// <para>
+    /// <strong>It exists because Entity Framework cannot bind a complex property to a constructor
+    /// parameter.</strong> Each <see cref="Money"/> here is two columns — an amount and a currency — and a
+    /// two-column value object is a complex type; "only mapped properties can be bound to constructor
+    /// parameters", so the thirteen-parameter constructor below binds nine of its parameters to nothing and
+    /// Entity Framework refuses the type outright. With this one present it materialises the row and writes each
+    /// property through its backing field, which is the shape every other persisted type in this module already
+    /// has (<c>OrderDraft</c>, <c>Estimate</c>, <c>Order</c>, <c>GarmentJob</c>).
+    /// </para>
+    /// </remarks>
+    private PriceSnapshot()
+    {
+        // The persistence layer materialises instances through this constructor.
+    }
+
+    /// <summary>
     /// The only way to build one, and it is private so that <see cref="Create"/> is the only way in.
     /// </summary>
     /// <remarks>

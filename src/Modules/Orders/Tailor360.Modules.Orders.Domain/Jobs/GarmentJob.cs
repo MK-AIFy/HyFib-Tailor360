@@ -24,8 +24,8 @@ namespace Tailor360.Modules.Orders.Domain.Jobs;
 /// </para>
 /// <para>
 /// <strong>Nothing but the gate can make ready state true.</strong> <see cref="IsReadyForDelivery"/>,
-/// <see cref="ReadyStateComputedAt"/> and <see cref="ReadyStateBlocks"/> are <c>job_ready_state</c> — what the
-/// delivery queue and the dispatch attempt read (section 4.1), not this type's status enumeration — and the only
+/// <see cref="ReadyStateComputedAt"/> and <see cref="ReadyStateBlocks"/> are the materialised ready state — what
+/// the delivery queue and the dispatch attempt read (section 4.1), not this type's status enumeration — and the only
 /// way any of them comes to say <em>ready</em> is <see cref="ApplyReadyGate"/> applying a
 /// <see cref="ReadyGateOutcome"/>, which only <see cref="ReadyGate"/> can make (INV-JOB-07,
 /// <c>docs/prd/raci.md</c> row 16).
@@ -698,8 +698,8 @@ public sealed class GarmentJob
     /// was held, cancelled or confirmed since the facts were gathered has outlived the verdict. The refusal is
     /// <c>orders.ready-gate-outcome-stale</c> and nothing at all is written: materialising the flag and then
     /// declining the promotion, which is what this method used to do, published <c>ready_state = true</c> with an
-    /// empty reason list on a garment nobody had begun and on a garment that was on hold — and
-    /// <c>job_ready_state</c>, not the status, is what the delivery-team receive scan reads (section 4.1).
+    /// empty reason list on a garment nobody had begun and on a garment that was on hold — and the
+    /// materialised ready state, not the status, is what the delivery-team receive scan reads (section 4.1).
     /// </para>
     /// <para>
     /// <strong>A delivered or closed job is left exactly as it stands</strong>, verdict included: the garment has
@@ -867,8 +867,8 @@ public sealed class GarmentJob
     /// hold fields are left standing, because how long the garment waited is part of why it was cancelled.
     /// </para>
     /// <para>
-    /// The ready state closes, and for the same reason <see cref="Hold"/>'s does: the delivery queue reads
-    /// <c>job_ready_state</c>, a garment nobody is making must never appear on it, and
+    /// The ready state closes, and for the same reason <see cref="Hold"/>'s does: the delivery queue reads the
+    /// materialised ready state, a garment nobody is making must never appear on it, and
     /// <see cref="ApplyReadyGate"/> refuses a cancelled job outright — so a verdict left standing here is one
     /// nothing could ever close. No reason code is written with it: why the garment will not be delivered is the
     /// cancellation on the row, not a gate predicate.
@@ -934,6 +934,22 @@ public sealed class GarmentJob
     }
 
     /// <summary>Validates a mandatory configured reason code.</summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Shape as well as length, because a hold reason code is published.</strong>
+    /// <see cref="Hold"/> writes it onto the gate's own <c>NoOpenHold</c> block, and a block travels to Custody,
+    /// Billing and Reporting through <c>IOrderSnapshotQuery</c> as <c>Orders.Contracts.ReadyStateBlock</c>, whose
+    /// reference is a configured code or a display number and nothing else. Checking it here is what makes the
+    /// two agree by construction — see <see cref="ReadyGateBlock.IsCarriable"/> — rather than by the projection
+    /// re-testing the value and dropping it where it failed.
+    /// </para>
+    /// <para>
+    /// The rule is a superset of Catalog's own <c>CatalogCode</c> shape, which is upper snake case, so a code
+    /// this module was configured with from the catalogue passes it unchanged; what it refuses is the sentence
+    /// somebody typed into the code field by mistake, and an identity pasted into it. OD-10 settles the
+    /// vocabulary itself, and this constrains the shape rather than the list.
+    /// </para>
+    /// </remarks>
     private static Result<string> ReasonCode(string? reasonCode)
     {
         var code = reasonCode?.Trim();
@@ -948,11 +964,13 @@ public sealed class GarmentJob
             return Result.Failure<string>(OrdersErrors.TooLong("reasonCode", MaximumReasonCodeLength));
         }
 
-        return Result.Success(code);
+        return ReadyGateBlock.IsCarriable(code)
+            ? Result.Success(code)
+            : Result.Failure<string>(OrdersErrors.ReferenceNotCarriable("reasonCode"));
     }
 
     /// <summary>
-    /// The one place <c>job_ready_state</c> is written.
+    /// The one place the materialised ready state is written.
     /// </summary>
     /// <remarks>
     /// Private, and every caller of it is in this file, so the three fields move together and can never disagree

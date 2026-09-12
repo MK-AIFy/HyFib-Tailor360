@@ -42,6 +42,15 @@
     <ProjectReference Include="..\..\src\Modules\Orders\Tailor360.Modules.Orders.Application\Tailor360.Modules.Orders.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Orders\Tailor360.Modules.Orders.Contracts\Tailor360.Modules.Orders.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Orders\Tailor360.Modules.Orders.Domain\Tailor360.Modules.Orders.Domain.csproj" />
+    <!--
+      Orders' infrastructure is referenced for the three things in it that are pure functions with no
+      database and no host behind them, on the same reading as Identity's password hasher above: the
+      constraint-to-refusal table, the four document columns' JSON, and the model the DbContext builds.
+      A model is built from metadata alone — OrdersDbContextFactory's placeholder connection string
+      resolves to nothing — so the schema conventions of src/Modules/CLAUDE.md section 5 are assertable
+      here rather than only against a live server. The stores' queries stay in the integration tier.
+    -->
+    <ProjectReference Include="..\..\src\Modules\Orders\Tailor360.Modules.Orders.Infrastructure\Tailor360.Modules.Orders.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Tailor360.Modules.Reporting.Application\Tailor360.Modules.Reporting.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Tailor360.Modules.Reporting.Contracts\Tailor360.Modules.Reporting.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reporting\Tailor360.Modules.Reporting.Domain\Tailor360.Modules.Reporting.Domain.csproj" />

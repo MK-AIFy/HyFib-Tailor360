@@ -75,6 +75,59 @@ public static class OrdersErrors
         "That value is not one this field understands.",
         field);
 
+    /// <summary>
+    /// A reference arrived in a shape the module may not carry onto a ready-state block.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A block reference is a configured code or a display number — a phase code, a defect code, a
+    /// required-evidence kind code, a hold reason code, a sibling's garment job number or a reconciliation
+    /// case number — and it is published across a module boundary on every ready-state read
+    /// (<c>Orders.Contracts.ReadyStateBlock</c>). Two shapes are refused rather than carried and two
+    /// reasons are why. <strong>An identity in any GUID form</strong>: an evidence key or a media object
+    /// identifier on a row nobody re-authorised is the first half of a link (security rule 9), and evidence
+    /// images are Sensitive Personal under <c>docs/nfr/data-classification.md</c> section 5.6.
+    /// <strong>Anything outside letters, digits, hyphen and underscore</strong>: that is what keeps free
+    /// text — which is what a person typed about a customer's garment, security rule 7 — off a line another
+    /// module reads.
+    /// </para>
+    /// <para>
+    /// Refused where the reference enters the module rather than dropped where it leaves it, so that the
+    /// caller is told which fact it supplied was not carriable instead of a queue screen quietly losing
+    /// <em>which</em> phase.
+    /// </para>
+    /// </remarks>
+    /// <param name="field">The field carrying the reference.</param>
+    public static Error ReferenceNotCarriable(string field) => Error.Validation(
+        "orders.reference-not-carriable",
+        "A reference is a configured code or a display number — letters, digits, hyphens and underscores. "
+        + "It is never an identity and never a sentence.",
+        field);
+
+    /// <summary>
+    /// The database refused a write that the module did not expect it to have to refuse.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The <c>orders</c> schema holds roughly twenty check constraints and five <c>RAISE EXCEPTION</c>
+    /// triggers, and each exists for the case where something reaches a table without going through the
+    /// Domain. When one of them fires, the Domain rule it mirrors has already been broken, so there is no
+    /// refusal the counter can act on and no field to point at — but there is also no excuse for the raw
+    /// PostgreSQL message reaching the wire (CLAUDE.md section 4 rule 3). This is the answer given instead:
+    /// a conflict that says a write was refused and nothing about how.
+    /// </para>
+    /// <para>
+    /// <strong>Distinct from <see cref="ConcurrentChange"/> on purpose.</strong> A concurrent change is
+    /// transient and a retry is the right response to it; this is not, and a caller that retried would be
+    /// refused identically for ever. It is also what an unmatched unique violation answers — a primary-key
+    /// collision is an <c>IIdGenerator</c> defect rather than a lost race, and reporting it as a lost race
+    /// is how the defect stays out of the alerting.
+    /// </para>
+    /// </remarks>
+    public static Error WriteRefused { get; } = Error.Conflict(
+        "orders.write-refused",
+        "That change was refused. Reload the order and try again; if it keeps happening, report it.");
+
     /// <summary>A transition that is recorded against a reason arrived without one.</summary>
     /// <remarks>
     /// The transitions that demand one are listed in <c>docs/prd/state-transitions.md</c> section 8:

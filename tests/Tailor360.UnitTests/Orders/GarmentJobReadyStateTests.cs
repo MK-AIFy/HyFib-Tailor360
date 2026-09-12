@@ -1571,7 +1571,7 @@ public sealed class GarmentJobReadyStateTests
     /// <summary>
     /// The facts reach the gate from four other modules and two evaluations can finish out of order. A verdict
     /// older than the one standing on the row is refused, because applying it would promote the garment back on
-    /// facts a newer evaluation has already contradicted — and <c>job_ready_state</c>, not the status, is what
+    /// facts a newer evaluation has already contradicted — and the materialised ready state, not the status, is what
     /// the dispatch attempt reads (section 4.1). Ready state must never outlive the facts it was computed from.
     /// </summary>
     [Fact]

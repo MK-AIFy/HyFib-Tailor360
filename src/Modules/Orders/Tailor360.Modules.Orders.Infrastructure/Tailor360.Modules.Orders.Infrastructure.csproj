@@ -1,12 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- Supplies UseSnakeCaseNamingConvention(), which the whole column convention depends on. -->
+    <PackageReference Include="EFCore.NamingConventions" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <!-- Supplies IDesignTimeDbContextFactory, without which `dotnet ef migrations add` cannot run. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      OrdersWriteFailures is the one place a constraint the `orders` schema raises becomes a refusal the
+      module publishes, and it is internal because nothing outside this assembly may map a failure. Its
+      table of named constraints is a pure function of a PostgresException, so it is a unit-tier subject
+      rather than an integration one — the tier that can enumerate every arm cheaply, including the two
+      that deliberately refuse to map. Kept internal rather than made public so the boundary still holds.
+    -->
+    <InternalsVisibleTo Include="Tailor360.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Tailor360.Modules.Orders.Application\Tailor360.Modules.Orders.Application.csproj" />
+    <ProjectReference Include="..\Tailor360.Modules.Orders.Contracts\Tailor360.Modules.Orders.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />
   </ItemGroup>
