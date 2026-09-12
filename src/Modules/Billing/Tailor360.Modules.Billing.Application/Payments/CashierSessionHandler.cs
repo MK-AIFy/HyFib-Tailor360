@@ -19,6 +19,7 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 /// </summary>
 /// <param name="sessions">The store.</param>
 /// <param name="modes">The payment modes, deciding which modes a close counts.</param>
+/// <param name="payments">The payments, whose sums per mode a close is counted against.</param>
 /// <param name="events">Billing's outbox.</param>
 /// <param name="options">The variance threshold.</param>
 /// <param name="audit">The audit trail.</param>
@@ -27,6 +28,7 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 public sealed class CashierSessionHandler(
     ICashierSessionStore sessions,
     IPaymentModeStore modes,
+    IPaymentStore payments,
     IBillingEventPublisher events,
     IOptions<CashierOptions> options,
     IAuditWriter audit,
@@ -75,42 +77,57 @@ public sealed class CashierSessionHandler(
     }
 
     /// <summary>
-    /// Closes a session against its count sheet. The expected totals are what the session recorded per
-    /// mode — the float for cash, and nothing else until E09-F03-2 records payments in it — over every
-    /// mode active at the branch, so the close sheet always has a line for each mode that could have taken
-    /// money. The close, the counts and the event commit together; the audit row follows.
+    /// Closes a session against its count sheet. The expected totals are what the session took per mode,
+    /// the float counted into cash, over every mode active at the branch, so the close sheet always has a
+    /// line for each mode that could have taken money. The close, the counts and the event commit
+    /// together; the audit row follows.
     /// </summary>
     public async Task<Result<AdministeredCashierSession>> CloseAsync(CloseCashierSessionCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var session = await sessions.FindAsync(command.SessionId, command.OrganisationId, cancellationToken);
-        if (session is null)
+        var found = await sessions.FindAsync(command.SessionId, command.OrganisationId, cancellationToken);
+        if (found is null)
         {
             return Result.Failure<AdministeredCashierSession>(BillingErrors.CashierSessionNotFound);
         }
 
-        var expected = await ExpectedByModeAsync(session, cancellationToken);
-        var before = CashierSessionSnapshot.Of(session);
-        var now = clock.UtcNow;
-        var closed = session.Close(command.Denominations, command.ModeTotals, expected, command.Reason, Money.Rupees(options.Value.VarianceReasonThreshold), now, command.By);
+        var before = CashierSessionSnapshot.Of(found);
+
+        // The session's row is held against every payment before the expected totals are read, so what
+        // the close counts against is what the session holds when it commits (INV-CSH-03): a payment
+        // under way commits first and is counted, or waits and is refused.
+        var closed = await sessions.CloseInTransactionAsync(command.SessionId, async token =>
+        {
+            var session = await sessions.FindAsync(command.SessionId, command.OrganisationId, token);
+            if (session is null)
+            {
+                return Result.Failure<CashierSession>(BillingErrors.CashierSessionNotFound);
+            }
+
+            var expected = await ExpectedByModeAsync(session, token);
+            var now = clock.UtcNow;
+            var close = session.Close(command.Denominations, command.ModeTotals, expected, command.Reason, Money.Rupees(options.Value.VarianceReasonThreshold), now, command.By);
+            if (close.IsFailure)
+            {
+                return Result.Failure<CashierSession>(close.Error);
+            }
+
+            events.Publish(new CashierSessionClosed(
+                ids.NewId(), now, session.Id, session.OrganisationId, session.BranchId, session.CashierId,
+                session.OpenedAt, session.ClosedAt!.Value,
+                session.ExpectedTotal.Amount, session.CountedTotal.Amount, session.Variance.Amount, session.CountedTotal.Currency));
+
+            var saved = await sessions.SaveAsync(token);
+            return saved.IsFailure ? Result.Failure<CashierSession>(saved.Error) : Result.Success(session);
+        }, cancellationToken);
         if (closed.IsFailure)
         {
             return Result.Failure<AdministeredCashierSession>(closed.Error);
         }
 
-        events.Publish(new CashierSessionClosed(
-            ids.NewId(), now, session.Id, session.OrganisationId, session.BranchId, session.CashierId,
-            session.OpenedAt, session.ClosedAt!.Value,
-            session.ExpectedTotal.Amount, session.CountedTotal.Amount, session.Variance.Amount, session.CountedTotal.Currency));
-
-        var saved = await sessions.SaveAsync(cancellationToken);
-        if (saved.IsFailure)
-        {
-            return Result.Failure<AdministeredCashierSession>(saved.Error);
-        }
-
         // No amount in the summary: the trail is read by more people than the drawer is.
+        var session = closed.Value;
         await BillingAudit.RecordAsync(
             audit, ClosedAction, BillingAudit.CashierSessionEntity, session.Id,
             session.Variance.IsZero ? "Cashier session closed; the count agreed." : "Cashier session closed with a variance.",
@@ -120,10 +137,10 @@ public sealed class CashierSessionHandler(
     }
 
     /// <remarks>
-    /// The key set is the modes available at the branch today. When E09-F03-2 records payments in the
-    /// session, the set must become the modes with a payment in this session in union with those — a mode
-    /// deactivated or restricted mid-shift after taking money still has a line to count, and a counted line
-    /// for it is not refused as unknown (INV-CSH-03: expected comes from the session's own payments).
+    /// The expected totals come from the session's own payments (INV-CSH-03), the float counted into cash.
+    /// The key set is the modes with a payment in this session in union with the modes available at the
+    /// branch today: a mode deactivated or restricted mid-shift after taking money still has a line to
+    /// count, and a counted line for it is not refused as unknown.
     /// </remarks>
     private async Task<IReadOnlyDictionary<string, Money>> ExpectedByModeAsync(CashierSession session, CancellationToken cancellationToken)
     {
@@ -134,9 +151,14 @@ public sealed class CashierSessionHandler(
             expected[mode.Code] = Money.Zero;
         }
 
+        foreach (var (code, taken) in await payments.TakenByModeAsync(session.Id, cancellationToken))
+        {
+            expected[code] = taken;
+        }
+
         // The drawer holds the float whether or not cash is a mode anyone configured: a sheet that could
         // not count it would hide the float from the reconciliation.
-        expected[PaymentModeCodes.Cash] = session.OpeningFloat;
+        expected[PaymentModeCodes.Cash] = expected.GetValueOrDefault(PaymentModeCodes.Cash, Money.Zero) + session.OpeningFloat;
         return expected;
     }
 }

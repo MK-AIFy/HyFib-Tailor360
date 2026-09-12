@@ -313,6 +313,69 @@
         ],
         "type": "object"
       },
+      "AdvancePayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "receivedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "unapplied": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "amount",
+          "unapplied",
+          "receivedAt"
+        ],
+        "type": "object"
+      },
+      "AllocateAdvanceRequest": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "invoiceId",
+          "amount",
+          "reason"
+        ],
+        "type": "object"
+      },
       "AntiForgeryTokenResponse": {
         "properties": {
           "headerName": {
@@ -457,6 +520,30 @@
         "required": [
           "entries",
           "nextCursor"
+        ],
+        "type": "object"
+      },
+      "AvailablePaymentModePayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requiresReference": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "requiresReference"
         ],
         "type": "object"
       },
@@ -3572,6 +3659,84 @@
         ],
         "type": "object"
       },
+      "InvoiceBalancePayload": {
+        "properties": {
+          "allocated": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "charges": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "credits": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "debits": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "outstanding": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "refunds": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoiceId",
+          "invoiceNumber",
+          "charges",
+          "credits",
+          "debits",
+          "allocated",
+          "refunds",
+          "outstanding",
+          "currency",
+          "status"
+        ],
+        "type": "object"
+      },
       "InvoiceCalculationPayload": {
         "properties": {
           "gstRegistrationId": {
@@ -5187,6 +5352,92 @@
         ],
         "type": "object"
       },
+      "OrderBalancePayload": {
+        "properties": {
+          "allocated": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "charges": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "credits": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "debits": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoices": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceBalancePayload"
+            },
+            "type": "array"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "outstanding": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "refunds": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "unappliedAdvances": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "charges",
+          "credits",
+          "debits",
+          "allocated",
+          "refunds",
+          "unappliedAdvances",
+          "outstanding",
+          "currency",
+          "invoices"
+        ],
+        "type": "object"
+      },
       "OrderableCatalogPayload": {
         "properties": {
           "branchId": {
@@ -5402,6 +5653,57 @@
         ],
         "type": "object"
       },
+      "PaymentAllocationPayload": {
+        "properties": {
+          "advanceId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "allocatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "allocatedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "invoiceId",
+          "advanceId",
+          "amount",
+          "kind",
+          "allocatedAt",
+          "allocatedBy"
+        ],
+        "type": "object"
+      },
       "PaymentModePayload": {
         "properties": {
           "allowedForRefund": {
@@ -5448,6 +5750,120 @@
           "isActive",
           "branchIds",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "PaymentPayload": {
+        "properties": {
+          "advance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AdvancePayload"
+              }
+            ]
+          },
+          "allocated": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentAllocationPayload"
+            },
+            "type": "array"
+          },
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cashierId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cashierSessionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "modeCode": {
+            "type": "string"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "unappliedAdvance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "branchId",
+          "cashierSessionId",
+          "cashierId",
+          "customerId",
+          "orderId",
+          "modeCode",
+          "amount",
+          "currency",
+          "reference",
+          "status",
+          "recordedAt",
+          "recordedBy",
+          "allocated",
+          "unappliedAdvance",
+          "allocations",
+          "advance"
         ],
         "type": "object"
       },
@@ -6725,6 +7141,41 @@
           "purposeKey",
           "decision",
           "source"
+        ],
+        "type": "object"
+      },
+      "RecordPaymentRequest": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "modeCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "orderId",
+          "modeCode",
+          "amount",
+          "reference"
         ],
         "type": "object"
       },
@@ -14482,6 +14933,67 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/billing/orders/{orderId}/balance": {
+      "get": {
+        "description": "Computed from rows on every read: posted charges minus credit notes plus debit notes minus allocations plus refunds, per invoice and in all, and the advances held against the order and not yet applied. An order Billing has not heard of, or one at another branch, reads as 404.",
+        "operationId": "GetOrderBalance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderBalancePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read what an order still owes across its posted invoices, and what is held against it.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.record",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/billing/payment-modes": {
       "get": {
         "description": "Configuration, not money: the flags a payment in each mode is taken under, and where it is offered.",
@@ -14529,6 +15041,56 @@
           "Billing"
         ],
         "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/payment-modes/available": {
+      "get": {
+        "description": "Only the code, the name and whether a reference is required: what the counter needs to record a payment.",
+        "operationId": "ListAvailablePaymentModes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AvailablePaymentModePayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the active payment modes the caller's branch may take money in.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.record",
         "x-tailor360-rate-limit": "default-user"
       }
     },
@@ -14715,6 +15277,282 @@
         ],
         "x-tailor360-audit": "billing.payment_mode.changed",
         "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/payments": {
+      "post": {
+        "description": "Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409.",
+        "operationId": "RecordPayment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "amount": 1134.00,
+                "modeCode": "UPI",
+                "orderId": "019bd6b0-1111-7c3a-9d5e-2f4a6b8c0d1e",
+                "reference": "UPI-426114-8QX2"
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecordPaymentRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record a payment against an order in the caller's open cashier session and allocate it at once.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.record",
+        "x-tailor360-authorisation": "permission:payments.record",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/payments/{paymentId}": {
+      "get": {
+        "description": "A payment taken at another branch reads as 404.",
+        "operationId": "GetPayment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one payment with its allocations and what of it is still held.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.record",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/payments/{paymentId}/allocations": {
+      "post": {
+        "description": "Against the automatic rule, so under step-up and with a reason. Never more than the advance still holds, never more than the invoice still owes; the invoice must be a posted invoice of the order the payment was taken against.",
+        "operationId": "AllocateAdvance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "amount": 500.00,
+                "invoiceId": "019bd6b0-2222-7e4b-8f6a-3a5b7c9d1e2f",
+                "reason": "The customer asked for the advance to go against the second invoice first."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AllocateAdvanceRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Apply part of a payment's held advance to a posted invoice of the same order, by hand.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "payments.allocate_manual",
+        "x-tailor360-authorisation": "permission:payments.allocate_manual",
         "x-tailor360-rate-limit": "write"
       }
     },

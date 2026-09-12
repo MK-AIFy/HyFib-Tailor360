@@ -37,3 +37,16 @@ public sealed record DenominationCountRequest(decimal Denomination, int Quantity
 /// <param name="ModeCode">The payment mode's code.</param>
 /// <param name="Counted">The amount, to the paisa.</param>
 public sealed record ModeCountRequest(string? ModeCode, decimal Counted);
+
+/// <summary>Record a payment against an order in the caller's open cashier session.</summary>
+/// <param name="OrderId">The order the money is taken against; the customer is the order's.</param>
+/// <param name="ModeCode">The payment mode's code, one of the modes available at the branch.</param>
+/// <param name="Amount">How much, in rupees to the paisa.</param>
+/// <param name="Reference">The terminal's or the bank's reference, where the mode requires one. Never a card number.</param>
+public sealed record RecordPaymentRequest(Guid OrderId, string? ModeCode, decimal Amount, string? Reference);
+
+/// <summary>Apply part of a payment's held advance to a posted invoice of the same order, by hand.</summary>
+/// <param name="InvoiceId">The invoice.</param>
+/// <param name="Amount">How much, in rupees to the paisa; never more than is held or than the invoice owes.</param>
+/// <param name="Reason">Why the rule is not being left to do it.</param>
+public sealed record AllocateAdvanceRequest(Guid InvoiceId, decimal Amount, string? Reason);

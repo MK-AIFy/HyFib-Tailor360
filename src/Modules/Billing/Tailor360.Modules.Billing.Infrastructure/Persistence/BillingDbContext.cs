@@ -79,6 +79,21 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>Cashier sessions with their counts.</summary>
     public DbSet<CashierSession> CashierSessions => Set<CashierSession>();
 
+    /// <summary>One payment per mode and reference: a duplicate callback or a retyped receipt is refused by the index.</summary>
+    public const string OnePaymentPerModeReferenceIndex = "ux_payments_organisation_mode_reference";
+
+    /// <summary>One payment per cashier and client key: the request's own twin is refused by the index.</summary>
+    public const string OnePaymentPerClientKeyIndex = "ux_payments_organisation_cashier_client_key";
+
+    /// <summary>The payments.</summary>
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    /// <summary>The allocations of payments to invoices.</summary>
+    public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+
+    /// <summary>The advances held against orders.</summary>
+    public DbSet<Advance> Advances => Set<Advance>();
+
     /// <summary>
     /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
     /// which the invoice's own trigger keeps equal to the parent's status, because a partial index cannot
@@ -138,6 +153,7 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigureCalculationSnapshots(modelBuilder);
         ConfigurePaymentModes(modelBuilder);
         ConfigureCashierSessions(modelBuilder);
+        ConfigurePayments(modelBuilder);
         ConfigureOrderFacts(modelBuilder);
         ConfigureInvoices(modelBuilder);
     }
@@ -515,6 +531,73 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
 
             UseRowVersion(entity);
         });
+
+    private static void ConfigurePayments(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("payments", table =>
+                table.HasCheckConstraint("ck_payments_amount_is_positive", "amount_amount > 0"));
+            entity.HasKey(payment => payment.Id);
+            entity.Property(payment => payment.ModeCode).HasMaxLength(BillingCode.MaximumLength).IsRequired();
+            entity.Property(payment => payment.Reference).HasMaxLength(PaymentReferences.MaximumLength);
+            entity.Property(payment => payment.ClientKey).HasMaxLength(Payment.MaximumClientKeyLength);
+            entity.Property(payment => payment.Status).HasConversion<int>();
+            ConfigureMoney(entity.ComplexProperty(payment => payment.Amount), "amount");
+            entity.Ignore(payment => payment.Allocated);
+            entity.Ignore(payment => payment.UnappliedAdvance);
+
+            // Append-only by trigger (INV-PAY-01), so no updated pair and no row version: a row is written
+            // once with recorded_at/recorded_by and never changes.
+            entity.HasOne<CashierSession>().WithMany().HasForeignKey(payment => payment.CashierSessionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(payment => payment.Allocations)
+                .WithOne()
+                .HasForeignKey(allocation => allocation.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Navigation(payment => payment.Allocations).AutoInclude();
+            entity.HasOne(payment => payment.Advance)
+                .WithOne()
+                .HasForeignKey<Advance>(advance => advance.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Navigation(payment => payment.Advance).AutoInclude();
+
+            // The transactional guard beside the idempotency record: the natural key of the effect.
+            entity.HasIndex(payment => new { payment.OrganisationId, payment.ModeCode, payment.Reference })
+                .IsUnique()
+                .HasFilter("reference IS NOT NULL")
+                .HasDatabaseName(OnePaymentPerModeReferenceIndex);
+            entity.HasIndex(payment => new { payment.OrganisationId, payment.CashierId, payment.ClientKey })
+                .IsUnique()
+                .HasFilter("client_key IS NOT NULL")
+                .HasDatabaseName(OnePaymentPerClientKeyIndex);
+            entity.HasIndex(payment => new { payment.OrganisationId, payment.OrderId, payment.RecordedAt })
+                .HasDatabaseName("ix_payments_organisation_order_recorded_at");
+            entity.HasIndex(payment => new { payment.CashierSessionId, payment.ModeCode })
+                .HasDatabaseName("ix_payments_session_mode");
+        });
+
+        modelBuilder.Entity<PaymentAllocation>(entity =>
+        {
+            entity.ToTable("payment_allocations", table =>
+                table.HasCheckConstraint("ck_payment_allocations_amount_is_positive", "amount_amount > 0"));
+            entity.HasKey(allocation => allocation.Id);
+            entity.Property(allocation => allocation.Kind).HasConversion<int>();
+            ConfigureMoney(entity.ComplexProperty(allocation => allocation.Amount), "amount");
+            entity.HasOne<Invoice>().WithMany().HasForeignKey(allocation => allocation.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Advance>().WithMany().HasForeignKey(allocation => allocation.AdvanceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(allocation => allocation.InvoiceId).HasDatabaseName("ix_payment_allocations_invoice");
+            entity.HasIndex(allocation => allocation.AdvanceId).HasDatabaseName("ix_payment_allocations_advance").HasFilter("advance_id IS NOT NULL");
+        });
+
+        modelBuilder.Entity<Advance>(entity =>
+        {
+            entity.ToTable("advances", table =>
+                table.HasCheckConstraint("ck_advances_amount_is_positive", "amount_amount > 0"));
+            entity.HasKey(advance => advance.Id);
+            ConfigureMoney(entity.ComplexProperty(advance => advance.Amount), "amount");
+            entity.HasIndex(advance => advance.PaymentId).IsUnique().HasDatabaseName("ux_advances_payment");
+        });
+    }
 
     /// <summary>Money as Orders maps it: an amount at the internal scale and its three-letter currency, side by side.</summary>
     private static void ConfigureMoney(ComplexPropertyBuilder<Money> money, string prefix)

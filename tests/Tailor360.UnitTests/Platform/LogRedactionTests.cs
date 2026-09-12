@@ -24,6 +24,10 @@ public sealed class LogRedactionTests
     [InlineData("ConnectionString")]
     [InlineData("dataProtectionKey")]
     [InlineData("webhook.secret")]
+    [InlineData("Reference")]
+    [InlineData("provider_reference")]
+    [InlineData("PaymentReference")]
+    [InlineData("payer")]
     public void RecognisesSensitivePropertyNamesInAnyCasingOrSeparatorStyle(string name)
         => LogRedaction.IsSensitive(name).ShouldBeTrue();
 

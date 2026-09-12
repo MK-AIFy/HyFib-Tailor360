@@ -18,6 +18,11 @@ and one of those disagree, they win and this one is corrected.
 | `billing.credit-note-posted.v1` | [schema](billing.credit-note-posted.v1.schema.json) | [example](billing.credit-note-posted.v1.example.json) | Billing, on a credit note, a cancellation's included | #154 |
 | `billing.debit-note-posted.v1` | [schema](billing.debit-note-posted.v1.schema.json) | [example](billing.debit-note-posted.v1.example.json) | Billing, on a debit note | #154 |
 | `billing.cashier-session-closed.v1` | [schema](billing.cashier-session-closed.v1.schema.json) | [example](billing.cashier-session-closed.v1.example.json) | Billing, on the close of a cashier session | #161 |
+| `billing.payment-recorded.v1` | [schema](billing.payment-recorded.v1.schema.json) | [example](billing.payment-recorded.v1.example.json) | Billing, on the recording of a payment | #162 |
+| `billing.payment-allocated.v1` | [schema](billing.payment-allocated.v1.schema.json) | [example](billing.payment-allocated.v1.example.json) | Billing, on every application of money to an invoice | #162 |
+| `billing.advance-received.v1` | [schema](billing.advance-received.v1.schema.json) | [example](billing.advance-received.v1.example.json) | Billing, when part of a payment is held as an advance | #162 |
+| `billing.advance-applied.v1` | [schema](billing.advance-applied.v1.schema.json) | [example](billing.advance-applied.v1.example.json) | Billing, when part of a held advance is applied | #162 |
+| `billing.invoice-paid-status-changed.v1` | [schema](billing.invoice-paid-status-changed.v1.schema.json) | [example](billing.invoice-paid-status-changed.v1.example.json) | Billing, when a posted invoice's paid status moves | #162 |
 | `customers.consent-recorded.v1` | [schema](customers.consent-recorded.v1.schema.json) | [example](customers.consent-recorded.v1.example.json) | Customers, on a `Granted` or `Declined` answer | #26 |
 | `customers.consent-withdrawn.v1` | [schema](customers.consent-withdrawn.v1.schema.json) | [example](customers.consent-withdrawn.v1.example.json) | Customers, on a withdrawal | #26 |
 | `customers.preferences-changed.v1` | [schema](customers.preferences-changed.v1.schema.json) | [example](customers.preferences-changed.v1.example.json) | Customers, on a recorded or replaced communication preference | #26 |

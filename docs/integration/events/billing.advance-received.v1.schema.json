@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/billing.advance-received.v1.schema.json",
+  "title": "billing.advance-received.v1",
+  "description": "Part of a payment found no posted invoice of its order to go to and is held as an advance against the order and its customer until one posts.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "organisationId",
+    "branchId",
+    "paymentId",
+    "customerId",
+    "orderId",
+    "amount",
+    "currency",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it happened, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The advance."
+    },
+    "organisationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The organisation."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch."
+    },
+    "paymentId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The payment it is the remainder of."
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The customer it is held for. An identifier and nothing more."
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The order it is held against."
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "How much is held, to the paisa, in currency."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217, INR today (conventions.md section 1.1)."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "billing.advance-received.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}

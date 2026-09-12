@@ -1072,6 +1072,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/orders/{orderId}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read what an order still owes across its posted invoices, and what is held against it.
+         * @description Computed from rows on every read: posted charges minus credit notes plus debit notes minus allocations plus refunds, per invoice and in all, and the advances held against the order and not yet applied. An order Billing has not heard of, or one at another branch, reads as 404.
+         */
+        get: operations["GetOrderBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/payment-modes": {
         parameters: {
             query?: never;
@@ -1084,6 +1104,26 @@ export interface paths {
          * @description Configuration, not money: the flags a payment in each mode is taken under, and where it is offered.
          */
         get: operations["ListPaymentModes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-modes/available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the active payment modes the caller's branch may take money in.
+         * @description Only the code, the name and whether a reference is required: what the counter needs to record a payment.
+         */
+        get: operations["ListAvailablePaymentModes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1110,6 +1150,66 @@ export interface paths {
          */
         put: operations["DescribePaymentMode"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a payment against an order in the caller's open cashier session and allocate it at once.
+         * @description Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409.
+         */
+        post: operations["RecordPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one payment with its allocations and what of it is still held.
+         * @description A payment taken at another branch reads as 404.
+         */
+        get: operations["GetPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments/{paymentId}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply part of a payment's held advance to a posted invoice of the same order, by hand.
+         * @description Against the automatic rule, so under step-up and with a reason. Never more than the advance still holds, never more than the invoice still owes; the invoice must be a posted invoice of the order the payment was taken against.
+         */
+        post: operations["AllocateAdvance"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2823,6 +2923,23 @@ export interface components {
             reason: string;
             totals: components["schemas"]["InvoiceTotalsPayload"];
         };
+        AdvancePayload: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            receivedAt: string;
+            /** Format: double */
+            unapplied: number | string;
+        };
+        AllocateAdvanceRequest: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            reason: null | string;
+        };
         AntiForgeryTokenResponse: {
             headerName: string;
             token: string;
@@ -2855,6 +2972,13 @@ export interface components {
         AuditPagePayload: {
             entries: components["schemas"]["AuditEntryPayload"][];
             nextCursor: null | string;
+        };
+        AvailablePaymentModePayload: {
+            code: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            requiresReference: boolean;
         };
         BarcodeResolutionPayload: {
             /** Format: uuid */
@@ -3543,6 +3667,25 @@ export interface components {
             reason: null | string;
             userName: null | string;
         };
+        InvoiceBalancePayload: {
+            /** Format: double */
+            allocated: number | string;
+            /** Format: double */
+            charges: number | string;
+            /** Format: double */
+            credits: number | string;
+            currency: string;
+            /** Format: double */
+            debits: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: string;
+            /** Format: double */
+            outstanding: number | string;
+            /** Format: double */
+            refunds: number | string;
+            status: string;
+        };
         InvoiceCalculationPayload: {
             /** Format: uuid */
             gstRegistrationId: string;
@@ -3939,6 +4082,26 @@ export interface components {
             /** Format: double */
             openingFloat: number | string;
         };
+        OrderBalancePayload: {
+            /** Format: double */
+            allocated: number | string;
+            /** Format: double */
+            charges: number | string;
+            /** Format: double */
+            credits: number | string;
+            currency: string;
+            /** Format: double */
+            debits: number | string;
+            invoices: components["schemas"]["InvoiceBalancePayload"][];
+            /** Format: uuid */
+            orderId: string;
+            /** Format: double */
+            outstanding: number | string;
+            /** Format: double */
+            refunds: number | string;
+            /** Format: double */
+            unappliedAdvances: number | string;
+        };
         OrderableCatalogPayload: {
             /** Format: uuid */
             branchId: string;
@@ -3993,6 +4156,21 @@ export interface components {
             credential: components["schemas"]["JsonElement"];
             label: null | string;
         };
+        PaymentAllocationPayload: {
+            /** Format: uuid */
+            advanceId: null | string;
+            /** Format: date-time */
+            allocatedAt: string;
+            /** Format: uuid */
+            allocatedBy: null | string;
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invoiceId: string;
+            kind: string;
+        };
         PaymentModePayload: {
             allowedForRefund: boolean;
             branchIds: string[];
@@ -4005,6 +4183,36 @@ export interface components {
             requiresReference: boolean;
             /** Format: date-time */
             updatedAt: string;
+        };
+        PaymentPayload: {
+            advance: null | components["schemas"]["AdvancePayload"];
+            /** Format: double */
+            allocated: number | string;
+            allocations: components["schemas"]["PaymentAllocationPayload"][];
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            cashierId: string;
+            /** Format: uuid */
+            cashierSessionId: string;
+            currency: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            id: string;
+            modeCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: uuid */
+            recordedBy: null | string;
+            reference: null | string;
+            status: string;
+            /** Format: double */
+            unappliedAdvance: number | string;
         };
         PermissionPayload: {
             description: string;
@@ -4303,6 +4511,14 @@ export interface components {
             decision: null | string;
             purposeKey: null | string;
             source: null | string;
+        };
+        RecordPaymentRequest: {
+            /** Format: double */
+            amount: number | string;
+            modeCode: null | string;
+            /** Format: uuid */
+            orderId: string;
+            reference: null | string;
         };
         RecoveryAcceptedPayload: {
             message: string;
@@ -8310,6 +8526,35 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    GetOrderBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderBalancePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     ListPaymentModes: {
         parameters: {
             query?: never;
@@ -8326,6 +8571,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaymentModePayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListAvailablePaymentModes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailablePaymentModePayload"][];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -8440,6 +8711,167 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RecordPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "amount": 1134,
+                 *       "modeCode": "UPI",
+                 *       "orderId": "019bd6b0-1111-7c3a-9d5e-2f4a6b8c0d1e",
+                 *       "reference": "UPI-426114-8QX2"
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["RecordPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AllocateAdvance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "amount": 500,
+                 *       "invoiceId": "019bd6b0-2222-7e4b-8f6a-3a5b7c9d1e2f",
+                 *       "reason": "The customer asked for the advance to go against the second invoice first."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["AllocateAdvanceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

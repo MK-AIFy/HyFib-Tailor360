@@ -1,0 +1,14 @@
+{
+  "eventId": "019bd6b0-7777-7acb-85dc-415263748803",
+  "occurredAt": "2026-09-12T10:15:00.0000000+00:00",
+  "aggregateId": "019bd6b0-aaaa-7c3a-9d5e-2f4a6b8c0d1e",
+  "organisationId": "019bcf7f-9d10-7b21-84c6-5e7f8a9b0c1d",
+  "branchId": "019bcf7f-a204-7f38-9c52-6d7e8f90a1b2",
+  "paymentId": "019bd6b0-8888-7c3a-9d5e-2f4a6b8c0d1e",
+  "customerId": "019bd0a1-1f2e-7a3b-8c4d-5e6f7a8b9c0d",
+  "orderId": "019bd6b0-1111-7c3a-9d5e-2f4a6b8c0d1e",
+  "amount": 500.0,
+  "currency": "INR",
+  "eventType": "billing.advance-received.v1",
+  "schemaVersion": 1
+}

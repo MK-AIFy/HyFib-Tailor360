@@ -1,3 +1,4 @@
+using Tailor360.Modules.Billing.Contracts.Payments;
 using Tailor360.Modules.Billing.Domain.Payments;
 
 namespace Tailor360.Modules.Billing.Api.Payloads;
@@ -94,3 +95,163 @@ public sealed record DenominationCountPayload(decimal Denomination, int Quantity
 /// <param name="Counted">What was counted.</param>
 /// <param name="Variance">Counted minus expected.</param>
 public sealed record ModeTotalPayload(string ModeCode, decimal Expected, decimal Counted, decimal Variance);
+
+/// <summary>A payment mode as the counter sees it: only what is needed to take money in it.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="Code">The code a payment names.</param>
+/// <param name="Name">The name on the button.</param>
+/// <param name="RequiresReference">Whether the payment must carry the terminal's or the bank's reference.</param>
+public sealed record AvailablePaymentModePayload(Guid Id, string Code, string Name, bool RequiresReference)
+{
+    /// <summary>Projects a mode.</summary>
+    public static AvailablePaymentModePayload From(PaymentMode mode)
+    {
+        ArgumentNullException.ThrowIfNull(mode);
+
+        return new AvailablePaymentModePayload(mode.Id, mode.Code, mode.Name, mode.RequiresReference);
+    }
+}
+
+/// <summary>A recorded payment, where it went and what of it is still held.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="BranchId">The branch it was taken at.</param>
+/// <param name="CashierSessionId">The session it was recorded in.</param>
+/// <param name="CashierId">The cashier accountable for it.</param>
+/// <param name="CustomerId">The customer, the order's.</param>
+/// <param name="OrderId">The order it was taken against.</param>
+/// <param name="ModeCode">The payment mode.</param>
+/// <param name="Amount">How much.</param>
+/// <param name="Currency">The currency of every figure on the payment.</param>
+/// <param name="Reference">The external reference, where the mode required one.</param>
+/// <param name="Status">Recorded.</param>
+/// <param name="RecordedAt">When.</param>
+/// <param name="RecordedBy">Who.</param>
+/// <param name="Allocated">What has been allocated in all.</param>
+/// <param name="UnappliedAdvance">What is still held against the order.</param>
+/// <param name="Allocations">Where the money went, in the order it went there.</param>
+/// <param name="Advance">The remainder held at recording, or null when every rupee found an invoice.</param>
+public sealed record PaymentPayload(
+    Guid Id,
+    Guid BranchId,
+    Guid CashierSessionId,
+    Guid CashierId,
+    Guid CustomerId,
+    Guid OrderId,
+    string ModeCode,
+    decimal Amount,
+    string Currency,
+    string? Reference,
+    string Status,
+    DateTimeOffset RecordedAt,
+    Guid? RecordedBy,
+    decimal Allocated,
+    decimal UnappliedAdvance,
+    IReadOnlyList<PaymentAllocationPayload> Allocations,
+    AdvancePayload? Advance)
+{
+    /// <summary>Projects a payment.</summary>
+    public static PaymentPayload From(Payment payment)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+
+        return new PaymentPayload(
+            payment.Id, payment.BranchId, payment.CashierSessionId, payment.CashierId, payment.CustomerId, payment.OrderId,
+            payment.ModeCode, payment.Amount.Amount, payment.Amount.Currency, payment.Reference, payment.Status.ToString(),
+            payment.RecordedAt, payment.RecordedBy, payment.Allocated.Amount, payment.UnappliedAdvance.Amount,
+            payment.Allocations.Select(PaymentAllocationPayload.From).ToList(),
+            payment.Advance is { } advance ? new AdvancePayload(advance.Id, advance.Amount.Amount, payment.UnappliedAdvance.Amount, advance.ReceivedAt) : null);
+    }
+}
+
+/// <summary>Money from a payment applied to an invoice.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="InvoiceId">The invoice.</param>
+/// <param name="AdvanceId">The advance it was applied from, where the money was held first.</param>
+/// <param name="Amount">How much.</param>
+/// <param name="Kind">Automatic, AdvanceApplied or Manual.</param>
+/// <param name="AllocatedAt">When.</param>
+/// <param name="AllocatedBy">Who; null for the rule applying an advance when an invoice posted.</param>
+public sealed record PaymentAllocationPayload(Guid Id, Guid InvoiceId, Guid? AdvanceId, decimal Amount, string Kind, DateTimeOffset AllocatedAt, Guid? AllocatedBy)
+{
+    /// <summary>Projects an allocation.</summary>
+    public static PaymentAllocationPayload From(PaymentAllocation allocation)
+    {
+        ArgumentNullException.ThrowIfNull(allocation);
+
+        return new PaymentAllocationPayload(allocation.Id, allocation.InvoiceId, allocation.AdvanceId, allocation.Amount.Amount, allocation.Kind.ToString(), allocation.AllocatedAt, allocation.AllocatedBy);
+    }
+}
+
+/// <summary>The part of a payment held against the order until an invoice posts.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="Amount">How much was held.</param>
+/// <param name="Unapplied">How much is still held.</param>
+/// <param name="ReceivedAt">When.</param>
+public sealed record AdvancePayload(Guid Id, decimal Amount, decimal Unapplied, DateTimeOffset ReceivedAt);
+
+/// <summary>Where an order stands across its posted invoices, as the counter reads it.</summary>
+/// <param name="OrderId">The order.</param>
+/// <param name="Charges">The posted invoices' grand totals.</param>
+/// <param name="Credits">Their credit notes.</param>
+/// <param name="Debits">Their debit notes.</param>
+/// <param name="Allocated">What has been allocated to them.</param>
+/// <param name="Refunds">What has been refunded against them.</param>
+/// <param name="UnappliedAdvances">What is held against the order and not yet applied.</param>
+/// <param name="Outstanding">What the invoices still owe in all; never below zero.</param>
+/// <param name="Currency">The currency of every figure.</param>
+/// <param name="Invoices">Each posted invoice's own balance, oldest first.</param>
+public sealed record OrderBalancePayload(
+    Guid OrderId,
+    decimal Charges,
+    decimal Credits,
+    decimal Debits,
+    decimal Allocated,
+    decimal Refunds,
+    decimal UnappliedAdvances,
+    decimal Outstanding,
+    string Currency,
+    IReadOnlyList<InvoiceBalancePayload> Invoices)
+{
+    /// <summary>Projects the contract's answer.</summary>
+    public static OrderBalancePayload From(OrderBalanceSummary summary)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+
+        return new OrderBalancePayload(
+            summary.OrderId, summary.Charges, summary.Credits, summary.Debits, summary.Allocated, summary.Refunds, summary.UnappliedAdvances, summary.Outstanding, summary.Currency,
+            summary.Invoices.Select(InvoiceBalancePayload.From).ToList());
+    }
+}
+
+/// <summary>Where one posted invoice stands.</summary>
+/// <param name="InvoiceId">The invoice.</param>
+/// <param name="InvoiceNumber">Its display number.</param>
+/// <param name="Charges">The grand total as posted.</param>
+/// <param name="Credits">The credit notes against it, the cancellation's included.</param>
+/// <param name="Debits">The debit notes against it.</param>
+/// <param name="Allocated">The payments and advances applied to it.</param>
+/// <param name="Refunds">The refunds against it.</param>
+/// <param name="Outstanding">What it still owes; never below zero.</param>
+/// <param name="Currency">The currency of every figure.</param>
+/// <param name="Status">Unpaid, PartlyPaid, Paid or Cancelled.</param>
+public sealed record InvoiceBalancePayload(
+    Guid InvoiceId,
+    string InvoiceNumber,
+    decimal Charges,
+    decimal Credits,
+    decimal Debits,
+    decimal Allocated,
+    decimal Refunds,
+    decimal Outstanding,
+    string Currency,
+    string Status)
+{
+    /// <summary>Projects the contract's answer.</summary>
+    public static InvoiceBalancePayload From(InvoiceBalanceSummary summary)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+
+        return new InvoiceBalancePayload(
+            summary.InvoiceId, summary.InvoiceNumber, summary.Charges, summary.Credits, summary.Debits, summary.Allocated, summary.Refunds, summary.Outstanding, summary.Currency, summary.Status);
+    }
+}
