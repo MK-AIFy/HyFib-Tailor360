@@ -28,7 +28,8 @@ public sealed class FinancialTotalsQuery(IInvoiceStore invoices, IPaymentStore p
             }
 
             var allocated = await payments.AllocatedByInvoiceAsync([invoice.Id], token);
-            return Summarise(invoice, InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), Money.Zero));
+            var refunded = await payments.RefundedByInvoiceAsync([invoice.Id], token);
+            return Summarise(invoice, InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), refunded.GetValueOrDefault(invoice.Id, Money.Zero)));
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -47,8 +48,10 @@ public sealed class FinancialTotalsQuery(IInvoiceStore invoices, IPaymentStore p
     private async Task<OrderBalanceSummary> ComposeAsync(Guid orderId, Guid organisationId, CancellationToken cancellationToken)
     {
         var posted = await invoices.ListPostedForOrderAsync(orderId, organisationId, cancellationToken);
-        var allocated = await payments.AllocatedByInvoiceAsync(posted.Select(invoice => invoice.Id).ToList(), cancellationToken);
-        var balances = posted.Select(invoice => Summarise(invoice, InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), Money.Zero))).ToList();
+        var ids = posted.Select(invoice => invoice.Id).ToList();
+        var allocated = await payments.AllocatedByInvoiceAsync(ids, cancellationToken);
+        var refunded = await payments.RefundedByInvoiceAsync(ids, cancellationToken);
+        var balances = posted.Select(invoice => Summarise(invoice, InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), refunded.GetValueOrDefault(invoice.Id, Money.Zero)))).ToList();
         var unapplied = (await payments.ListForOrderAsync(orderId, organisationId, cancellationToken))
             .Aggregate(Money.Zero, (sum, payment) => sum + payment.UnappliedAdvance);
 

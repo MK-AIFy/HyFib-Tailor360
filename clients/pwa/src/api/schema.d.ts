@@ -1216,6 +1216,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/payments/{paymentId}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse a payment recorded in error: a compensating record, the original untouched.
+         * @description For money that never cleared. The payment's allocations and its advance count for nothing from here on and the invoices' paid status is recomputed from the rows that remain. Once per payment (409 on a second); refused where money has already been paid back from the payment. Step-up and a reason.
+         */
+        post: operations["ReversePayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/price-lists": {
         parameters: {
             query?: never;
@@ -1513,6 +1533,46 @@ export interface paths {
          * @description Through the print-queue port, one to five copies; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).
          */
         post: operations["PrintReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay money back to the customer in the caller's open cashier session, through a mode allowed for refunds.
+         * @description Against exactly one source: a payment's advance not applied and not yet paid back (paymentId), or a posted invoice that holds more than it charges — a credit note's value, an over-payment (invoiceId). Never more than the source still holds. Refused without an open session (409), through a mode not allowed for refunds, or without the reference the mode requires. Step-up and a reason. Whether an advance is paid back on a cancellation is the Owner's policy (OD-04, OD-05); this is the mechanism.
+         */
+        post: operations["RecordRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/refunds/{refundId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one refund.
+         * @description A refund paid at another branch reads as 404.
+         */
+        get: operations["GetRefund"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4271,9 +4331,21 @@ export interface components {
             /** Format: uuid */
             recordedBy: null | string;
             reference: null | string;
+            /** Format: double */
+            refundedFromAdvance: number | string;
+            reversal: null | components["schemas"]["PaymentReversalPayload"];
             status: string;
             /** Format: double */
             unappliedAdvance: number | string;
+        };
+        PaymentReversalPayload: {
+            /** Format: uuid */
+            id: string;
+            reason: string;
+            /** Format: date-time */
+            reversedAt: string;
+            /** Format: uuid */
+            reversedBy: null | string;
         };
         PermissionPayload: {
             description: string;
@@ -4609,6 +4681,17 @@ export interface components {
             orderId: string;
             reference: null | string;
         };
+        RecordRefundRequest: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            invoiceId: null | string;
+            modeCode: null | string;
+            /** Format: uuid */
+            paymentId: null | string;
+            reason: null | string;
+            reference: null | string;
+        };
         RecoveryAcceptedPayload: {
             message: string;
         };
@@ -4627,6 +4710,35 @@ export interface components {
         };
         RecoveryRequestPayload: {
             email: null | string;
+        };
+        RefundPayload: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            cashierId: string;
+            /** Format: uuid */
+            cashierSessionId: string;
+            currency: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invoiceId: null | string;
+            modeCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            paymentId: null | string;
+            reason: string;
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: uuid */
+            recordedBy: null | string;
+            reference: null | string;
+            source: string;
         };
         RegisterCustomerRequest: {
             addressLine: null | string;
@@ -4670,6 +4782,9 @@ export interface components {
             /** Format: date */
             on: null | string;
             placeOfSupplyStateCode: null | string;
+            reason: null | string;
+        };
+        ReversePaymentRequest: {
             reason: null | string;
         };
         RolePayload: {
@@ -8965,6 +9080,71 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    ReversePayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "The UPI transfer failed at the bank; the customer paid again in cash."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["ReversePaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     ListPriceLists: {
         parameters: {
             query?: never;
@@ -10135,6 +10315,102 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RecordRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "amount": 300,
+                 *       "invoiceId": null,
+                 *       "modeCode": "CASH",
+                 *       "paymentId": "019bd6b0-8888-7c3a-9d5e-2f4a6b8c0d1e",
+                 *       "reason": "The order was cancelled before cutting; the advance is returned under the Owner's policy.",
+                 *       "reference": null
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["RecordRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

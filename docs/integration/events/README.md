@@ -23,6 +23,8 @@ and one of those disagree, they win and this one is corrected.
 | `billing.advance-received.v1` | [schema](billing.advance-received.v1.schema.json) | [example](billing.advance-received.v1.example.json) | Billing, when part of a payment is held as an advance | #162 |
 | `billing.advance-applied.v1` | [schema](billing.advance-applied.v1.schema.json) | [example](billing.advance-applied.v1.example.json) | Billing, when part of a held advance is applied | #162 |
 | `billing.invoice-paid-status-changed.v1` | [schema](billing.invoice-paid-status-changed.v1.schema.json) | [example](billing.invoice-paid-status-changed.v1.example.json) | Billing, when a posted invoice's paid status moves | #162 |
+| `billing.payment-reversed.v1` | [schema](billing.payment-reversed.v1.schema.json) | [example](billing.payment-reversed.v1.example.json) | Billing, on the reversal of a payment that never cleared | #163 |
+| `billing.refund-recorded.v1` | [schema](billing.refund-recorded.v1.schema.json) | [example](billing.refund-recorded.v1.example.json) | Billing, on a refund | #163 |
 | `customers.consent-recorded.v1` | [schema](customers.consent-recorded.v1.schema.json) | [example](customers.consent-recorded.v1.example.json) | Customers, on a `Granted` or `Declined` answer | #26 |
 | `customers.consent-withdrawn.v1` | [schema](customers.consent-withdrawn.v1.schema.json) | [example](customers.consent-withdrawn.v1.example.json) | Customers, on a withdrawal | #26 |
 | `customers.preferences-changed.v1` | [schema](customers.preferences-changed.v1.schema.json) | [example](customers.preferences-changed.v1.example.json) | Customers, on a recorded or replaced communication preference | #26 |

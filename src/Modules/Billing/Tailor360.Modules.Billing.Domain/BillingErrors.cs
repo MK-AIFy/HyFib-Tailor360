@@ -715,4 +715,44 @@ public static class BillingErrors
     public static readonly Error ReceiptNumberTaken = Error.Conflict(
         "billing.receipt-number-taken",
         "That receipt number has been issued already.");
+
+    /// <summary>The refund named is not one of the organisation's.</summary>
+    public static readonly Error RefundNotFound = Error.NotFound(
+        "billing.refund-not-found",
+        "No refund with that identifier belongs to this organisation.");
+
+    /// <summary>A payment was reversed twice.</summary>
+    public static readonly Error PaymentAlreadyReversed = Error.Conflict(
+        "billing.payment-already-reversed",
+        "This payment has been reversed already.");
+
+    /// <summary>A payment with a refund against it was asked to be reversed.</summary>
+    public static readonly Error PaymentRefunded = Error.Conflict(
+        "billing.payment-refunded",
+        "Money has been paid back from this payment; it cannot be said never to have cleared.");
+
+    /// <summary>A refund named neither source, or both.</summary>
+    public static readonly Error RefundSourceNotWellFormed = Error.Validation(
+        "billing.refund-source-not-well-formed",
+        "A refund pays back either a payment's advance or an invoice's surplus: name exactly one.",
+        "paymentId");
+
+    /// <summary>More was refunded than the source still holds.</summary>
+    /// <param name="field">The field.</param>
+    public static Error RefundExceedsRefundable(string field) => Error.Validation(
+        "billing.refund-exceeds-refundable",
+        "That is more than can be paid back from this source.",
+        field);
+
+    /// <summary>The mode named is not one a refund may be paid through.</summary>
+    /// <param name="field">The field.</param>
+    public static Error PaymentModeNotForRefund(string field) => Error.Validation(
+        "billing.payment-mode-not-for-refund",
+        "Refunds are not paid through this mode.",
+        field);
+
+    /// <summary>The same client key was recorded before by this cashier: the request's own twin.</summary>
+    public static readonly Error RefundDuplicated = Error.Conflict(
+        "billing.refund-duplicated",
+        "This refund has been recorded already. Read it back rather than recording it again.");
 }

@@ -123,8 +123,7 @@ public sealed class PaymentHandler(
                 }
 
                 var posted = await invoices.ListPostedForOrderAsync(command.OrderId, command.OrganisationId, token);
-                var allocated = await payments.AllocatedByInvoiceAsync(posted.Select(invoice => invoice.Id).ToList(), token);
-                var balances = posted.Select(invoice => (Invoice: invoice, Before: InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), Money.Zero))).ToList();
+                var balances = await BalancesAsync(posted, token);
 
                 var now = clock.UtcNow;
                 var created = Payment.Record(
@@ -251,8 +250,7 @@ public sealed class PaymentHandler(
                     return Result.Failure<Payment>(BillingErrors.AllocationInvoiceNotOfOrder("invoiceId"));
                 }
 
-                var allocated = await payments.AllocatedByInvoiceAsync([invoice.Id], token);
-                var before = InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), Money.Zero);
+                var before = (await BalancesAsync([invoice], token))[0].Before;
                 var now = clock.UtcNow;
                 var allocation = fresh.ApplyAdvance(allocationId, invoice.Id, before.Outstanding, amount, AllocationKind.Manual, now, command.By);
                 if (allocation.IsFailure)
@@ -312,11 +310,9 @@ public sealed class PaymentHandler(
         var posted = (await invoices.ListPostedForOrderAsync(order, organisationId, cancellationToken))
             .Where(invoice => !invoice.IsCancelled)
             .ToList();
-        var allocated = await payments.AllocatedByInvoiceAsync(posted.Select(invoice => invoice.Id).ToList(), cancellationToken);
         var now = clock.UtcNow;
-        foreach (var invoice in posted)
+        foreach (var (invoice, before) in await BalancesAsync(posted, cancellationToken))
         {
-            var before = InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), Money.Zero);
             var outstanding = before.Outstanding;
             if (outstanding.IsZero)
             {
@@ -440,9 +436,18 @@ public sealed class PaymentHandler(
             ids.NewId(), now, payment.Advance!.Id, payment.OrganisationId, payment.BranchId, payment.Id, allocation.InvoiceId,
             allocation.Amount.Amount, payment.UnappliedAdvance.Amount, allocation.Amount.Currency));
 
+    /// <summary>The balance of each invoice as the rows stand: allocations from payments not reversed, refunds paid back.</summary>
+    private async Task<List<(Invoice Invoice, InvoiceBalance Before)>> BalancesAsync(IReadOnlyList<Invoice> posted, CancellationToken cancellationToken)
+    {
+        var ids = posted.Select(invoice => invoice.Id).ToList();
+        var allocated = await payments.AllocatedByInvoiceAsync(ids, cancellationToken);
+        var refunded = await payments.RefundedByInvoiceAsync(ids, cancellationToken);
+        return posted.Select(invoice => (invoice, InvoiceBalance.Of(invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), refunded.GetValueOrDefault(invoice.Id, Money.Zero)))).ToList();
+    }
+
     private void PublishStatusIfMoved(Invoice invoice, InvoiceBalance before, Money allocatedNow, DateTimeOffset now)
     {
-        var after = InvoiceBalance.Of(invoice, allocatedNow, Money.Zero);
+        var after = InvoiceBalance.Of(invoice, allocatedNow, before.Refunds);
         if (after.Status == before.Status)
         {
             return;
@@ -496,8 +501,8 @@ public sealed record AllocateAdvanceCommand(
     Guid By);
 
 /// <summary>What the audit trail records of a payment: identifiers, the mode, the counts — no amount, no reference.</summary>
-internal sealed record PaymentSnapshot(Guid BranchId, Guid CashierSessionId, Guid OrderId, string ModeCode, string Status, bool HasReference, int Allocations, bool HoldsAdvance)
+internal sealed record PaymentSnapshot(Guid BranchId, Guid CashierSessionId, Guid OrderId, string ModeCode, string Status, bool HasReference, int Allocations, bool HoldsAdvance, bool Reversed)
 {
     public static PaymentSnapshot Of(Payment payment)
-        => new(payment.BranchId, payment.CashierSessionId, payment.OrderId, payment.ModeCode, payment.Status.ToString(), payment.Reference is not null, payment.Allocations.Count, !payment.UnappliedAdvance.IsZero);
+        => new(payment.BranchId, payment.CashierSessionId, payment.OrderId, payment.ModeCode, payment.Status.ToString(), payment.Reference is not null, payment.Allocations.Count, !payment.UnappliedAdvance.IsZero, payment.IsReversed);
 }

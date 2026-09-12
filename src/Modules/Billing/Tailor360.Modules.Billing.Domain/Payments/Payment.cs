@@ -14,8 +14,9 @@ public enum PaymentStatus
 /// Money taken at the counter against an order: in one mode, in the cashier's open session, allocated
 /// at once to the order's posted invoices oldest first (INV-PAY-04), the rest held as an advance until
 /// an invoice posts (INV-PAY-05). Append-only (INV-PAY-01): nothing on the row moves after recording, an
-/// allocation is only ever added, and a mistake is a compensating record. There is no row version
-/// because there is no update path.
+/// allocation is only ever added, and a mistake is a compensating record — a reversal where the money
+/// never cleared, a refund where it is paid back (E09-F03-3). There is no row version because there is no
+/// update path.
 /// </summary>
 public sealed class Payment
 {
@@ -26,6 +27,7 @@ public sealed class Payment
     public const int MaximumClientKeyLength = 64;
 
     private readonly List<PaymentAllocation> _allocations = [];
+    private readonly List<Refund> _refunds = [];
 
     private Payment()
     {
@@ -100,14 +102,28 @@ public sealed class Payment
     /// <summary>The remainder held at recording, or null when every rupee found an invoice.</summary>
     public Advance? Advance { get; private set; }
 
-    /// <summary>What has been allocated in all.</summary>
-    public Money Allocated => _allocations.Aggregate(Money.Zero, (sum, allocation) => sum + allocation.Amount);
+    /// <summary>The compensating record that says this payment never cleared, or null (E09-F03-3).</summary>
+    public PaymentReversal? Reversal { get; private set; }
 
-    /// <summary>What of the advance is still held: its amount minus the allocations that name it.</summary>
+    /// <summary>The refunds paid back from this payment's advance.</summary>
+    public IReadOnlyList<Refund> Refunds => _refunds;
+
+    /// <summary>Whether a reversal has been recorded: the allocations and the advance then count for nothing.</summary>
+    public bool IsReversed => Reversal is not null;
+
+    /// <summary>What has been allocated in all; nothing once reversed.</summary>
+    public Money Allocated => IsReversed ? Money.Zero : _allocations.Aggregate(Money.Zero, (sum, allocation) => sum + allocation.Amount);
+
+    /// <summary>What has been paid back from the advance.</summary>
+    public Money RefundedFromAdvance => _refunds.Aggregate(Money.Zero, (sum, refund) => sum + refund.Amount);
+
+    /// <summary>What of the advance is still held: its amount minus the allocations that name it and the refunds against it; nothing once reversed.</summary>
     public Money UnappliedAdvance
-        => Advance is null
+        => Advance is null || IsReversed
             ? Money.Zero
-            : Advance.Amount - _allocations.Where(allocation => allocation.AdvanceId == Advance.Id).Aggregate(Money.Zero, (sum, allocation) => sum + allocation.Amount);
+            : Advance.Amount
+              - _allocations.Where(allocation => allocation.AdvanceId == Advance.Id).Aggregate(Money.Zero, (sum, allocation) => sum + allocation.Amount)
+              - RefundedFromAdvance;
 
     /// <summary>
     /// What a payment must be before anything is looked up for it: a well-formed mode code, a positive
@@ -219,7 +235,7 @@ public sealed class Payment
     /// </summary>
     public Result<PaymentAllocation> ApplyAdvance(Guid allocationId, Guid invoiceId, Money outstanding, Money amount, AllocationKind kind, DateTimeOffset now, Guid? by)
     {
-        if (Advance is null)
+        if (Advance is null || IsReversed)
         {
             return Result.Failure<PaymentAllocation>(BillingErrors.NoAdvanceHeld);
         }
