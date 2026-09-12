@@ -9,13 +9,24 @@ namespace Tailor360.IntegrationTests.Customers;
 /// whole (issue #125).
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>CustomerHarness.UniquePhone</c>'s own remarks describe why a randomly drawn run prefix could not
 /// deliver this — two runs shared tail space whenever their prefixes agreed in their last two digits,
 /// one pair in a hundred — and why a counter seeded from the database, rather than a narrower draw,
 /// closes it. These tests hold the fixture to the exact property it now claims, structurally: every
 /// call strictly increases the tail, which makes a repeat impossible rather than merely unlikely.
+/// </para>
+/// <para>
+/// In <see cref="WebApplicationCollection"/> though nothing here calls the fixture directly: what this
+/// class needs is not the fixture itself but the guarantee xUnit only gives a class in that collection
+/// — <see cref="WebApplicationFixture.MigrateAsync"/> has already run before any of this class's tests
+/// have, so <see cref="CustomerHarness.UniquePhone"/>'s database read lands on a schema that exists.
+/// Without it, a filtered run of this class alone hits <c>customers.customers</c> before migration and
+/// caches that failure for the rest of the process, since the seed is read exactly once.
+/// </para>
 /// </remarks>
 [Trait("Category", "Integration")]
+[Collection(WebApplicationCollection.Name)]
 public sealed class CustomerHarnessTests
 {
     /// <summary>The number of consecutive calls the monotonic check draws.</summary>

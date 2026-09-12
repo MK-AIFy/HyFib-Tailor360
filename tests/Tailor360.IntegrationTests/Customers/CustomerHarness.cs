@@ -355,6 +355,18 @@ internal static class CustomerHarness
     {
         var sequence = PhoneSequenceSeed.Value + Interlocked.Increment(ref _phoneSequence);
 
+        // The tail search this whole scheme depends on has exactly a million values. Silently letting
+        // the sum spill past it would print a seventh digit and reset the tail to a range earlier runs
+        // already used — the exact wraparound this fix exists to remove. Fail loudly instead: a test
+        // database this full needs resetting, not a scheme that pretends it still has room.
+        if (sequence > 999_999)
+        {
+            throw new InvalidOperationException(
+                $"CustomerHarness.UniquePhone has exhausted its six-digit tail space (reached {sequence}). "
+                + "Reset the test database (./scripts/dev reset) rather than continuing to draw numbers "
+                + "past it — a wrapped tail would collide with numbers earlier runs already claimed.");
+        }
+
         return string.Create(CultureInfo.InvariantCulture, $"+919000{sequence:D6}");
     }
 
