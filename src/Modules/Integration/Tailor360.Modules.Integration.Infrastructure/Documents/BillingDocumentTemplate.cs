@@ -19,6 +19,7 @@ internal static class BillingDocumentTemplate
     {
         QuestPdfRenderer.CreditNoteTemplate => "Credit note",
         QuestPdfRenderer.DebitNoteTemplate => "Debit note",
+        QuestPdfRenderer.ReceiptTemplate => "Receipt",
         _ => "Tax invoice",
     };
 

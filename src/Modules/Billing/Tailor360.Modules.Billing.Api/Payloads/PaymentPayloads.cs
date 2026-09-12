@@ -130,6 +130,7 @@ public sealed record AvailablePaymentModePayload(Guid Id, string Code, string Na
 /// <param name="UnappliedAdvance">What is still held against the order.</param>
 /// <param name="Allocations">Where the money went, in the order it went there.</param>
 /// <param name="Advance">The remainder held at recording, or null when every rupee found an invoice.</param>
+/// <param name="Receipt">The receipt issued with it.</param>
 public sealed record PaymentPayload(
     Guid Id,
     Guid BranchId,
@@ -147,10 +148,11 @@ public sealed record PaymentPayload(
     decimal Allocated,
     decimal UnappliedAdvance,
     IReadOnlyList<PaymentAllocationPayload> Allocations,
-    AdvancePayload? Advance)
+    AdvancePayload? Advance,
+    ReceiptPayload? Receipt)
 {
-    /// <summary>Projects a payment.</summary>
-    public static PaymentPayload From(Payment payment)
+    /// <summary>Projects a payment and the receipt issued with it.</summary>
+    public static PaymentPayload From(Payment payment, Receipt? receipt)
     {
         ArgumentNullException.ThrowIfNull(payment);
 
@@ -159,7 +161,49 @@ public sealed record PaymentPayload(
             payment.ModeCode, payment.Amount.Amount, payment.Amount.Currency, payment.Reference, payment.Status.ToString(),
             payment.RecordedAt, payment.RecordedBy, payment.Allocated.Amount, payment.UnappliedAdvance.Amount,
             payment.Allocations.Select(PaymentAllocationPayload.From).ToList(),
-            payment.Advance is { } advance ? new AdvancePayload(advance.Id, advance.Amount.Amount, payment.UnappliedAdvance.Amount, advance.ReceivedAt) : null);
+            payment.Advance is { } advance ? new AdvancePayload(advance.Id, advance.Amount.Amount, payment.UnappliedAdvance.Amount, advance.ReceivedAt) : null,
+            receipt is null ? null : ReceiptPayload.From(receipt));
+    }
+}
+
+/// <summary>The receipt that acknowledges a payment: its number, its barcode and the figures frozen on it at issue.</summary>
+/// <param name="Id">Identifier.</param>
+/// <param name="PaymentId">The payment it acknowledges.</param>
+/// <param name="BranchId">The branch that issued it.</param>
+/// <param name="ReceiptNumber">The display number.</param>
+/// <param name="BarcodePayload">The opaque R- payload printed on it.</param>
+/// <param name="FinancialYear">The financial year the number was drawn in.</param>
+/// <param name="IssuedOn">The business date of issue, in the branch's calendar.</param>
+/// <param name="IssuedAt">When.</param>
+/// <param name="Amount">What was received.</param>
+/// <param name="Allocated">What of it went to invoices at recording.</param>
+/// <param name="UnappliedAdvance">What of it was held at recording.</param>
+/// <param name="OrderOutstanding">What the order's posted invoices still owed once the payment was applied, as at issue.</param>
+/// <param name="Currency">The currency of every figure.</param>
+public sealed record ReceiptPayload(
+    Guid Id,
+    Guid PaymentId,
+    Guid BranchId,
+    string ReceiptNumber,
+    string BarcodePayload,
+    string FinancialYear,
+    DateOnly IssuedOn,
+    DateTimeOffset IssuedAt,
+    decimal Amount,
+    decimal Allocated,
+    decimal UnappliedAdvance,
+    decimal OrderOutstanding,
+    string Currency)
+{
+    /// <summary>Projects a receipt.</summary>
+    public static ReceiptPayload From(Receipt receipt)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+
+        return new ReceiptPayload(
+            receipt.Id, receipt.PaymentId, receipt.BranchId, receipt.ReceiptNumber, receipt.BarcodePayload, receipt.FinancialYear,
+            receipt.IssuedOn, receipt.IssuedAt, receipt.Amount.Amount, receipt.Allocated.Amount, receipt.UnappliedAdvance.Amount,
+            receipt.OrderOutstanding.Amount, receipt.Amount.Currency);
     }
 }
 

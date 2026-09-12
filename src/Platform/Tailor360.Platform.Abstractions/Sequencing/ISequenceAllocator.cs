@@ -1,10 +1,10 @@
 namespace Tailor360.Platform.Abstractions.Sequencing;
 
 /// <summary>
-/// Allocates per-scope document numbers (order, estimate, receipt, job card) on the platform connection,
+/// Allocates per-scope document numbers (order, estimate, job card) on the platform connection,
 /// committed at once: a number it hands out is taken whether or not the caller's own write commits, which
 /// is what a display number whose series may hold a gap accepts (<c>docs/architecture/conventions.md</c>
-/// section 3.2). A statutory series that may not hold a gap — an invoice, a credit note — is allocated
+/// section 3.2). A series that may not hold a gap — an invoice, a credit note, a receipt — is allocated
 /// inside the document's own transaction through the persistence layer's transactional allocator, which
 /// an <c>Infrastructure</c> project reaches and this abstraction deliberately does not expose.
 /// </summary>

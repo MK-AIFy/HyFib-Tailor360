@@ -7,7 +7,7 @@ namespace Tailor360.Modules.Billing.Domain.Invoicing;
 /// <summary>
 /// The display numbers Billing allocates at posting (<c>docs/architecture/conventions.md</c> section 3.2):
 /// <c>INV-&lt;branch&gt;-&lt;FY&gt;-000001</c> for an invoice — interim, confirmed with the accountant under
-/// issue #42 — and <c>CN-</c> / <c>DN-</c> for the notes. The financial year is written as Orders writes it
+/// issue #42 — <c>CN-</c> / <c>DN-</c> for the notes and <c>RCPT-</c> for a receipt. The financial year is written as Orders writes it
 /// on an order number, four digits for the year it opens in and the year it closes in (<c>2627</c> for
 /// 2026-27), so a counter reading an invoice beside its order sees one convention.
 /// </summary>
@@ -22,6 +22,9 @@ public static class DocumentNumbers
     /// <summary>The debit-note prefix.</summary>
     public const string DebitNotePrefix = "DN";
 
+    /// <summary>The receipt prefix: <c>RCPT</c> for the number, as the go-live plan and the walkthroughs write it; <c>R-</c> is the barcode's namespace.</summary>
+    public const string ReceiptPrefix = "RCPT";
+
     /// <summary>The sequence an invoice number is drawn from.</summary>
     public const string InvoiceSequence = "invoice";
 
@@ -30,6 +33,9 @@ public static class DocumentNumbers
 
     /// <summary>The sequence a debit-note number is drawn from.</summary>
     public const string DebitNoteSequence = "debit-note";
+
+    /// <summary>The sequence a receipt number is drawn from: gapless like the invoice's, inside the payment's transaction.</summary>
+    public const string ReceiptSequence = "receipt";
 
     /// <summary>The separator between the parts.</summary>
     public const char Separator = '-';
