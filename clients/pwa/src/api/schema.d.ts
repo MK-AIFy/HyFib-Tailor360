@@ -1006,6 +1006,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/pricing/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price lines against a named price-list version, draft or published, without storing the result.
+         * @description The same engine an order is priced by, run against the version an administrator names so that the effect of a change is seen before it is published. Nothing is stored; an override beyond the version's threshold or a discount beyond its rule's counter maximum still needs billing.override_price.
+         */
+        post: operations["PreviewPricing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/tax-configuration/versions": {
         parameters: {
             query?: never;
@@ -3453,6 +3473,129 @@ export interface components {
             taxInclusive: boolean;
             /** Format: int32 */
             versionNumber: number | string;
+        };
+        PricedDiscountPayload: {
+            /** Format: double */
+            amount: number | string;
+            approvalExercised: boolean;
+            kind: string;
+            ruleCode: string;
+            /** Format: double */
+            value: number | string;
+        };
+        PricedDocumentTotalsPayload: {
+            /** Format: double */
+            centralTax: number | string;
+            /** Format: double */
+            cess: number | string;
+            /** Format: double */
+            discountTotal: number | string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: double */
+            integratedTax: number | string;
+            /** Format: double */
+            roundOff: number | string;
+            /** Format: double */
+            stateTax: number | string;
+            /** Format: double */
+            subtotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+        };
+        PricedLinePayload: {
+            /** Format: double */
+            appliedRate: number | string;
+            approvalExercised: boolean;
+            /** Format: double */
+            base: number | string;
+            /** Format: double */
+            catalogueRate: number | string;
+            classification: string;
+            description: string;
+            discount: null | components["schemas"]["PricedDiscountPayload"];
+            /** Format: double */
+            gross: number | string;
+            itemCode: string;
+            lineKey: string;
+            /** Format: double */
+            lineTotal: number | string;
+            /** Format: double */
+            quantity: number | string;
+            surcharges: components["schemas"]["PricedSurchargePayload"][];
+            taxCode: string;
+            taxCodeKind: string;
+            /** Format: double */
+            taxTotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+            taxes: components["schemas"]["PricedTaxComponentPayload"][];
+            /** Format: double */
+            variance: number | string;
+            /** Format: double */
+            variancePercent: number | string;
+        };
+        PricedSurchargePayload: {
+            /** Format: double */
+            amount: number | string;
+            description: string;
+            itemCode: string;
+            /** Format: double */
+            rate: number | string;
+        };
+        PricedTaxComponentPayload: {
+            /** Format: double */
+            amount: number | string;
+            kind: string;
+            /** Format: double */
+            ratePercent: number | string;
+        };
+        PricingDiscountRequestPayload: {
+            reason: null | string;
+            ruleCode: null | string;
+            /** Format: double */
+            value: null | number | string;
+        };
+        PricingLineRequestPayload: {
+            discount: null | components["schemas"]["PricingDiscountRequestPayload"];
+            itemCode: null | string;
+            lineKey: null | string;
+            override: null | components["schemas"]["PricingOverrideRequestPayload"];
+            /** Format: double */
+            quantity: null | number | string;
+            surchargeItemCodes: null | string[];
+        };
+        PricingOverrideRequestPayload: {
+            /** Format: double */
+            rate: null | number | string;
+            reason: null | string;
+        };
+        PricingPreviewRequest: {
+            /** Format: uuid */
+            branchId: null | string;
+            lines: null | components["schemas"]["PricingLineRequestPayload"][];
+            /** Format: date */
+            on: null | string;
+            placeOfSupplyStateCode: null | string;
+            /** Format: uuid */
+            priceListVersionId: null | string;
+            /** Format: uuid */
+            taxConfigurationVersionId: null | string;
+        };
+        PricingResultPayload: {
+            /** Format: date-time */
+            calculatedAt: string;
+            currency: string;
+            /** Format: uuid */
+            gstRegistrationId: string;
+            lines: components["schemas"]["PricedLinePayload"][];
+            /** Format: uuid */
+            priceListVersionId: string;
+            scheme: string;
+            /** Format: uuid */
+            taxConfigurationVersionId: string;
+            taxInclusive: boolean;
+            totals: components["schemas"]["PricedDocumentTotalsPayload"];
         };
         /**
          * Problem details
@@ -7557,6 +7700,74 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PreviewPricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                 *       "lines": [
+                 *         {
+                 *           "discount": null,
+                 *           "itemCode": "BLOUSE_PATTERN_STITCHING",
+                 *           "lineKey": "garment-1",
+                 *           "override": null,
+                 *           "quantity": 1,
+                 *           "surchargeItemCodes": [
+                 *             "PI_KATORI_CUP_LINING",
+                 *             "PI_PIPING_FINISH"
+                 *           ]
+                 *         },
+                 *         {
+                 *           "discount": {
+                 *             "reason": null,
+                 *             "ruleCode": "FESTIVAL",
+                 *             "value": 5
+                 *           },
+                 *           "itemCode": "BLOUSE_AARI_STITCHING",
+                 *           "lineKey": "garment-2",
+                 *           "override": {
+                 *             "rate": 580,
+                 *             "reason": "Quoted at the sample rate before the revision."
+                 *           },
+                 *           "quantity": 1,
+                 *           "surchargeItemCodes": []
+                 *         }
+                 *       ],
+                 *       "on": "2027-04-05",
+                 *       "placeOfSupplyStateCode": "33",
+                 *       "priceListVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+                 *       "taxConfigurationVersionId": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["PricingPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingResultPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            415: components["responses"]["UnsupportedMediaType"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

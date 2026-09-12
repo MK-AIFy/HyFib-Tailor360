@@ -258,6 +258,103 @@ public static class BillingErrors
         "billing.tax-code-not-found",
         "That tax code is not in this version.");
 
+    /// <summary>A calculation was already stored under the reference.</summary>
+    public static readonly Error SnapshotExists = Error.Conflict(
+        "billing.snapshot-exists",
+        "A calculation is already stored under that reference.");
+
+    /// <summary>A reference was asked again with a different request.</summary>
+    public static readonly Error SnapshotConflict = Error.Conflict(
+        "billing.snapshot-conflict",
+        "A different calculation is stored under that reference. A reference names one calculation; ask "
+        + "for a new one under a new reference.");
+
+    /// <summary>A reason held a control character, which the record cannot carry.</summary>
+    /// <param name="field">The field.</param>
+    public static Error ReasonNotWellFormed(string field) => Error.Validation(
+        "billing.reason-not-well-formed",
+        "A reason is plain text.",
+        field);
+
+    /// <summary>Something a calculation needs is not configured.</summary>
+    /// <param name="what">What is missing, in the administrator's words.</param>
+    /// <param name="field">The field of the request it was looked up for.</param>
+    public static Error ConfigurationMissing(string what, string field) => Error.Validation(
+        "billing.configuration-missing",
+        $"{what} Nothing can be priced until it is published.",
+        field);
+
+    /// <summary>A request carried no line.</summary>
+    public static readonly Error LinesRequired = Error.Validation(
+        "billing.lines-required",
+        "There is nothing to price.",
+        "lines");
+
+    /// <summary>Two lines carried one key.</summary>
+    /// <param name="field">The line.</param>
+    public static Error LineKeyDuplicated(string field) => Error.Validation(
+        "billing.line-key-duplicated",
+        "Each line carries its own key; two lines came back under one.",
+        field);
+
+    /// <summary>A quantity was zero or negative.</summary>
+    /// <param name="field">The line's quantity.</param>
+    public static Error QuantityNotPositive(string field) => Error.Validation(
+        "billing.quantity-not-positive",
+        "A quantity is a positive number of at most one million, to four decimal places.",
+        field);
+
+    /// <summary>A line named an item the version does not hold or has retired.</summary>
+    /// <param name="code">The item code.</param>
+    /// <param name="field">The field naming it.</param>
+    public static Error ItemNotPriced(string code, string field) => Error.Validation(
+        "billing.item-not-priced",
+        $"'{code}' is not an active item of the price-list version in force.",
+        field);
+
+    /// <summary>A surcharge item is taxed under a different code from the line's base item.</summary>
+    /// <param name="code">The surcharge item code.</param>
+    /// <param name="field">The field naming it.</param>
+    public static Error SurchargeTaxedDifferently(string code, string field) => Error.Validation(
+        "billing.surcharge-taxed-differently",
+        $"'{code}' carries a different tax code from the line's item. A line is taxed under one code; "
+        + "something taxed differently is its own line.",
+        field);
+
+    /// <summary>A line named a discount rule the version does not hold or has retired.</summary>
+    /// <param name="code">The rule code.</param>
+    /// <param name="field">The field naming it.</param>
+    public static Error DiscountRuleNotInForce(string code, string field) => Error.Validation(
+        "billing.discount-rule-not-in-force",
+        $"'{code}' is not an active discount rule of the price-list version in force.",
+        field);
+
+    /// <summary>A discount was more than its rule allows anyone to give.</summary>
+    /// <param name="field">The discount's value.</param>
+    public static Error DiscountAboveMaximum(string field) => Error.Validation(
+        "billing.discount-above-maximum",
+        "The discount is more than its rule allows anyone to give.",
+        field);
+
+    /// <summary>A discount was more than the line.</summary>
+    /// <param name="field">The discount's value.</param>
+    public static Error DiscountExceedsLine(string field) => Error.Validation(
+        "billing.discount-exceeds-line",
+        "The discount is more than the line it is taken from.",
+        field);
+
+    /// <summary>A discount above the counter's threshold, or an override beyond the version's, was asked without the permission.</summary>
+    public static readonly Error ApprovalRequired = Error.Forbidden(
+        "billing.approval-required",
+        "That discount or override is above what may be given without billing.override_price.");
+
+    /// <summary>An override rate was negative.</summary>
+    /// <param name="field">The override's rate.</param>
+    public static Error OverrideRateNotWellFormed(string field) => Error.Validation(
+        "billing.override-rate-not-well-formed",
+        "An override rate is zero or more, with at most four decimal places.",
+        field);
+
     /// <summary>A published tax code's code may not change.</summary>
     public static Error PublishedCodeChanged(string field) => Error.Validation(
         "billing.published-code-changed",

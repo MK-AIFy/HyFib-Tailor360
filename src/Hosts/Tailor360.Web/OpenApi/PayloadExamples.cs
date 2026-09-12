@@ -26,6 +26,34 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["PreviewPricing"] = """
+            {
+              "priceListVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+              "taxConfigurationVersionId": null,
+              "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+              "on": "2027-04-05",
+              "placeOfSupplyStateCode": "33",
+              "lines": [
+                {
+                  "lineKey": "garment-1",
+                  "itemCode": "BLOUSE_PATTERN_STITCHING",
+                  "quantity": 1,
+                  "surchargeItemCodes": ["PI_KATORI_CUP_LINING", "PI_PIPING_FINISH"],
+                  "discount": null,
+                  "override": null
+                },
+                {
+                  "lineKey": "garment-2",
+                  "itemCode": "BLOUSE_AARI_STITCHING",
+                  "quantity": 1,
+                  "surchargeItemCodes": [],
+                  "discount": { "ruleCode": "FESTIVAL", "value": 5, "reason": null },
+                  "override": { "rate": 580, "reason": "Quoted at the sample rate before the revision." }
+                }
+              ]
+            }
+            """,
+
         ["CreatePriceList"] = """
             {
               "code": "PL_CBE01",

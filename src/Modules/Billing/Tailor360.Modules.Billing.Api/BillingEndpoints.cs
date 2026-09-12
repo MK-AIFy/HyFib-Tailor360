@@ -30,7 +30,8 @@ public static class BillingEndpoints
             .WithTags(OpenApiTag)
             .MapTaxConfigurationEndpoints()
             .MapGstRegistrationEndpoints()
-            .MapPriceListEndpoints();
+            .MapPriceListEndpoints()
+            .MapPricingEndpoints();
 
         return endpoints;
     }

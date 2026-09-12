@@ -17,6 +17,9 @@ internal static class BillingAudit
     /// <summary>The entity type of a price-list version in the audit trail.</summary>
     public const string PriceListVersionEntity = "billing.price_list_version";
 
+    /// <summary>A calculation snapshot.</summary>
+    public const string CalculationSnapshotEntity = "billing.calculation_snapshot";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,

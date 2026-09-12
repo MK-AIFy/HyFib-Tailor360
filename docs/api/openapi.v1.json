@@ -4641,6 +4641,567 @@
         ],
         "type": "object"
       },
+      "PricedDiscountPayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "approvalExercised": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "ruleCode": {
+            "type": "string"
+          },
+          "value": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "ruleCode",
+          "kind",
+          "value",
+          "amount",
+          "approvalExercised"
+        ],
+        "type": "object"
+      },
+      "PricedDocumentTotalsPayload": {
+        "properties": {
+          "centralTax": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "cess": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "discountTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "grandTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "integratedTax": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "roundOff": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "stateTax": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "subtotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxableValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "subtotal",
+          "discountTotal",
+          "taxableValue",
+          "centralTax",
+          "stateTax",
+          "integratedTax",
+          "cess",
+          "roundOff",
+          "grandTotal"
+        ],
+        "type": "object"
+      },
+      "PricedLinePayload": {
+        "properties": {
+          "appliedRate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "approvalExercised": {
+            "type": "boolean"
+          },
+          "base": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "catalogueRate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "classification": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "discount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PricedDiscountPayload"
+              }
+            ]
+          },
+          "gross": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "lineKey": {
+            "type": "string"
+          },
+          "lineTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "surcharges": {
+            "items": {
+              "$ref": "#/components/schemas/PricedSurchargePayload"
+            },
+            "type": "array"
+          },
+          "taxCode": {
+            "type": "string"
+          },
+          "taxCodeKind": {
+            "type": "string"
+          },
+          "taxTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxableValue": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "taxes": {
+            "items": {
+              "$ref": "#/components/schemas/PricedTaxComponentPayload"
+            },
+            "type": "array"
+          },
+          "variance": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "variancePercent": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "lineKey",
+          "itemCode",
+          "description",
+          "quantity",
+          "catalogueRate",
+          "appliedRate",
+          "base",
+          "surcharges",
+          "discount",
+          "gross",
+          "taxableValue",
+          "taxCode",
+          "classification",
+          "taxCodeKind",
+          "taxes",
+          "taxTotal",
+          "lineTotal",
+          "variance",
+          "variancePercent",
+          "approvalExercised"
+        ],
+        "type": "object"
+      },
+      "PricedSurchargePayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "rate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "itemCode",
+          "description",
+          "rate",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "PricedTaxComponentPayload": {
+        "properties": {
+          "amount": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "ratePercent": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "ratePercent",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "PricingDiscountRequestPayload": {
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ruleCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "ruleCode",
+          "value",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PricingLineRequestPayload": {
+        "properties": {
+          "discount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PricingDiscountRequestPayload"
+              }
+            ]
+          },
+          "itemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lineKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "override": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PricingOverrideRequestPayload"
+              }
+            ]
+          },
+          "quantity": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "surchargeItemCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "lineKey",
+          "itemCode",
+          "quantity",
+          "surchargeItemCodes",
+          "discount",
+          "override"
+        ],
+        "type": "object"
+      },
+      "PricingOverrideRequestPayload": {
+        "properties": {
+          "rate": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "rate",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PricingPreviewRequest": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PricingLineRequestPayload"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "on": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "placeOfSupplyStateCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priceListVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "taxConfigurationVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "priceListVersionId",
+          "taxConfigurationVersionId",
+          "branchId",
+          "on",
+          "placeOfSupplyStateCode",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "PricingResultPayload": {
+        "properties": {
+          "calculatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "gstRegistrationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PricedLinePayload"
+            },
+            "type": "array"
+          },
+          "priceListVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "taxConfigurationVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "taxInclusive": {
+            "type": "boolean"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PricedDocumentTotalsPayload"
+          }
+        },
+        "required": [
+          "priceListVersionId",
+          "taxConfigurationVersionId",
+          "gstRegistrationId",
+          "scheme",
+          "taxInclusive",
+          "currency",
+          "calculatedAt",
+          "lines",
+          "totals"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "description": "RFC 9457 problem details. Every failure is reported in this shape, and never as a stack trace, an exception message or a bare status code.",
         "properties": {
@@ -12577,6 +13138,103 @@
           "Billing"
         ],
         "x-tailor360-audit": "billing.price_list_version.drafted",
+        "x-tailor360-authorisation": "permission:billing.manage_price_lists",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/billing/pricing/preview": {
+      "post": {
+        "description": "The same engine an order is priced by, run against the version an administrator names so that the effect of a change is seen before it is published. Nothing is stored; an override beyond the version's threshold or a discount beyond its rule's counter maximum still needs billing.override_price.",
+        "operationId": "PreviewPricing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                "lines": [
+                  {
+                    "discount": null,
+                    "itemCode": "BLOUSE_PATTERN_STITCHING",
+                    "lineKey": "garment-1",
+                    "override": null,
+                    "quantity": 1,
+                    "surchargeItemCodes": [
+                      "PI_KATORI_CUP_LINING",
+                      "PI_PIPING_FINISH"
+                    ]
+                  },
+                  {
+                    "discount": {
+                      "reason": null,
+                      "ruleCode": "FESTIVAL",
+                      "value": 5
+                    },
+                    "itemCode": "BLOUSE_AARI_STITCHING",
+                    "lineKey": "garment-2",
+                    "override": {
+                      "rate": 580,
+                      "reason": "Quoted at the sample rate before the revision."
+                    },
+                    "quantity": 1,
+                    "surchargeItemCodes": []
+                  }
+                ],
+                "on": "2027-04-05",
+                "placeOfSupplyStateCode": "33",
+                "priceListVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+                "taxConfigurationVersionId": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PricingPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingResultPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Price lines against a named price-list version, draft or published, without storing the result.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-audit": "billing.pricing.previewed",
         "x-tailor360-authorisation": "permission:billing.manage_price_lists",
         "x-tailor360-rate-limit": "write"
       }

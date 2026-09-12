@@ -52,6 +52,17 @@ public sealed class PriceListStore(BillingDbContext context) : IPriceListStore
                 cancellationToken);
 
     /// <inheritdoc />
+    public async Task<PriceListVersion?> FindPublishedForBranchAsync(Guid branchId, Guid organisationId, CancellationToken cancellationToken = default)
+        => await context.PriceListVersions
+            .AsNoTracking()
+            .Where(version => version.OrganisationId == organisationId
+                              && version.Status == PriceListVersionStatus.Published
+                              && version.Branches.Any(branch => branch.BranchId == branchId))
+            // At most one, by the exclusion constraint; SingleOrDefault would make its violation a five hundred.
+            .OrderBy(version => version.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<PriceListVersion>> PublishedVersionsAsync(Guid organisationId, CancellationToken cancellationToken = default)
         => await context.PriceListVersions
             .AsNoTracking()

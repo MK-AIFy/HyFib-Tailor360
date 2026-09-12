@@ -57,6 +57,12 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>Price-list codes are unique per organisation.</summary>
     public const string PriceListCodeIndex = "ux_price_lists_organisation_code";
 
+    /// <summary>One calculation per reference per organisation.</summary>
+    public const string CalculationReferenceIndex = "ux_calculation_snapshots_organisation_reference";
+
+    /// <summary>The calculation snapshots.</summary>
+    public DbSet<CalculationSnapshot> CalculationSnapshots => Set<CalculationSnapshot>();
+
     /// <summary>Version numbers are unique per price list.</summary>
     public const string PriceListVersionNumberIndex = "ux_price_list_versions_list_number";
 
@@ -85,7 +91,39 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigurePriceListVersions(modelBuilder);
         ConfigurePriceListItems(modelBuilder);
         ConfigureDiscountRules(modelBuilder);
+        ConfigureCalculationSnapshots(modelBuilder);
     }
+
+    private static void ConfigureCalculationSnapshots(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<CalculationSnapshot>(entity =>
+        {
+            entity.ToTable("calculation_snapshots");
+            entity.HasKey(snapshot => snapshot.Id);
+            entity.Property(snapshot => snapshot.Reference).HasMaxLength(CalculationSnapshot.MaximumReferenceLength).IsRequired();
+            // The request and the result as the application wrote them: jsonb so that a report can reach
+            // into a figure without a second table, and so that the shape is the contract's, not the schema's.
+            entity.Property(snapshot => snapshot.RequestJson).HasColumnName("request").HasColumnType("jsonb").IsRequired();
+            entity.Property(snapshot => snapshot.ResultJson).HasColumnName("result").HasColumnType("jsonb").IsRequired();
+            entity.Property(snapshot => snapshot.SchemaVersion).IsRequired();
+
+            // The versions a figure was made on are never deleted once published (the triggers refuse it),
+            // and a snapshot naming one that does not exist is a snapshot that cannot be recomputed.
+            // Named by hand where the conventional name exceeds PostgreSQL's 63-character limit.
+            entity.HasOne<PriceListVersion>().WithMany().HasForeignKey(snapshot => snapshot.PriceListVersionId).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_calculation_snapshots_price_list_versions");
+            entity.HasOne<TaxConfigurationVersion>().WithMany().HasForeignKey(snapshot => snapshot.TaxConfigurationVersionId).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_calculation_snapshots_tax_configuration_versions");
+            entity.HasOne<GstRegistration>().WithMany().HasForeignKey(snapshot => snapshot.GstRegistrationId).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_calculation_snapshots_gst_registrations");
+
+            // Append-only by trigger, so there is no updated_at/updated_by pair and no row version to
+            // compare: a row is written once with calculated_at/calculated_by and never changes.
+            entity.HasIndex(snapshot => new { snapshot.OrganisationId, snapshot.Reference })
+                .IsUnique()
+                .HasDatabaseName(CalculationReferenceIndex);
+            entity.HasIndex(snapshot => new { snapshot.OrganisationId, snapshot.BranchId, snapshot.CalculatedAt })
+                .HasDatabaseName("ix_calculation_snapshots_organisation_branch_calculated_at");
+        });
 
     private static void ConfigurePriceLists(ModelBuilder modelBuilder)
         => modelBuilder.Entity<PriceList>(entity =>
