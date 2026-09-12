@@ -33,6 +33,7 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_design_option_groups", x => x.id);
+                    table.UniqueConstraint("ak_design_option_groups_id_catalog_version_id", x => new { x.id, x.catalog_version_id });
                     table.CheckConstraint("ck_design_option_groups_active_dates_are_ordered", "active_from IS NULL OR active_to IS NULL OR active_to >= active_from");
                     table.CheckConstraint("ck_design_option_groups_code_is_well_formed", "code ~ '^[a-z][a-z0-9_]*$'");
                     table.CheckConstraint("ck_design_option_groups_display_order_is_not_negative", "display_order >= 0");
@@ -141,18 +142,11 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                     table.CheckConstraint("ck_design_options_display_order_is_not_negative", "display_order >= 0");
                     table.CheckConstraint("ck_design_options_time_impact_is_in_range", "time_impact_days BETWEEN -250 AND 250");
                     table.ForeignKey(
-                        name: "fk_design_options_catalog_versions_catalog_version_id",
-                        column: x => x.catalog_version_id,
-                        principalSchema: "catalog",
-                        principalTable: "catalog_versions",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "fk_design_options_design_groups_design_option_group_id",
-                        column: x => x.design_option_group_id,
+                        name: "fk_design_options_design_option_groups_design_option_group_id_",
+                        columns: x => new { x.design_option_group_id, x.catalog_version_id },
                         principalSchema: "catalog",
                         principalTable: "design_option_groups",
-                        principalColumn: "id",
+                        principalColumns: new[] { "id", "catalog_version_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -169,6 +163,12 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                 table: "design_option_groups",
                 columns: new[] { "catalog_version_id", "design_option_group_key" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_design_options_design_option_group_id_catalog_version_id",
+                schema: "catalog",
+                table: "design_options",
+                columns: new[] { "design_option_group_id", "catalog_version_id" });
 
             migrationBuilder.CreateIndex(
                 name: "ux_design_options_group_code",

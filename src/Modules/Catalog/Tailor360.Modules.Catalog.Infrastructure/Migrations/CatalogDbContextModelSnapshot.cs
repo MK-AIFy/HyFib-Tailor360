@@ -505,6 +505,9 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_design_options_version_key");
 
+                    b.HasIndex("DesignOptionGroupId", "CatalogVersionId")
+                        .HasDatabaseName("ix_design_options_design_option_group_id_catalog_version_id");
+
                     b.HasIndex("DesignOptionGroupId", "Code")
                         .IsUnique()
                         .HasDatabaseName("ux_design_options_group_code");
@@ -583,6 +586,9 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_design_option_groups");
+
+                    b.HasAlternateKey("Id", "CatalogVersionId")
+                        .HasName("ak_design_option_groups_id_catalog_version_id");
 
                     b.HasIndex("CatalogVersionId", "Key")
                         .IsUnique()
@@ -903,19 +909,13 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
 
             modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOption", b =>
                 {
-                    b.HasOne("Tailor360.Modules.Catalog.Domain.Catalogue.CatalogVersion", null)
-                        .WithMany()
-                        .HasForeignKey("CatalogVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_design_options_catalog_versions_catalog_version_id");
-
                     b.HasOne("Tailor360.Modules.Catalog.Domain.Design.DesignOptionGroup", null)
                         .WithMany("Options")
-                        .HasForeignKey("DesignOptionGroupId")
+                        .HasForeignKey("DesignOptionGroupId", "CatalogVersionId")
+                        .HasPrincipalKey("Id", "CatalogVersionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_design_options_design_groups_design_option_group_id");
+                        .HasConstraintName("fk_design_options_design_option_groups_design_option_group_id_");
                 });
 
             modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOptionGroup", b =>

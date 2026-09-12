@@ -211,6 +211,16 @@ public static class CatalogErrors
         + "is unique only within its group and several groups share one sheet.",
         field);
 
+    /// <summary>An illustration reference is well formed but anchored on another group or option.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error IllustrationKeyNotForThisOption(string field) => Error.Validation(
+        "catalog.illustration-key-not-for-this-option",
+        "An illustration reference is anchored on the option it illustrates — the part after '#' is this "
+        + "group's code, a dot, and this option's code — so the picker cannot show one option's drawing "
+        + "for another.",
+        field);
+
     /// <summary>A time impact is beyond what a service's own duration may be.</summary>
     /// <param name="field">The request field.</param>
     /// <param name="maximum">The largest impact accepted either way.</param>
