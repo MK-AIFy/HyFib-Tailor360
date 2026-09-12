@@ -157,19 +157,55 @@ namespace Tailor360.Modules.Billing.Infrastructure.Migrations
                 FOR EACH ROW EXECUTE FUNCTION billing.dispatch_exceptions_are_the_one_transition();
                 """);
 
-            // The jobs it covers are written once at approval and never changed: the same append-only
-            // function the reconciliation batch's own mode lines and the cashier session's count sheet use.
+            // The jobs it covers are written once, in the same transaction as the parent's own single
+            // insert, and never touched again — not even by another insert. The shared
+            // `financial_records_are_append_only()` only refuses UPDATE and DELETE, which would let a row
+            // be added to an exception's job set through direct SQL at any later time, with no trigger to
+            // stop it, whatever the parent's own status: the exact "a repair script can bypass
+            // application code" gap the one-transition trigger above exists to close for the parent row.
+            // This dedicated function closes it for the child rows too. A status check alone is not
+            // enough — a second, illegitimate insert while the parent is still freshly Approved would
+            // pass it — so instead it compares the parent row's own `xmin` against the current
+            // transaction: true only while the parent was inserted by this same transaction, which is
+            // exactly the window EF's own `SaveChanges` writes the whole batch of job rows in, and never
+            // true again once that transaction has committed.
             migrationBuilder.Sql("""
-                CREATE TRIGGER dispatch_exception_jobs_are_append_only
-                BEFORE UPDATE OR DELETE ON billing.dispatch_exception_jobs
-                FOR EACH ROW EXECUTE FUNCTION billing.financial_records_are_append_only();
+                CREATE FUNCTION billing.dispatch_exception_jobs_are_written_once()
+                RETURNS trigger
+                LANGUAGE plpgsql
+                AS $$
+                DECLARE
+                    parent_xmin xid;
+                BEGIN
+                    IF TG_OP = 'INSERT' THEN
+                        SELECT xmin INTO parent_xmin FROM billing.dispatch_exceptions WHERE id = NEW.dispatch_exception_id;
+                        IF parent_xmin IS NULL OR parent_xmin <> pg_current_xact_id()::xid THEN
+                            RAISE EXCEPTION
+                                'A dispatch exception''s job set is written once, in the same transaction as its own creation.'
+                                USING ERRCODE = 'restrict_violation';
+                        END IF;
+
+                        RETURN NEW;
+                    END IF;
+
+                    RAISE EXCEPTION 'A dispatch exception''s job set is written once and never changes.'
+                        USING ERRCODE = 'restrict_violation';
+                END;
+                $$;
+                """);
+
+            migrationBuilder.Sql("""
+                CREATE TRIGGER dispatch_exception_jobs_are_written_once
+                BEFORE INSERT OR UPDATE OR DELETE ON billing.dispatch_exception_jobs
+                FOR EACH ROW EXECUTE FUNCTION billing.dispatch_exception_jobs_are_written_once();
                 """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // The triggers go with their tables; the function does not.
+            // The triggers go with their tables; the functions do not.
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS billing.dispatch_exception_jobs_are_written_once() CASCADE;");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS billing.dispatch_exceptions_are_the_one_transition() CASCADE;");
 
             migrationBuilder.DropTable(

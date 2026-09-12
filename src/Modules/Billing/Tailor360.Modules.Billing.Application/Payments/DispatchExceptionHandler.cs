@@ -80,7 +80,8 @@ public sealed class DispatchExceptionHandler(
 
         exceptions.Add(approved.Value);
         events.Publish(new DispatchExceptionApproved(
-            ids.NewId(), now, approved.Value.Id, command.OrganisationId, command.BranchId, command.OrderId, command.By,
+            ids.NewId(), now, approved.Value.Id, command.OrganisationId, command.BranchId, command.OrderId,
+            [.. approved.Value.JobIds.OrderBy(id => id)], command.By,
             approved.Value.PolicyVersion, approved.Value.MaxOutstandingAmount.Amount, approved.Value.MaxOutstandingAmount.Currency, approved.Value.ExpiresAt));
 
         var saved = await exceptions.SaveAsync(cancellationToken);

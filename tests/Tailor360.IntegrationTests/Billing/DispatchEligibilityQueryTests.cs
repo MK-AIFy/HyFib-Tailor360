@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
 using Tailor360.Modules.Billing.Application.Abstractions;
@@ -71,6 +72,30 @@ public sealed class DispatchEligibilityQueryTests(WebApplicationFixture fixture)
 
         var answer = await EligibilityAsync(scene.OrderId, scene.Jobs);
         answer.Reason.ShouldBe("Paid");
+    }
+
+    [Fact]
+    public async Task NotEvaluatedWhenOneRequestedJobHasNoPostedInvoiceEvenThoughAnotherJobsInvoiceIsPaidInFull()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        // Two garment jobs of one order; only the first is ever invoiced, and that invoice is paid in
+        // full. A dispatch of both jobs must not read as Paid off the strength of the order's other,
+        // fully-settled invoice — the second job was never charged for at all.
+        await SeedPaymentModesAsync();
+        var scene = await BuildAsync(fixture, "dxe-partial", "203.0.113.93", "DXEZ", RunToken);
+        using var cashier = await CashierAsync(fixture, "dxe-z-cashier", "203.0.113.94", scene.Branch, BillingPermissions.PostInvoice, BillingPermissions.RecordPayment, BillingPermissions.Session);
+
+        var jobAOnlyReference = $"{scene.Reference}-job-a-only";
+        await PriceAsync(fixture, scene.Branch, jobAOnlyReference, [scene.Jobs[0].ToString()], scene.ItemCode, scene.SurchargeCode);
+        var (invoiceId, tag) = await DraftAsync(cashier, scene.OrderId, jobAOnlyReference);
+        (await cashier.PostAsync($"/api/v1/billing/invoices/{invoiceId}/post", new { reason = (string?)null }, Tagged(tag))).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await cashier.PostAsync("/api/v1/billing/cashier-sessions", new { openingFloat = 0m }, Key())).StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await cashier.PostAsync("/api/v1/billing/payments", new { orderId = scene.OrderId, modeCode = "CASH", amount = 567m, reference = (string?)null }, Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        (await EligibilityAsync(scene.OrderId, [scene.Jobs[0]])).Reason.ShouldBe("Paid", "the invoiced, paid job alone");
+        (await EligibilityAsync(scene.OrderId, scene.Jobs)).Reason.ShouldBe("NotEvaluated", "the second job has no posted invoice covering it");
     }
 
     [Fact]
@@ -165,6 +190,27 @@ public sealed class DispatchEligibilityQueryTests(WebApplicationFixture fixture)
         trail.Select(entry => entry.Action).ShouldContain("billing.expire_dispatch_exception");
     }
 
+    [Fact]
+    public async Task RefusesInsertingAJobIntoAnAlreadyApprovedExceptionsSetAndEveryUpdateAndDelete()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        var scene = await BuildAsync(fixture, "dxe-trigger", "203.0.113.95", "DXET", RunToken);
+        var (exceptionId, _) = await ApproveAsync(scene, "dxe-t-appr", "203.0.113.96");
+
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        foreach (var sql in new[]
+                 {
+                     $"INSERT INTO billing.dispatch_exception_jobs (dispatch_exception_id, garment_job_id) VALUES ('{exceptionId}', '{Guid.NewGuid()}')",
+                     $"UPDATE billing.dispatch_exception_jobs SET garment_job_id = '{Guid.NewGuid()}' WHERE dispatch_exception_id = '{exceptionId}'",
+                     $"DELETE FROM billing.dispatch_exception_jobs WHERE dispatch_exception_id = '{exceptionId}'",
+                 })
+        {
+            (await Should.ThrowAsync<PostgresException>(() => context.Database.ExecuteSqlRawAsync(sql, Token))).SqlState.ShouldBe(PostgresErrorCodes.RestrictViolation, sql);
+        }
+    }
+
     private async Task<(Guid ExceptionId, Guid ApprovedBy)> ApproveAsync(InvoiceScene scene, string prefix, string address)
     {
         using var approver = await AdministrationHarness.AdministratorAtBranchAsync(fixture, prefix, address, scene.Branch, BillingPermissions.ApproveDispatchException);
@@ -203,6 +249,11 @@ public sealed class DispatchEligibilityQueryTests(WebApplicationFixture fixture)
         var exceptionId = Guid.NewGuid();
         var now = Now(fixture);
 
+        // One transaction: the job rows' own trigger accepts an insert only in the same transaction as
+        // the parent's, exactly as EF's own SaveChanges writes them together, so two separate statements
+        // here would be refused the same way a real, illegitimate later insert is.
+        await using var transaction = await context.Database.BeginTransactionAsync(Token);
+
         await context.Database.ExecuteSqlInterpolatedAsync(
             $"""
              INSERT INTO billing.dispatch_exceptions
@@ -221,6 +272,8 @@ public sealed class DispatchEligibilityQueryTests(WebApplicationFixture fixture)
             await context.Database.ExecuteSqlInterpolatedAsync(
                 $"INSERT INTO billing.dispatch_exception_jobs (dispatch_exception_id, garment_job_id) VALUES ({exceptionId}, {jobId})", Token);
         }
+
+        await transaction.CommitAsync(Token);
 
         return exceptionId;
     }

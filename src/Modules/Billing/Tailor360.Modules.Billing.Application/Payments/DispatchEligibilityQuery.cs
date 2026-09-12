@@ -16,9 +16,8 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 /// Answers <see cref="IDispatchEligibilityQuery"/> from Billing's own records only, and consumes the
 /// live exception behind an <c>ApprovedException</c> answer exactly once (#164, plan lines 1902-1916).
 /// </summary>
-/// <param name="balances">The order balance, for the figures the rule is evaluated against.</param>
-/// <param name="invoices">The posted invoices, read again inside the consumption's own transaction.</param>
-/// <param name="payments">Allocations, refunds and the read-consistency the balance is composed under.</param>
+/// <param name="invoices">The posted invoices.</param>
+/// <param name="payments">Allocations, refunds, unapplied advances and the order-invoice lock.</param>
 /// <param name="exceptions">The store.</param>
 /// <param name="policy">The dispatch policy in force.</param>
 /// <param name="events">Billing's outbox.</param>
@@ -26,7 +25,6 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
 public sealed class DispatchEligibilityQuery(
-    IFinancialTotalsQuery balances,
     IInvoiceStore invoices,
     IPaymentStore payments,
     IDispatchExceptionStore exceptions,
@@ -52,19 +50,63 @@ public sealed class DispatchEligibilityQuery(
             return new DispatchEligibilityResult(DispatchEligibilityReason.ApprovedException.ToString(), live.PolicyVersion, live.Id);
         }
 
-        var balance = await balances.GetOrderBalanceAsync(orderId, organisationId, cancellationToken);
+        var (allJobsCovered, charges, outstanding) = await JobAttributedBalanceAsync(orderId, organisationId, jobIds, cancellationToken);
+        var unappliedAdvances = (await payments.ListForOrderAsync(orderId, organisationId, cancellationToken))
+            .Aggregate(Money.Zero, (sum, payment) => sum + payment.UnappliedAdvance);
+
         var reason = DispatchEligibilityRule.Evaluate(
-            hasPostedInvoice: balance is { Invoices.Count: > 0 },
+            hasPostedInvoice: allJobsCovered,
             hasLiveApprovedException: false,
-            charges: Money.Rupees(balance?.Charges ?? 0m),
-            outstanding: Money.Rupees(balance?.Outstanding ?? 0m),
-            unappliedAdvances: Money.Rupees(balance?.UnappliedAdvances ?? 0m),
+            charges: charges,
+            outstanding: outstanding,
+            unappliedAdvances: unappliedAdvances,
             rule: options.Rule,
             partialThreshold: options.PartialThreshold,
             allowOnAdvance: options.AllowOnAdvance,
             advanceThreshold: Money.Rupees(options.AdvanceThreshold));
 
         return new DispatchEligibilityResult(reason.ToString(), options.Version, null);
+    }
+
+    /// <summary>
+    /// The charges and the outstanding balance attributable to a specific set of garment jobs: only the
+    /// posted, uncancelled invoices that cover at least one of them, and only once every one of them is
+    /// covered by one of those invoices. A job an order's other invoices happen to have settled proves
+    /// nothing about a job nobody has ever charged for — the whole point of asking per job rather than
+    /// per order — so a requested job with no covering invoice fails the whole answer closed rather
+    /// than being averaged away by a sibling job's invoice.
+    /// </summary>
+    private async Task<(bool AllJobsCovered, Money Charges, Money Outstanding)> JobAttributedBalanceAsync(
+        Guid orderId, Guid organisationId, IReadOnlyCollection<Guid> jobIds, CancellationToken cancellationToken)
+    {
+        if (jobIds.Count == 0)
+        {
+            return (false, Money.Zero, Money.Zero);
+        }
+
+        var posted = await invoices.ListPostedForOrderAsync(orderId, organisationId, cancellationToken);
+        var covering = posted.Where(invoice => !invoice.IsCancelled && invoice.GarmentJobIds.Intersect(jobIds).Any()).ToList();
+        var coveredJobIds = covering.SelectMany(invoice => invoice.GarmentJobIds).ToHashSet();
+        if (!jobIds.All(coveredJobIds.Contains))
+        {
+            return (false, Money.Zero, Money.Zero);
+        }
+
+        var invoiceIds = covering.Select(invoice => invoice.Id).ToList();
+        var allocated = await payments.AllocatedByInvoiceAsync(invoiceIds, cancellationToken);
+        var refunded = await payments.RefundedByInvoiceAsync(invoiceIds, cancellationToken);
+        var balances = covering.Select(invoice => InvoiceBalance.Of(
+            invoice, allocated.GetValueOrDefault(invoice.Id, Money.Zero), refunded.GetValueOrDefault(invoice.Id, Money.Zero)));
+
+        var charges = Money.Zero;
+        var outstanding = Money.Zero;
+        foreach (var balance in balances)
+        {
+            charges += balance.Charges;
+            outstanding += balance.Outstanding;
+        }
+
+        return (true, charges, outstanding);
     }
 
     /// <inheritdoc />
@@ -96,6 +138,12 @@ public sealed class DispatchEligibilityQuery(
                 return Result.Failure<DispatchException>(BillingErrors.DispatchExceptionNotFound);
             }
 
+            // Locked before the balance is read, so a refund, a reversal, an allocation or an invoice
+            // posting racing this consumption cannot commit between the read and this transaction's own
+            // commit: the outstanding figure below is the one this attempt's outcome is judged against,
+            // not one a concurrent writer has since moved past.
+            await payments.LockOrderInvoicesAsync(orderId, token);
+
             var currentOutstanding = await OutstandingAsync(orderId, organisationId, token);
             var consumed = fresh.Consume(dispatcherId, currentOutstanding, jobIds, currentPolicyVersion, clock.UtcNow);
             if (consumed.IsFailure)
@@ -108,7 +156,11 @@ public sealed class DispatchEligibilityQuery(
             var saved = await exceptions.SaveAsync(token);
             return saved.IsFailure ? Result.Failure<DispatchException>(saved.Error) : Result.Success(fresh);
         },
-        async token => (await exceptions.FindAsync(dispatchExceptionId, organisationId, token))?.Status == DispatchExceptionStatus.Consumed,
+        // Checked by this attempt's own dispatcher, not merely by status: after an ambiguous commit a
+        // concurrent attempt may be the one that actually landed as Consumed, and this attempt's own
+        // write never took effect. Reporting that as success here would tell two different dispatchers
+        // they had each consumed the same exception.
+        async token => (await exceptions.FindAsync(dispatchExceptionId, organisationId, token))?.ConsumedBy == dispatcherId,
         cancellationToken);
 
         // Every attempt is audited, refused or not: a refusal here is a dispatch that did not happen,

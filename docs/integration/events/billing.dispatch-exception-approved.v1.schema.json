@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hyfib.com/tailor360/events/billing.dispatch-exception-approved.v1.schema.json",
   "title": "billing.dispatch-exception-approved.v1",
-  "description": "A single-use dispatch exception was approved for named jobs of an order (plan lines 1908-1916, docs/prd/exceptions.md EX-10). Identifiers, the policy version, the approved maximum and the expiry only.",
+  "description": "A single-use dispatch exception was approved for named jobs of an order (plan lines 1908-1916, docs/prd/exceptions.md EX-10). Identifiers, the garment jobs it covers, the policy version, the approved maximum and the expiry only.",
   "type": "object",
   "additionalProperties": true,
   "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
@@ -13,6 +13,7 @@
     "organisationId",
     "branchId",
     "orderId",
+    "jobIds",
     "approvedBy",
     "policyVersion",
     "maxOutstandingAmount",
@@ -51,6 +52,14 @@
       "type": "string",
       "format": "uuid",
       "description": "The order it covers."
+    },
+    "jobIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "Exactly the garment jobs it covers."
     },
     "approvedBy": {
       "type": "string",
