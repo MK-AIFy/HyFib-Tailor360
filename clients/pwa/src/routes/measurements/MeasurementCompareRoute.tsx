@@ -41,13 +41,15 @@ const CHANGES: Readonly<Record<string, { readonly message: MessageKey; readonly 
 /**
  * Two of a customer's measurements, field by field, before reuse or after a correction (#124).
  *
- * ## Why the newer version's template is the one rendered through
+ * ## Why each value renders through its own template version
  *
  * The server matches on the field key, so a field the newer template version no longer has comes
  * back as `Dropped` — and that is said in words rather than left as a gap, because a dropped field
- * on a comparison screen is exactly the thing a person is here to notice. Labels, groups and units
- * come from the version the newer measurement was captured under; a key that version does not know
- * (a dropped one) is shown by its key, which is all that is left of it.
+ * on a comparison screen is exactly the thing a person is here to notice. The order and the change
+ * come from the version the newer measurement was captured under; each value's precision and each
+ * choice's label come from the version *that* measurement was captured under, because a value on
+ * this screen is an immutable record and a template change since must not restate it. A key
+ * neither version knows is shown by its key, which is all that is left of it.
  *
  * ## Why differences are marked with a word and a glyph
  *
@@ -61,11 +63,12 @@ export function MeasurementCompareRoute() {
   const network = useNetworkState()
 
   const loaded = useAdminResource(`compare:${beforeId ?? ''}:${afterId ?? ''}`, async (signal) => {
-    const [comparison, template] = await Promise.all([
+    const [comparison, template, beforeTemplate] = await Promise.all([
       compareMeasurements(beforeId ?? '', afterId ?? '', signal),
       readMeasurementVersionTemplate(afterId ?? '', signal),
+      readMeasurementVersionTemplate(beforeId ?? '', signal),
     ])
-    return { comparison, template }
+    return { comparison, template, beforeTemplate }
   })
 
   const [unit, setUnit] = useState<MeasurementDisplayUnit | null>(null)
@@ -76,7 +79,7 @@ export function MeasurementCompareRoute() {
         <FormattedMessage id="measurements.compare.title" />
       </h1>
 
-      <AuthProblemAlert failure={loaded.failure} />
+      {network.online ? <AuthProblemAlert failure={loaded.failure} /> : null}
 
       {loaded.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'measurements.compare.loading' })} />
@@ -106,6 +109,7 @@ interface CompareBodyProps {
   readonly value: {
     readonly comparison: Awaited<ReturnType<typeof compareMeasurements>>
     readonly template: Awaited<ReturnType<typeof readMeasurementVersionTemplate>>
+    readonly beforeTemplate: Awaited<ReturnType<typeof readMeasurementVersionTemplate>>
   }
   readonly unit: MeasurementDisplayUnit
   readonly onUnitChange: (unit: MeasurementDisplayUnit) => void
@@ -114,7 +118,7 @@ interface CompareBodyProps {
 function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
   const intl = useIntl()
   const formatters = formattersForLocale(intl.locale)
-  const { comparison, template } = value
+  const { comparison, template, beforeTemplate } = value
 
   const unitName = (which: MeasurementDisplayUnit): string =>
     intl.formatMessage({
@@ -126,9 +130,9 @@ function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
     intl.formatMessage({ id: which === 'cm' ? 'units.centimetre.symbol' : 'units.inch.symbol' })
 
   /**
-   * One value as text. A field the newer template knows is shown in the unit chosen on screen,
-   * to that field's step; a dropped one is shown the way it was entered, because the only unit
-   * anything knows for it is the one it was taken in.
+   * One value as text. A field its own template version knows is shown in the unit chosen on
+   * screen, to that field's step; a key neither version knows is shown the way it was entered,
+   * because the only unit anything knows for it is the one it was taken in.
    */
   const render = (field: TemplateField | undefined, value: MeasurementValue | null): string => {
     if (value === null || (value.choice === null && value.millimetres === null)) {
@@ -162,6 +166,13 @@ function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
 
   const fields = new Map(
     captureGroups(template.version).flatMap((group) =>
+      group.fields.map((field) => [field.key, field] as const),
+    ),
+  )
+  // The older value renders through the version it was taken under, never through the newer one:
+  // a precision coarsened or a choice relabelled since would otherwise misstate an immutable record.
+  const beforeFields = new Map(
+    captureGroups(beforeTemplate.version).flatMap((group) =>
       group.fields.map((field) => [field.key, field] as const),
     ),
   )
@@ -213,7 +224,8 @@ function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
             id: 'field',
             header: intl.formatMessage({ id: 'measurements.compare.column.field' }),
             primary: true,
-            cell: (row: MeasurementDifference) => fields.get(row.key)?.label ?? row.key,
+            cell: (row: MeasurementDifference) =>
+              fields.get(row.key)?.label ?? beforeFields.get(row.key)?.label ?? row.key,
           },
           {
             id: 'before',
@@ -222,7 +234,7 @@ function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
               { number: String(comparison.before.versionNumber) },
             ),
             numeric: true,
-            cell: (row: MeasurementDifference) => render(fields.get(row.key), row.before),
+            cell: (row: MeasurementDifference) => render(beforeFields.get(row.key), row.before),
           },
           {
             id: 'after',
@@ -250,7 +262,9 @@ function CompareBody({ value, unit, onUnitChange }: CompareBodyProps) {
           },
         ]}
         rowKey={(row) => row.key}
-        rowLabel={(row) => fields.get(row.key)?.label ?? row.key}
+        rowLabel={(row) =>
+          fields.get(row.key)?.label ?? beforeFields.get(row.key)?.label ?? row.key
+        }
         rows={rows}
       />
     </>

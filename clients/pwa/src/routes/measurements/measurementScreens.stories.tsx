@@ -150,6 +150,8 @@ const compare = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
           storyJson(aMeasurementComparison()),
         [`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/template`]: () =>
           storyJson(aMeasurementVersionTemplate()),
+        [`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/template`]: () =>
+          storyJson(aMeasurementVersionTemplate({ measurementVersionId: VERSION_ONE_ID })),
         ...routes,
       },
       {
@@ -316,7 +318,15 @@ export const StartWithEarlierMeasurements: Story = { render: () => start({}) }
 
 /** The wizard as a correction of version 2: it says so, and confirming will demand a reason. */
 export const WizardCorrecting: Story = {
-  render: () => wizard({}, true, { at: `?corrects=${VERSION_TWO_ID}` }),
+  render: () =>
+    wizard(
+      {
+        [`GET ${DRAFT}`]: () =>
+          storyJson(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+      },
+      true,
+      { at: `?corrects=${VERSION_TWO_ID}` },
+    ),
 }
 
 export const Compare: Story = { render: () => compare({}) }
@@ -340,6 +350,11 @@ export const CompareError: Story = {
 
 export const CompareForbidden: Story = {
   render: () => compare({ 'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }) }),
+}
+
+export const ComparePseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => compare({}),
 }
 
 /** No connection and nothing read yet: a comparison is never queued, and the screen says so. */

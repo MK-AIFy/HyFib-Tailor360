@@ -206,12 +206,14 @@ export const measurementsEn = {
   'measurements.wizard.correction.toggle.hint':
     'Ticked, confirming asks for a reason and names version {number} as corrected; it stays readable. Unticked, this is a fresh measurement pre-filled from it.',
   'measurements.wizard.correction.mismatch':
-    'The version named in the address is not one of this customer’s measurements for this garment, so this cannot be recorded as a correction of it.',
+    'This draft was not pre-filled from the version named in the address — it is another draft, or that version is not this customer’s for this garment — so the result cannot be recorded as a correction of it.',
   'measurements.compare.offlineAction': 'Comparing the measurements',
   'measurements.sheet.offlineAction': 'Reading the measurement sheet',
   'measurements.earlier.offlineAction': 'Listing the earlier measurements',
   'measurements.problem.correctionMismatch':
     'The measurement named as corrected belongs to a different customer or garment, so this cannot be recorded as a correction of it.',
+  'measurements.wizard.confirmed.compare': 'Compare with the version it corrects',
+  'measurements.wizard.confirmed.sheet': 'Open the sheet',
 } as const
 
 export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
@@ -548,7 +550,7 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   // not translated — awaiting native-speaker review
   'measurements.wizard.correction.mismatch':
     // not translated — awaiting native-speaker review
-    'The version named in the address is not one of this customer’s measurements for this garment, so this cannot be recorded as a correction of it.',
+    'This draft was not pre-filled from the version named in the address — it is another draft, or that version is not this customer’s for this garment — so the result cannot be recorded as a correction of it.',
   // not translated — awaiting native-speaker review
   'measurements.compare.offlineAction': 'Comparing the measurements',
   // not translated — awaiting native-speaker review
@@ -559,4 +561,8 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   'measurements.problem.correctionMismatch':
     // not translated — awaiting native-speaker review
     'The measurement named as corrected belongs to a different customer or garment, so this cannot be recorded as a correction of it.',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.confirmed.compare': 'Compare with the version it corrects',
+  // not translated — awaiting native-speaker review
+  'measurements.wizard.confirmed.sheet': 'Open the sheet',
 }

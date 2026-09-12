@@ -318,6 +318,10 @@ export function MeasurementStartRoute() {
               <EarlierMeasurements
                 busy={busy}
                 customerId={customerId}
+                // Remounted per customer and garment: the resource keeps the previous rows on screen
+                // while the next read is in flight, and a Reuse button on another customer's row is
+                // exactly the silent reuse #28 forbids.
+                key={`${customerId}:${chosenTemplateId}`}
                 onStartFrom={(version, correcting) => {
                   void start(version, correcting)
                 }}

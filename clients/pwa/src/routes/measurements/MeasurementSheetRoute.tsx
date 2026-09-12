@@ -57,7 +57,9 @@ export function MeasurementSheetRoute() {
         <FormattedMessage id="measurements.sheet.title" />
       </h1>
 
-      <AuthProblemAlert failure={sheet.failure} />
+      {/* Offline, the blocked-action state below is the whole statement; a second alert saying the
+          same request failed would say the same thing twice. */}
+      {network.online ? <AuthProblemAlert failure={sheet.failure} /> : null}
 
       {!network.online && sheet.value === null ? (
         <OfflineBlockedAction
@@ -125,10 +127,7 @@ function SheetBody({ sheet }: { readonly sheet: MeasurementSheet }) {
         )}
       </p>
       <p className="measurements__note">
-        {intl.formatMessage(
-          { id: 'measurements.sheet.customer' },
-          { reference: sheet.customerId.slice(-12) },
-        )}
+        {intl.formatMessage({ id: 'measurements.sheet.customer' }, { reference: sheet.customerId })}
       </p>
       {sheet.correctsVersionId === null ? null : (
         <p className="measurements__note">

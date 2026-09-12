@@ -6,6 +6,7 @@ import { useAdminResource } from '../../admin/useAdminResource'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { MeasurementProblemAlert } from '../../measurements/MeasurementProblemAlert'
 import { ApiError } from '../../auth/apiClient'
+import { useCurrentUser } from '../../auth/useSession'
 import { useShellStatus } from '../../components/layout/useShellStatus'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import type { ConfirmOutcome } from '../../components/dialogs/ConfirmDialog'
@@ -23,6 +24,7 @@ import type { MeasurementDisplayUnit } from '../../design-system/components/form
 import type { FieldErrorEntry } from '../../design-system/foundations/FieldProps'
 import type { FieldGroup } from '../../admin/templateFieldOrder'
 import { CaptureField } from '../../measurements/CaptureField'
+import { MEASUREMENT_PERMISSIONS } from '../../measurements/measurementsPermissions'
 import {
   REVIEW_STEP_ID,
   captureGroups,
@@ -95,21 +97,23 @@ import './measurements.css'
 export function MeasurementDraftRoute() {
   const intl = useIntl()
   const { draftId } = useParams()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   // A correction is a draft pre-filled from the version it replaces, and the address says so: a
-  // draft is shared within the branch, and the address is what a colleague picks up (#124).
-  const corrects = params.get('corrects')
+  // draft is shared within the branch, and the address is what a colleague picks up (#124). The
+  // address may only name the version the draft was pre-filled from; anything else is said to be
+  // wrong rather than obeyed, and a value that is not even an identifier never reaches a request.
+  const correctsParam = params.get('corrects')
+  const correctsId = correctsParam !== null && UUID.test(correctsParam) ? correctsParam : null
   const [reloads, setReloads] = useState(0)
 
   const loaded = useAdminResource(
-    `measurement-draft:${draftId ?? ''}:${corrects ?? ''}:${String(reloads)}`,
+    `measurement-draft:${draftId ?? ''}:${String(reloads)}`,
     async (signal) => {
       const id = draftId ?? ''
       const draft = await readMeasurementDraft(id, signal)
-      // The version this draft came from: the one the address names, else the one the draft was
-      // pre-filled from. Either can be offered as the version a correction replaces; the draft is
-      // read first because it is what says whether there is a second candidate at all.
-      const sourceId = corrects ?? draft.value.reusedFromVersionId
+      // The version this draft was pre-filled from is the only one it can be a correction of, so
+      // it is read once the draft has said whether there is one at all.
+      const sourceId = draft.value.reusedFromVersionId
       const [template, source] = await Promise.all([
         readMeasurementDraftTemplate(id, signal),
         sourceId === null ? Promise.resolve(null) : readSourceOrNull(sourceId, signal),
@@ -117,6 +121,22 @@ export function MeasurementDraftRoute() {
       return { draft: draft.value, version: draft.version, template, source }
     },
   )
+
+  /** Writes the decision into the address, so a reload or a colleague finds the same one. */
+  const chooseCorrecting = (versionId: string | null): void => {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (versionId === null) {
+          next.delete('corrects')
+        } else {
+          next.set('corrects', versionId)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const notFound = measurementProblemCode(loaded.failure) === 'measurements.draft-not-found'
   const expired = measurementProblemCode(loaded.failure) === 'measurements.draft-expired'
@@ -170,8 +190,10 @@ export function MeasurementDraftRoute() {
           // remount the wizard with the stale draft and the stale tag — and the next save would
           // meet the same conflict. A tag that changed is a draft that changed.
           key={loaded.value.version ?? 'untagged'}
-          correctsRequested={corrects !== null}
+          correctsId={correctsId}
+          correctsRequested={correctsParam !== null}
           draft={loaded.value.draft}
+          onCorrectingChange={chooseCorrecting}
           source={loaded.value.source}
           initialVersion={loaded.value.version}
           template={loaded.value.template}
@@ -184,10 +206,14 @@ export function MeasurementDraftRoute() {
   )
 }
 
+/** The shape of a resource identifier, which is all the address may carry. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
- * The source version, or null when it cannot be read. A reuse whose source has since become
- * unreadable is still a draft worth finishing, so a refusal here is not a refusal of the wizard;
- * what it costs is the offer to record the result as a correction, and the screen says so.
+ * The source version, or null when there no longer is one. A reuse whose source has since gone is
+ * still a draft worth finishing, so that one refusal is not a refusal of the wizard; what it costs
+ * is the offer to record the result as a correction, and the screen says so. Any other refusal —
+ * forbidden, throttled, a server fault — is a refusal of the read and is shown as one.
  */
 async function readSourceOrNull(
   versionId: string,
@@ -196,7 +222,7 @@ async function readSourceOrNull(
   try {
     return await readMeasurement(versionId, signal)
   } catch (cause: unknown) {
-    if (cause instanceof ApiError) {
+    if (cause instanceof ApiError && cause.code === 'measurements.measurement-not-found') {
       return null
     }
     throw cause
@@ -205,9 +231,13 @@ async function readSourceOrNull(
 
 interface CaptureWizardProps {
   readonly draft: MeasurementDraft
-  /** Whether the address named a version to correct, as distinct from the draft having a source. */
+  /** The version the address names as corrected, when it names a well-formed one. */
+  readonly correctsId: string | null
+  /** Whether the address named anything at all, well-formed or not. */
   readonly correctsRequested: boolean
-  /** The version the draft came from, when it has one and it could be read. */
+  /** Records the decision to correct the source, or to stop correcting it. */
+  readonly onCorrectingChange: (versionId: string | null) => void
+  /** The version the draft was pre-filled from, when it has one and it still exists. */
   readonly source: MeasurementVersion | null
   /** The tag the read carried. Undefined only if the server sent none, which it never does here. */
   readonly initialVersion: string | undefined
@@ -217,7 +247,9 @@ interface CaptureWizardProps {
 
 function CaptureWizard({
   draft,
+  correctsId,
   correctsRequested,
+  onCorrectingChange,
   source,
   initialVersion,
   template,
@@ -227,6 +259,7 @@ function CaptureWizard({
   const navigate = useNavigate()
   const network = useNetworkState()
   const status = useShellStatus()
+  const { permissions } = useCurrentUser()
   const formatters = formattersForLocale(intl.locale)
 
   /**
@@ -241,13 +274,15 @@ function CaptureWizard({
     source.measurementTemplateId === draft.measurementTemplateId
       ? source
       : null
-  const sourceMismatch = correctsRequested && correctable === null
   /**
-   * Whether the confirmation records a correction. Chosen on the review step, pre-set when the
-   * address asked for one: a draft reused from an earlier version is by default a new
-   * measurement, and turning it into a correction is a decision the person makes, with a reason.
+   * Whether the confirmation records a correction: the address names the correctable source.
+   * Chosen on the review step and written into the address, so a reload after a conflict, which
+   * remounts this wizard, and a colleague opening the same draft both find the same decision. A
+   * draft reused from an earlier version is by default a new measurement, and turning it into a
+   * correction is a decision a person makes, with a reason.
    */
-  const [correcting, setCorrecting] = useState(correctsRequested && correctable !== null)
+  const correcting = correctable !== null && correctsId === correctable.measurementVersionId
+  const sourceMismatch = correctsRequested && !correcting
   const corrects = correcting ? correctable : null
 
   const version = template.version
@@ -264,8 +299,15 @@ function CaptureWizard({
   const [tag, setTag] = useState<string | undefined>(initialVersion)
   /** The groups changed since their last save, by name. */
   const [dirty, setDirty] = useState<ReadonlySet<string>>(() => new Set())
-  /** The retry key of every act committed to and not yet succeeded, by what it was for. */
-  const [keys, setKeys] = useState<Readonly<Record<string, string>>>({})
+  /**
+   * The retry key of every act committed to and not yet succeeded, by what it was for, with the
+   * request it was minted for. A retry of the same request reuses the key; a different request
+   * under the same name — a value retyped after a refusal, a reason reworded, the correction
+   * turned off — is a new act, and the server would refuse the old key against a new body.
+   */
+  const [keys, setKeys] = useState<
+    Readonly<Record<string, { readonly fingerprint: string; readonly key: string }>>
+  >({})
 
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
@@ -303,13 +345,13 @@ function CaptureWizard({
     }
   }, [stepId])
 
-  const keyFor = (id: string): string => {
+  const keyFor = (id: string, fingerprint: string): string => {
     const existing = keys[id]
-    if (existing !== undefined) {
-      return existing
+    if (existing !== undefined && existing.fingerprint === fingerprint) {
+      return existing.key
     }
     const minted = crypto.randomUUID()
-    setKeys((all) => ({ ...all, [id]: minted }))
+    setKeys((all) => ({ ...all, [id]: { fingerprint, key: minted } }))
     return minted
   }
 
@@ -383,11 +425,12 @@ function CaptureWizard({
     status.announceAutosave(intl.formatMessage({ id: 'measurements.wizard.saving' }))
 
     try {
+      const body = sectionRequestOf(group, state, unit)
       const saved = await saveMeasurementSection({
         draftId: draft.measurementDraftId,
-        body: sectionRequestOf(group, state, unit),
+        body,
         version: against,
-        idempotencyKey: keyFor(id),
+        idempotencyKey: keyFor(id, `${against}:${JSON.stringify(body)}`),
       })
       forget(id)
       setDirty((all) => new Set([...all].filter((name) => name !== group.name)))
@@ -539,16 +582,17 @@ function CaptureWizard({
         return
       }
 
+      // A correction carries the reason the dialog demanded and names the version it replaces;
+      // the server refuses a correction without a reason, so the dialog collects it first.
+      const body = {
+        reason: corrects === null ? null : (outcome.reason?.trim() ?? null),
+        correctsVersionId: corrects?.measurementVersionId ?? null,
+      }
       const record = await confirmMeasurements({
         draftId: draft.measurementDraftId,
-        // A correction carries the reason the dialog demanded and names the version it replaces;
-        // the server refuses a correction without a reason, so the dialog collects it first.
-        body: {
-          reason: corrects === null ? null : (outcome.reason?.trim() ?? null),
-          correctsVersionId: corrects?.measurementVersionId ?? null,
-        },
+        body,
         version: against,
-        idempotencyKey: keyFor('confirm'),
+        idempotencyKey: keyFor('confirm', `${against}:${JSON.stringify(body)}`),
       })
       forget('confirm')
       setConfirming(false)
@@ -623,9 +667,25 @@ function CaptureWizard({
         title={intl.formatMessage({ id: 'measurements.wizard.confirmed.title' })}
         tone="success"
         actions={
-          <Link to="/measurements/new">
-            {intl.formatMessage({ id: 'measurements.wizard.confirmed.another' })}
-          </Link>
+          <>
+            {/* The server's answer, not this screen's state, says whether a correction was
+                recorded, and the version it corrects stays reachable from here (#124). */}
+            {confirmed.correctsVersionId === null ? null : (
+              <Link
+                to={`/measurements/compare/${confirmed.correctsVersionId}/${confirmed.measurementVersionId}`}
+              >
+                {intl.formatMessage({ id: 'measurements.wizard.confirmed.compare' })}
+              </Link>
+            )}
+            {permissions.includes(MEASUREMENT_PERMISSIONS.readSheet) ? (
+              <Link to={`/measurements/${confirmed.measurementVersionId}/sheet`}>
+                {intl.formatMessage({ id: 'measurements.wizard.confirmed.sheet' })}
+              </Link>
+            ) : null}
+            <Link to="/measurements/new">
+              {intl.formatMessage({ id: 'measurements.wizard.confirmed.another' })}
+            </Link>
+          </>
         }
       >
         {intl.formatMessage(
@@ -635,7 +695,7 @@ function CaptureWizard({
             date: formatters.formatDateTime(confirmed.takenAt),
           },
         )}
-        {corrects === null
+        {confirmed.correctsVersionId === null || corrects === null
           ? null
           : ' ' +
             intl.formatMessage(
@@ -745,7 +805,9 @@ function CaptureWizard({
                 { number: String(correctable.versionNumber) },
               )}
               name="correcting"
-              onValueChange={setCorrecting}
+              onValueChange={(next) => {
+                onCorrectingChange(next ? correctable.measurementVersionId : null)
+              }}
               value={correcting}
             />
           )}
@@ -912,7 +974,12 @@ function CaptureWizard({
       {confirming ? (
         <ConfirmDialog
           open
-          action={intl.formatMessage({ id: 'measurements.wizard.confirm' })}
+          action={intl.formatMessage({
+            id:
+              corrects === null
+                ? 'measurements.wizard.confirm'
+                : 'measurements.wizard.confirm.correction.action',
+          })}
           busy={busy}
           cancelLabel={intl.formatMessage({ id: 'dialogs.cancel' })}
           confirmLabel={intl.formatMessage({

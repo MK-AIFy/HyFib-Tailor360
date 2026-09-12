@@ -102,7 +102,7 @@ export function EarlierMeasurements({
     <section aria-labelledby="capture-earlier" className="measurements__earlier">
       <h2 id="capture-earlier">{intl.formatMessage({ id: 'measurements.earlier.title' })}</h2>
 
-      <AuthProblemAlert failure={earlier.failure} />
+      {network.online ? <AuthProblemAlert failure={earlier.failure} /> : null}
 
       {!network.online && earlier.value === null ? (
         <OfflineBlockedAction

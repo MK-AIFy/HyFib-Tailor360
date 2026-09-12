@@ -29,6 +29,7 @@ import {
   aMeasurementSummary,
   aMeasurementVersion,
   aMeasurementVersionTemplate,
+  aPublishedCaptureVersion,
   anOrderableCatalog,
 } from '../../measurements/testing/fixtures'
 import { MeasurementCompareRoute } from './MeasurementCompareRoute'
@@ -70,8 +71,16 @@ beforeEach(() => {
     jsonResponse({ customers: [aCustomerCard()], nextCursor: null }),
   )
   transport.route(`GET ${LIST}`, () => jsonResponse([NEWER, OLDER]))
-  transport.route(`POST ${DRAFTS}`, () => versionedResponse(aMeasurementDraft(), 'W/"1"', 201))
-  transport.route(`GET ${DRAFT}`, () => versionedResponse(aMeasurementDraft(), 'W/"1"'))
+  // A draft started from an earlier version carries it, and the wizard's read finds it there.
+  let reusedFrom: string | null = null
+  transport.route(`POST ${DRAFTS}`, (call) => {
+    const body = call.body as { readonly reuseFromVersionId?: string | null }
+    reusedFrom = body.reuseFromVersionId ?? null
+    return versionedResponse(aMeasurementDraft({ reusedFromVersionId: reusedFrom }), 'W/"1"', 201)
+  })
+  transport.route(`GET ${DRAFT}`, () =>
+    versionedResponse(aMeasurementDraft({ reusedFromVersionId: reusedFrom }), 'W/"1"'),
+  )
   transport.route(`GET ${DRAFT}/template`, () => jsonResponse(aCaptureTemplate()))
   transport.route(`GET ${DRAFT}/check`, () => jsonResponse(aMeasurementCheck()))
   transport.route(`POST ${DRAFT}/sections`, () => versionedResponse(aMeasurementDraft(), 'W/"2"'))
@@ -86,6 +95,9 @@ beforeEach(() => {
   )
   transport.route(`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/template`, () =>
     jsonResponse(aMeasurementVersionTemplate()),
+  )
+  transport.route(`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/template`, () =>
+    jsonResponse(aMeasurementVersionTemplate({ measurementVersionId: VERSION_ONE_ID })),
   )
   transport.route(`GET ${MEASUREMENTS}/${VERSION_TWO_ID}/sheet`, () =>
     jsonResponse(aMeasurementSheet({ measurementVersionId: VERSION_TWO_ID, versionNumber: 2 })),
@@ -170,7 +182,7 @@ describe('reusing an earlier measurement', () => {
     expect(rows[0]).toHaveTextContent('Version 2')
     expect(rows[0]).toHaveTextContent('Devi (owner)')
     expect(rows[1]).toHaveTextContent('Version 1')
-    expect(rows[1]).toHaveTextContent('Asha (counter)')
+    expect(rows[1]).toHaveTextContent('Meena (counter)')
     // Nothing has been started and nothing is chosen for the person.
     expect(transport.callsTo(`POST ${DRAFTS}`)).toHaveLength(0)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -195,6 +207,22 @@ describe('reusing an earlier measurement', () => {
       measurementTemplateId: TEMPLATE_ID,
       reuseFromVersionId: VERSION_TWO_ID,
     })
+  })
+
+  it('has no accessibility violations with the earlier measurements listed and the reuse dialog open', async () => {
+    const user = userEvent.setup()
+    const { container } = renderAt('/measurements/new')
+    await user.type(await screen.findByLabelText('Find the customer'), 'Asha{Enter}')
+    await user.click(
+      await screen.findByRole('radio', { name: 'Asha Example · C-000123 · ••••••4321' }),
+    )
+    await user.selectOptions(screen.getByLabelText('Garment'), 'Pattern work — Blouse')
+    await screen.findByRole('heading', { name: 'Earlier measurements for this garment' })
+    await expectNoAccessibilityViolations(container)
+
+    await user.click(screen.getByRole('button', { name: 'Reuse version 2' }))
+    await screen.findByRole('dialog')
+    await expectNoAccessibilityViolations(container)
   })
 
   it('abandoning the reuse dialog starts nothing', async () => {
@@ -306,6 +334,157 @@ describe('correcting a measurement', () => {
     })
   })
 
+  it('keeps the dialog open on the server’s refusal, says it in words, and retries the same request with the same key', async () => {
+    const user = userEvent.setup()
+    let attempts = 0
+    transport.route(`POST ${DRAFT}/confirm`, () => {
+      attempts += 1
+      return attempts === 1
+        ? problemResponse(400, 'measurements.correction-subject-does-not-match')
+        : jsonResponse(
+            aMeasurementVersion({ versionNumber: 3, correctsVersionId: VERSION_TWO_ID }),
+            201,
+          )
+    })
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+    )
+    renderAt(`/measurements/drafts/${DRAFT_ID}?corrects=${VERSION_TWO_ID}`)
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '36')
+    await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Reason'), 'Taken again at the fitting')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm correction' }))
+
+    // The refusal is inside the dialog, in the shop's words, and the dialog is still open.
+    expect(
+      await within(dialog).findByText(/belongs to a different customer or garment/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(dialog)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm correction' }))
+    await screen.findByText('Measurements confirmed')
+
+    const calls = transport.callsTo(`POST ${DRAFT}/confirm`)
+    expect(calls).toHaveLength(2)
+    expect(calls[0]?.body).toEqual(calls[1]?.body)
+    expect(calls[1]?.headers.get('Idempotency-Key')).toBe(calls[0]?.headers.get('Idempotency-Key'))
+
+    // The version it corrects stays reachable from the confirmation, as does the new sheet.
+    expect(
+      screen.getByRole('link', { name: 'Compare with the version it corrects' }),
+    ).toHaveAttribute('href', `/measurements/compare/${VERSION_TWO_ID}/${VERSION_ONE_ID}`)
+    expect(screen.getByRole('link', { name: 'Open the sheet' })).toHaveAttribute(
+      'href',
+      `/measurements/${VERSION_ONE_ID}/sheet`,
+    )
+  })
+
+  it('mints a new key when the reason is reworded after a refusal, because that is a new request', async () => {
+    const user = userEvent.setup()
+    let attempts = 0
+    transport.route(`POST ${DRAFT}/confirm`, () => {
+      attempts += 1
+      return attempts === 1
+        ? problemResponse(500, 'states.problem.unknown')
+        : jsonResponse(
+            aMeasurementVersion({ versionNumber: 3, correctsVersionId: VERSION_TWO_ID }),
+            201,
+          )
+    })
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+    )
+    renderAt(`/measurements/drafts/${DRAFT_ID}?corrects=${VERSION_TWO_ID}`)
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '36')
+    await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirm measurements' }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Reason'), 'Taken again')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm correction' }))
+    await within(dialog).findByRole('alert')
+
+    await user.type(within(dialog).getByLabelText('Reason'), ' at the fitting')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm correction' }))
+    await screen.findByText('Measurements confirmed')
+
+    const calls = transport.callsTo(`POST ${DRAFT}/confirm`)
+    expect(calls).toHaveLength(2)
+    expect(calls[0]?.body).not.toEqual(calls[1]?.body)
+    expect(calls[1]?.headers.get('Idempotency-Key')).not.toBe(
+      calls[0]?.headers.get('Idempotency-Key'),
+    )
+  })
+
+  it('does not record a correction when starting resumed an open draft instead of pre-filling one', async () => {
+    const user = userEvent.setup()
+    // The server hands back the open draft for this customer and garment, whatever the request
+    // asked to pre-fill from (#122): the draft's own provenance is what the wizard believes.
+    transport.route(`POST ${DRAFTS}`, () => versionedResponse(aMeasurementDraft(), 'W/"1"', 200))
+    transport.route(`GET ${DRAFT}`, () => versionedResponse(aMeasurementDraft(), 'W/"1"'))
+    await chooseCustomerAndGarment(user)
+
+    await user.click(screen.getByRole('button', { name: 'Correct version 2' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Start the correction' }))
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    expect(
+      screen.getByText(/was not pre-filled from the version named in the address/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Correcting version 2/)).not.toBeInTheDocument()
+  })
+
+  it('says the address names a version that no longer exists, and confirms a plain measurement', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+    )
+    transport.route(`GET ${MEASUREMENTS}/${VERSION_TWO_ID}`, () =>
+      problemResponse(404, 'measurements.measurement-not-found'),
+    )
+    renderAt(`/measurements/drafts/${DRAFT_ID}?corrects=${VERSION_TWO_ID}`)
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    expect(
+      screen.getByText(/was not pre-filled from the version named in the address/),
+    ).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '36')
+    await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    expect(screen.queryByRole('checkbox', { name: /Record this as a correction/ })).toBeNull()
+  })
+
+  it('has no accessibility violations on the review step with the correction offered', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+    )
+    const { container } = renderAt(`/measurements/drafts/${DRAFT_ID}`)
+
+    await screen.findByRole('heading', { name: 'Bodice' })
+    await user.type(screen.getByLabelText('Chest / bust — whole inches'), '36')
+    await user.selectOptions(screen.getByLabelText('Closure'), 'front_hooks')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(await screen.findByRole('button', { name: 'Review' }))
+    await screen.findByRole('checkbox', { name: 'Record this as a correction of version 2' })
+
+    await expectNoAccessibilityViolations(container)
+  })
+
   it('refuses to correct a version that is not this customer’s, and says so rather than confirming one', async () => {
     const user = userEvent.setup()
     transport.route(`GET ${MEASUREMENTS}/${VERSION_TWO_ID}`, () =>
@@ -317,11 +496,14 @@ describe('correcting a measurement', () => {
         }),
       ),
     )
+    transport.route(`GET ${DRAFT}`, () =>
+      versionedResponse(aMeasurementDraft({ reusedFromVersionId: VERSION_TWO_ID }), 'W/"1"'),
+    )
     renderAt(`/measurements/drafts/${DRAFT_ID}?corrects=${VERSION_TWO_ID}`)
 
     await screen.findByRole('heading', { name: 'Bodice' })
     expect(
-      screen.getByText(/not one of this customer’s measurements for this garment/),
+      screen.getByText(/was not pre-filled from the version named in the address/),
     ).toBeInTheDocument()
     expect(screen.queryByText(/Correcting version 2/)).not.toBeInTheDocument()
 
@@ -375,8 +557,9 @@ describe('comparing two measurements', () => {
       name: 'Every field either version holds, in template order',
     })
     const chest = within(table).getByRole('row', { name: /Chest \/ bust/ })
-    expect(chest).toHaveTextContent('36 in')
-    expect(chest).toHaveTextContent('36 1/2 in')
+    // By the cell's own text, so that '136 in' could not pass for '36 in'.
+    expect(within(chest).getByText('36 in')).toBeInTheDocument()
+    expect(within(chest).getByText('36 1/2 in')).toBeInTheDocument()
     expect(chest).toHaveTextContent('Changed')
 
     const closure = within(table).getByRole('row', { name: /Closure/ })
@@ -392,6 +575,61 @@ describe('comparing two measurements', () => {
     expect(dropped).toHaveTextContent('Dropped — not on the newer template version')
     // Its value is shown in the unit it was entered in: nothing else knows a unit for it.
     expect(dropped).toHaveTextContent('39 3/8 in')
+  })
+
+  it('renders the older value through the template version it was taken under, not the newer one', async () => {
+    // Since version 1 was taken, the chest field's precision was coarsened from eighths to halves
+    // and the front-hooks option was relabelled. Each value is an immutable record of what was
+    // measured under its own version, so the older cell keeps its own precision and its own label.
+    const older = aPublishedCaptureVersion()
+    transport.route(`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/template`, () =>
+      jsonResponse(
+        aMeasurementVersionTemplate({
+          measurementVersionId: VERSION_ONE_ID,
+          version: {
+            ...older,
+            fields: (older.fields ?? []).map((field) =>
+              field.key === 'chest_bust'
+                ? { ...field, inchFraction: 2 }
+                : field.key === 'closure'
+                  ? {
+                      ...field,
+                      options: field.options.map((option) =>
+                        option.code === 'front_hooks'
+                          ? { ...option, label: 'Hooks at the front' }
+                          : option,
+                      ),
+                    }
+                  : field,
+            ),
+          },
+        }),
+      ),
+    )
+    transport.route(`GET ${MEASUREMENTS}/${VERSION_ONE_ID}/compare/${VERSION_TWO_ID}`, () =>
+      jsonResponse(
+        aMeasurementComparison({
+          differences: aMeasurementComparison().differences.map((difference) =>
+            difference.key === 'chest_bust' && difference.before !== null
+              ? { ...difference, before: { ...difference.before, millimetres: 923.9 } }
+              : difference,
+          ),
+        }),
+      ),
+    )
+    renderAt(`/measurements/compare/${VERSION_ONE_ID}/${VERSION_TWO_ID}`)
+
+    const table = await screen.findByRole('table', {
+      name: 'Every field either version holds, in template order',
+    })
+    // 923.9 mm is 36 3/8 in at eighths; at the halves version 1 was taken under it reads 36 1/2.
+    const chest = within(table).getByRole('row', { name: /Chest \/ bust/ })
+    expect(within(chest).queryByText('36 3/8 in')).toBeNull()
+    expect(within(chest).getAllByText('36 1/2 in')).toHaveLength(2)
+
+    const closure = within(table).getByRole('row', { name: /Closure/ })
+    expect(within(closure).getByText('Hooks at the front')).toBeInTheDocument()
+    expect(within(closure).getByText('Front hooks')).toBeInTheDocument()
   })
 
   it('says a comparison needs a connection when it could not be read offline', async () => {
@@ -428,12 +666,11 @@ describe('the measurement sheet', () => {
     const { container } = renderAt(`/measurements/${VERSION_TWO_ID}/sheet`)
 
     expect(
-      await screen.findByText(/Blouse, pattern work — version 2, taken .* by Asha \(counter\)/),
+      await screen.findByText(/Blouse, pattern work — version 2, taken .* by Meena \(counter\)/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Rendered through template version 2/)).toBeInTheDocument()
 
-    const bodice = screen.getByRole('heading', { name: 'Bodice' })
-    expect(bodice).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Bodice' })).toBeInTheDocument()
     expect(screen.getByText('36 1/2 in')).toBeInTheDocument()
     expect(screen.getByText('Back hooks')).toBeInTheDocument()
 
