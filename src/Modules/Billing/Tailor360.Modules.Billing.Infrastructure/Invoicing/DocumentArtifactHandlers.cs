@@ -1,3 +1,4 @@
+using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Application.Invoicing;
 using Tailor360.Modules.Billing.Contracts.Events;
 using Tailor360.Modules.Billing.Domain.Invoicing;
@@ -75,4 +76,34 @@ public sealed class DebitNotePostedArtifactHandler(DocumentArtifactHandler artif
 
     /// <inheritdoc />
     protected override DocumentKind Kind => DocumentKind.DebitNote;
+}
+
+/// <summary>
+/// <c>billing.payment-recorded.v1</c>: the receipt issued with the payment is rendered on the roll template.
+/// The event names the payment; the receipt is found from it, because the receipt is what is rendered.
+/// </summary>
+public sealed class PaymentRecordedArtifactHandler(DocumentArtifactHandler artifacts, IPaymentStore payments) : IOutboxMessageHandler
+{
+    /// <inheritdoc />
+    public string EventType => PaymentRecorded.Type;
+
+    /// <inheritdoc />
+    public string HandlerName => "billing.document-artifact-on-payment-recorded";
+
+    /// <inheritdoc />
+    public string Schema => BillingDbContext.SchemaName;
+
+    /// <inheritdoc />
+    public async Task HandleAsync(OutboxDelivery delivery, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+
+        var recorded = OrderFacts.Read<RecordedPaymentFact>(delivery.Payload);
+        var receipt = await payments.FindReceiptForPaymentAsync(recorded.AggregateId, recorded.OrganisationId, cancellationToken)
+            ?? throw new InvalidOperationException($"No receipt for payment {recorded.AggregateId} to render.");
+
+        await artifacts.RequestAsync(DocumentKind.Receipt, receipt.Id, recorded.OrganisationId, cancellationToken);
+    }
+
+    private sealed record RecordedPaymentFact(Guid AggregateId, Guid OrganisationId);
 }

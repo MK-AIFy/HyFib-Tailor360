@@ -14,4 +14,7 @@ public static class BillingResourceKinds
 
     /// <summary>An order as Billing knows it, reached by the branch the order was confirmed at.</summary>
     public const string Order = "billing.order";
+
+    /// <summary>A receipt, reached by the branch that issued it.</summary>
+    public const string Receipt = "billing.receipt";
 }

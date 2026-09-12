@@ -135,6 +135,12 @@ public static class PayloadExamples
             }
             """,
 
+        ["PrintReceipt"] = """
+            {
+              "copies": 1
+            }
+            """,
+
         ["PostDebitNote"] = """
             {
               "lines": [

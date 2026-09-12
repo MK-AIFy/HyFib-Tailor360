@@ -5,6 +5,7 @@ using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Contracts.Pricing;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Invoicing;
+using Tailor360.Modules.Billing.Domain.Payments;
 using Tailor360.Modules.Identity.Contracts.Directory;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Identifiers;
@@ -17,12 +18,16 @@ namespace Tailor360.Modules.Billing.Application.Invoicing;
 /// <summary>
 /// The rendered documents (#155): requested when a document is posted, rendered and stored by the worker,
 /// streamed to an authorised caller with the access audited, printed through the print queue, and resolved
-/// from an <c>I-</c> barcode payload. Rendering happens outside any transaction — the store and the object
+/// from an <c>I-</c> or an <c>R-</c> barcode payload. The receipt (#169) rides the same pipeline: requested
+/// on the recording event, rendered on the roll template, frozen at issue. Rendering happens outside any transaction — the store and the object
 /// store are two systems — and the row records exactly what was stored: the key, the size and the SHA-256.
 /// </summary>
 public sealed partial class DocumentArtifactHandler(
     IDocumentArtifactStore artifacts,
     IInvoiceStore invoices,
+    IPaymentStore payments,
+    IOrderFactStore orders,
+    IPaymentModeStore modes,
     IPricingService pricing,
     IBranchDirectory branches,
     IPdfRenderer renderer,
@@ -46,6 +51,15 @@ public sealed partial class DocumentArtifactHandler(
     /// <summary>The print-queue kind of an invoice.</summary>
     public const string InvoicePrintKind = "billing.invoice";
 
+    /// <summary>A rendered receipt was downloaded.</summary>
+    public const string ReceiptDownloadedAction = "billing.receipt.downloaded";
+
+    /// <summary>A rendered receipt was sent to the print queue.</summary>
+    public const string ReceiptPrintedAction = "billing.receipt.printed";
+
+    /// <summary>The print-queue kind of a receipt: the 80 mm continuous roll (plan D15).</summary>
+    public const string ReceiptPrintKind = "billing.receipt";
+
     /// <summary>
     /// Requests a rendering for a posted document, once: the outbox may deliver the posting event more than
     /// once, and a second request for the same document is nothing.
@@ -57,9 +71,12 @@ public sealed partial class DocumentArtifactHandler(
             return;
         }
 
-        var (branchId, number) = kind == DocumentKind.Invoice
-            ? await InvoiceIdentityAsync(documentId, organisationId, cancellationToken)
-            : await NoteIdentityAsync(documentId, organisationId, cancellationToken);
+        var (branchId, number) = kind switch
+        {
+            DocumentKind.Invoice => await InvoiceIdentityAsync(documentId, organisationId, cancellationToken),
+            DocumentKind.Receipt => await ReceiptIdentityAsync(documentId, organisationId, cancellationToken),
+            _ => await NoteIdentityAsync(documentId, organisationId, cancellationToken),
+        };
         if (number is null)
         {
             // The document the event names is not here: the event is at least once and the row may be
@@ -235,6 +252,73 @@ public sealed partial class DocumentArtifactHandler(
         return invoice is { } found && found.BranchId == branchId ? found : null;
     }
 
+    /// <summary>Opens the rendered receipt for streaming and records the access against it.</summary>
+    public async Task<Result<StoredDocument>> OpenReceiptAsync(Guid receiptId, Guid organisationId, Guid? by, CancellationToken cancellationToken = default)
+    {
+        var receipt = await payments.FindReceiptAsync(receiptId, organisationId, cancellationToken);
+        if (receipt is null)
+        {
+            return Result.Failure<StoredDocument>(BillingErrors.ReceiptNotFound);
+        }
+
+        var opened = await OpenAsync(DocumentKind.Receipt, receiptId, organisationId, cancellationToken);
+        if (opened.IsFailure)
+        {
+            return opened;
+        }
+
+        await BillingAudit.RecordAsync(
+            audit, ReceiptDownloadedAction, BillingAudit.ReceiptEntity, receiptId,
+            $"Receipt {receipt.ReceiptNumber} downloaded ({opened.Value.SizeBytes} bytes, sha256 {opened.Value.Sha256}).",
+            null, null, new { opened.Value.Sha256, opened.Value.SizeBytes, Actor = by }, cancellationToken);
+
+        return opened;
+    }
+
+    /// <summary>Sends the rendered receipt to the branch's print queue, on the receipt roll, and records it.</summary>
+    public async Task<Result<Guid>> PrintReceiptAsync(Guid receiptId, Guid organisationId, int copies, Guid? by, CancellationToken cancellationToken = default)
+    {
+        if (copies is < 1 or > MaximumCopies)
+        {
+            return Result.Failure<Guid>(BillingErrors.CopiesOutOfRange);
+        }
+
+        var receipt = await payments.FindReceiptAsync(receiptId, organisationId, cancellationToken);
+        if (receipt is null)
+        {
+            return Result.Failure<Guid>(BillingErrors.ReceiptNotFound);
+        }
+
+        var artifact = await artifacts.FindAsync(DocumentKind.Receipt, receiptId, organisationId, cancellationToken);
+        if (artifact is null || !artifact.IsCompleted)
+        {
+            return Result.Failure<Guid>(BillingErrors.DocumentNotAvailable);
+        }
+
+        var jobId = await printQueue.EnqueueAsync(new PrintJobRequest(receipt.BranchId, ReceiptPrintKind, artifact.ObjectKey!, copies), cancellationToken);
+        await BillingAudit.RecordAsync(
+            audit, ReceiptPrintedAction, BillingAudit.ReceiptEntity, receiptId,
+            $"Receipt {receipt.ReceiptNumber} sent to the print queue as job {jobId}.",
+            null, null, new { PrintJobId = jobId, Copies = copies, Actor = by }, cancellationToken);
+
+        return Result.Success(jobId);
+    }
+
+    /// <summary>
+    /// The receipt an <c>R-</c> payload resolves to, for a caller working in the branch that issued it; any
+    /// other payload, another branch's receipt or nothing at all reads alike as nothing.
+    /// </summary>
+    public async Task<Receipt?> ResolveReceiptBarcodeAsync(string payload, Guid organisationId, Guid branchId, CancellationToken cancellationToken = default)
+    {
+        if (!Tailor360.Platform.Abstractions.Barcodes.BarcodePayload.TryParse(payload, Tailor360.Platform.Abstractions.Barcodes.BarcodePayload.ReceiptNamespace, out var parsed))
+        {
+            return null;
+        }
+
+        var receipt = await payments.FindReceiptByBarcodeAsync(parsed.Value, organisationId, cancellationToken);
+        return receipt is { } found && found.BranchId == branchId ? found : null;
+    }
+
     private async Task<Result<StoredDocument>> OpenAsync(DocumentKind kind, Guid documentId, Guid organisationId, CancellationToken cancellationToken)
     {
         var artifact = await artifacts.FindAsync(kind, documentId, organisationId, cancellationToken);
@@ -308,6 +392,11 @@ public sealed partial class DocumentArtifactHandler(
 
     private async Task<Result<(string Template, IReadOnlyDictionary<string, object?> Model)>> ModelAsync(DocumentArtifact artifact, CancellationToken cancellationToken)
     {
+        if (artifact.Kind == DocumentKind.Receipt)
+        {
+            return await ReceiptModelAsync(artifact, cancellationToken);
+        }
+
         Invoice? invoice;
         AdjustmentNote? note = null;
         if (artifact.Kind == DocumentKind.Invoice)
@@ -348,6 +437,34 @@ public sealed partial class DocumentArtifactHandler(
             DocumentKind.CreditNote => Result.Success(("billing.credit-note", DocumentModels.Note(invoice, note!, branchName))),
             _ => Result.Success(("billing.debit-note", DocumentModels.Note(invoice, note!, branchName))),
         };
+    }
+
+    /// <summary>
+    /// The receipt's model: the figures frozen on the receipt at issue — not the balance as it stands now —
+    /// with the invoice numbers its allocations name, the order's number, the mode's name and the branch.
+    /// </summary>
+    private async Task<Result<(string Template, IReadOnlyDictionary<string, object?> Model)>> ReceiptModelAsync(DocumentArtifact artifact, CancellationToken cancellationToken)
+    {
+        var receipt = await payments.FindReceiptAsync(artifact.DocumentId, artifact.OrganisationId, cancellationToken);
+        var payment = receipt is null ? null : await payments.FindAsync(receipt.PaymentId, artifact.OrganisationId, cancellationToken);
+        if (receipt is null || payment is null)
+        {
+            return Result.Failure<(string, IReadOnlyDictionary<string, object?>)>(BillingErrors.ReceiptNotFound);
+        }
+
+        var numbers = (await invoices.ListPostedForOrderAsync(payment.OrderId, artifact.OrganisationId, cancellationToken))
+            .ToDictionary(invoice => invoice.Id, invoice => invoice.InvoiceNumber ?? string.Empty);
+        var order = await orders.FindAsync(payment.OrderId, artifact.OrganisationId, cancellationToken);
+        var mode = (await modes.ListAsync(artifact.OrganisationId, cancellationToken)).FirstOrDefault(candidate => string.Equals(candidate.Code, payment.ModeCode, StringComparison.Ordinal));
+        var branch = await branches.FindAsync(receipt.BranchId, cancellationToken);
+
+        return Result.Success((ReceiptPrintKind, DocumentModels.Receipt(receipt, payment, numbers, order?.OrderNumber ?? string.Empty, mode?.Name ?? payment.ModeCode, branch?.Name ?? branch?.Code ?? string.Empty)));
+    }
+
+    private async Task<(Guid BranchId, string? Number)> ReceiptIdentityAsync(Guid receiptId, Guid organisationId, CancellationToken cancellationToken)
+    {
+        var receipt = await payments.FindReceiptAsync(receiptId, organisationId, cancellationToken);
+        return receipt is not null ? (receipt.BranchId, receipt.ReceiptNumber) : (Guid.Empty, null);
     }
 
     private async Task<(Guid BranchId, string? Number)> InvoiceIdentityAsync(Guid invoiceId, Guid organisationId, CancellationToken cancellationToken)

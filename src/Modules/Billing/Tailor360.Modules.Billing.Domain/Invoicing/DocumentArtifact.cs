@@ -13,6 +13,9 @@ public enum DocumentKind
 
     /// <summary>A debit note.</summary>
     DebitNote = 2,
+
+    /// <summary>A payment receipt.</summary>
+    Receipt = 3,
 }
 
 /// <summary>Where a rendering stands.</summary>

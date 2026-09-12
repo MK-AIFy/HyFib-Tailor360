@@ -1166,8 +1166,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Record a payment against an order in the caller's open cashier session and allocate it at once.
-         * @description Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409.
+         * Record a payment against an order in the caller's open cashier session, allocate it at once and issue its receipt.
+         * @description Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409. The receipt is numbered and issued in the same transaction; its document is rendered by the worker afterwards.
          */
         post: operations["RecordPayment"];
         delete?: never;
@@ -1453,6 +1453,66 @@ export interface paths {
          * @description The same engine an order is priced by, run against the version an administrator names so that the effect of a change is seen before it is published. Nothing is stored; an override beyond the version's threshold or a discount beyond its rule's counter maximum still needs billing.override_price.
          */
         post: operations["PreviewPricing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/receipts/barcode/{payload}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve an R- barcode payload to the receipt it was printed on.
+         * @description For a caller working in the branch that issued the receipt. Another branch's receipt, another organisation's, a payload whose check character does not hold, an I- payload and a payload of nothing all read alike as not found: the lookup confirms the existence of nothing it does not show. Its own route rather than a second answer shape on the invoice lookup, so that route's contract stays as published.
+         */
+        get: operations["ResolveReceiptBarcode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/receipts/{receiptId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream the rendered receipt.
+         * @description The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is re-authorised in branch scope on every call, and the access is written to the audit trail against the receipt. Not available until the worker has rendered the document.
+         */
+        get: operations["DownloadReceiptDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/receipts/{receiptId}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the rendered receipt to the branch's print queue, on the receipt roll.
+         * @description Through the print-queue port, one to five copies; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).
+         */
+        post: operations["PrintReceipt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4205,6 +4265,7 @@ export interface components {
             modeCode: string;
             /** Format: uuid */
             orderId: string;
+            receipt: null | components["schemas"]["ReceiptPayload"];
             /** Format: date-time */
             recordedAt: string;
             /** Format: uuid */
@@ -4455,6 +4516,10 @@ export interface components {
             /** Format: uuid */
             printJobId: string;
         };
+        PrintReceiptRequest: {
+            /** Format: int32 */
+            copies: null | number | string;
+        };
         /**
          * Problem details
          * @description RFC 9457 problem details. Every failure is reported in this shape, and never as a stack trace, an exception message or a bare status code.
@@ -4493,6 +4558,30 @@ export interface components {
         };
         ReasonPayload: {
             reason: null | string;
+        };
+        ReceiptPayload: {
+            /** Format: double */
+            allocated: number | string;
+            /** Format: double */
+            amount: number | string;
+            barcodePayload: string;
+            /** Format: uuid */
+            branchId: string;
+            currency: string;
+            financialYear: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date */
+            issuedOn: string;
+            /** Format: double */
+            orderOutstanding: number | string;
+            /** Format: uuid */
+            paymentId: string;
+            receiptNumber: string;
+            /** Format: double */
+            unappliedAdvance: number | string;
         };
         ReconfigureBranchPayload: {
             addressLine1: null | string;
@@ -9923,6 +10012,129 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             415: components["responses"]["UnsupportedMediaType"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ResolveReceiptBarcode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payload: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DownloadReceiptDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["Stream"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PrintReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "copies": 1
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["PrintReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintJobPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

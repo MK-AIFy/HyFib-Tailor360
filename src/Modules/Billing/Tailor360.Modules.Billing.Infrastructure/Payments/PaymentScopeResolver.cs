@@ -45,3 +45,22 @@ public sealed class OrderFactScopeResolver(BillingDbContext context) : IResource
         return branchId is { } branch ? ResourceScope.Unassigned(BillingResourceKinds.Order, resourceId, branch) : null;
     }
 }
+
+/// <summary>Answers which branch a receipt was issued at, for the routes that name one (ARCH-023).</summary>
+public sealed class ReceiptScopeResolver(BillingDbContext context) : IResourceScopeResolver
+{
+    /// <inheritdoc />
+    public string ResourceKind => BillingResourceKinds.Receipt;
+
+    /// <inheritdoc />
+    public async ValueTask<ResourceScope?> ResolveAsync(Guid resourceId, CancellationToken cancellationToken)
+    {
+        var branchId = await context.Receipts
+            .IgnoreAutoIncludes()
+            .Where(receipt => receipt.Id == resourceId)
+            .Select(receipt => (Guid?)receipt.BranchId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return branchId is { } branch ? ResourceScope.Unassigned(BillingResourceKinds.Receipt, resourceId, branch) : null;
+    }
+}

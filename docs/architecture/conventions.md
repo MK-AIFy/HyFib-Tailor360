@@ -153,7 +153,7 @@ financial-year — sequences through Platform's `ISequenceAllocator` under a row
 | Order | `O-<branch>-<FY>-000001` | Branch + financial year | Confirmation |
 | Garment job | `J-<branch>-<FY>-000001-01` | The order number plus a two-digit job index | Confirmation |
 | Invoice | `INV-<branch>-<FY>-000001` — **interim, confirmed by issue #42 with the accountant** | Branch + financial year | Posting |
-| Receipt | `R-<branch>-<FY>-000001` | Branch + financial year | Payment |
+| Receipt | `RCPT-<branch>-<FY>-000001` — `R-` is the barcode namespace (section 3.3), not the number | Branch + financial year | Payment, inside the payment's own transaction, gapless as the invoice is |
 
 Rules:
 

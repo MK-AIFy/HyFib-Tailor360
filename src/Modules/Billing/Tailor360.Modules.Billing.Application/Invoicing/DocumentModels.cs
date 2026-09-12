@@ -1,5 +1,6 @@
 using System.Globalization;
 using Tailor360.Modules.Billing.Domain.Invoicing;
+using Tailor360.Modules.Billing.Domain.Payments;
 
 namespace Tailor360.Modules.Billing.Application.Invoicing;
 
@@ -88,6 +89,55 @@ public static class DocumentModels
         model["totals"] = Totals(note.Totals);
 
         return model;
+    }
+
+    /// <summary>
+    /// The model of a receipt (#169): what the customer was handed, frozen at issue — the amount, where it
+    /// went by invoice number, what is held, what the order still owed — never the balance as it stands at
+    /// rendering. No customer detail: the receipt names the order, and the order names the customer.
+    /// </summary>
+    /// <param name="receipt">The receipt.</param>
+    /// <param name="payment">The payment it acknowledges, with its allocations.</param>
+    /// <param name="invoiceNumbers">The display numbers of the order's posted invoices, by identifier.</param>
+    /// <param name="orderNumber">The order's display number.</param>
+    /// <param name="modeName">The payment mode's name on the button.</param>
+    /// <param name="branchName">The issuing branch's display name.</param>
+    public static IReadOnlyDictionary<string, object?> Receipt(
+        Receipt receipt, Payment payment, IReadOnlyDictionary<Guid, string> invoiceNumbers, string orderNumber, string modeName, string branchName)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+        ArgumentNullException.ThrowIfNull(payment);
+        ArgumentNullException.ThrowIfNull(invoiceNumbers);
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["kind"] = DocumentKind.Receipt.ToString(),
+            ["number"] = receipt.ReceiptNumber,
+            ["issuedOn"] = receipt.IssuedOn.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture),
+            ["financialYear"] = receipt.FinancialYear,
+            ["renderedAt"] = receipt.IssuedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            ["currency"] = receipt.Amount.Currency,
+            ["barcodePayload"] = receipt.BarcodePayload,
+            ["branchName"] = branchName,
+            ["orderNumber"] = orderNumber,
+            ["modeCode"] = payment.ModeCode,
+            ["modeName"] = modeName,
+            ["reference"] = payment.Reference,
+            ["amount"] = receipt.Amount.Amount,
+            ["allocated"] = receipt.Allocated.Amount,
+            ["unappliedAdvance"] = receipt.UnappliedAdvance.Amount,
+            ["orderOutstanding"] = receipt.OrderOutstanding.Amount,
+            // The allocations made at recording, in the order they were made; a later application of the
+            // advance is on the next receipt's balance, not on this one.
+            ["allocations"] = payment.Allocations
+                .Where(allocation => allocation.Kind == AllocationKind.Automatic)
+                .Select(allocation => (object?)new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["invoiceNumber"] = invoiceNumbers.GetValueOrDefault(allocation.InvoiceId, string.Empty),
+                    ["amount"] = allocation.Amount.Amount,
+                })
+                .ToList(),
+        };
     }
 
     private static Dictionary<string, object?> Common(Invoice invoice, string branchName, string number, DateOnly? issuedOn, DateTimeOffset renderedAt)

@@ -6,6 +6,7 @@ using Tailor360.Modules.Billing.Domain.Payments;
 using Tailor360.Modules.Billing.Domain.Pricing;
 using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Domain.Tax;
+using Tailor360.Platform.Abstractions.Barcodes;
 using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Persistence.Conventions;
 
@@ -93,6 +94,18 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
 
     /// <summary>The advances held against orders.</summary>
     public DbSet<Advance> Advances => Set<Advance>();
+
+    /// <summary>One receipt per number within the organisation.</summary>
+    public const string OneReceiptPerNumberIndex = "ux_receipts_organisation_receipt_number";
+
+    /// <summary>One receipt per barcode payload within the organisation.</summary>
+    public const string OneReceiptPerBarcodeIndex = "ux_receipts_organisation_barcode_payload";
+
+    /// <summary>One receipt per payment.</summary>
+    public const string OneReceiptPerPaymentIndex = "ux_receipts_payment";
+
+    /// <summary>The receipts.</summary>
+    public DbSet<Receipt> Receipts => Set<Receipt>();
 
     /// <summary>
     /// A garment job is charged on at most one live invoice. Judged over `invoice_status` on the line rows,
@@ -596,6 +609,27 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
             entity.HasKey(advance => advance.Id);
             ConfigureMoney(entity.ComplexProperty(advance => advance.Amount), "amount");
             entity.HasIndex(advance => advance.PaymentId).IsUnique().HasDatabaseName("ux_advances_payment");
+        });
+
+        modelBuilder.Entity<Receipt>(entity =>
+        {
+            entity.ToTable("receipts", table =>
+                table.HasCheckConstraint("ck_receipts_amount_is_whole", "amount_amount = allocated_amount + unapplied_advance_amount"));
+            entity.HasKey(receipt => receipt.Id);
+            entity.Property(receipt => receipt.ReceiptNumber).HasMaxLength(DocumentNumbers.MaximumLength).IsRequired();
+            entity.Property(receipt => receipt.BarcodePayload).HasMaxLength(BarcodePayload.Length).IsRequired();
+            entity.Property(receipt => receipt.FinancialYear).HasMaxLength(4).IsRequired();
+            ConfigureMoney(entity.ComplexProperty(receipt => receipt.Amount), "amount");
+            ConfigureMoney(entity.ComplexProperty(receipt => receipt.Allocated), "allocated");
+            ConfigureMoney(entity.ComplexProperty(receipt => receipt.UnappliedAdvance), "unapplied_advance");
+            ConfigureMoney(entity.ComplexProperty(receipt => receipt.OrderOutstanding), "order_outstanding");
+
+            // Append-only by trigger, issued with its payment (INV-PAY-01): no updated pair, no row version.
+            entity.HasOne<Payment>().WithOne().HasForeignKey<Receipt>(receipt => receipt.PaymentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(receipt => receipt.PaymentId).IsUnique().HasDatabaseName(OneReceiptPerPaymentIndex);
+            entity.HasIndex(receipt => new { receipt.OrganisationId, receipt.ReceiptNumber }).IsUnique().HasDatabaseName(OneReceiptPerNumberIndex);
+            entity.HasIndex(receipt => new { receipt.OrganisationId, receipt.BarcodePayload }).IsUnique().HasDatabaseName(OneReceiptPerBarcodeIndex);
+            entity.HasIndex(receipt => new { receipt.OrganisationId, receipt.BranchId, receipt.IssuedAt }).HasDatabaseName("ix_receipts_organisation_branch_issued_at");
         });
     }
 

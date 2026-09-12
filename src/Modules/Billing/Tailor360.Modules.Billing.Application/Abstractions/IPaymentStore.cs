@@ -22,6 +22,25 @@ public interface IPaymentStore
     /// <summary>Tracks a new payment.</summary>
     void Add(Payment payment);
 
+    /// <summary>Tracks a new receipt, issued with its payment and committed with it.</summary>
+    void AddReceipt(Receipt receipt);
+
+    /// <summary>One receipt, or null when it is not the organisation's.</summary>
+    Task<Receipt?> FindReceiptAsync(Guid receiptId, Guid organisationId, CancellationToken cancellationToken = default);
+
+    /// <summary>The receipt of a payment, or null when the payment has none or is not the organisation's.</summary>
+    Task<Receipt?> FindReceiptForPaymentAsync(Guid paymentId, Guid organisationId, CancellationToken cancellationToken = default);
+
+    /// <summary>The receipt an <c>R-</c> payload was printed on, or null.</summary>
+    Task<Receipt?> FindReceiptByBarcodeAsync(string barcodePayload, Guid organisationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Draws the next receipt number inside the current transaction, holding the sequence's row until the
+    /// transaction ends, so two receipts of one branch are numbered one after the other and a payment that
+    /// rolls back returns its number (gapless, as the invoice is). Outside a transaction it throws.
+    /// </summary>
+    Task<long> AllocateAsync(string sequenceKey, string scope, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Holds every invoice row of the order against change for the rest of the current transaction, so
     /// two payments against one order, or a payment racing the rule that applies an advance, serialise
@@ -60,7 +79,8 @@ public interface IPaymentStore
     /// <summary>
     /// Commits. A reference recorded before in the same mode comes back as
     /// <c>billing.payment-reference-duplicated</c>; the cashier's own client key recorded before as
-    /// <c>billing.payment-duplicated</c>.
+    /// <c>billing.payment-duplicated</c>; a receipt number or payload already taken as
+    /// <c>billing.receipt-number-taken</c>, which no caller should see because the sequence row is held.
     /// </summary>
     Task<Result> SaveAsync(CancellationToken cancellationToken = default);
 }

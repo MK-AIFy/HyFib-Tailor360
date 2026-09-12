@@ -24,13 +24,16 @@ public sealed class QuestPdfRenderer : IPdfRenderer
     /// <summary>The debit-note template.</summary>
     public const string DebitNoteTemplate = "billing.debit-note";
 
+    /// <summary>The receipt template: 80 mm continuous, for the counter's roll printer (plan D15, #35).</summary>
+    public const string ReceiptTemplate = "billing.receipt";
+
     /// <inheritdoc />
     public Task<Result> RenderAsync(string templateKey, IReadOnlyDictionary<string, object?> model, Stream destination, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(destination);
 
-        if (templateKey is not (InvoiceTemplate or CreditNoteTemplate or DebitNoteTemplate))
+        if (templateKey is not (InvoiceTemplate or CreditNoteTemplate or DebitNoteTemplate or ReceiptTemplate))
         {
             return Task.FromResult(Result.Failure(Error.Validation("integration.template-not-known", "No template of that name is rendered here.", "templateKey")));
         }
@@ -43,6 +46,16 @@ public sealed class QuestPdfRenderer : IPdfRenderer
 
         var document = Document.Create(container => container.Page(page =>
         {
+            if (templateKey == ReceiptTemplate)
+            {
+                // The roll: 80 mm wide, as long as the receipt needs, no header or footer band.
+                page.ContinuousSize(ReceiptTemplateLayout.WidthMillimetres, Unit.Millimetre);
+                page.Margin(4, Unit.Millimetre);
+                page.DefaultTextStyle(style => style.FontSize(8.5f).FontFamily(DocumentFonts.Family, DocumentFonts.TamilFamily).FontColor(Colors.Black));
+                page.Content().Element(content => ReceiptTemplateLayout.Body(content, values));
+                return;
+            }
+
             page.Size(PageSizes.A4);
             page.Margin(14, Unit.Millimetre);
             page.DefaultTextStyle(style => style.FontSize(9.5f).FontFamily(DocumentFonts.Family, DocumentFonts.TamilFamily).FontColor(Colors.Black));
@@ -54,7 +67,7 @@ public sealed class QuestPdfRenderer : IPdfRenderer
         {
             Title = $"{BillingDocumentTemplate.TitleOf(templateKey)} {values.Text("number")}",
             Subject = BillingDocumentTemplate.TitleOf(templateKey),
-            Author = values.Section("supplier").Text("legalName"),
+            Author = templateKey == ReceiptTemplate ? values.Text("branchName") : values.Section("supplier").Text("legalName"),
             Creator = "HyFib Tailor 360",
             Producer = "HyFib Tailor 360",
             Language = "en-IN",

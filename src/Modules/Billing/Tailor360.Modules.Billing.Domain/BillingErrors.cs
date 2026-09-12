@@ -705,4 +705,14 @@ public static class BillingErrors
         "billing.allocation-invoice-not-of-order",
         "An advance is applied to a posted invoice of the order it was taken against.",
         field);
+
+    /// <summary>The receipt named is not one of the organisation's.</summary>
+    public static readonly Error ReceiptNotFound = Error.NotFound(
+        "billing.receipt-not-found",
+        "No receipt with that identifier belongs to this organisation.");
+
+    /// <summary>A receipt number or payload was written twice: the sequence row was not held, which is a defect.</summary>
+    public static readonly Error ReceiptNumberTaken = Error.Conflict(
+        "billing.receipt-number-taken",
+        "That receipt number has been issued already.");
 }
