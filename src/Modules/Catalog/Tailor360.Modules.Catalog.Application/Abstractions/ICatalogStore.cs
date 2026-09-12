@@ -130,10 +130,18 @@ public sealed record CatalogCodeLedger(
     IReadOnlyDictionary<Guid, string> CategoryCodeByKey,
     IReadOnlyDictionary<string, Guid> CategoryKeyByCode,
     IReadOnlyDictionary<Guid, string> ServiceCodeByKey,
-    IReadOnlyDictionary<string, Guid> ServiceKeyByCode)
+    IReadOnlyDictionary<string, Guid> ServiceKeyByCode,
+    IReadOnlyDictionary<Guid, string> DesignGroupCodeByKey,
+    IReadOnlyDictionary<string, Guid> DesignGroupKeyByCode,
+    IReadOnlyDictionary<Guid, string> DesignOptionCodeByKey,
+    IReadOnlyDictionary<string, Guid> DesignOptionKeyByCode)
 {
     /// <summary>A ledger holding nothing, for an organisation that has published no version yet.</summary>
     public static CatalogCodeLedger Empty { get; } = new(
+        new Dictionary<Guid, string>(),
+        new Dictionary<string, Guid>(StringComparer.Ordinal),
+        new Dictionary<Guid, string>(),
+        new Dictionary<string, Guid>(StringComparer.Ordinal),
         new Dictionary<Guid, string>(),
         new Dictionary<string, Guid>(StringComparer.Ordinal),
         new Dictionary<Guid, string>(),

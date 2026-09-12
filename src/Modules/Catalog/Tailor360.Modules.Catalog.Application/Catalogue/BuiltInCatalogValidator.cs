@@ -42,6 +42,11 @@ public sealed class BuiltInCatalogValidator : ICatalogDependencyValidator
         CheckBranchAvailability(candidate, findings);
         CheckLinks(candidate, findings);
         CheckGroupingNodes(candidate, findings);
+        CheckDesignCodes(candidate, findings);
+        CheckDesignBranches(candidate, findings);
+        CheckDesignLinks(candidate, findings);
+        CheckDesignWords(candidate, findings);
+        CheckDesignRuleGroups(candidate, findings);
 
         return ValueTask.FromResult<IReadOnlyList<CatalogFinding>>(findings);
     }
@@ -403,6 +408,244 @@ public sealed class BuiltInCatalogValidator : ICatalogDependencyValidator
 
         return missing;
     }
+
+    /// <summary>
+    /// Section 2 of the design options document: a group code is unique within its category, an
+    /// option code within its group, and neither changes once the version that carries it is
+    /// published — the codes are what rules, snapshots and exports refer to.
+    /// </summary>
+    private static void CheckDesignCodes(
+        CatalogPublicationCandidate candidate,
+        List<CatalogFinding> findings)
+    {
+        var categoryCodes = candidate.Categories.ToDictionary(
+            category => category.Id, category => category.Code);
+
+        foreach (var byCategory in candidate.DesignGroups.GroupBy(group => group.CategoryId))
+        {
+            if (!categoryCodes.TryGetValue(byCategory.Key, out var categoryCode))
+            {
+                foreach (var orphan in byCategory)
+                {
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.orphaned-design-group",
+                        $"The design group '{orphan.Code}' names a category that is not in this version.",
+                        $"designGroups[{orphan.Code}].categoryId"));
+                }
+
+                continue;
+            }
+
+            foreach (var duplicate in byCategory
+                         .GroupBy(group => group.Code, StringComparer.Ordinal)
+                         .Where(codes => codes.Count() > 1))
+            {
+                findings.Add(CatalogFinding.Error(
+                    "catalog.duplicate-design-group-code",
+                    $"{duplicate.Count()} design groups of '{categoryCode}' share the code "
+                    + $"'{duplicate.Key}'. A group code is unique within its category.",
+                    GroupTarget(categoryCode, duplicate.Key, "code")));
+            }
+
+            foreach (var group in byCategory)
+            {
+                CheckAgainstHistory(
+                    candidate.DesignGroupCodeHistory,
+                    group.Key,
+                    Qualified(categoryCode, group.Code),
+                    GroupTarget(categoryCode, group.Code, "code"),
+                    "design group",
+                    findings);
+
+                foreach (var duplicate in group.Options
+                             .GroupBy(option => option.Code, StringComparer.Ordinal)
+                             .Where(codes => codes.Count() > 1))
+                {
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.duplicate-design-option-code",
+                        $"{duplicate.Count()} options of '{Qualified(categoryCode, group.Code)}' share "
+                        + $"the code '{duplicate.Key}'. An option code is unique within its group.",
+                        OptionTarget(categoryCode, group.Code, duplicate.Key, "code")));
+                }
+
+                foreach (var option in group.Options)
+                {
+                    CheckAgainstHistory(
+                        candidate.DesignOptionCodeHistory,
+                        option.Key,
+                        $"{Qualified(categoryCode, group.Code)}.{option.Code}",
+                        OptionTarget(categoryCode, group.Code, option.Code, "code"),
+                        "design option",
+                        findings);
+                }
+            }
+        }
+    }
+
+    /// <summary>Section 3: a group's availability is a subset of its category's.</summary>
+    private static void CheckDesignBranches(
+        CatalogPublicationCandidate candidate,
+        List<CatalogFinding> findings)
+    {
+        var byId = candidate.Categories.ToDictionary(category => category.Id);
+
+        foreach (var group in candidate.DesignGroups)
+        {
+            if (!byId.TryGetValue(group.CategoryId, out var category))
+            {
+                continue;
+            }
+
+            if (group.BranchIds.Except(category.BranchIds).ToArray() is { Length: > 0 } extra)
+            {
+                findings.Add(CatalogFinding.Error(
+                    "catalog.design-group-branches-not-subset-of-category",
+                    $"'{Qualified(category.Code, group.Code)}' is offered at {extra.Length} branch(es) "
+                    + "where its category is not.",
+                    GroupTarget(category.Code, group.Code, "branchIds")));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Link 3: a service type names groups of its own category in this version, and nothing else.
+    /// </summary>
+    private static void CheckDesignLinks(
+        CatalogPublicationCandidate candidate,
+        List<CatalogFinding> findings)
+    {
+        var categoryCodes = candidate.Categories.ToDictionary(
+            category => category.Id, category => category.Code);
+        var groups = candidate.DesignGroups.ToDictionary(group => group.Id);
+
+        foreach (var service in candidate.ServiceTypes)
+        {
+            if (!categoryCodes.TryGetValue(service.CategoryId, out var categoryCode))
+            {
+                continue;
+            }
+
+            foreach (var groupId in service.DesignOptionGroupIds)
+            {
+                if (!groups.TryGetValue(groupId, out var group))
+                {
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.design-group-not-in-version",
+                        $"'{Qualified(categoryCode, service.Code)}' offers a design group that is not "
+                        + "in this version. A service type's groups are rows of the same version, so "
+                        + "that what is published is one coherent snapshot.",
+                        ServiceTarget(categoryCode, service.Code, "designOptionGroupIds")));
+                }
+                else if (group.CategoryId != service.CategoryId)
+                {
+                    var owner = categoryCodes.GetValueOrDefault(group.CategoryId, "?");
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.design-group-of-another-category",
+                        $"'{Qualified(categoryCode, service.Code)}' offers '{Qualified(owner, group.Code)}', "
+                        + "a design group of another category. A gown does not offer a blouse's "
+                        + "sleeve lengths; each category holds its own groups (section 2).",
+                        ServiceTarget(categoryCode, service.Code, "designOptionGroupIds")));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Section 6: every option describes its shape in words, and explains itself; a missing drawing
+    /// is a warning, because the picker falls back to label plus alt text.
+    /// </summary>
+    private static void CheckDesignWords(
+        CatalogPublicationCandidate candidate,
+        List<CatalogFinding> findings)
+    {
+        var categoryCodes = candidate.Categories.ToDictionary(
+            category => category.Id, category => category.Code);
+
+        foreach (var group in candidate.DesignGroups)
+        {
+            var categoryCode = categoryCodes.GetValueOrDefault(group.CategoryId, "?");
+
+            foreach (var option in group.Options)
+            {
+                if (!option.HasIllustrationAlt)
+                {
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.design-option-missing-alt-text",
+                        $"'{Qualified(categoryCode, group.Code)}.{option.Code}' has no alternative text. "
+                        + "The shape in words is what makes the picker usable with a screen reader and "
+                        + "the job card usable in monochrome.",
+                        OptionTarget(categoryCode, group.Code, option.Code, "illustrationAlt")));
+                }
+
+                if (!option.HasHelpText)
+                {
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.design-option-missing-help-text",
+                        $"'{Qualified(categoryCode, group.Code)}.{option.Code}' has no help text saying "
+                        + "what the choice means for the finished garment.",
+                        OptionTarget(categoryCode, group.Code, option.Code, "helpText")));
+                }
+
+                if (!option.HasIllustration)
+                {
+                    findings.Add(CatalogFinding.Warning(
+                        "catalog.design-option-no-illustration",
+                        $"'{Qualified(categoryCode, group.Code)}.{option.Code}' has no illustration; the "
+                        + "picker will show its label and alternative text instead.",
+                        OptionTarget(categoryCode, group.Code, option.Code, "illustrationKey")));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Section 4 rule 1: a rule reads groups of its own category. Whether the options it names exist,
+    /// and whether the rules agree with one another, is the design validator's (#138); this is only
+    /// the structural half one projection can answer.
+    /// </summary>
+    private static void CheckDesignRuleGroups(
+        CatalogPublicationCandidate candidate,
+        List<CatalogFinding> findings)
+    {
+        var categoryCodes = candidate.Categories.ToDictionary(
+            category => category.Id, category => category.Code);
+        var groupCodes = candidate.DesignGroups
+            .GroupBy(group => group.CategoryId)
+            .ToDictionary(
+                byCategory => byCategory.Key,
+                byCategory => byCategory.Select(group => group.Code).ToHashSet(StringComparer.Ordinal));
+
+        foreach (var rule in candidate.DesignRules)
+        {
+            if (!categoryCodes.TryGetValue(rule.CategoryId, out var categoryCode))
+            {
+                findings.Add(CatalogFinding.Error(
+                    "catalog.orphaned-design-rule",
+                    $"{rule.Identifier} names a category that is not in this version.",
+                    $"designRules[{rule.Identifier}].categoryId"));
+                continue;
+            }
+
+            var known = groupCodes.GetValueOrDefault(rule.CategoryId) ?? [];
+            foreach (var (side, operand) in new[] { ("antecedent", rule.Antecedent), ("consequent", rule.Consequent) })
+            {
+                if (operand?.GroupCode is { } groupCode && !known.Contains(groupCode))
+                {
+                    findings.Add(CatalogFinding.Error(
+                        "catalog.design-rule-unknown-group",
+                        $"{rule.Identifier} reads '{groupCode}', which is not a design group of "
+                        + $"'{categoryCode}' in this version.",
+                        $"designRules[{rule.Identifier}].{side}.groupCode"));
+                }
+            }
+        }
+    }
+
+    private static string GroupTarget(string categoryCode, string groupCode, string field)
+        => $"designGroups[{Qualified(categoryCode, groupCode)}].{field}";
+
+    private static string OptionTarget(string categoryCode, string groupCode, string optionCode, string field)
+        => $"designGroups[{Qualified(categoryCode, groupCode)}].options[{optionCode}].{field}";
 
     private static string Qualified(string categoryCode, string serviceCode)
         => $"{categoryCode}.{serviceCode}";

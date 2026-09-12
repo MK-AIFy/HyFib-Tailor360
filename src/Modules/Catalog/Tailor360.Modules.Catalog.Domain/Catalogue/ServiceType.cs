@@ -180,6 +180,24 @@ public sealed class ServiceType
         }
     }
 
+    /// <summary>Drops a design group from the link, when the group is removed from the draft.</summary>
+    /// <param name="designOptionGroupId">The group.</param>
+    internal void ForgetDesignGroup(Guid designOptionGroupId)
+    {
+        var kept = _designGroups
+            .Where(group => group.DesignOptionGroupId != designOptionGroupId)
+            .OrderBy(group => group.DisplayOrder)
+            .Select(group => group.DesignOptionGroupId)
+            .ToList();
+
+        _designGroups.Clear();
+        var order = 0;
+        foreach (var groupId in kept)
+        {
+            _designGroups.Add(ServiceTypeDesignGroup.For(Id, groupId, order++));
+        }
+    }
+
     /// <summary>Corrects the presentation fields of a published service type.</summary>
     /// <param name="presentation">The validated correction.</param>
     internal void ApplyPresentation(CatalogPresentation presentation)
@@ -195,7 +213,11 @@ public sealed class ServiceType
     /// <param name="catalogVersionId">The version being built.</param>
     /// <param name="categoryId">The copy of this service's category in the new version.</param>
     /// <returns>The copy, carrying the same <see cref="Key"/>.</returns>
-    internal ServiceType CopyInto(Guid id, Guid catalogVersionId, Guid categoryId)
+    internal ServiceType CopyInto(
+        Guid id,
+        Guid catalogVersionId,
+        Guid categoryId,
+        IReadOnlyDictionary<Guid, Guid> copiedDesignGroups)
         => new(
             id,
             Key,
@@ -212,7 +234,10 @@ public sealed class ServiceType
                 IntakeWarning,
                 MeasurementTemplateId,
                 WorkflowDefinitionId,
-                [.. DesignOptionGroupIds],
+                // A group the version being cloned does not hold keeps its identifier, so that the
+                // publish check names the dangling link rather than the copy losing it silently.
+                [.. DesignOptionGroupIds.Select(
+                    groupId => copiedDesignGroups.TryGetValue(groupId, out var copy) ? copy : groupId)],
                 PriceListItemCode,
                 QcChecklistTemplateId,
                 AllowIncomplete,

@@ -99,6 +99,74 @@ export interface CatalogVersion {
   readonly version: CatalogVersionSummary
   readonly categories: readonly CatalogCategory[]
   readonly serviceTypes: readonly CatalogServiceType[]
+  /** The design option groups of every category, in category then display order (#30). */
+  readonly designGroups: readonly CatalogDesignGroup[]
+  /** The design rules of every category, by number. */
+  readonly designRules: readonly CatalogDesignRule[]
+}
+
+/** One design option group — a neckline, a sleeve length — as one version holds it (#30). */
+export interface CatalogDesignGroup {
+  readonly designOptionGroupId: string
+  readonly categoryId: string
+  /** `lower_snake_case`, unique within the category, fixed once published. */
+  readonly code: string
+  readonly name: string
+  readonly nameTamil: string | null
+  /** `SingleChoice` or `MultipleChoice`. */
+  readonly selectionMode: string
+  readonly required: boolean
+  readonly displayOrder: number
+  readonly activeFrom: string | null
+  readonly activeTo: string | null
+  readonly branchIds: readonly string[]
+  readonly options: readonly CatalogDesignOption[]
+}
+
+/** One choice within a design option group. */
+export interface CatalogDesignOption {
+  readonly designOptionId: string
+  readonly designOptionGroupId: string
+  /** `UPPER_SNAKE_CASE`, unique within the group; `NONE` is reserved and selectable. */
+  readonly code: string
+  readonly name: string
+  readonly nameTamil: string | null
+  readonly helpText: string
+  /** `sheet_key#group_code.OPTION_CODE`, or null until a drawing exists. */
+  readonly illustrationKey: string | null
+  readonly illustrationAlt: string
+  readonly priceListItemCode: string | null
+  readonly timeImpactDays: number
+  readonly displayOrder: number
+  /** False is retirement: the option is still known, no longer offered. */
+  readonly active: boolean
+}
+
+/** One side of a rule, in the operand grammar of the design options document. */
+export interface CatalogDesignOperand {
+  readonly groupCode: string | null
+  /** `Equals`, `NotEquals`, `In`, `Includes`, `Excludes`, `AnySelection` or `Always`. */
+  readonly form: string
+  readonly optionCodes: readonly string[]
+}
+
+/** One rule between the options of a category. */
+export interface CatalogDesignRule {
+  readonly designRuleId: string
+  readonly categoryId: string
+  readonly number: number
+  /** `DR-nn`, unique across the catalogue and never re-used. */
+  readonly identifier: string
+  /** `Requires`, `Excludes`, `RequiresAttachment` or `Note`. */
+  readonly type: string
+  readonly antecedent: CatalogDesignOperand
+  readonly consequent: CatalogDesignOperand | null
+  readonly note: string | null
+  readonly why: string | null
+  /** The rule as the document writes it. */
+  readonly statement: string
+  /** Whether a violation stops a confirmation. A note never does. */
+  readonly blocks: boolean
 }
 
 /** One thing publication validation noticed. */

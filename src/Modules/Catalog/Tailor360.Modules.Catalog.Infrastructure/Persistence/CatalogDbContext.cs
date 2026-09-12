@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Modules.Catalog.Domain.Catalogue;
+using Tailor360.Modules.Catalog.Domain.Design;
 using Tailor360.Platform.Persistence.Conventions;
 
 namespace Tailor360.Modules.Catalog.Infrastructure.Persistence;
@@ -88,6 +89,15 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     /// </remarks>
     public DbSet<CatalogReferenceBreach> ReferenceBreaches => Set<CatalogReferenceBreach>();
 
+    /// <summary>The design option groups of every version (#30).</summary>
+    public DbSet<DesignOptionGroup> DesignGroups => Set<DesignOptionGroup>();
+
+    /// <summary>The design options of every version.</summary>
+    public DbSet<DesignOption> DesignOptions => Set<DesignOption>();
+
+    /// <summary>The design rules of every version.</summary>
+    public DbSet<DesignRule> DesignRules => Set<DesignRule>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +107,9 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
         ConfigureVersions(modelBuilder);
         ConfigureCategories(modelBuilder);
         ConfigureServiceTypes(modelBuilder);
+        ConfigureDesignGroups(modelBuilder);
+        ConfigureDesignOptions(modelBuilder);
+        ConfigureDesignRules(modelBuilder);
         ConfigureReferenceBreaches(modelBuilder);
     }
 
@@ -159,8 +172,18 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
                 .HasForeignKey(service => service.CatalogVersionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasMany(version => version.DesignGroups)
+                .WithOne()
+                .HasForeignKey(group => group.CatalogVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(version => version.DesignRules)
+                .WithOne()
+                .HasForeignKey(rule => rule.CatalogVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity.Navigation(version => version.Categories).AutoInclude();
             entity.Navigation(version => version.ServiceTypes).AutoInclude();
+            entity.Navigation(version => version.DesignGroups).AutoInclude();
+            entity.Navigation(version => version.DesignRules).AutoInclude();
 
             UseRowVersion(entity);
         });
@@ -258,6 +281,146 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     /// unique index below, so an optimistic token would guard against a second writer that cannot exist.
     /// </para>
     /// </remarks>
+    private static void ConfigureDesignGroups(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DesignOptionGroup>(entity =>
+        {
+            entity.ToTable("design_option_groups", table =>
+            {
+                // Lower snake case, beginning with a letter (docs/prd/design-options.md section 2).
+                table.HasCheckConstraint(
+                    "ck_design_option_groups_code_is_well_formed", "code ~ '^[a-z][a-z0-9_]*$'");
+                table.HasCheckConstraint(
+                    "ck_design_option_groups_display_order_is_not_negative", "display_order >= 0");
+                table.HasCheckConstraint(
+                    "ck_design_option_groups_active_dates_are_ordered",
+                    "active_from IS NULL OR active_to IS NULL OR active_to >= active_from");
+            });
+
+            entity.HasKey(group => group.Id);
+            entity.Property(group => group.Key).HasColumnName("design_option_group_key");
+            entity.Property(group => group.Code)
+                .HasMaxLength(DesignCode.MaximumLength).IsRequired();
+            entity.Property(group => group.Name)
+                .HasMaxLength(CategoryDetails.MaximumNameLength).IsRequired();
+            entity.Property(group => group.NameTamil)
+                .HasMaxLength(CategoryDetails.MaximumNameLength);
+            entity.Property(group => group.SelectionMode).HasConversion<int>();
+            entity.Ignore(group => group.BranchIds);
+            entity.Ignore(group => group.Details);
+
+            entity.HasIndex(group => new { group.CategoryId, group.Code })
+                .IsUnique()
+                .HasDatabaseName("ux_design_option_groups_category_code");
+            entity.HasIndex(group => new { group.CatalogVersionId, group.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_design_option_groups_version_key");
+
+            entity.HasOne<Category>()
+                .WithMany()
+                .HasForeignKey(group => group.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.OwnsMany(group => group.Branches, branches =>
+            {
+                branches.ToTable("design_option_group_branches");
+                branches.WithOwner().HasForeignKey(branch => branch.DesignOptionGroupId);
+                branches.HasKey(branch => new { branch.DesignOptionGroupId, branch.BranchId });
+            });
+            entity.HasMany(group => group.Options)
+                .WithOne()
+                .HasForeignKey(option => option.DesignOptionGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Navigation(group => group.Branches).AutoInclude();
+            entity.Navigation(group => group.Options).AutoInclude();
+        });
+
+    private static void ConfigureDesignOptions(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DesignOption>(entity =>
+        {
+            entity.ToTable("design_options", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_design_options_code_is_well_formed", "code ~ '^[A-Z][A-Z0-9_]*$'");
+                table.HasCheckConstraint(
+                    "ck_design_options_display_order_is_not_negative", "display_order >= 0");
+                table.HasCheckConstraint(
+                    "ck_design_options_time_impact_is_in_range",
+                    $"time_impact_days BETWEEN -{DesignOptionDetails.MaximumTimeImpactDays} "
+                    + $"AND {DesignOptionDetails.MaximumTimeImpactDays}");
+            });
+
+            entity.HasKey(option => option.Id);
+            entity.Property(option => option.Key).HasColumnName("design_option_key");
+            entity.Property(option => option.Code)
+                .HasMaxLength(DesignCode.MaximumLength).IsRequired();
+            entity.Property(option => option.Name)
+                .HasMaxLength(CategoryDetails.MaximumNameLength).IsRequired();
+            entity.Property(option => option.NameTamil)
+                .HasMaxLength(CategoryDetails.MaximumNameLength);
+            entity.Property(option => option.HelpText)
+                .HasMaxLength(DesignOptionDetails.MaximumTextLength).IsRequired();
+            entity.Property(option => option.IllustrationKey)
+                .HasMaxLength(DesignCode.MaximumIllustrationKeyLength);
+            entity.Property(option => option.IllustrationAlt)
+                .HasMaxLength(DesignOptionDetails.MaximumTextLength).IsRequired();
+            entity.Property(option => option.PriceListItemCode)
+                .HasMaxLength(ServiceTypeDetails.MaximumPriceListItemCodeLength);
+            entity.Ignore(option => option.IsNone);
+            entity.Ignore(option => option.Details);
+
+            entity.HasIndex(option => new { option.DesignOptionGroupId, option.Code })
+                .IsUnique()
+                .HasDatabaseName("ux_design_options_group_code");
+            entity.HasIndex(option => new { option.CatalogVersionId, option.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_design_options_version_key");
+
+            // Denormalised from the group so that the immutability trigger and the code history can
+            // read the version without a join; a foreign key keeps it from ever naming a version the
+            // group does not.
+            entity.HasOne<CatalogVersion>()
+                .WithMany()
+                .HasForeignKey(option => option.CatalogVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+    private static void ConfigureDesignRules(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DesignRule>(entity =>
+        {
+            entity.ToTable("design_rules", table => table.HasCheckConstraint(
+                "ck_design_rules_number_is_positive", "rule_number >= 1"));
+
+            entity.HasKey(rule => rule.Id);
+            entity.Property(rule => rule.Key).HasColumnName("design_rule_key");
+            entity.Property(rule => rule.Number).HasColumnName("rule_number");
+            entity.Property(rule => rule.Type).HasConversion<int>();
+            entity.Property(rule => rule.AntecedentForm).HasConversion<int>();
+            entity.Property(rule => rule.ConsequentForm).HasConversion<int?>();
+            entity.Property(rule => rule.AntecedentGroupCode).HasMaxLength(DesignCode.MaximumLength);
+            entity.Property(rule => rule.ConsequentGroupCode).HasMaxLength(DesignCode.MaximumLength);
+            entity.Property(rule => rule.Note).HasMaxLength(DesignRuleDetails.MaximumTextLength);
+            entity.Property(rule => rule.Why).HasMaxLength(DesignRuleDetails.MaximumTextLength);
+            entity.Ignore(rule => rule.Antecedent);
+            entity.Ignore(rule => rule.Consequent);
+            entity.Ignore(rule => rule.Details);
+            entity.Ignore(rule => rule.Identifier);
+            entity.Ignore(rule => rule.Statement);
+            entity.Ignore(rule => rule.Blocks);
+
+            // Section 4 rule 7: one number, one rule, in every version that carries it.
+            entity.HasIndex(rule => new { rule.CatalogVersionId, rule.Number })
+                .IsUnique()
+                .HasDatabaseName("ux_design_rules_version_number");
+            entity.HasIndex(rule => new { rule.CatalogVersionId, rule.Key })
+                .IsUnique()
+                .HasDatabaseName("ux_design_rules_version_key");
+
+            entity.HasOne<Category>()
+                .WithMany()
+                .HasForeignKey(rule => rule.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
     private static void ConfigureReferenceBreaches(ModelBuilder modelBuilder)
         => modelBuilder.Entity<CatalogReferenceBreach>(entity =>
         {

@@ -605,6 +605,18 @@
             },
             "type": "array"
           },
+          "designGroups": {
+            "items": {
+              "$ref": "#/components/schemas/DesignGroupPayload"
+            },
+            "type": "array"
+          },
+          "designRules": {
+            "items": {
+              "$ref": "#/components/schemas/DesignRulePayload"
+            },
+            "type": "array"
+          },
           "serviceTypes": {
             "items": {
               "$ref": "#/components/schemas/ServiceTypePayload"
@@ -618,7 +630,9 @@
         "required": [
           "version",
           "categories",
-          "serviceTypes"
+          "serviceTypes",
+          "designGroups",
+          "designRules"
         ],
         "type": "object"
       },
@@ -1859,6 +1873,601 @@
         "required": [
           "name",
           "description",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DesignGroupPayload": {
+        "properties": {
+          "activeFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "activeTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "categoryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "designOptionGroupId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/DesignOptionPayload"
+            },
+            "type": "array"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "selectionMode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "designOptionGroupId",
+          "categoryId",
+          "code",
+          "name",
+          "nameTamil",
+          "selectionMode",
+          "required",
+          "displayOrder",
+          "activeFrom",
+          "activeTo",
+          "branchIds",
+          "options"
+        ],
+        "type": "object"
+      },
+      "DesignGroupPresentationRequest": {
+        "properties": {
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "nameTamil",
+          "displayOrder",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DesignGroupRequest": {
+        "properties": {
+          "activeFrom": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "activeTo": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branchIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "selectionMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "nameTamil",
+          "selectionMode",
+          "required",
+          "displayOrder",
+          "activeFrom",
+          "activeTo",
+          "branchIds",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DesignOperandPayload": {
+        "properties": {
+          "form": {
+            "type": "string"
+          },
+          "groupCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "optionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "groupCode",
+          "form",
+          "optionCodes"
+        ],
+        "type": "object"
+      },
+      "DesignOperandRequest": {
+        "properties": {
+          "form": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "groupCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "optionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "groupCode",
+          "form",
+          "optionCodes"
+        ],
+        "type": "object"
+      },
+      "DesignOptionPayload": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "designOptionGroupId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "designOptionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "helpText": {
+            "type": "string"
+          },
+          "illustrationAlt": {
+            "type": "string"
+          },
+          "illustrationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priceListItemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeImpactDays": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "designOptionId",
+          "designOptionGroupId",
+          "code",
+          "name",
+          "nameTamil",
+          "helpText",
+          "illustrationKey",
+          "illustrationAlt",
+          "priceListItemCode",
+          "timeImpactDays",
+          "displayOrder",
+          "active"
+        ],
+        "type": "object"
+      },
+      "DesignOptionPresentationRequest": {
+        "properties": {
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "helpText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "illustrationAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "nameTamil",
+          "helpText",
+          "illustrationAlt",
+          "displayOrder",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DesignOptionRequest": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "helpText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "illustrationAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "illustrationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priceListItemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeImpactDays": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "nameTamil",
+          "helpText",
+          "illustrationKey",
+          "illustrationAlt",
+          "priceListItemCode",
+          "timeImpactDays",
+          "displayOrder",
+          "active",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DesignRulePayload": {
+        "properties": {
+          "antecedent": {
+            "$ref": "#/components/schemas/DesignOperandPayload"
+          },
+          "blocks": {
+            "type": "boolean"
+          },
+          "categoryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "consequent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DesignOperandPayload"
+              }
+            ]
+          },
+          "designRuleId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "statement": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "why": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "designRuleId",
+          "categoryId",
+          "number",
+          "identifier",
+          "type",
+          "antecedent",
+          "consequent",
+          "note",
+          "why",
+          "statement",
+          "blocks"
+        ],
+        "type": "object"
+      },
+      "DesignRuleRequest": {
+        "properties": {
+          "antecedent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DesignOperandRequest"
+              }
+            ]
+          },
+          "consequent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DesignOperandRequest"
+              }
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "why": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "antecedent",
+          "consequent",
+          "note",
+          "why",
           "reason"
         ],
         "type": "object"
@@ -9618,6 +10227,286 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/design-groups": {
+      "post": {
+        "description": "A group belongs to one category of one version; a service type of that category offers it by naming it. The code is fixed once the version is published, because rules, snapshots and exports refer to it.",
+        "operationId": "AddCatalogDesignGroup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "activeFrom": null,
+                "activeTo": null,
+                "branchIds": [
+                  "0199c2f0-0000-7000-8000-0000000000a1"
+                ],
+                "code": "sleeve_style",
+                "displayOrder": 3,
+                "name": "Sleeve length",
+                "nameTamil": null,
+                "reason": null,
+                "required": true,
+                "selectionMode": "SingleChoice"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignGroupPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a design option group to a category in a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_group.added",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/design-rules": {
+      "post": {
+        "description": "The rule's DR-nn number is allocated by the catalogue and never re-used. Its operands read groups of its own category; whether the options it names exist, and whether it agrees with the other rules, is checked at publication, where every finding arrives at once.",
+        "operationId": "AddCatalogDesignRule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "antecedent": {
+                  "form": "In",
+                  "groupCode": "padding",
+                  "optionCodes": [
+                    "LIGHT",
+                    "MOULDED_CUP"
+                  ]
+                },
+                "consequent": {
+                  "form": "In",
+                  "groupCode": "lining",
+                  "optionCodes": [
+                    "FULL",
+                    "KATORI_CUP"
+                  ]
+                },
+                "note": null,
+                "reason": null,
+                "type": "Requires",
+                "why": "Padding stitched against a single layer shows through and works loose."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignRulePayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a requires, excludes, requires-attachment or note rule to a category in a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_rule.added",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/presentation": {
       "post": {
         "description": "The only edit a published version admits. Nothing downstream reads a label — a price list, a report, an export and an event payload all refer to the code — so a correction changes what is shown and nothing that was priced, worked to or reported. A reason is required and the change is audited.",
@@ -9888,6 +10777,1172 @@
           "Catalog"
         ],
         "x-tailor360-audit": "catalog.service_type.added",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}": {
+      "put": {
+        "operationId": "EditCatalogDesignGroup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionGroupId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "activeFrom": null,
+                "activeTo": null,
+                "branchIds": [
+                  "0199c2f0-0000-7000-8000-0000000000a1"
+                ],
+                "code": "sleeve_style",
+                "displayOrder": 3,
+                "name": "Sleeve length",
+                "nameTamil": null,
+                "reason": "Now offered at the second branch as well.",
+                "required": true,
+                "selectionMode": "SingleChoice"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignGroupPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace what a draft says about a design option group.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_group.changed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/delete": {
+      "post": {
+        "operationId": "RemoveCatalogDesignGroup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionGroupId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Added to the wrong category; it belongs on the gown."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a design option group, its options and the rules that read it from a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_group.removed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/options": {
+      "post": {
+        "description": "Every option carries help text and alternative text, because the picker is a picture first and the job card is read in monochrome. NONE is the reserved code for 'the customer chose not to have this' and is selectable in every group.",
+        "operationId": "AddCatalogDesignOption",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionGroupId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "active": true,
+                "code": "THREE_QUARTER",
+                "displayOrder": 4,
+                "helpText": "Sleeve ends midway between elbow and wrist.",
+                "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+                "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.THREE_QUARTER",
+                "name": "Three-quarter sleeve",
+                "nameTamil": null,
+                "priceListItemCode": null,
+                "reason": null,
+                "timeImpactDays": 0
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignOptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignOptionPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add an option to a design option group in a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_option.added",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/presentation": {
+      "post": {
+        "description": "The one edit a published group admits. Nothing downstream reads a label, so the correction changes what is shown and nothing a confirmed garment is pinned to. A reason is required and the change is audited.",
+        "operationId": "CorrectCatalogDesignGroupPresentation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionGroupId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "displayOrder": 3,
+                "name": "Sleeve length",
+                "nameTamil": "கை நீளம்",
+                "reason": "Tamil label supplied after the native-speaker review."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignGroupPresentationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Correct the label, Tamil label or display order of a published design group.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.label_corrected",
+        "x-tailor360-authorisation": "permission:catalog.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}": {
+      "put": {
+        "operationId": "EditCatalogDesignOption",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "active": true,
+                "code": "FULL",
+                "displayOrder": 5,
+                "helpText": "Sleeve ends at the wrist.",
+                "illustrationAlt": "A sleeve reaching the wrist, hemmed straight.",
+                "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.FULL",
+                "name": "Full sleeve",
+                "nameTamil": null,
+                "priceListItemCode": "PI_BLOUSE_FULL_SLEEVE",
+                "reason": "The full sleeve now carries its price-list item.",
+                "timeImpactDays": 0
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignOptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignOptionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace what a draft says about a design option.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_option.changed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}/delete": {
+      "post": {
+        "operationId": "RemoveCatalogDesignOption",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "Duplicated the cap sleeve under another code."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a design option from a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_option.removed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}/presentation": {
+      "post": {
+        "description": "The help text and the alternative text are words for people, like the label; the illustration is not correctable here, because the drawing the customer was shown is part of what they agreed to.",
+        "operationId": "CorrectCatalogDesignOptionPresentation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designOptionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "displayOrder": 4,
+                "helpText": "Sleeve ends midway between elbow and wrist.",
+                "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+                "name": "Three-quarter sleeve",
+                "nameTamil": null,
+                "reason": "Clearer alternative text after the screen-reader walk."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignOptionPresentationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Correct the label, Tamil label, help text, alternative text or display order of a published design option.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.label_corrected",
+        "x-tailor360-authorisation": "permission:catalog.publish",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-rules/{designRuleId}": {
+      "put": {
+        "operationId": "EditCatalogDesignRule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designRuleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "antecedent": {
+                  "form": "Equals",
+                  "groupCode": "padding",
+                  "optionCodes": [
+                    "MOULDED_CUP"
+                  ]
+                },
+                "consequent": null,
+                "note": "Confirm the cup size against the customer's reference garment before cutting.",
+                "reason": "Re-typed from an exclusion to a note after the owner review (OD-DES-04).",
+                "type": "Note",
+                "why": "Cup sizing is not in the measurement set."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DesignRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignRulePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace what a draft says about a design rule. Its number and category never change.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_rule.changed",
+        "x-tailor360-authorisation": "permission:catalog.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/versions/{versionId}/design-rules/{designRuleId}/delete": {
+      "post": {
+        "operationId": "RemoveCatalogDesignRule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "designRuleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "A shop preference, not a craft constraint; deleted at review (OD-DES-04)."
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogReasonRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a design rule from a draft. Its number is retired with it.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_rule.removed",
         "x-tailor360-authorisation": "permission:catalog.edit",
         "x-tailor360-rate-limit": "write"
       }
