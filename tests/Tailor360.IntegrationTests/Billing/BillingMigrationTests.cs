@@ -29,6 +29,12 @@ public sealed class BillingMigrationTests
         "price_list_items",
         "discount_rules",
         "calculation_snapshots",
+        "order_facts",
+        "order_fact_jobs",
+        "invoices",
+        "invoice_lines",
+        "invoice_line_surcharges",
+        "invoice_tax_components",
         "outbox_messages",
         "inbox_messages",
     ];

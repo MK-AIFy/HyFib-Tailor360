@@ -20,6 +20,9 @@ internal static class BillingAudit
     /// <summary>A calculation snapshot.</summary>
     public const string CalculationSnapshotEntity = "billing.calculation_snapshot";
 
+    /// <summary>An invoice.</summary>
+    public const string InvoiceEntity = "billing.invoice";
+
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,

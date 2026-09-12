@@ -4,16 +4,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Billing.Application.Abstractions;
+using Tailor360.Modules.Billing.Application.Invoicing;
 using Tailor360.Modules.Billing.Application.Pricing;
 using Tailor360.Modules.Billing.Application.Registrations;
 using Tailor360.Modules.Billing.Application.Tax;
 using Tailor360.Modules.Billing.Contracts.Pricing;
+using Tailor360.Modules.Billing.Infrastructure.Invoicing;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Persistence.Outbox;
+using Tailor360.Platform.Security.Authorisation;
 
 namespace Tailor360.Modules.Billing.Infrastructure;
 
@@ -51,6 +54,22 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<PricingService>();
         // The contract other modules price through is the same instance as the service the preview route uses.
         services.TryAddScoped<IPricingService>(provider => provider.GetRequiredService<PricingService>());
+        services.TryAddScoped<IOrderFactStore, OrderFactStore>();
+        services.TryAddScoped<IInvoiceStore, InvoiceStore>();
+        services.TryAddScoped<OrderFactProjector>();
+        services.TryAddScoped<InvoiceHandler>();
+
+        // What Billing knows about orders arrives through the outbox, one consumer per event type, each
+        // committed with its inbox row by the dispatcher. Enumerable, not TryAdd: the other modules' consumers
+        // share the interface.
+        services.AddScoped<IOutboxMessageHandler, OrderConfirmedFactHandler>();
+        services.AddScoped<IOutboxMessageHandler, OrderRevisedFactHandler>();
+        services.AddScoped<IOutboxMessageHandler, OrderCancelledFactHandler>();
+        services.AddScoped<IOutboxMessageHandler, GarmentJobCreatedFactHandler>();
+        services.AddScoped<IOutboxMessageHandler, GarmentJobCancelledFactHandler>();
+
+        // The branch an invoice belongs to, for the routes that name one (ARCH-023).
+        services.AddScoped<IResourceScopeResolver, InvoiceScopeResolver>();
 
         // Link 4 of the catalogue's service types and design options — the price-list item code — is
         // answered here. Enumerable, not TryAdd: every module that owns something a service type links

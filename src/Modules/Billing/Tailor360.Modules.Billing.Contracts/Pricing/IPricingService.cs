@@ -40,4 +40,25 @@ public interface IPricingService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The stored result, or null when nothing was stored under that reference.</returns>
     Task<PricingResult?> FindSnapshotAsync(Guid organisationId, string reference, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The result stored under a reference, after recomputing it from the stored request on the very
+    /// versions it names and finding it unchanged.
+    /// </summary>
+    /// <remarks>
+    /// What an invoice is drafted from: a figure that reproduces is a figure that can be printed. A
+    /// reference with nothing stored is <c>billing.calculation-not-found</c>; a stored result the engine
+    /// no longer reproduces is <c>billing.snapshot-mismatch</c>, which is a defect to investigate, never a
+    /// figure to re-price silently.
+    /// </remarks>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="reference">The caller's reference.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored request and result, or the refusal.</returns>
+    Task<Result<VerifiedCalculation>> VerifySnapshotAsync(Guid organisationId, string reference, CancellationToken cancellationToken = default);
 }
+
+/// <summary>A stored calculation that reproduces: the request that made it and the result it made.</summary>
+/// <param name="Request">The request as it was stored.</param>
+/// <param name="Result">The result as it was stored.</param>
+public sealed record VerifiedCalculation(PricingRequest Request, PricingResult Result);

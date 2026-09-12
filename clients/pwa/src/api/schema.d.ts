@@ -783,6 +783,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branch's invoices, newest first, by cursor.
+         * @description Filtered by `status` (Draft, Posted, Discarded) when given; the caller's current branch only.
+         */
+        get: operations["ListInvoices"];
+        put?: never;
+        /**
+         * Draft an invoice from an order's stored calculation.
+         * @description The order must be confirmed, not cancelled and taken at the caller's branch; the calculation named must reproduce on the versions it was made on; no live invoice may already charge for any of its garment jobs. Nothing is re-priced: the lines are the calculation's.
+         */
+        post: operations["CreateInvoiceDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an invoice with its lines, and the tag a change sends back as If-Match. */
+        get: operations["GetInvoice"];
+        /**
+         * Replace a draft's lines by pricing them afresh.
+         * @description Whole-value: the lines sent are the lines kept, priced by the engine under a reference of the draft's own. A discount beyond its rule's counter maximum or an override beyond the version's threshold needs billing.override_price on a recently re-authenticated session, as everywhere.
+         */
+        put: operations["RepriceInvoiceDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandon a draft, freeing its garment jobs for another invoice.
+         * @description A reason is recorded. A posted invoice is never discarded; it is cancelled by its compensating record.
+         */
+        post: operations["DiscardInvoiceDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/price-lists": {
         parameters: {
             query?: never;
@@ -2685,6 +2750,13 @@ export interface components {
             name: null | string;
             notes: null | string;
         };
+        CreateInvoiceRequest: {
+            calculationReference: null | string;
+            garmentJobIds: null | string[];
+            /** Format: uuid */
+            orderId: null | string;
+            reason: null | string;
+        };
         CreateMeasurementTemplateRequest: {
             code: string;
             description: null | string;
@@ -3099,6 +3171,146 @@ export interface components {
             homeBranchId: null | string;
             reason: null | string;
             userName: null | string;
+        };
+        InvoiceCalculationPayload: {
+            /** Format: uuid */
+            gstRegistrationId: string;
+            gstin: string;
+            placeOfSupplyStateCode: string;
+            /** Format: uuid */
+            priceListVersionId: string;
+            reference: string;
+            scheme: string;
+            supplierStateCode: string;
+            /** Format: uuid */
+            taxConfigurationVersionId: string;
+            taxInclusive: boolean;
+        };
+        InvoiceCustomerPayload: {
+            addressLine: null | string;
+            customerNumber: string;
+            displayName: string;
+            locality: null | string;
+            postcode: null | string;
+        };
+        InvoiceLinePayload: {
+            /** Format: double */
+            appliedRate: number | string;
+            /** Format: double */
+            base: number | string;
+            /** Format: double */
+            catalogueRate: number | string;
+            classification: string;
+            description: string;
+            /** Format: double */
+            discountAmount: number | string;
+            discountKind: null | string;
+            discountRuleCode: null | string;
+            /** Format: double */
+            discountValue: null | number | string;
+            /** Format: uuid */
+            garmentJobId: string;
+            /** Format: double */
+            gross: number | string;
+            itemCode: string;
+            /** Format: int32 */
+            lineNumber: number | string;
+            /** Format: double */
+            lineTotal: number | string;
+            /** Format: double */
+            quantity: number | string;
+            surcharges: components["schemas"]["InvoiceLineSurchargePayload"][];
+            taxCode: string;
+            taxCodeKind: string;
+            /** Format: double */
+            taxTotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+            taxes: components["schemas"]["InvoiceTaxComponentPayload"][];
+            /** Format: double */
+            variance: number | string;
+        };
+        InvoiceLineSurchargePayload: {
+            /** Format: double */
+            amount: number | string;
+            description: string;
+            itemCode: string;
+            /** Format: double */
+            rate: number | string;
+        };
+        InvoicePagePayload: {
+            invoices: components["schemas"]["InvoiceSummaryPayload"][];
+            nextCursor: null | string;
+        };
+        InvoicePayload: {
+            /** Format: uuid */
+            branchId: string;
+            calculation: components["schemas"]["InvoiceCalculationPayload"];
+            /** Format: date-time */
+            createdAt: string;
+            currency: string;
+            customer: components["schemas"]["InvoiceCustomerPayload"];
+            /** Format: uuid */
+            customerId: string;
+            discardReason: null | string;
+            /** Format: date-time */
+            discardedAt: null | string;
+            /** Format: uuid */
+            invoiceId: string;
+            lines: components["schemas"]["InvoiceLinePayload"][];
+            /** Format: uuid */
+            orderId: string;
+            orderNumber: string;
+            /** Format: int32 */
+            revision: number | string;
+            status: string;
+            totals: components["schemas"]["InvoiceTotalsPayload"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        InvoiceSummaryPayload: {
+            /** Format: date-time */
+            createdAt: string;
+            customerDisplayName: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            /** Format: uuid */
+            orderId: string;
+            orderNumber: string;
+            status: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        InvoiceTaxComponentPayload: {
+            /** Format: double */
+            amount: number | string;
+            kind: string;
+            /** Format: double */
+            ratePercent: number | string;
+        };
+        InvoiceTotalsPayload: {
+            /** Format: double */
+            centralTax: number | string;
+            /** Format: double */
+            cess: number | string;
+            /** Format: double */
+            discountTotal: number | string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: double */
+            integratedTax: number | string;
+            /** Format: double */
+            roundOff: number | string;
+            /** Format: double */
+            stateTax: number | string;
+            /** Format: double */
+            subtotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
         };
         JsonElement: unknown;
         MeasurementCaptureTemplatePayload: {
@@ -3710,6 +3922,13 @@ export interface components {
         ReplaceRolesPayload: {
             reason: null | string;
             roleKeys: null | string[];
+        };
+        RepriceInvoiceRequest: {
+            lines: null | components["schemas"]["PricingLineRequestPayload"][];
+            /** Format: date */
+            on: null | string;
+            placeOfSupplyStateCode: null | string;
+            reason: null | string;
         };
         RolePayload: {
             assignedByDefault: boolean;
@@ -6675,6 +6894,296 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListInvoices: {
+        parameters: {
+            query?: {
+                status?: string;
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateInvoiceDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "calculationReference": "order:0199c2f0-0000-7000-8000-0000000000c1:1",
+                 *       "garmentJobIds": null,
+                 *       "orderId": "0199c2f0-0000-7000-8000-0000000000c1",
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RepriceInvoiceDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "lines": [
+                 *         {
+                 *           "discount": {
+                 *             "reason": null,
+                 *             "ruleCode": "FESTIVAL",
+                 *             "value": 5
+                 *           },
+                 *           "itemCode": "BLOUSE_PATTERN_STITCHING",
+                 *           "lineKey": "0199c2f0-0000-7000-8000-0000000000d1",
+                 *           "override": null,
+                 *           "quantity": 1,
+                 *           "surchargeItemCodes": [
+                 *             "PI_KATORI_CUP_LINING"
+                 *           ]
+                 *         }
+                 *       ],
+                 *       "on": "2027-04-05",
+                 *       "placeOfSupplyStateCode": "33",
+                 *       "reason": "The piping finish was dropped at the counter."
+                 *     }
+                 */
+                "application/json": components["schemas"]["RepriceInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DiscardInvoiceDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Drafted against the wrong order."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
                 };
             };
             /** @description Bad Request */
