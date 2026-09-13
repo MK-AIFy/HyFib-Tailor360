@@ -283,6 +283,183 @@ it('shows a reload prompt on a conflict, rather than a bare refusal', async () =
   expect(await screen.findByRole('button', { name: 'Reload' })).toBeInTheDocument()
 })
 
+it('preserves an existing group’s availability dates when editing something else about it', async () => {
+  const user = userEvent.setup()
+  const scheduled = aDesignGroup({
+    ...NECKLINE,
+    activeFrom: '2026-01-01',
+    activeTo: '2026-12-31',
+  })
+  transport.route(`GET ${VERSION}`, () =>
+    versionedResponse({ ...DRAFT, designGroups: [scheduled, SLEEVE] }, 'W/"1"'),
+  )
+  transport.route(`PUT ${VERSION}/design-groups/${NECKLINE.designOptionGroupId}`, () =>
+    versionedResponse(scheduled, 'W/"2"'),
+  )
+
+  renderDesign()
+  await screen.findByText('neckline')
+  await user.click(screen.getByRole('button', { name: 'Edit Neckline' }))
+
+  const form = within(await screen.findByRole('form', { name: 'Editing Neckline' }))
+  await user.click(form.getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => {
+    expect(
+      transport.callsTo(`PUT ${VERSION}/design-groups/${NECKLINE.designOptionGroupId}`),
+    ).toHaveLength(1)
+  })
+
+  const sent = transport.callsTo(`PUT ${VERSION}/design-groups/${NECKLINE.designOptionGroupId}`)[0]
+  const body = sent?.body as Record<string, unknown>
+  expect(body.activeFrom).toBe('2026-01-01')
+  expect(body.activeTo).toBe('2026-12-31')
+})
+
+it('marks help text as required, since a blank one is refused server-side', async () => {
+  renderDesign()
+  await screen.findByText('neckline')
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Add an option to Neckline' }))
+
+  const form = within(await screen.findByRole('form', { name: 'A new option' }))
+  // This design system's `required` sets `aria-required` for the label and the control rather
+  // than the native attribute — the field's own doc says why: a browser validation bubble would
+  // compete with the component's own error presentation. The server is what actually refuses a
+  // blank help text, the same as it refuses a blank code or name.
+  expect(form.getByLabelText('Help text')).toHaveAttribute('aria-required', 'true')
+})
+
+it('clears a rule’s stale group and options when the condition no longer needs them', async () => {
+  const user = userEvent.setup()
+  transport.route(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`, () =>
+    versionedResponse(RULE, 'W/"2"'),
+  )
+
+  renderDesign()
+  await screen.findByText('neckline')
+  await user.click(screen.getByRole('button', { name: 'Add a rule' }))
+
+  const form = within(await screen.findByRole('form', { name: 'A design rule' }))
+  const antecedentForm = form.getByLabelText('Condition', {
+    selector: '#catalog-design-antecedent-form',
+  })
+  await user.selectOptions(antecedentForm, 'Is exactly')
+  await user.selectOptions(
+    form.getByLabelText('Group', { selector: '#catalog-design-antecedent-group' }),
+    'Neckline',
+  )
+  await user.click(form.getByLabelText('Round'))
+
+  // Switching back to "Always" no longer reads a group or an option at all.
+  await user.selectOptions(antecedentForm, 'Always')
+  expect(
+    form.queryByLabelText('Group', { selector: '#catalog-design-antecedent-group' }),
+  ).not.toBeInTheDocument()
+
+  await user.click(form.getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => {
+    expect(
+      transport.callsTo(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`),
+    ).toHaveLength(1)
+  })
+
+  const sent = transport.callsTo(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`)[0]
+  const body = sent?.body as { antecedent: Record<string, unknown> }
+  expect(body.antecedent).toEqual({ groupCode: null, form: 'Always', optionCodes: [] })
+})
+
+it('replaces rather than accumulates the selection for a form that reads exactly one option', async () => {
+  const user = userEvent.setup()
+  const twoOptionNeckline = aDesignGroup({
+    ...NECKLINE,
+    options: [
+      ...NECKLINE.options,
+      aDesignOption({
+        designOptionId: 'option-vneck',
+        designOptionGroupId: NECKLINE.designOptionGroupId,
+        code: 'V_NECK',
+        name: 'V-neck',
+        displayOrder: 1,
+      }),
+    ],
+  })
+  transport.route(`GET ${VERSION}`, () =>
+    versionedResponse({ ...DRAFT, designGroups: [twoOptionNeckline, SLEEVE] }, 'W/"1"'),
+  )
+  transport.route(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`, () =>
+    versionedResponse(RULE, 'W/"2"'),
+  )
+
+  renderDesign()
+  await screen.findByText('neckline')
+  await user.click(screen.getByRole('button', { name: 'Add a rule' }))
+
+  const form = within(await screen.findByRole('form', { name: 'A design rule' }))
+  await user.selectOptions(
+    form.getByLabelText('Condition', { selector: '#catalog-design-antecedent-form' }),
+    'Is exactly',
+  )
+  await user.selectOptions(
+    form.getByLabelText('Group', { selector: '#catalog-design-antecedent-group' }),
+    'Neckline',
+  )
+  await user.click(form.getByLabelText('Round'))
+  // Picking a second option for a single-cardinality form replaces the first rather than adding
+  // to it — checking one is like pressing a radio button, not accumulating a set the server would
+  // refuse for carrying more than the one option "Equals" reads.
+  await user.click(form.getByLabelText('V-neck'))
+
+  expect(form.getByLabelText('Round')).not.toBeChecked()
+  expect(form.getByLabelText('V-neck')).toBeChecked()
+
+  await user.click(form.getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => {
+    expect(
+      transport.callsTo(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`),
+    ).toHaveLength(1)
+  })
+
+  const sent = transport.callsTo(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`)[0]
+  const body = sent?.body as { antecedent: Record<string, unknown> }
+  expect(body.antecedent).toEqual({
+    groupCode: 'neckline',
+    form: 'Equals',
+    optionCodes: ['V_NECK'],
+  })
+})
+
+it('hides and clears the consequent for a one-sided rule type', async () => {
+  const user = userEvent.setup()
+  transport.route(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`, () =>
+    versionedResponse(RULE, 'W/"2"'),
+  )
+
+  renderDesign()
+  await screen.findByText('neckline')
+  await user.click(screen.getByRole('button', { name: 'Add a rule' }))
+
+  const form = within(await screen.findByRole('form', { name: 'A design rule' }))
+  expect(form.getByText('Then')).toBeInTheDocument()
+
+  await user.selectOptions(form.getByLabelText('What the rule does'), 'Shows a note at the counter')
+  expect(form.queryByText('Then')).not.toBeInTheDocument()
+
+  await user.click(form.getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => {
+    expect(
+      transport.callsTo(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`),
+    ).toHaveLength(1)
+  })
+
+  const sent = transport.callsTo(`POST ${VERSION}/categories/${BLOUSE.categoryId}/design-rules`)[0]
+  const body = sent?.body as { type: string; consequent: unknown }
+  expect(body.type).toBe('Note')
+  expect(body.consequent).toBeNull()
+})
+
 it('offers no editing controls to somebody without catalog.edit', async () => {
   transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser({ permissions: [] })))
 
