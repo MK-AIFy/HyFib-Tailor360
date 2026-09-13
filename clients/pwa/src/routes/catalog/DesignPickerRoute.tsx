@@ -640,12 +640,17 @@ function DesignPickerBody({
     const submittedSelections = selectionsRef.current
     const submittedInstructions = instructionsRef.current
     const submittedHasReferenceImage = hasReferenceImageRef.current
-    // Set once a migration surfaces below, so the `finally` block can drop rather than replay a
-    // queued edit: this screen is about to be swapped for the migration gate, and saving the
-    // queued edit anyway would advance the draft past the version just handed to that gate,
-    // racing the migrate request into a conflict for no reason — the edit was never going to
-    // reach a summary the customer can still see.
-    let migrationDetected = false
+    // Set below when this commit's own migration-detection read finds one pending. Reporting it is
+    // deferred to the `finally` block: a queued edit waiting behind this commit hasn't reached the
+    // server at all yet, and this screen is about to be swapped for the migration gate the moment
+    // `onMigrationDetected` fires — unmounting before that edit is ever saved would discard it
+    // silently. So when one is queued, its own replay is awaited here instead, and it is the
+    // replay's own (later, more current) detection that gets reported, not this one.
+    let migrationDetected: {
+      readonly prompt: DesignMigrationPrompt
+      readonly version: string
+      readonly hasReferenceImage: boolean
+    } | null = null
 
     try {
       const body: SaveDesignSelectionsRequest = {
@@ -716,16 +721,14 @@ function DesignPickerBody({
         // re-read — is what actually needed to happen; migration detection waits for that re-read.
         setConflict(true)
       } else if (fresh.value.migrationPrompt !== null) {
-        migrationDetected = true
-        onMigrationDetected({
+        migrationDetected = {
           prompt: fresh.value.migrationPrompt,
           version: freshVersion,
-          // The live ref, not `submittedHasReferenceImage`: this same block already drops rather
-          // than replays a queued edit once a migration is found, so a change to this checkbox
-          // made while this request was in flight would otherwise never reach the server at all —
-          // this callback is its only remaining path there.
+          // The live ref, not `submittedHasReferenceImage`: a change to this checkbox made while
+          // this request was in flight has no save of its own pending (see below), so this is its
+          // only remaining path to being reflected in what gets reported.
           hasReferenceImage: hasReferenceImageRef.current,
-        })
+        }
       }
     } catch (cause: unknown) {
       if (cause instanceof ApiError && cause.code === 'catalog.design-draft-changed') {
@@ -736,10 +739,22 @@ function DesignPickerBody({
     } finally {
       setSaving(false)
       committingRef.current = false
-      const replay = queuedRef.current && !migrationDetected
+      const replay = queuedRef.current
       queuedRef.current = false
-      if (replay) {
-        void commitRef.current()
+      if (replay && migrationDetected !== null) {
+        // Awaited, not fired-and-forgotten: the queued edit's own save must land, and its own
+        // migration-detection read is what decides what (if anything) gets reported — reporting
+        // this commit's own finding first would let the gate render against a version the replay's
+        // save is about to advance past, the same conflict dropping the replay outright was meant
+        // to avoid, only now by discarding the edit that motivated it instead.
+        await commitRef.current()
+      } else {
+        if (replay) {
+          void commitRef.current()
+        }
+        if (migrationDetected !== null) {
+          onMigrationDetected(migrationDetected)
+        }
       }
     }
   }, [draftId, onMigrationDetected])
