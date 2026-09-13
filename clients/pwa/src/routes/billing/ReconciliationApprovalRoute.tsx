@@ -4,7 +4,7 @@ import { useParams } from 'react-router'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
-import { approveReconciliation, getCashierSession } from '../../billing/billingApi'
+import { approveReconciliation, getCashierSessionForReconciliation } from '../../billing/billingApi'
 import type { ReconciliationBatch } from '../../billing/types'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import { Alert } from '../../components/primitives/Alert'
@@ -22,17 +22,11 @@ import './billing.css'
  * (`docs/security/permission-matrix.md`); `approveReconciliation` in `billingApi.ts` already asks
  * for the challenge on every call, so this screen's job is the reason and the confirmation.
  *
- * ## A known gap in the session read (Codex review, PR #217)
- *
- * `getCashierSession` is read behind `payments.session`. `payments.approve_reconciliation` is
- * granted to the Owner as well as the Branch Manager (`docs/security/permission-matrix.md`), but
- * `payments.session` is not — so an Owner who holds only the approval permission is refused this
- * read with a 403, and never sees the variance or its mode lines to approve. There is no separate
- * read for the batch (`ReconciliationEndpoints.cs`: "the batch itself is read back on the session's
- * own payload — there is no separate read route for it"), so no client-only change restores the
- * screen for that caller; it needs a server-side decision — widening this read's permission, or a
- * dedicated reconciliation read under `payments.approve_reconciliation` — which is outside this
- * client pull request's scope.
+ * Reads the session through `getCashierSessionForReconciliation`, authorised by
+ * `payments.approve_reconciliation` itself rather than the general-purpose read's own
+ * `payments.session` — an Owner holding only the approval permission was refused that read with a
+ * 403 and never saw the variance to approve. Fixed server-side in #220 with a dedicated,
+ * narrowly-scoped read rather than widening what the Owner can read generally.
  */
 export function ReconciliationApprovalRoute() {
   const intl = useIntl()
@@ -41,7 +35,7 @@ export function ReconciliationApprovalRoute() {
   const { sessionId } = useParams()
 
   const session = useAdminResource(`cashier-session:${sessionId ?? ''}`, (signal) =>
-    getCashierSession(sessionId ?? '', signal),
+    getCashierSessionForReconciliation(sessionId ?? '', signal),
   )
 
   const [confirming, setConfirming] = useState(false)

@@ -44,6 +44,8 @@ const INVOICES = '/api/v1/billing/invoices'
 const PAYMENTS = '/api/v1/billing/payments'
 const DISPATCH = '/api/v1/billing/dispatch-exceptions'
 const balanceUrl = (orderId: string) => `/api/v1/billing/orders/${orderId}/balance`
+const dispatchBalanceUrl = (orderId: string) =>
+  `/api/v1/billing/orders/${orderId}/dispatch-exception-balance`
 
 beforeEach(() => {
   forgetAntiforgeryToken()
@@ -329,6 +331,9 @@ describe('the unpaid-then-paid dispatch journey', () => {
           )
     })
     transport.route('POST /api/v1/auth/login', () => jsonResponse(aSignInResult()))
+    transport.route(`GET ${dispatchBalanceUrl(ORDER_ID)}`, () =>
+      jsonResponse(anOrderBalance({ outstanding, invoices: [] })),
+    )
 
     renderApp(`/billing/dispatch-exceptions/new?orderId=${ORDER_ID}`)
 
