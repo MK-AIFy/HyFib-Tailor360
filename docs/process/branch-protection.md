@@ -52,7 +52,12 @@ by diffing this list against the workflow's job names rather than by anything go
 | Check name to require | Workflow | Job key | What it gates |
 | --- | --- | --- | --- |
 | `Pull-request policy` | [`../../.github/workflows/pr-policy.yml`](../../.github/workflows/pr-policy.yml) | `policy` | Exactly one open linked issue, the branch-name convention, and the mandatory evidence-checklist items once the pull request is out of draft |
-| `.NET build and tests` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `build-test-dotnet` | Restore, build with warnings as errors, and the unit, architecture, contract and integration tiers with coverage collection. The format check is the separate job below |
+| `.NET build and tests` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `build-test-dotnet` | Restore, build with warnings as errors, and the unit, architecture and contract tiers. The integration tier is the three shard jobs below, and the coverage floor that all four feed is `Coverage floor`; the format check is `.NET formatting` |
+| `.NET integration tests (shard 1)` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `test-integration` | One third of the integration tier, against its own PostgreSQL 16 service container. The job is a matrix over three shards and GitHub reports **one check run per shard**, so all three names are required separately — requiring only the job key requires none of them |
+| `.NET integration tests (shard 2)` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `test-integration` | The second third, same shape |
+| `.NET integration tests (shard 3)` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `test-integration` | The remainder. This shard is defined by exclusion — `--filter-not-namespace` of the namespaces the other two name — so every test is in exactly one shard by construction and a namespace added later lands here rather than being silently dropped |
+| `Coverage floor` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `coverage-floor` | The per-project floor of `.github/coverage-floors.json`, enforced once over the union of all four tiers and all three shards. It also asserts that every tier and shard reported, so a shard whose filter matched nothing is red rather than quietly green |
+| `CI gate` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `ci-gate` | Always runs, and fails unless every job above ended `success` or `skipped`. It is **additive**: it does not replace the names in this table, and requiring it is not a substitute for requiring them. Whether the required set should collapse to this one name is **BP-OD-02** and **BP-OD-05** below |
 | `.NET formatting` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `format-dotnet` | `dotnet format --verify-no-changes` over the solution, against `.editorconfig`. Split out of `build-test-dotnet` because it needs no database and nothing in that job depended on it, so it was 86 seconds of the critical path that also swallowed every test result whenever it failed |
 | `PWA build and tests` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `build-test-pwa` | Lint, type-check, unit tests and the production build of `clients/pwa` |
 | `Documentation links` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `documentation` | The link checker's self-test, then every relative link in `docs/`, `.github/`, the repository-root markdown and the per-tree `CLAUDE.md` and `README.md` guides |
@@ -98,7 +103,7 @@ that pull request merges.** The reviewer checks this as part of Definition-of-Do
 | Dismiss stale pull-request approvals when new commits are pushed | **On** | An approval describes the commits the reviewer read, not the branch's name |
 | Require review from Code Owners | **On, once section 5.2 is resolved** | P3. Inert until `CODEOWNERS` carries handles GitHub accepts |
 | Require approval of the most recent reviewable push | **On** | Stops "approve, then push the real change" — including by the author themselves |
-| Require status checks to pass before merging | **On**, with exactly the nine check names in section 3 — the two CodeQL legs counted separately | P2 |
+| Require status checks to pass before merging | **On**, with exactly the sixteen check names in section 3 — the two CodeQL legs and the three integration shards each counted separately | P2 |
 | Require branches to be up to date before merging | **Off** — **proposed** | A single maintainer merging serially would re-run the whole pipeline for every merge, twice, against a 15-minute budget. `ci.yml` also runs on `push` to `main`, so a semantic conflict is caught within one pipeline of landing. Revisit when #59 introduces a merge queue |
 | Require conversation resolution before merging | **On** | An unresolved review thread is an open question, and merging past it is how questions get lost |
 | Require signed commits | **Off** — **proposed** (**BP-OD-04**) | Signing is worth having and costs a key-management decision this project has not made; #59 signs *artefacts*, which is the property releases actually rely on |
@@ -238,7 +243,7 @@ The expected answer, matching section 4:
 
 | Field | Expected |
 | --- | --- |
-| `required_checks` | The nine names of section 3, and no others. A tenth name, or a name section 3 does not list, means the table and the setting have drifted |
+| `required_checks` | The sixteen names of section 3, and no others. A seventeenth name, or a name section 3 does not list, means the table and the setting have drifted |
 | `strict` | `false` |
 | `reviews` | `1` |
 | `dismiss_stale`, `last_push_approval`, `conversation_resolution`, `linear_history`, `enforce_admins` | `true` |
@@ -284,6 +289,7 @@ These attempts are part of the deliberately-broken-branch evidence #22 records i
 | **BP-OD-02** | Whether the repository moves to a plan (or to an organisation) that can enforce branch protection on a private repository, and by when | Whether P1 to P4 are enforced or merely documented | Business owner | **Open** — section 6 states the degradation until it is answered |
 | **BP-OD-03** | Personal handles in `CODEOWNERS` now, or an organisation with two teams | Code-owner review; the separation of duties on `/infra/`, `/.github/` and `/src/Platform/` | Business owner | **Open** — section 5.2 |
 | **BP-OD-04** | Whether commits must be signed, and who manages the keys | Section 4's signed-commits row | Technical reviewer | **Proposed** — off for now; artefact signing in #59 is the property releases depend on |
+| **BP-OD-05** | Whether the required set collapses to the single `CI gate` name, or keeps naming every job | Section 3's table, and how much a job added without a table entry can escape. Collapsing makes the setting immune to a job being renamed, and makes it blind to a job being added and left out of the gate's `needs:` — the two halves of section 3.1's failure modes, traded against each other | Technical reviewer | **Open** — raised by #495, which added `CI gate` as an addition rather than a replacement precisely so the question could be answered separately |
 
 ---
 
@@ -299,5 +305,5 @@ These attempts are part of the deliberately-broken-branch evidence #22 records i
 | [`workflow-demo.md`](workflow-demo.md) | The worked example that exercises these settings end to end, including the rejections of section 9.2 |
 | [`../../.github/CODEOWNERS`](../../.github/CODEOWNERS) | The file section 5.2 depends on |
 | [`../../.github/workflows/pr-policy.yml`](../../.github/workflows/pr-policy.yml) | The required check, and the only thing that applies `release-ready` |
-| [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | The eight other required check names, and the action-pinning policy of section 8 |
+| [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | The fifteen other required check names, and the action-pinning policy of section 8 |
 | [`../nfr/traceability.md`](../nfr/traceability.md) | **NFR-MQ-02**, the target this configuration proves |
