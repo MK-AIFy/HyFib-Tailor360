@@ -103,6 +103,7 @@ export function DesignOptionForm(props: DesignOptionFormProps) {
         onValueChange={(next) => {
           set('helpText', next)
         }}
+        required
         value={draft.helpText}
       />
 

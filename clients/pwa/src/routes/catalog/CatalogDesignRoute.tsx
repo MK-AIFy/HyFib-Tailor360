@@ -455,8 +455,10 @@ export function CatalogDesignRoute() {
       selectionMode: draft.selectionMode,
       required: draft.required,
       displayOrder: draft.displayOrder,
-      activeFrom: null,
-      activeTo: null,
+      // There is no control for these yet, but a full-body PUT still has to say what an existing
+      // group's schedule already is — sending null on every edit would silently clear it.
+      activeFrom: existing?.activeFrom ?? null,
+      activeTo: existing?.activeTo ?? null,
       branchIds: [...draft.branchIds],
       reason: emptyToNull(draft.reason),
     }

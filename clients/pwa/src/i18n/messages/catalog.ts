@@ -254,9 +254,6 @@ export const catalogEn = {
   'catalog.design.rule.statement': 'The rule',
   'catalog.design.rule.antecedent': 'When',
   'catalog.design.rule.consequent': 'Then',
-  'catalog.design.rule.hasConsequent': 'This rule has a second side',
-  'catalog.design.rule.hasConsequent.hint':
-    'A note or a reference-photo requirement usually needs only the condition above; a requires or excludes rule needs this too.',
   'catalog.design.rule.operand.form': 'Condition',
   'catalog.design.rule.operand.form.Always': 'Always',
   'catalog.design.rule.operand.form.AnySelection': 'Anything is chosen',
@@ -709,11 +706,6 @@ export const catalogTa: Record<keyof typeof catalogEn, string> = {
   'catalog.design.rule.antecedent': 'When',
   // not translated — awaiting native-speaker review
   'catalog.design.rule.consequent': 'Then',
-  // not translated — awaiting native-speaker review
-  'catalog.design.rule.hasConsequent': 'This rule has a second side',
-  // not translated — awaiting native-speaker review
-  'catalog.design.rule.hasConsequent.hint':
-    'A note or a reference-photo requirement usually needs only the condition above; a requires or excludes rule needs this too.',
   // not translated — awaiting native-speaker review
   'catalog.design.rule.operand.form': 'Condition',
   // not translated — awaiting native-speaker review

@@ -22,6 +22,13 @@ const OPERAND_FORMS = [
 /** The four rule types. */
 const RULE_TYPES = ['Requires', 'Excludes', 'RequiresAttachment', 'Note']
 
+/**
+ * The two rule types that read a second operand at all. `RequiresAttachment` and `Note` are read
+ * from their antecedent alone — the server refuses a consequent on either — so whether this draft
+ * carries one follows the type rather than a choice the form leaves open.
+ */
+const TWO_SIDED_RULE_TYPES = new Set(['Requires', 'Excludes'])
+
 function toSentenceDraft(draft: DesignRuleFormDraft): DesignRuleDraft {
   return {
     type: draft.type,
@@ -29,6 +36,27 @@ function toSentenceDraft(draft: DesignRuleFormDraft): DesignRuleDraft {
     consequent: draft.hasConsequent ? draft.consequent : null,
     note: draft.note,
   }
+}
+
+/**
+ * Clears whatever the newly chosen form does not admit.
+ *
+ * `Always` reads no group and no options; `AnySelection` reads a group but no options; every other
+ * form reads exactly one option except `In`, which reads one or more — so a checkbox left checked
+ * from a previous form would otherwise reach the server as a value that form never asked for, and be
+ * refused for a reason the preview never showed.
+ */
+function normalizeOperand(operand: DesignOperandDraft): DesignOperandDraft {
+  if (operand.form === 'Always') {
+    return { ...operand, groupCode: null, optionCodes: [] }
+  }
+  if (operand.form === 'AnySelection') {
+    return { ...operand, optionCodes: [] }
+  }
+  if (operand.form !== 'In' && operand.optionCodes.length > 1) {
+    return { ...operand, optionCodes: operand.optionCodes.slice(0, 1) }
+  }
+  return operand
 }
 
 interface OperandFieldsProps {
@@ -69,7 +97,7 @@ function OperandFields({
         label={intl.formatMessage({ id: 'catalog.design.rule.operand.form' })}
         name={`${idPrefix}-form`}
         onValueChange={(next) => {
-          onChange({ ...value, form: next })
+          onChange(normalizeOperand({ ...value, form: next }))
         }}
         options={OPERAND_FORMS.map((form) => ({
           value: form,
@@ -98,6 +126,9 @@ function OperandFields({
           {group === undefined ? (
             <p>{intl.formatMessage({ id: 'catalog.design.rule.operand.group.pickFirst' })}</p>
           ) : (
+            // Every form but `In` reads exactly one option — checking one there replaces whatever
+            // was checked before, the same as a radio button, rather than accumulating a set the
+            // server will refuse.
             group.options.map((option) => (
               <Checkbox
                 id={controlId(`${idPrefix}-option-${option.code}`)}
@@ -105,11 +136,18 @@ function OperandFields({
                 label={option.name}
                 name={`${idPrefix}-option-${option.code}`}
                 onValueChange={(checked) => {
+                  if (!checked) {
+                    onChange({
+                      ...value,
+                      optionCodes: value.optionCodes.filter((code) => code !== option.code),
+                    })
+                    return
+                  }
+
                   onChange({
                     ...value,
-                    optionCodes: checked
-                      ? [...value.optionCodes, option.code]
-                      : value.optionCodes.filter((code) => code !== option.code),
+                    optionCodes:
+                      value.form === 'In' ? [...value.optionCodes, option.code] : [option.code],
                   })
                 }}
                 value={value.optionCodes.includes(option.code)}
@@ -166,7 +204,10 @@ export function DesignRuleForm(props: DesignRuleFormProps) {
         label={intl.formatMessage({ id: 'catalog.design.rule.type' })}
         name="rule-type"
         onValueChange={(next) => {
-          onChange({ ...draft, type: next })
+          // Requires and Excludes read a consequent; RequiresAttachment and Note are read from
+          // their antecedent alone and the server refuses either the other way around, so this
+          // follows the type rather than a choice left open once it changes.
+          onChange({ ...draft, type: next, hasConsequent: TWO_SIDED_RULE_TYPES.has(next) })
         }}
         options={RULE_TYPES.map((type) => ({
           value: type,
@@ -184,17 +225,6 @@ export function DesignRuleForm(props: DesignRuleFormProps) {
           onChange({ ...draft, antecedent: next })
         }}
         value={draft.antecedent}
-      />
-
-      <Checkbox
-        description={intl.formatMessage({ id: 'catalog.design.rule.hasConsequent.hint' })}
-        id={controlId('rule-hasConsequent')}
-        label={intl.formatMessage({ id: 'catalog.design.rule.hasConsequent' })}
-        name="rule-hasConsequent"
-        onValueChange={(next) => {
-          onChange({ ...draft, hasConsequent: next })
-        }}
-        value={draft.hasConsequent}
       />
 
       {draft.hasConsequent ? (
