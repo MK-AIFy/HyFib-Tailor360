@@ -336,6 +336,7 @@ export const catalogEn = {
   'catalog.design.summary.blocked': 'This cannot be confirmed yet — see below.',
   'catalog.design.summary.notChosen': 'Not chosen',
   'catalog.design.summary.requiredUnset': 'Needs a choice',
+  'catalog.design.summary.autoSelected': 'Added automatically because {reason}.',
   'catalog.design.summary.priceItems': 'Price list items: {items}',
   'catalog.design.summary.priceItems.none': 'none',
   'catalog.design.summary.days':
@@ -916,6 +917,8 @@ export const catalogTa: Record<keyof typeof catalogEn, string> = {
   'catalog.design.summary.notChosen': 'Not chosen',
   // not translated — awaiting native-speaker review
   'catalog.design.summary.requiredUnset': 'Needs a choice',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.autoSelected': 'Added automatically because {reason}.',
   // not translated — awaiting native-speaker review
   'catalog.design.summary.priceItems': 'Price list items: {items}',
   // not translated — awaiting native-speaker review
