@@ -15,6 +15,7 @@
  * other fails `pnpm typecheck`.
  */
 import { adminEn, adminTa } from './admin'
+import { billingEn, billingTa } from './billing'
 import { catalogEn, catalogTa } from './catalog'
 import { authEn, authTa } from './auth'
 import { dialogsEn, dialogsTa } from './dialogs'
@@ -42,6 +43,7 @@ export const messagesEn = {
   ...adminEn,
   ...catalogEn,
   ...measurementsEn,
+  ...billingEn,
 } as const
 
 export const messagesTa = {
@@ -58,4 +60,5 @@ export const messagesTa = {
   ...adminTa,
   ...catalogTa,
   ...measurementsTa,
+  ...billingTa,
 }

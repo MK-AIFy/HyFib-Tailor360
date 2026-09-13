@@ -294,6 +294,78 @@
   }
 
   /* -----------------------------------------------------------------------------------------
+   * Segmented control — a radio group drawn as a row of large buttons.
+   *
+   * The same technique `.fraction__option` uses below: the native radio sits over the whole
+   * segment, made transparent rather than removed, so the platform keeps the keyboard behaviour
+   * and the focus ring lands where a sighted person is actually looking.
+   * --------------------------------------------------------------------------------------- */
+  .segmented {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--target-spacing-primary);
+  }
+
+  .segmented__option {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: var(--target-primary);
+    min-block-size: var(--target-primary);
+    padding: var(--space-2) var(--space-4);
+    border: 2px solid var(--colour-border);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface);
+    color: var(--colour-ink);
+    font-size: var(--font-size-200);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .field[data-size='standard'] .segmented__option {
+    min-block-size: var(--target-standard);
+  }
+
+  .segmented__input {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .segmented__option:hover {
+    background: var(--colour-surface-hover);
+  }
+
+  /*
+   * The chosen segment is marked three times over, the same as a fraction segment: a filled
+   * surface, a heavier border and bold weight, so selection never rests on colour alone (1.4.1).
+   */
+  .segmented__option:has(.segmented__input:checked) {
+    border-color: var(--colour-brand);
+    border-width: 3px;
+    background: var(--colour-surface-selected);
+    font-weight: var(--font-weight-bold);
+  }
+
+  /* The weight cue again, without `:has()` — see the note beside `.fraction__input:checked`. */
+  .segmented__input:checked + .segmented__label {
+    font-weight: var(--font-weight-bold);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .segmented__option:has(.segmented__input:focus-visible) {
+    outline: var(--focus-ring-width) solid var(--colour-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* -----------------------------------------------------------------------------------------
    * Numeric stepper
    * --------------------------------------------------------------------------------------- */
   .stepper {
