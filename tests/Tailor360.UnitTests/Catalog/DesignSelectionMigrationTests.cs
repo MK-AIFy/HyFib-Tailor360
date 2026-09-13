@@ -123,6 +123,44 @@ public sealed class DesignSelectionMigrationTests
     }
 
     [Fact]
+    public void AGroupTheServiceNeverLinkedBeforeIsNamedWhenTheRepublishLinksItAsRequired()
+    {
+        // Codex review, PR #221: the newly-required loop above only ever walks pinnedGroups, so a group
+        // the pinned version never linked to this service at all could never surface through it — the
+        // customer would first hear about the new required choice as a blocking validation error, not
+        // from the migration prompt.
+        var pinned = CatalogTestData.Draft(1);
+        var blouse = Category(pinned, "BLOUSE_PATTERN");
+        var sleeve = Group(pinned, blouse, "sleeve_style").Value;
+        Option(pinned, sleeve.Id, "FULL");
+        var service = Service(pinned, blouse, "STITCHING", [sleeve.Id]);
+        pinned.Publish(CatalogTestData.Now, null, "Approved.").IsSuccess.ShouldBeTrue();
+
+        var blouseKey = pinned.Find(blouse)!.Key;
+        var clone = pinned.CloneAsDraft(new CountingCatalogIds(), 2, "Version 2", null, CatalogTestData.Now, null).Value;
+        var clonedBlouse = clone.Categories.Single(category => category.Key == blouseKey).Id;
+        var clonedSleeve = clone.DesignGroups.Single(group => group.Key == sleeve.Key);
+        var piping = Group(clone, clonedBlouse, "piping", required: true).Value;
+        Option(clone, piping.Id, "SATIN");
+        var clonedService = clone.ServiceTypes.Single(candidate => candidate.Key == service.Key);
+        clone.EditServiceType(
+                clonedService.Id,
+                CatalogTestData.ServiceOf("STITCHING") with { DesignOptionGroupIds = [clonedSleeve.Id, piping.Id] },
+                CatalogTestData.Now, null)
+            .IsSuccess.ShouldBeTrue();
+        clone.Publish(CatalogTestData.Now, null, "Piping is now offered, and required, for this style.")
+            .IsSuccess.ShouldBeTrue();
+
+        var plan = DesignSelectionMigration.Plan(
+            pinned, service.Id, clone, [DesignDraftSelection.Of("sleeve_style", ["FULL"])],
+            CatalogTestData.MainBranch, Today);
+
+        var change = plan.Changes.ShouldHaveSingleItem("sleeve_style did not change and must not be reported");
+        change.Kind.ShouldBe("design.group-newly-required");
+        change.GroupCode.ShouldBe("piping");
+    }
+
+    [Fact]
     public void ARuleAddedForAGroupThisServiceOffersIsNamedAndOneForAnUnrelatedGroupIsNot()
     {
         var pinned = CatalogTestData.Draft(1);

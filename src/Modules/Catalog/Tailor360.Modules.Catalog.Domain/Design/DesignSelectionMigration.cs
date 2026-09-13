@@ -115,6 +115,21 @@ public static class DesignSelectionMigration
             }
         }
 
+        // A group the pinned version never linked to this service at all — not merely one whose own
+        // Required flag flipped — can never produce GroupNewlyRequired above, since the loop that raises
+        // it only ever walks groups the pinned version already offered. Named here instead, so a required
+        // choice a republish newly links to this service shows up in the prompt rather than only
+        // surfacing afterwards as a blocking validation error nobody was warned about.
+        var pinnedGroupKeys = pinnedGroups.Select(group => group.Key).ToHashSet();
+
+        foreach (var newlyLinkedGroup in currentGroupsByKey.Values
+                     .Where(group => !pinnedGroupKeys.Contains(group.Key) && group.Required && IsOfferable(group, branchId, on))
+                     .OrderBy(group => group.DisplayOrder)
+                     .ThenBy(group => group.Code, StringComparer.Ordinal))
+        {
+            changes.Add(DesignMigrationChange.GroupNewlyRequired(newlyLinkedGroup.Code));
+        }
+
         var offeredGroupCodes = currentGroupsByKey.Values.Select(group => group.Code).ToHashSet(StringComparer.Ordinal);
         var pinnedRuleKeys = pinnedVersion.DesignRulesOf(pinnedService.CategoryId)
             .Select(rule => rule.Key)

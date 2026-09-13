@@ -73,11 +73,10 @@ public sealed class DesignSelectionQuery(
         }
 
         // The validator answers over the whole category; narrowed here to what this draft's own service
-        // type offers, so a required group (or a requires rule's target) that belongs only to a sibling
-        // service can neither block this draft nor auto-select an option this service never offered
-        // (#140).
-        var scoped = DesignEvaluationScope.Narrow(
-            evaluated.Value, DesignEvaluationScope.OfferedGroupCodesOf(version, service));
+        // type offers, so a required group (or a requires rule's target, even reached through a chain of
+        // rules) that belongs only to a sibling service can neither block this draft nor auto-select an
+        // option this service never offered (#140).
+        var scoped = DesignEvaluationScope.Narrow(evaluated.Value, version, service.CategoryId, service, inputs);
 
         // A requires rule with exactly one admissible option is settled on the customer's behalf rather
         // than raised as a violation; merged in here so the frozen snapshot — its price-list item and

@@ -272,8 +272,12 @@ public sealed class DesignSelectionDraftHandler(
             return Result.Failure<DesignEvaluation>(evaluated.Error);
         }
 
-        return Result.Success(DesignEvaluationScope.Narrow(
-            evaluated.Value, DesignEvaluationScope.OfferedGroupCodesOf(version, service)));
+        var inputs = draft.Selections
+            .Select(selection => new DesignSelectionInput(selection.GroupCode, selection.OptionCodes))
+            .ToList();
+
+        return Result.Success(
+            DesignEvaluationScope.Narrow(evaluated.Value, version, service.CategoryId, service, inputs));
     }
 
     /// <summary>Re-pins a draft to the currently published version and re-validates it.</summary>
@@ -359,8 +363,12 @@ public sealed class DesignSelectionDraftHandler(
             return Result.Failure<DesignMigrationOutcome>(evaluated.Error);
         }
 
+        var migratedInputs = draft.Selections
+            .Select(selection => new DesignSelectionInput(selection.GroupCode, selection.OptionCodes))
+            .ToList();
+
         var scoped = DesignEvaluationScope.Narrow(
-            evaluated.Value, DesignEvaluationScope.OfferedGroupCodesOf(currentVersion, service));
+            evaluated.Value, currentVersion, service.CategoryId, service, migratedInputs);
 
         return Result.Success(new DesignMigrationOutcome(
             draft, draftStore.EntityTagOf(draft), plan.Changes, scoped));

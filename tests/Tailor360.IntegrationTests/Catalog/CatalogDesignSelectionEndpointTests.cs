@@ -29,6 +29,7 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     private static readonly string[] ZipOnly = ["ZIP"];
     private static readonly string[] OptionStyleB = ["STYLE_B"];
     private static readonly string[] PipingOnly = ["PIPING"];
+    private static readonly string[] BoundOnly = ["BOUND"];
 
     [Fact]
     public async Task APickerReadADraftAndACheckAgreeAndTheQuerySnapshotIsDeterministic()
@@ -432,6 +433,69 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
         checkB.RootElement.GetProperty("violations").EnumerateArray()
             .Select(violation => violation.GetProperty("groupCode").GetString())
             .ShouldContain("lining");
+    }
+
+    [Fact]
+    public async Task AnAutoSelectionChainedThroughAnUnofferedGroupNeverReachesTheSnapshot()
+    {
+        // Codex review, PR #221: dropping only an auto-selection that directly names an unoffered group
+        // missed a chain — cut requires trim (unoffered by this service), and trim in turn requires
+        // edging (offered). Before the fix, edging's auto-selection survived the filter purely because
+        // edging itself is an offered group, even though the only reason it fired at all was a rule two
+        // hops downstream of a group this service's picker never showed.
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("sel-chain-o", "203.0.113.261");
+        var fixtureData = await BuildChainedRuleCatalogueAsync(owner, "sel-chain");
+
+        using var counter = await CounterAsync("sel-chain-c", "203.0.113.262");
+
+        // Service X never links "trim" — only cut and edging — so the trim->edging leg of the chain must
+        // never settle anything for it, even though edging itself is offered here.
+        var draftX = await StartDraftAsync(counter, fixtureData.ServiceXId);
+        (await counter.PutAsync(
+                $"/api/v1/catalog/design-drafts/{draftX}",
+                SaveBody([("cut", ["STYLE_B"])], null),
+                await DraftKeyAsync(counter, draftX)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var checkX = JsonDocument.Parse(
+            await (await counter.GetAsync($"/api/v1/catalog/design-drafts/{draftX}/check"))
+                .Content.ReadAsStringAsync(Token));
+        checkX.RootElement.GetProperty("confirmable").GetBoolean().ShouldBeTrue();
+        checkX.RootElement.GetProperty("autoSelections").EnumerateArray()
+            .ShouldBeEmpty("neither trim nor edging is reachable from what this service's picker showed");
+
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var query = scope.ServiceProvider.GetRequiredService<IDesignSelectionQuery>();
+            var readX = await query.GetAsync(
+                draftX, SessionTestData.OrganisationId, hasReferenceImage: false, Token);
+            readX.IsSuccess.ShouldBeTrue();
+            readX.Value.Snapshot.Selections.Select(selection => selection.GroupCode)
+                .ShouldBe(["cut"], "edging must never freeze onto the snapshot on the strength of a rule chain "
+                    + "that runs through a group this service never offered");
+        }
+
+        // The chain is real, not disabled outright: service Y offers cut, trim and edging together, and
+        // the same two rules settle both hops on its own draft.
+        var draftY = await StartDraftAsync(counter, fixtureData.ServiceYId);
+        (await counter.PutAsync(
+                $"/api/v1/catalog/design-drafts/{draftY}",
+                SaveBody([("cut", ["STYLE_B"])], null),
+                await DraftKeyAsync(counter, draftY)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var query = scope.ServiceProvider.GetRequiredService<IDesignSelectionQuery>();
+            var readY = await query.GetAsync(
+                draftY, SessionTestData.OrganisationId, hasReferenceImage: false, Token);
+            readY.IsSuccess.ShouldBeTrue();
+            readY.Value.Snapshot.Selections.Select(selection => (selection.GroupCode, selection.OptionCode))
+                .ShouldBe([("cut", "STYLE_B"), ("trim", "PIPING"), ("edging", "BOUND")], ignoreOrder: true,
+                    "both hops fire when every group the chain touches is one this service actually offers");
+        }
     }
 
     [Fact]
@@ -909,4 +973,70 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     }
 
     private sealed record MultiServiceFixture(Guid VersionId, Guid CategoryId, Guid ServiceAId, Guid ServiceBId);
+
+    /// <summary>
+    /// Builds and publishes a catalogue with a two-hop requires chain over three groups of one category
+    /// (#140, the transitive-scoping finding): cut (A, B) requires trim = PIPING whenever cut = B, and
+    /// trim = PIPING in turn requires edging = BOUND — each consequent has exactly one admissible option,
+    /// so both settle on the customer's behalf. Service X links only cut and edging, never trim; service
+    /// Y links all three.
+    /// </summary>
+    private async Task<ChainedRuleFixture> BuildChainedRuleCatalogueAsync(
+        AdministrationHarness.AdministratorClient owner, string prefix)
+    {
+        var measurementTemplateId = await PublishedTemplateAsync(prefix);
+        var version = await DraftAsync(owner, $"{prefix} catalogue");
+        var category = await AddCategoryAsync(
+            owner, version, Code($"{prefix.Replace('-', '_').ToUpperInvariant()}_CAT"));
+        var cut = await AddGroupAsync(owner, version, category, "cut", required: false);
+        var trim = await AddGroupAsync(owner, version, category, "trim", required: false, displayOrder: 1);
+        var edging = await AddGroupAsync(owner, version, category, "edging", required: false, displayOrder: 2);
+        await AddOptionAsync(owner, version, cut, "STYLE_A");
+        await AddOptionAsync(owner, version, cut, "STYLE_B", displayOrder: 1);
+        await AddOptionAsync(owner, version, trim, "PIPING");
+        await AddOptionAsync(owner, version, edging, "BOUND");
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Requires",
+                    antecedent = new { groupCode = "cut", form = "Equals", optionCodes = OptionStyleB },
+                    consequent = new { groupCode = "trim", form = "Equals", optionCodes = PipingOnly },
+                    note = (string?)null,
+                    why = "A style-B cut is always finished with piped trim.",
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Requires",
+                    antecedent = new { groupCode = "trim", form = "Equals", optionCodes = PipingOnly },
+                    consequent = new { groupCode = "edging", form = "Equals", optionCodes = BoundOnly },
+                    note = (string?)null,
+                    why = "Piped trim is always finished with a bound edge.",
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var serviceX = await AddServiceAsync(
+            owner, version, category, "STITCHING_X", [cut, edging], measurementTemplateId);
+        var serviceY = await AddServiceAsync(
+            owner, version, category, "STITCHING_Y", [cut, trim, edging], measurementTemplateId);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/publish",
+                new { reason = "Approved for the chained-rule tests." },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        return new ChainedRuleFixture(version, category, serviceX, serviceY);
+    }
+
+    private sealed record ChainedRuleFixture(Guid VersionId, Guid CategoryId, Guid ServiceXId, Guid ServiceYId);
 }
