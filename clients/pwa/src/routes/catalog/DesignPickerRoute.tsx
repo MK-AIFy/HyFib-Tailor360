@@ -131,6 +131,15 @@ export function DesignPickerRoute() {
     readonly prompt: DesignMigrationPrompt
     readonly version: string
   } | null>(null)
+  // Leaving the draft the override was captured for discards it outright, rather than merely
+  // hiding it while elsewhere: returning to that same draft later re-reads it fresh (the read
+  // above is keyed by `draftId`), and a still-held override would otherwise outrank that fresh
+  // answer — including a `null` one, if another client had since resolved or migrated it.
+  const [forcedMigrationDraftId, setForcedMigrationDraftId] = useState(draftId)
+  if (draftId !== forcedMigrationDraftId) {
+    setForcedMigrationDraftId(draftId)
+    setForcedMigration(null)
+  }
   const forcedMigrationForDraft =
     forcedMigration !== null && forcedMigration.draftId === draftId ? forcedMigration : null
   const migrationPrompt =
@@ -527,6 +536,12 @@ function DesignPickerBody({
     const submittedSelections = selectionsRef.current
     const submittedInstructions = instructionsRef.current
     const submittedHasReferenceImage = hasReferenceImageRef.current
+    // Set once a migration surfaces below, so the `finally` block can drop rather than replay a
+    // queued edit: this screen is about to be swapped for the migration gate, and saving the
+    // queued edit anyway would advance the draft past the version just handed to that gate,
+    // racing the migrate request into a conflict for no reason — the edit was never going to
+    // reach a summary the customer can still see.
+    let migrationDetected = false
 
     try {
       const body: SaveDesignSelectionsRequest = {
@@ -588,6 +603,7 @@ function DesignPickerBody({
       // `draft.value.version` still holds.
       const fresh = await readCatalogDesignDraft(draftId)
       if (fresh.value.migrationPrompt !== null) {
+        migrationDetected = true
         onMigrationDetected({
           prompt: fresh.value.migrationPrompt,
           version: fresh.version ?? tagRef.current,
@@ -602,8 +618,9 @@ function DesignPickerBody({
     } finally {
       setSaving(false)
       committingRef.current = false
-      if (queuedRef.current) {
-        queuedRef.current = false
+      const replay = queuedRef.current && !migrationDetected
+      queuedRef.current = false
+      if (replay) {
         void commitRef.current()
       }
     }
