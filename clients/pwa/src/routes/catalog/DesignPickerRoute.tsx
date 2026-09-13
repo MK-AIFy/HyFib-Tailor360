@@ -142,6 +142,7 @@ export function DesignPickerRoute() {
     readonly draftId: string
     readonly prompt: DesignMigrationPrompt
     readonly version: string
+    readonly hasReferenceImage: boolean
   } | null>(null)
   // A migrated draft, from the migrate response itself rather than a further `GET`: that read
   // would still answer with the pre-migration draft until it resolved, and a slow or failed one
@@ -232,6 +233,7 @@ export function DesignPickerRoute() {
       ) : migrationPrompt !== null ? (
         <DesignMigrationGate
           draftId={draftId}
+          hasReferenceImage={forcedMigrationForDraft?.hasReferenceImage ?? false}
           migrationPrompt={migrationPrompt}
           onMigrated={(migrated) => {
             setResolvedDraft({ draftId, reloadGeneration: reloads + 1, response: migrated })
@@ -281,6 +283,15 @@ interface DesignMigrationGateProps {
   readonly migrationPrompt: NonNullable<DesignSelectionDraft['migrationPrompt']>
   readonly version: string
   /**
+   * Whether a reference image was already answered for before this migration was noticed —
+   * `hasReferenceImage` is UI-only state `DesignPickerBody` never persists on the draft itself, so
+   * it would otherwise be lost the moment a mid-session republish swaps that screen out for this
+   * gate, and migrating with `false` would report an already-satisfied requires-attachment rule as
+   * unmet again. `false` for a draft resumed already pinned to a stale version, since nothing has
+   * been answered for it yet in this session either way.
+   */
+  readonly hasReferenceImage: boolean
+  /**
    * The draft was migrated. Carries the migrate response's own draft and version rather than
    * asking the route to wait on a fresh `GET`: that read would still show the pre-migration draft
    * until it resolved, and if it were slow or failed, the route would either flash the stale
@@ -303,6 +314,7 @@ interface DesignMigrationGateProps {
  */
 function DesignMigrationGate({
   draftId,
+  hasReferenceImage,
   migrationPrompt,
   version,
   onMigrated,
@@ -326,7 +338,7 @@ function DesignMigrationGate({
     setMigrating(true)
     setMigrateFailure(null)
     try {
-      const fingerprint = `${draftId}:${version}:false`
+      const fingerprint = `${draftId}:${version}:${String(hasReferenceImage)}`
       const existing = migrateKeyRef.current
       const key =
         existing !== null && existing.fingerprint === fingerprint
@@ -336,7 +348,7 @@ function DesignMigrationGate({
 
       const outcome = await migrateCatalogDesignDraft({
         draftId,
-        hasReferenceImage: false,
+        hasReferenceImage,
         version,
         idempotencyKey: key,
       })
@@ -481,6 +493,7 @@ interface DesignPickerBodyProps {
   readonly onMigrationDetected: (migration: {
     readonly prompt: DesignMigrationPrompt
     readonly version: string
+    readonly hasReferenceImage: boolean
   }) => void
 }
 
@@ -658,6 +671,7 @@ function DesignPickerBody({
         onMigrationDetected({
           prompt: fresh.value.migrationPrompt,
           version: fresh.version ?? tagRef.current,
+          hasReferenceImage: submittedHasReferenceImage,
         })
       }
     } catch (cause: unknown) {
