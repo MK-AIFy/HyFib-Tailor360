@@ -171,4 +171,38 @@ public sealed class DispatchExceptionEndpointTests(WebApplicationFixture fixture
                 Key()))
             .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
+
+    /// <summary>
+    /// #220: an Owner who holds only <c>billing.approve_dispatch_exception</c> — not <c>payments.record</c>
+    /// — can now read the order balance the approval screen needs to set the maximum allowance. The
+    /// permission grants nothing wider: the general-purpose balance route, another branch's order under
+    /// the same route, and a caller holding a different billing permission are all still refused.
+    /// </summary>
+    [Fact]
+    public async Task AnOwnerHoldingOnlyTheApprovalPermissionReadsTheBalanceButGainsNothingElseOfPaymentsRecord()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        var scene = await BuildAsync(fixture, "dxc-bal", "203.0.113.76", "DXCB", RunToken);
+        // Holds exactly billing.approve_dispatch_exception and nothing else: the permission this issue is about.
+        using var approverOnly = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "dxc-bal-a", "203.0.113.77", scene.Branch, BillingPermissions.ApproveDispatchException);
+
+        // The gap this issue closes: reading the order's balance now answers 200, not 403.
+        var read = await approverOnly.GetAsync($"/api/v1/billing/orders/{scene.OrderId}/dispatch-exception-balance");
+        read.StatusCode.ShouldBe(HttpStatusCode.OK, await read.Content.ReadAsStringAsync(Token));
+        JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token)).RootElement.GetProperty("outstanding").GetDecimal().ShouldBe(0m);
+
+        // Narrow scope: the same permission grants none of payments.record's other reach.
+        (await approverOnly.GetAsync($"/api/v1/billing/orders/{scene.OrderId}/balance")).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "GetOrderBalance still needs payments.record");
+        (await approverOnly.GetAsync("/api/v1/billing/payment-modes/available")).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "still needs payments.record");
+
+        // Narrow scope on the other axis: the new route does not travel to an order at another branch.
+        var elsewhere = await BillingHarness.OpenBranchAsync(scene.Owner);
+        using var stranger = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "dxc-bal-s", "203.0.113.78", elsewhere, BillingPermissions.ApproveDispatchException);
+        (await stranger.GetAsync($"/api/v1/billing/orders/{scene.OrderId}/dispatch-exception-balance")).StatusCode.ShouldBe(HttpStatusCode.NotFound, "another branch's order");
+
+        // And a different billing permission does not substitute for the approving one.
+        using var clerk = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "dxc-bal-k", "203.0.113.79", scene.Branch, BillingPermissions.RecordPayment);
+        (await clerk.GetAsync($"/api/v1/billing/orders/{scene.OrderId}/dispatch-exception-balance")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
 }

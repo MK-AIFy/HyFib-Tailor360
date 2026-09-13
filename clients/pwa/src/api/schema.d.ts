@@ -825,6 +825,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the cashier session a reconciliation approval is about to decide on, with its count sheet.
+         * @description The same record `GetCashierSession` reads, reachable here under `payments.approve_reconciliation` alone (#220), because approving a variance needs to see the count sheet it was raised against and the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. A session at another branch reads as 404.
+         */
+        get: operations["GetCashierSessionForReconciliation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve": {
         parameters: {
             query?: never;
@@ -1124,6 +1144,26 @@ export interface paths {
          * @description Computed from rows on every read: posted charges minus credit notes plus debit notes minus allocations plus refunds, per invoice and in all, and the advances held against the order and not yet applied. An order Billing has not heard of, or one at another branch, reads as 404.
          */
         get: operations["GetOrderBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/orders/{orderId}/dispatch-exception-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read what an order still owes, for the approver about to set a dispatch exception's maximum allowance.
+         * @description The same figures `GetOrderBalance` reads, reachable here under `billing.approve_dispatch_exception` alone (#220), because setting a safety-critical maximum without seeing the real balance is worse than not asking, and the Owner who approves does not hold `payments.record`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. An order Billing has not heard of, or one at another branch, reads as 404.
+         */
+        get: operations["GetOrderBalanceForDispatchException"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7932,6 +7972,35 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    GetCashierSessionForReconciliation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     ApproveReconciliation: {
         parameters: {
             query?: never;
@@ -8968,6 +9037,35 @@ export interface operations {
         };
     };
     GetOrderBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderBalancePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetOrderBalanceForDispatchException: {
         parameters: {
             query?: never;
             header?: never;

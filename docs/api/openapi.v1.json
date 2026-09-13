@@ -14000,6 +14000,67 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation": {
+      "get": {
+        "description": "The same record `GetCashierSession` reads, reachable here under `payments.approve_reconciliation` alone (#220), because approving a variance needs to see the count sheet it was raised against and the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. A session at another branch reads as 404.",
+        "operationId": "GetCashierSessionForReconciliation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashierSessionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read the cashier session a reconciliation approval is about to decide on, with its count sheet.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.approve_reconciliation",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve": {
       "post": {
         "description": "Refused for the cashier who closed the session (INV-CSH-04), refused twice, and refused where no variance on the session's batch was ever beyond the configured threshold — the same number the close asked a reason for (OD-24). Step-up and a reason.",
@@ -15789,6 +15850,67 @@
           "Billing"
         ],
         "x-tailor360-authorisation": "permission:payments.record",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/orders/{orderId}/dispatch-exception-balance": {
+      "get": {
+        "description": "The same figures `GetOrderBalance` reads, reachable here under `billing.approve_dispatch_exception` alone (#220), because setting a safety-critical maximum without seeing the real balance is worse than not asking, and the Owner who approves does not hold `payments.record`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. An order Billing has not heard of, or one at another branch, reads as 404.",
+        "operationId": "GetOrderBalanceForDispatchException",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderBalancePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read what an order still owes, for the approver about to set a dispatch exception's maximum allowance.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.approve_dispatch_exception",
         "x-tailor360-rate-limit": "default-user"
       }
     },
