@@ -185,7 +185,7 @@ Every long-running service has one, and dependants wait on it:
 - **The per-role grants of Section 4.4** (`t360_migrator`, `t360_app`, `t360_reporting`,
   `t360_retention`, `t360_backup`), which replace the single bootstrap owner every process connects
   as today.
-- **#31** adds the quarantine bucket to `createbuckets` and binds the `ObjectStorage__*` settings
+- **#155** binds the `ObjectStorage__*` settings (`ObjectStorageOptions`, endpoint and the two mounted keys) for the rendered documents; **#31** adds the quarantine bucket to `createbuckets`
   that the compose files already declare.
 - **#59** replaces this with IaC-managed staging and production, adds pgBackRest and signature and
   provenance verification, and may move the runtime images to the chiselled variants once probing is

@@ -627,36 +627,45 @@ export function CatalogVersionEditorRoute() {
           ]}
           rowActions={(row: Row) =>
             !isDraft ? (
-              value.version.status === 'Published' && canPublish ? (
-                <Button
-                  onClick={() => {
-                    setFailure(null)
-                    setCorrecting({
-                      row,
-                      draft: {
-                        name: row.name,
-                        nameTamil:
-                          (row.serviceType === null
-                            ? row.category.nameTamil
-                            : row.serviceType.nameTamil) ?? '',
-                        description:
-                          (row.serviceType === null
-                            ? row.category.description
-                            : row.serviceType.description) ?? '',
-                        displayOrder: Number(
-                          row.serviceType === null
-                            ? row.category.displayOrder
-                            : row.serviceType.displayOrder,
-                        ),
-                        reason: '',
-                      },
-                    })
-                  }}
-                  variant="secondary"
-                >
-                  {intl.formatMessage({ id: 'catalog.correct' }, { name: row.name })}
-                </Button>
-              ) : null
+              <>
+                {row.serviceType === null ? (
+                  <Link
+                    to={`/admin/catalog/${versionId ?? ''}/categories/${row.category.categoryId}/design`}
+                  >
+                    {intl.formatMessage({ id: 'catalog.design.open' }, { name: row.name })}
+                  </Link>
+                ) : null}
+                {value.version.status === 'Published' && canPublish ? (
+                  <Button
+                    onClick={() => {
+                      setFailure(null)
+                      setCorrecting({
+                        row,
+                        draft: {
+                          name: row.name,
+                          nameTamil:
+                            (row.serviceType === null
+                              ? row.category.nameTamil
+                              : row.serviceType.nameTamil) ?? '',
+                          description:
+                            (row.serviceType === null
+                              ? row.category.description
+                              : row.serviceType.description) ?? '',
+                          displayOrder: Number(
+                            row.serviceType === null
+                              ? row.category.displayOrder
+                              : row.serviceType.displayOrder,
+                          ),
+                          reason: '',
+                        },
+                      })
+                    }}
+                    variant="secondary"
+                  >
+                    {intl.formatMessage({ id: 'catalog.correct' }, { name: row.name })}
+                  </Button>
+                ) : null}
+              </>
             ) : (
               <>
                 <Button
@@ -680,6 +689,13 @@ export function CatalogVersionEditorRoute() {
                     { name: row.name },
                   )}
                 </Button>
+                {row.serviceType === null ? (
+                  <Link
+                    to={`/admin/catalog/${versionId ?? ''}/categories/${row.category.categoryId}/design`}
+                  >
+                    {intl.formatMessage({ id: 'catalog.design.open' }, { name: row.name })}
+                  </Link>
+                ) : null}
                 {row.serviceType === null ? (
                   <Button
                     onClick={() => {

@@ -639,7 +639,7 @@ public sealed class AuthorisationProbeApplication : IAsyncLifetime
                     services.AddScoped<IUserAccessQuery, UserAccessQuery>();
                     services.AddScoped<ISessionTicketStore, SessionTicketStore>();
                     services.AddScoped<IAuditContext, ProbeAuditContext>();
-                    services.AddScoped<IAuditWriter, AuditWriter>();
+                    services.AddScoped<IAuditWriter, AuditWriter<PlatformDbContext>>();
                     services.AddSingleton<IResourceScopeResolver>(
                         new ProbeBranchResolver(OwnBranchId, OtherBranchId));
 

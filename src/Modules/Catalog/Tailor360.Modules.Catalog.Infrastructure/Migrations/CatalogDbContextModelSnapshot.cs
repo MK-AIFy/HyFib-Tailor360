@@ -418,6 +418,358 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<Guid>("CatalogVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_version_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<Guid>("DesignOptionGroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("design_option_group_id");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("HelpText")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("help_text");
+
+                    b.Property<string>("IllustrationAlt")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("illustration_alt");
+
+                    b.Property<string>("IllustrationKey")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("illustration_key");
+
+                    b.Property<Guid>("Key")
+                        .HasColumnType("uuid")
+                        .HasColumnName("design_option_key");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NameTamil")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name_tamil");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<string>("PriceListItemCode")
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("price_list_item_code");
+
+                    b.Property<int>("TimeImpactDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("time_impact_days");
+
+                    b.HasKey("Id")
+                        .HasName("pk_design_options");
+
+                    b.HasIndex("CatalogVersionId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ux_design_options_version_key");
+
+                    b.HasIndex("DesignOptionGroupId", "CatalogVersionId")
+                        .HasDatabaseName("ix_design_options_design_option_group_id_catalog_version_id");
+
+                    b.HasIndex("DesignOptionGroupId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_design_options_group_code");
+
+                    b.ToTable("design_options", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_design_options_code_is_well_formed", "code ~ '^[A-Z][A-Z0-9_]*$'");
+
+                            t.HasCheckConstraint("ck_design_options_display_order_is_not_negative", "display_order >= 0");
+
+                            t.HasCheckConstraint("ck_design_options_time_impact_is_in_range", "time_impact_days BETWEEN -250 AND 250");
+                        });
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOptionGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("ActiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("active_from");
+
+                    b.Property<DateOnly?>("ActiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("active_to");
+
+                    b.Property<Guid>("CatalogVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_version_id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<Guid>("Key")
+                        .HasColumnType("uuid")
+                        .HasColumnName("design_option_group_key");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NameTamil")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name_tamil");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<bool>("Required")
+                        .HasColumnType("boolean")
+                        .HasColumnName("required");
+
+                    b.Property<int>("SelectionMode")
+                        .HasColumnType("integer")
+                        .HasColumnName("selection_mode");
+
+                    b.HasKey("Id")
+                        .HasName("pk_design_option_groups");
+
+                    b.HasAlternateKey("Id", "CatalogVersionId")
+                        .HasName("ak_design_option_groups_id_catalog_version_id");
+
+                    b.HasIndex("CatalogVersionId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ux_design_option_groups_version_key");
+
+                    b.HasIndex("CategoryId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_design_option_groups_category_code");
+
+                    b.ToTable("design_option_groups", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_design_option_groups_active_dates_are_ordered", "active_from IS NULL OR active_to IS NULL OR active_to >= active_from");
+
+                            t.HasCheckConstraint("ck_design_option_groups_code_is_well_formed", "code ~ '^[a-z][a-z0-9_]*$'");
+
+                            t.HasCheckConstraint("ck_design_option_groups_display_order_is_not_negative", "display_order >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AntecedentForm")
+                        .HasColumnType("integer")
+                        .HasColumnName("antecedent_form");
+
+                    b.Property<string>("AntecedentGroupCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("antecedent_group_code");
+
+                    b.PrimitiveCollection<string[]>("AntecedentOptionCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("antecedent_option_codes");
+
+                    b.Property<Guid>("CatalogVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_version_id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<int?>("ConsequentForm")
+                        .HasColumnType("integer")
+                        .HasColumnName("consequent_form");
+
+                    b.Property<string>("ConsequentGroupCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("consequent_group_code");
+
+                    b.PrimitiveCollection<string[]>("ConsequentOptionCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("consequent_option_codes");
+
+                    b.Property<Guid>("Key")
+                        .HasColumnType("uuid")
+                        .HasColumnName("design_rule_key");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("rule_number");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<string>("Why")
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("why");
+
+                    b.HasKey("Id")
+                        .HasName("pk_design_rules");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_design_rules_category_id");
+
+                    b.HasIndex("CatalogVersionId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ux_design_rules_version_key");
+
+                    b.HasIndex("CatalogVersionId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ux_design_rules_version_number");
+
+                    b.ToTable("design_rules", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_design_rules_number_is_positive", "rule_number >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignSelectionDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<Guid>("CatalogVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_version_id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Instructions")
+                        .HasMaxLength(2000)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("instructions");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<Guid>("ServiceTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("service_type_id");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("started_at");
+
+                    b.Property<Guid?>("StartedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("started_by");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_design_selection_drafts");
+
+                    b.HasIndex("OrganisationId", "ExpiresAt")
+                        .HasDatabaseName("ix_design_selection_drafts_organisation_expiry");
+
+                    b.ToTable("design_selection_drafts", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_design_selection_drafts_expires_after_it_started", "expires_at > started_at");
+                        });
+                });
+
             modelBuilder.Entity("Tailor360.Platform.Persistence.Entities.InboxMessage", b =>
                 {
                     b.Property<Guid>("MessageId")
@@ -625,11 +977,127 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                     b.Navigation("DesignGroups");
                 });
 
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOption", b =>
+                {
+                    b.HasOne("Tailor360.Modules.Catalog.Domain.Design.DesignOptionGroup", null)
+                        .WithMany("Options")
+                        .HasForeignKey("DesignOptionGroupId", "CatalogVersionId")
+                        .HasPrincipalKey("Id", "CatalogVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_design_options_design_option_groups_version");
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOptionGroup", b =>
+                {
+                    b.HasOne("Tailor360.Modules.Catalog.Domain.Catalogue.CatalogVersion", null)
+                        .WithMany("DesignGroups")
+                        .HasForeignKey("CatalogVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_design_option_groups_catalog_versions_catalog_version_id");
+
+                    b.HasOne("Tailor360.Modules.Catalog.Domain.Catalogue.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_design_option_groups_categories_category_id");
+
+                    b.OwnsMany("Tailor360.Modules.Catalog.Domain.Design.DesignGroupBranch", "Branches", b1 =>
+                        {
+                            b1.Property<Guid>("DesignOptionGroupId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("design_option_group_id");
+
+                            b1.Property<Guid>("BranchId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("branch_id");
+
+                            b1.HasKey("DesignOptionGroupId", "BranchId")
+                                .HasName("pk_design_option_group_branches");
+
+                            b1.ToTable("design_option_group_branches", "catalog");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DesignOptionGroupId")
+                                .HasConstraintName("fk_design_option_group_branches_design_option_groups_design_op");
+                        });
+
+                    b.Navigation("Branches");
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignRule", b =>
+                {
+                    b.HasOne("Tailor360.Modules.Catalog.Domain.Catalogue.CatalogVersion", null)
+                        .WithMany("DesignRules")
+                        .HasForeignKey("CatalogVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_design_rules_catalog_versions_catalog_version_id");
+
+                    b.HasOne("Tailor360.Modules.Catalog.Domain.Catalogue.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_design_rules_categories_category_id");
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignSelectionDraft", b =>
+                {
+                    b.OwnsMany("Tailor360.Modules.Catalog.Domain.Design.DesignDraftSelection", "Selections", b1 =>
+                        {
+                            b1.Property<Guid>("DesignSelectionDraftId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("design_selection_draft_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<string>("GroupCode")
+                                .IsRequired()
+                                .HasMaxLength(40)
+                                .IsUnicode(true)
+                                .HasColumnType("character varying(40)")
+                                .HasColumnName("group_code");
+
+                            b1.PrimitiveCollection<string[]>("OptionCodes")
+                                .IsRequired()
+                                .HasColumnType("text[]")
+                                .HasColumnName("option_codes");
+
+                            b1.HasKey("DesignSelectionDraftId", "Id")
+                                .HasName("pk_design_selection_draft_selections");
+
+                            b1.ToTable("design_selection_draft_selections", "catalog");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DesignSelectionDraftId")
+                                .HasConstraintName("fk_design_selection_draft_selections_design_selection_drafts_d");
+                        });
+
+                    b.Navigation("Selections");
+                });
+
             modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Catalogue.CatalogVersion", b =>
                 {
                     b.Navigation("Categories");
 
+                    b.Navigation("DesignGroups");
+
+                    b.Navigation("DesignRules");
+
                     b.Navigation("ServiceTypes");
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignOptionGroup", b =>
+                {
+                    b.Navigation("Options");
                 });
 #pragma warning restore 612, 618
         }

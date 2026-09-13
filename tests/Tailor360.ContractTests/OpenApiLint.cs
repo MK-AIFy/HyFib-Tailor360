@@ -343,12 +343,22 @@ public static class OpenApiLint
 
         if (response.Content?.TryGetValue("application/json", out var media) != true)
         {
+            // A streamed document — a rendered PDF, an export — is a body too, and it is documented as a
+            // binary string under its own media type (.Produces<Stream>(status, "application/pdf")).
+            // What is refused is a success with no content at all, or a non-JSON content whose schema
+            // does not say "bytes": both leave a generated client with nothing to return.
+            if (response.Content is { Count: > 0 } && response.Content.Values.All(IsBinaryBody))
+            {
+                return;
+            }
+
             complaints.Add(new(
                 "success-response-schema",
                 where,
                 $"The operation's {status} documents no JSON body. Declare the payload with "
-                + ".Produces<T>(...) so the document says what a caller receives; a handler whose "
-                + "branches return IResult publishes nothing on its own."));
+                + ".Produces<T>(...) so the document says what a caller receives — or, for a streamed "
+                + "document, .Produces<Stream>(status, mediaType) so it is documented as a binary body; "
+                + "a handler whose branches return IResult publishes nothing on its own."));
             return;
         }
 
@@ -360,6 +370,12 @@ public static class OpenApiLint
                 $"The operation's {status} documents a JSON body with no schema."));
         }
     }
+
+    private static bool IsBinaryBody(OpenApiMediaType media)
+        => media.Schema is { } schema
+            && schema.Type is { } type
+            && type.HasFlag(JsonSchemaType.String)
+            && string.Equals(schema.Format, "binary", StringComparison.Ordinal);
 
     private static void InspectFailureResponse(
         string status,

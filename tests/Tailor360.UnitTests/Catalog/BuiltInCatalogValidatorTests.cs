@@ -328,7 +328,11 @@ public sealed class BuiltInCatalogValidatorTests
         IReadOnlyList<CatalogCategoryView> categories,
         IReadOnlyList<CatalogServiceTypeView> serviceTypes,
         CatalogCodeHistory? categoryHistory = null,
-        CatalogCodeHistory? serviceHistory = null)
+        CatalogCodeHistory? serviceHistory = null,
+        IReadOnlyList<CatalogDesignGroupView>? designGroups = null,
+        IReadOnlyList<CatalogDesignRuleView>? designRules = null,
+        CatalogCodeHistory? groupHistory = null,
+        CatalogCodeHistory? optionHistory = null)
         => new(
             CatalogTestData.Id("version"),
             CatalogTestData.Organisation,
@@ -336,7 +340,11 @@ public sealed class BuiltInCatalogValidatorTests
             categories,
             serviceTypes,
             categoryHistory ?? CatalogCodeHistory.Empty,
-            serviceHistory ?? CatalogCodeHistory.Empty);
+            serviceHistory ?? CatalogCodeHistory.Empty,
+            designGroups ?? [],
+            designRules ?? [],
+            groupHistory ?? CatalogCodeHistory.Empty,
+            optionHistory ?? CatalogCodeHistory.Empty);
 
     private static CatalogCategoryView View(
         string code,

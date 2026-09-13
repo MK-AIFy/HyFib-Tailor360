@@ -173,10 +173,148 @@ public static class CatalogErrors
     /// <summary>An expected duration was outside what a working calendar can express.</summary>
     /// <param name="field">The field carrying the duration.</param>
     /// <param name="maximum">The longest duration accepted.</param>
+    /// <returns>The error.</returns>
     public static Error DurationOutOfRange(string field, int maximum) => Error.Validation(
         "catalog.duration-out-of-range",
         $"An expected duration is between one and {maximum} working days. It is the default "
         + "due-date offset, never a promise to the customer.",
         field);
-}
 
+    /// <summary>A design group code is not <c>lower_snake_case</c> of the permitted length, or is a reserved word.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error GroupCodeNotWellFormed(string field) => Error.Validation(
+        "catalog.design-group-code-not-well-formed",
+        "A design group code is lower snake case — small letters, digits and underscores, beginning "
+        + $"with a letter, between {Design.DesignCode.MinimumLength} and {Design.DesignCode.MaximumLength} "
+        + "characters — and may not be none, default, all or unknown.",
+        field);
+
+    /// <summary>A design option code is not <c>UPPER_SNAKE_CASE</c> of the permitted length, or is a forbidden word.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error OptionCodeNotWellFormed(string field) => Error.Validation(
+        "catalog.design-option-code-not-well-formed",
+        "A design option code is upper snake case — capital letters, digits and underscores, beginning "
+        + $"with a letter, between {Design.DesignCode.MinimumLength} and {Design.DesignCode.MaximumLength} "
+        + "characters. NONE is reserved for 'the customer chose not to have this' and may be used; "
+        + "DEFAULT, ALL and UNKNOWN may not.",
+        field);
+
+    /// <summary>An illustration reference is not <c>sheet_key#group_code.OPTION_CODE</c>.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error IllustrationKeyNotWellFormed(string field) => Error.Validation(
+        "catalog.illustration-key-not-well-formed",
+        "An illustration reference names the sheet, the group and the option, as "
+        + "'design_blouse_sleeve_v1#sleeve_style.CAP'. The group is part of it because an option code "
+        + "is unique only within its group and several groups share one sheet.",
+        field);
+
+    /// <summary>An illustration reference is well formed but anchored on another group or option.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error IllustrationKeyNotForThisOption(string field) => Error.Validation(
+        "catalog.illustration-key-not-for-this-option",
+        "An illustration reference is anchored on the option it illustrates — the part after '#' is this "
+        + "group's code, a dot, and this option's code — so the picker cannot show one option's drawing "
+        + "for another.",
+        field);
+
+    /// <summary>A time impact is beyond what a service's own duration may be.</summary>
+    /// <param name="field">The request field.</param>
+    /// <param name="maximum">The largest impact accepted either way.</param>
+    /// <returns>The error.</returns>
+    public static Error TimeImpactOutOfRange(string field, int maximum) => Error.Validation(
+        "catalog.time-impact-out-of-range",
+        $"A time impact is between -{maximum} and {maximum} working days.",
+        field);
+
+    /// <summary>A rule operand does not fit its form.</summary>
+    /// <param name="field">The request field.</param>
+    /// <param name="detail">What does not fit.</param>
+    /// <returns>The error.</returns>
+    public static Error OperandMalformed(string field, string detail) => Error.Validation(
+        "catalog.rule-operand-malformed",
+        $"That is not one of the rule forms the catalogue understands. {detail}",
+        field);
+
+    /// <summary>A requires or excludes rule names no consequent.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error ConsequentRequired(string field) => Error.Validation(
+        "catalog.rule-consequent-required",
+        "A requires or excludes rule names the options it obliges or forbids.",
+        field);
+
+    /// <summary>A note or requires-attachment rule names a consequent it has no use for.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error ConsequentNotAllowed(string field) => Error.Validation(
+        "catalog.rule-consequent-not-allowed",
+        "A note attaches an instruction and a requires-attachment rule asks for a reference image; "
+        + "neither names an option on its right-hand side.",
+        field);
+
+    /// <summary>A rule reads a group that is not one of its category's in this version.</summary>
+    /// <param name="field">The request field.</param>
+    /// <returns>The error.</returns>
+    public static Error RuleGroupNotInCategory(string field) => Error.Validation(
+        "catalog.rule-group-not-in-category",
+        "A rule reads only the design groups of its own category in this catalogue version. A garment "
+        + "belongs to exactly one category, so a rule across categories can never fire.",
+        field);
+
+    /// <summary>The design group named is not in this version.</summary>
+    public static readonly Error DesignGroupNotFound = Error.NotFound(
+        "catalog.design-group-not-found",
+        "That design option group is not in this catalogue version.");
+
+    /// <summary>The design option named is not in this version.</summary>
+    public static readonly Error DesignOptionNotFound = Error.NotFound(
+        "catalog.design-option-not-found",
+        "That design option is not in this catalogue version.");
+
+    /// <summary>The rule named is not in this version.</summary>
+    public static readonly Error DesignRuleNotFound = Error.NotFound(
+        "catalog.design-rule-not-found",
+        "That design rule is not in this catalogue version.");
+
+    /// <summary>A service type was named that is not offered at the caller's branch today.</summary>
+    /// <remarks>
+    /// Answered exactly as a service type that does not exist at all, so that "not offered here" and
+    /// "unknown" read alike: the picker never lists anything else, and a caller probing an identifier
+    /// learns nothing about what another branch offers.
+    /// </remarks>
+    public static readonly Error ServiceTypeNotOrderableHere = Error.NotFound(
+        "catalog.service-type-not-orderable-here",
+        "That service type is not offered at this branch today.");
+
+    /// <summary>A draft could not be migrated because its service type is no longer in the published version.</summary>
+    public static readonly Error ServiceTypeNoLongerOffered = Error.Conflict(
+        "catalog.service-type-no-longer-offered",
+        "The published catalogue no longer offers this service type at all, so the draft cannot be "
+        + "migrated to it. Finish on the pinned version, or start a fresh selection.");
+
+    /// <summary>A design selection draft was named that does not exist for this organisation.</summary>
+    public static readonly Error DesignDraftNotFound = Error.NotFound(
+        "catalog.design-draft-not-found",
+        "That design selection draft does not exist.");
+
+    /// <summary>The draft was changed by somebody else on the branch since it was read.</summary>
+    public static readonly Error DesignDraftChanged = Error.Conflict(
+        "catalog.design-draft-changed",
+        "Somebody else on this branch changed these design selections since they were read. Read them "
+        + "again and make the change against what is there now.");
+
+    /// <summary>The draft is past the moment it stops being work in progress.</summary>
+    public static readonly Error DesignDraftExpired = Error.Conflict(
+        "catalog.design-draft-expired",
+        "This draft is too old to work on. Start a fresh selection rather than build on choices nobody "
+        + "can vouch for.");
+
+    /// <summary>The draft has already been consumed at confirmation.</summary>
+    public static readonly Error DesignDraftAlreadyConsumed = Error.Conflict(
+        "catalog.design-draft-already-consumed",
+        "This draft has already been used to confirm a garment. Nothing was recorded twice.");
+}

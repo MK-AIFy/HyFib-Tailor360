@@ -1,0 +1,79 @@
+.job-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.job-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.job-card__meta {
+  margin: 0;
+  color: var(--colour-ink-muted);
+}
+
+.job-card__selections {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.job-card__selection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* A ruled border rather than a colour swatch: the card must read the same in monochrome. */
+  border-block-end: 1px solid var(--colour-border);
+  padding-block-end: var(--space-2);
+}
+
+.job-card__selection dt {
+  font-weight: var(--font-weight-bold);
+}
+
+.job-card__optionLabel {
+  font-size: var(--font-size-300);
+}
+
+.job-card__notes ul {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.job-card__instructions {
+  white-space: pre-wrap;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body:has(.job-card__body) * {
+    visibility: hidden;
+  }
+
+  body:has(.job-card__body) .job-card,
+  body:has(.job-card__body) .job-card * {
+    visibility: visible;
+  }
+
+  .job-card {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+  }
+
+  .job-card__actions,
+  .job-card .button {
+    display: none;
+  }
+
+  .job-card__selection {
+    break-inside: avoid;
+  }
+}

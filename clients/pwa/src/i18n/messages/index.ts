@@ -15,12 +15,14 @@
  * other fails `pnpm typecheck`.
  */
 import { adminEn, adminTa } from './admin'
+import { billingEn, billingTa } from './billing'
 import { catalogEn, catalogTa } from './catalog'
 import { authEn, authTa } from './auth'
 import { dialogsEn, dialogsTa } from './dialogs'
 import { formsEn, formsTa } from './forms'
 import { installEn, installTa } from './install'
 import { layoutEn, layoutTa } from './layout'
+import { measurementsEn, measurementsTa } from './measurements'
 import { navigationEn, navigationTa } from './navigation'
 import { primitivesEn, primitivesTa } from './primitives'
 import { shellEn, shellTa } from './shell'
@@ -40,6 +42,8 @@ export const messagesEn = {
   ...authEn,
   ...adminEn,
   ...catalogEn,
+  ...measurementsEn,
+  ...billingEn,
 } as const
 
 export const messagesTa = {
@@ -55,4 +59,6 @@ export const messagesTa = {
   ...authTa,
   ...adminTa,
   ...catalogTa,
+  ...measurementsTa,
+  ...billingTa,
 }

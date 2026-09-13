@@ -27,6 +27,15 @@ namespace Tailor360.Modules.Catalog.Contracts.Catalogue;
 /// What service types have been called, keyed by the fully qualified
 /// <c>CATEGORY_CODE.SERVICE_CODE</c> reference that price lists and exports use.
 /// </param>
+/// <param name="DesignGroups">Every design option group in the draft, with its options (#30).</param>
+/// <param name="DesignRules">Every design rule in the draft.</param>
+/// <param name="DesignGroupCodeHistory">
+/// What design groups have been called, keyed by <c>CATEGORY_CODE.group_code</c>.
+/// </param>
+/// <param name="DesignOptionCodeHistory">
+/// What design options have been called, keyed by <c>CATEGORY_CODE.group_code.OPTION_CODE</c> — the
+/// fully qualified reference of section 2 of <c>docs/prd/design-options.md</c>.
+/// </param>
 public sealed record CatalogPublicationCandidate(
     Guid VersionId,
     Guid OrganisationId,
@@ -34,7 +43,11 @@ public sealed record CatalogPublicationCandidate(
     IReadOnlyList<CatalogCategoryView> Categories,
     IReadOnlyList<CatalogServiceTypeView> ServiceTypes,
     CatalogCodeHistory CategoryCodeHistory,
-    CatalogCodeHistory ServiceTypeCodeHistory);
+    CatalogCodeHistory ServiceTypeCodeHistory,
+    IReadOnlyList<CatalogDesignGroupView> DesignGroups,
+    IReadOnlyList<CatalogDesignRuleView> DesignRules,
+    CatalogCodeHistory DesignGroupCodeHistory,
+    CatalogCodeHistory DesignOptionCodeHistory);
 
 /// <summary>What a published version already fixed about a set of codes.</summary>
 /// <remarks>
@@ -128,3 +141,85 @@ public sealed record CatalogRetirementCandidate(
     Guid OrganisationId,
     Guid? SuccessorVersionId,
     IReadOnlySet<Guid> SuccessorServiceTypeKeys);
+
+/// <summary>One design option group as a validator sees it.</summary>
+/// <param name="Id">The row.</param>
+/// <param name="Key">The group as a concept across versions.</param>
+/// <param name="CategoryId">The category whose garments it is chosen for.</param>
+/// <param name="Code">The <c>lower_snake_case</c> code, unique within the category.</param>
+/// <param name="Name">The label.</param>
+/// <param name="SelectionMode"><c>SingleChoice</c> or <c>MultipleChoice</c>.</param>
+/// <param name="Required">Whether a garment may be confirmed with nothing chosen here.</param>
+/// <param name="DisplayOrder">Where it sits in the picker.</param>
+/// <param name="ActiveFrom">The first day offered, or null.</param>
+/// <param name="ActiveTo">The last day offered, or null.</param>
+/// <param name="BranchIds">The branches that offer it.</param>
+/// <param name="Options">Its options, retired ones included.</param>
+public sealed record CatalogDesignGroupView(
+    Guid Id,
+    Guid Key,
+    Guid CategoryId,
+    string Code,
+    string Name,
+    string SelectionMode,
+    bool Required,
+    int DisplayOrder,
+    DateOnly? ActiveFrom,
+    DateOnly? ActiveTo,
+    IReadOnlyCollection<Guid> BranchIds,
+    IReadOnlyList<CatalogDesignOptionView> Options);
+
+/// <summary>One design option as a validator sees it.</summary>
+/// <param name="Id">The row.</param>
+/// <param name="Key">The option as a concept across versions.</param>
+/// <param name="Code">The <c>UPPER_SNAKE_CASE</c> code, unique within its group.</param>
+/// <param name="Name">The label.</param>
+/// <param name="Active">Whether it is offered; false is retirement.</param>
+/// <param name="HasIllustration">Whether a drawing is referenced.</param>
+/// <param name="HasIllustrationAlt">Whether the shape is described in words.</param>
+/// <param name="HasHelpText">Whether the choice is explained.</param>
+/// <param name="PriceListItemCode">The price-list item it resolves to, or null.</param>
+/// <param name="TimeImpactDays">Signed working days.</param>
+/// <param name="DisplayOrder">Where it sits in its group.</param>
+public sealed record CatalogDesignOptionView(
+    Guid Id,
+    Guid Key,
+    string Code,
+    string Name,
+    bool Active,
+    bool HasIllustration,
+    bool HasIllustrationAlt,
+    bool HasHelpText,
+    string? PriceListItemCode,
+    int TimeImpactDays,
+    int DisplayOrder);
+
+/// <summary>One design rule as a validator sees it.</summary>
+/// <param name="Id">The row.</param>
+/// <param name="Key">The rule as a concept across versions.</param>
+/// <param name="CategoryId">The category whose groups it reads.</param>
+/// <param name="Number">The number in <c>DR-nn</c>.</param>
+/// <param name="Identifier"><c>DR-nn</c>, as findings name it.</param>
+/// <param name="Type"><c>Requires</c>, <c>Excludes</c>, <c>RequiresAttachment</c> or <c>Note</c>.</param>
+/// <param name="Antecedent">What has to hold for it to fire.</param>
+/// <param name="Consequent">The option set a requires or excludes rule names, or null.</param>
+/// <param name="Note">The instruction a note attaches.</param>
+public sealed record CatalogDesignRuleView(
+    Guid Id,
+    Guid Key,
+    Guid CategoryId,
+    int Number,
+    string Identifier,
+    string Type,
+    CatalogDesignOperandView Antecedent,
+    CatalogDesignOperandView? Consequent,
+    string? Note);
+
+/// <summary>One side of a rule.</summary>
+/// <param name="GroupCode">The group read, or null for <c>Always</c>.</param>
+/// <param name="Form">The operand form, by the name section 4 of the design options document gives it.</param>
+/// <param name="OptionCodes">The option codes named.</param>
+public sealed record CatalogDesignOperandView(
+    string? GroupCode,
+    string Form,
+    IReadOnlyList<string> OptionCodes);

@@ -5,7 +5,15 @@ import { RequireSession } from '../auth/RequireSession'
 import { DisplayPreferencesPanel } from '../components/layout/DisplayPreferencesPanel'
 import { ADMIN_PERMISSIONS } from '../admin/adminPermissions'
 import { RequirePermission } from '../admin/RequirePermission'
+import { BILLING_PERMISSIONS } from '../billing/billingPermissions'
 import { AboutRoute } from '../routes/AboutRoute'
+import { AllocateAdvanceRoute } from '../routes/billing/AllocateAdvanceRoute'
+import { CashierSessionRoute } from '../routes/billing/CashierSessionRoute'
+import { DispatchExceptionApprovalRoute } from '../routes/billing/DispatchExceptionApprovalRoute'
+import { OutstandingBalancesRoute } from '../routes/billing/OutstandingBalancesRoute'
+import { PaymentDetailRoute } from '../routes/billing/PaymentDetailRoute'
+import { ReconciliationApprovalRoute } from '../routes/billing/ReconciliationApprovalRoute'
+import { TakePaymentRoute } from '../routes/billing/TakePaymentRoute'
 import { AdminShell } from '../routes/admin/AdminShell'
 import { AuditTrailRoute } from '../routes/admin/AuditTrailRoute'
 import { BranchListRoute } from '../routes/admin/BranchListRoute'
@@ -15,12 +23,21 @@ import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
 import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
+import { CATALOG_PERMISSIONS } from '../catalog/catalogPermissions'
+import { CatalogDesignRoute } from '../routes/catalog/CatalogDesignRoute'
 import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEditorRoute'
 import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
+import { DesignPickerRoute } from '../routes/catalog/DesignPickerRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
+import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
+import { MeasurementCompareRoute } from '../routes/measurements/MeasurementCompareRoute'
+import { MeasurementDraftRoute } from '../routes/measurements/MeasurementDraftRoute'
+import { MeasurementSheetRoute } from '../routes/measurements/MeasurementSheetRoute'
+import { MeasurementStartRoute } from '../routes/measurements/MeasurementStartRoute'
+import { MeasurementsHomeRoute } from '../routes/measurements/MeasurementsHomeRoute'
 import { AuthShell } from '../routes/auth/AuthShell'
 import { AuthenticatorEnrolmentRoute } from '../routes/auth/AuthenticatorEnrolmentRoute'
 import { LoginRoute } from '../routes/auth/LoginRoute'
@@ -158,6 +175,134 @@ export const router = createBrowserRouter([
           { path: 'account/security', element: <SecurityRoute /> },
           { path: 'account/security/authenticator', element: <AuthenticatorEnrolmentRoute /> },
           { path: 'account/sessions', element: <SessionsRoute /> },
+          // Measuring a customer (#123). Three addresses: the destination the shells navigate to,
+          // the start screen the phone shell's primary action opens, and the draft itself — which
+          // has an address of its own because a draft is shared within the branch and survives an
+          // interruption, so a colleague can pick it up on their own device.
+          {
+            path: 'measurements',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementsHomeRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'measurements/new',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementStartRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'measurements/drafts/:draftId',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementDraftRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'measurements/compare/:beforeId/:afterId',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.capture}>
+                <MeasurementCompareRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // The sheet is gated on the narrower key: a sheet is the widest audience a measurement
+            // gets, and the right to produce one is held by fewer people than the right to take one.
+            path: 'measurements/:versionId/sheet',
+            element: (
+              <RequirePermission permission={MEASUREMENT_PERMISSIONS.readSheet}>
+                <MeasurementSheetRoute />
+              </RequirePermission>
+            ),
+          },
+          // The design picker (#142): starting a draft against a service type of the currently
+          // published catalogue, and resuming one already started. Two addresses rather than one
+          // optional parameter, so a fresh start never has to guess a route it should not match.
+          {
+            path: 'catalog/design/:serviceTypeId',
+            element: (
+              <RequirePermission permission={CATALOG_PERMISSIONS.designSelect}>
+                <DesignPickerRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'catalog/design/:serviceTypeId/:draftId',
+            element: (
+              <RequirePermission permission={CATALOG_PERMISSIONS.designSelect}>
+                <DesignPickerRoute />
+              </RequirePermission>
+            ),
+          },
+          // Billing (#161-#165): taking a payment, outstanding balances, the cashier session,
+          // reconciliation approval and the dispatch exception the Owner approves. Every write here
+          // is online-only (`OfflineBlockedAction`) — billing, payment and inventory reconciliation
+          // are never queued (plan Section 4.6).
+          {
+            path: 'billing/outstanding',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
+                <OutstandingBalancesRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/payments/new',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.recordPayment}>
+                <TakePaymentRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/payments/:paymentId',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.recordPayment}>
+                <PaymentDetailRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // Moving a held advance to a posted invoice by hand, against the automatic rule: a
+            // narrower key than reading the payment, and step-up on the server regardless.
+            path: 'billing/payments/:paymentId/allocate',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.allocateAdvanceManual}>
+                <AllocateAdvanceRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/cashier',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.cashierSession}>
+                <CashierSessionRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/cashier-sessions/:sessionId/reconciliation',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.approveReconciliation}>
+                <ReconciliationApprovalRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // The Owner only, per the plan's interim position (raci.md footnote (15), XQ-02).
+            path: 'billing/dispatch-exceptions/new',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.approveDispatchException}>
+                <DispatchExceptionApprovalRoute />
+              </RequirePermission>
+            ),
+          },
           // The administration section. Each screen guards itself as well as being filtered out of
           // the sub-navigation, and the server guards itself again — three layers, of which only the
           // innermost is the authorisation.
@@ -252,6 +397,17 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
                     <CatalogVersionEditorRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // Groups, options and rules for one category, on an address of its own (#141) — the
+                // same reasoning the version editor itself gets one: a working set of rules survives
+                // a reload. Guarded the same way, on the drafting key rather than the publishing one.
+                path: 'catalog/:versionId/categories/:categoryId/design',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
+                    <CatalogDesignRoute />
                   </RequirePermission>
                 ),
               },

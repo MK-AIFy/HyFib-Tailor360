@@ -158,4 +158,22 @@ internal static partial class WorkerLog
         Level = LogLevel.Error,
         Message = "A subject-access export purge pass failed; the loop continues.")]
     public static partial void CustomerExportPurgeFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        EventId = 2040,
+        Level = LogLevel.Information,
+        Message = "Expired {Count} dispatch exception(s) past their expiry, never consumed.")]
+    public static partial void DispatchExceptionsExpired(ILogger logger, int count);
+
+    [LoggerMessage(
+        EventId = 2041,
+        Level = LogLevel.Warning,
+        Message = "A dispatch exception expiry pass was refused with {Code}; the next pass finds the same rows again.")]
+    public static partial void DispatchExceptionExpiryRefused(ILogger logger, string code);
+
+    [LoggerMessage(
+        EventId = 2042,
+        Level = LogLevel.Error,
+        Message = "A dispatch exception expiry pass failed; the loop continues.")]
+    public static partial void DispatchExceptionExpiryFailed(ILogger logger, Exception exception);
 }

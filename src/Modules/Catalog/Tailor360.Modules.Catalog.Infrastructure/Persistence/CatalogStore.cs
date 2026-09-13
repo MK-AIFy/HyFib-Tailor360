@@ -98,12 +98,46 @@ public sealed class CatalogStore(CatalogDbContext context) : ICatalogStore
                 select new CodeRow(service.Key, category.Code + "." + service.Code))
             .ToListAsync(cancellationToken);
 
+        var groups = await (
+                from grp in context.DesignGroups.AsNoTracking().IgnoreAutoIncludes()
+                join category in context.Categories.IgnoreAutoIncludes()
+                    on grp.CategoryId equals category.Id
+                join version in context.CatalogVersions.IgnoreAutoIncludes()
+                    on grp.CatalogVersionId equals version.Id
+                where grp.OrganisationId == organisationId && version.Status != CatalogStatus.Draft
+                orderby version.VersionNumber
+                select new CodeRow(grp.Key, category.Code + "." + grp.Code))
+            .ToListAsync(cancellationToken);
+
+        var options = await (
+                from option in context.DesignOptions.AsNoTracking().IgnoreAutoIncludes()
+                join grp in context.DesignGroups.IgnoreAutoIncludes()
+                    on option.DesignOptionGroupId equals grp.Id
+                join category in context.Categories.IgnoreAutoIncludes()
+                    on grp.CategoryId equals category.Id
+                join version in context.CatalogVersions.IgnoreAutoIncludes()
+                    on option.CatalogVersionId equals version.Id
+                where option.OrganisationId == organisationId && version.Status != CatalogStatus.Draft
+                orderby version.VersionNumber
+                select new CodeRow(option.Key, category.Code + "." + grp.Code + "." + option.Code))
+            .ToListAsync(cancellationToken);
+
         var (categoryCodeByKey, categoryKeyByCode) = Fold(categories);
         var (serviceCodeByKey, serviceKeyByCode) = Fold(services);
+        var (groupCodeByKey, groupKeyByCode) = Fold(groups);
+        var (optionCodeByKey, optionKeyByCode) = Fold(options);
 
         return new CatalogCodeLedger(
-            categoryCodeByKey, categoryKeyByCode, serviceCodeByKey, serviceKeyByCode);
+            categoryCodeByKey,
+            categoryKeyByCode,
+            serviceCodeByKey,
+            serviceKeyByCode,
+            groupCodeByKey,
+            groupKeyByCode,
+            optionCodeByKey,
+            optionKeyByCode);
     }
+
 
     /// <inheritdoc />
     public void Add(CatalogVersion version) => context.CatalogVersions.Add(version);

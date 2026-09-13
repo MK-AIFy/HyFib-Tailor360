@@ -1,0 +1,1036 @@
+{
+  "$comment": "The accountant-shaped golden master for the pricing engine (#147, OD-05). Every rate, code and amount is synthetic. Amounts are rupees to paise; rates are percentages. The two walkthrough cases are docs/prd/walkthroughs.md sections 2.2 and 3.2; the half-paisa cases pin that every printed component is rounded once and the line adds up; the inclusive cases pin that the customer pays the quoted inclusive price.",
+  "registrationStateCode": "33",
+  "overrideThresholdPercent": 10,
+  "taxCodes": [
+    {
+      "code": "SAC_998821_5",
+      "description": "Tailoring services",
+      "classification": "998821",
+      "kind": "Services",
+      "rates": {
+        "Cgst": 2.5,
+        "Sgst": 2.5,
+        "Igst": 5
+      }
+    },
+    {
+      "code": "HSN_2402_12_CESS_1",
+      "description": "Goods with cess",
+      "classification": "2402",
+      "kind": "Goods",
+      "rates": {
+        "Cgst": 6,
+        "Sgst": 6,
+        "Igst": 12,
+        "Cess": 1
+      }
+    },
+    {
+      "code": "NIL_0",
+      "description": "Exempt supply",
+      "classification": "9988",
+      "kind": "Services",
+      "rates": {}
+    }
+  ],
+  "items": [
+    {
+      "code": "BLOUSE_PATTERN_STITCHING",
+      "description": "Blouse stitching, pattern work",
+      "kind": "Service",
+      "rate": 450,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "PI_KATORI_CUP_LINING",
+      "description": "Katori cup lining",
+      "kind": "Surcharge",
+      "rate": 90,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "PI_PIPING_FINISH",
+      "description": "Piping finish",
+      "kind": "Surcharge",
+      "rate": 40,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "BLOUSE_AARI_STITCHING",
+      "description": "Blouse stitching, Aari work",
+      "kind": "Service",
+      "rate": 600,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "PI_AARI_FRONT_PANEL_MEDIUM",
+      "description": "Aari work, front panel, medium density",
+      "kind": "Surcharge",
+      "rate": 2200,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "PI_AARI_NECKLINE_BAND",
+      "description": "Aari work, neckline band",
+      "kind": "Surcharge",
+      "rate": 700,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "PI_AARI_SLEEVE_BANDS",
+      "description": "Aari work, sleeve bands, pair",
+      "kind": "Surcharge",
+      "rate": 500,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "MAT_AD_STONE_BEAD_KIT",
+      "description": "AD stone and bead kit, consumed",
+      "kind": "Service",
+      "rate": 340,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "ITEM_341",
+      "description": "A service at 341",
+      "kind": "Service",
+      "rate": 341,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "ITEM_331",
+      "description": "A service at 331",
+      "kind": "Service",
+      "rate": 331,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "INCL_BLOUSE_609",
+      "description": "Blouse stitching, quoted inclusive",
+      "kind": "Service",
+      "rate": 609,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "INCL_500",
+      "description": "A service quoted inclusive at 500",
+      "kind": "Service",
+      "rate": 500,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "GOODS_12_CESS_1",
+      "description": "Goods at 12% with 1% cess",
+      "kind": "Service",
+      "rate": 1000,
+      "taxCode": "HSN_2402_12_CESS_1"
+    },
+    {
+      "code": "NIL_ITEM",
+      "description": "An exempt service",
+      "kind": "Service",
+      "rate": 250,
+      "taxCode": "NIL_0"
+    },
+    {
+      "code": "RATE_10_0050",
+      "description": "A service at 10.0050",
+      "kind": "Service",
+      "rate": 10.005,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "PI_5_0050",
+      "description": "A surcharge at 5.0050",
+      "kind": "Surcharge",
+      "rate": 5.005,
+      "taxCode": "SAC_998821_5"
+    },
+    {
+      "code": "RATE_92_10",
+      "description": "A service at 92.10",
+      "kind": "Service",
+      "rate": 92.1,
+      "taxCode": "SAC_998821_5"
+    }
+  ],
+  "discountRules": [
+    {
+      "code": "FESTIVAL",
+      "description": "Festival-season discount",
+      "kind": "Percentage",
+      "maximumWithoutApproval": 5,
+      "maximum": 15
+    },
+    {
+      "code": "GOODWILL",
+      "description": "Goodwill amount off a line",
+      "kind": "Amount",
+      "maximumWithoutApproval": 100,
+      "maximum": 500
+    }
+  ],
+  "cases": [
+    {
+      "name": "walkthrough-blouse: 450 + 90 + 40, intra-state, exclusive",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [
+            "PI_KATORI_CUP_LINING",
+            "PI_PIPING_FINISH"
+          ],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 580,
+            "discount": 0,
+            "taxableValue": 580,
+            "taxes": {
+              "CGST": 14.5,
+              "SGST": 14.5
+            },
+            "lineTotal": 609,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 580,
+          "discountTotal": 0,
+          "taxableValue": 580,
+          "centralTax": 14.5,
+          "stateTax": 14.5,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 609
+        }
+      }
+    },
+    {
+      "name": "walkthrough-aari: 600 + 2200 + 700 + 500, and the kit on its own line",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_AARI_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [
+            "PI_AARI_FRONT_PANEL_MEDIUM",
+            "PI_AARI_NECKLINE_BAND",
+            "PI_AARI_SLEEVE_BANDS"
+          ],
+          "discount": null,
+          "override": null
+        },
+        {
+          "lineKey": "m1",
+          "itemCode": "MAT_AD_STONE_BEAD_KIT",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 4000,
+            "discount": 0,
+            "taxableValue": 4000,
+            "taxes": {
+              "CGST": 100,
+              "SGST": 100
+            },
+            "lineTotal": 4200,
+            "variance": 0,
+            "approvalExercised": false
+          },
+          {
+            "lineKey": "m1",
+            "gross": 340,
+            "discount": 0,
+            "taxableValue": 340,
+            "taxes": {
+              "CGST": 8.5,
+              "SGST": 8.5
+            },
+            "lineTotal": 357,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 4340,
+          "discountTotal": 0,
+          "taxableValue": 4340,
+          "centralTax": 108.5,
+          "stateTax": 108.5,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 4557
+        }
+      }
+    },
+    {
+      "name": "inter-state: the same blouse supplied to state 29 carries IGST alone",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "29",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [
+            "PI_KATORI_CUP_LINING",
+            "PI_PIPING_FINISH"
+          ],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "InterState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 580,
+            "discount": 0,
+            "taxableValue": 580,
+            "taxes": {
+              "IGST": 29
+            },
+            "lineTotal": 609,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 580,
+          "discountTotal": 0,
+          "taxableValue": 580,
+          "centralTax": 0,
+          "stateTax": 0,
+          "integratedTax": 29,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 609
+        }
+      }
+    },
+    {
+      "name": "inclusive-exact: 609 inclusive backs out to 580 taxable",
+      "taxInclusive": true,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "INCL_BLOUSE_609",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 609,
+            "discount": 0,
+            "taxableValue": 580,
+            "taxes": {
+              "CGST": 14.5,
+              "SGST": 14.5
+            },
+            "lineTotal": 609,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 609,
+          "discountTotal": 0,
+          "taxableValue": 580,
+          "centralTax": 14.5,
+          "stateTax": 14.5,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 609
+        }
+      }
+    },
+    {
+      "name": "inclusive-rounds: 500 inclusive is 476.20 taxable after 11.90 twice, and the customer pays 500",
+      "taxInclusive": true,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "INCL_500",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 500,
+            "discount": 0,
+            "taxableValue": 476.2,
+            "taxes": {
+              "CGST": 11.9,
+              "SGST": 11.9
+            },
+            "lineTotal": 500,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 500,
+          "discountTotal": 0,
+          "taxableValue": 476.2,
+          "centralTax": 11.9,
+          "stateTax": 11.9,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 500
+        }
+      }
+    },
+    {
+      "name": "percentage-discount: 5% festival off 580, the half paisa rounding away from zero",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [
+            "PI_KATORI_CUP_LINING",
+            "PI_PIPING_FINISH"
+          ],
+          "discount": {
+            "ruleCode": "FESTIVAL",
+            "value": 5,
+            "reason": null
+          },
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 580,
+            "discount": 29,
+            "taxableValue": 551,
+            "taxes": {
+              "CGST": 13.78,
+              "SGST": 13.78
+            },
+            "lineTotal": 578.56,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 580,
+          "discountTotal": 29,
+          "taxableValue": 551,
+          "centralTax": 13.78,
+          "stateTax": 13.78,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0.44,
+          "grandTotal": 579
+        }
+      }
+    },
+    {
+      "name": "amount-discount: 50 goodwill off 580, a half rupee rounding up",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [
+            "PI_KATORI_CUP_LINING",
+            "PI_PIPING_FINISH"
+          ],
+          "discount": {
+            "ruleCode": "GOODWILL",
+            "value": 50,
+            "reason": null
+          },
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 580,
+            "discount": 50,
+            "taxableValue": 530,
+            "taxes": {
+              "CGST": 13.25,
+              "SGST": 13.25
+            },
+            "lineTotal": 556.5,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 580,
+          "discountTotal": 50,
+          "taxableValue": 530,
+          "centralTax": 13.25,
+          "stateTax": 13.25,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0.5,
+          "grandTotal": 557
+        }
+      }
+    },
+    {
+      "name": "round-off-down: 358.06 is rounded to 358",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "ITEM_341",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 341,
+            "discount": 0,
+            "taxableValue": 341,
+            "taxes": {
+              "CGST": 8.53,
+              "SGST": 8.53
+            },
+            "lineTotal": 358.06,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 341,
+          "discountTotal": 0,
+          "taxableValue": 341,
+          "centralTax": 8.53,
+          "stateTax": 8.53,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": -0.06,
+          "grandTotal": 358
+        }
+      }
+    },
+    {
+      "name": "round-off-up-over-two-lines: 358.06 + 347.56 = 705.62, rounded once to 706",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "ITEM_341",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        },
+        {
+          "lineKey": "g2",
+          "itemCode": "ITEM_331",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 341,
+            "discount": 0,
+            "taxableValue": 341,
+            "taxes": {
+              "CGST": 8.53,
+              "SGST": 8.53
+            },
+            "lineTotal": 358.06,
+            "variance": 0,
+            "approvalExercised": false
+          },
+          {
+            "lineKey": "g2",
+            "gross": 331,
+            "discount": 0,
+            "taxableValue": 331,
+            "taxes": {
+              "CGST": 8.28,
+              "SGST": 8.28
+            },
+            "lineTotal": 347.56,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 672,
+          "discountTotal": 0,
+          "taxableValue": 672,
+          "centralTax": 16.81,
+          "stateTax": 16.81,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0.38,
+          "grandTotal": 706
+        }
+      }
+    },
+    {
+      "name": "quantity: two blouses with their surcharges",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 2,
+          "surchargeItemCodes": [
+            "PI_KATORI_CUP_LINING",
+            "PI_PIPING_FINISH"
+          ],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 1160,
+            "discount": 0,
+            "taxableValue": 1160,
+            "taxes": {
+              "CGST": 29,
+              "SGST": 29
+            },
+            "lineTotal": 1218,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 1160,
+          "discountTotal": 0,
+          "taxableValue": 1160,
+          "centralTax": 29,
+          "stateTax": 29,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 1218
+        }
+      }
+    },
+    {
+      "name": "override-approved: 580 in place of 450, beyond the 10% threshold, on the permission",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": true,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": {
+            "rate": 580,
+            "reason": "Quoted at the sample rate before the revision."
+          }
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 580,
+            "discount": 0,
+            "taxableValue": 580,
+            "taxes": {
+              "CGST": 14.5,
+              "SGST": 14.5
+            },
+            "lineTotal": 609,
+            "variance": 130,
+            "approvalExercised": true
+          }
+        ],
+        "totals": {
+          "subtotal": 580,
+          "discountTotal": 0,
+          "taxableValue": 580,
+          "centralTax": 14.5,
+          "stateTax": 14.5,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 609
+        }
+      }
+    },
+    {
+      "name": "override-within-threshold: 470 in place of 450 needs a reason and no permission",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "BLOUSE_PATTERN_STITCHING",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": {
+            "rate": 470,
+            "reason": "Extra hand finishing agreed at the counter."
+          }
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 470,
+            "discount": 0,
+            "taxableValue": 470,
+            "taxes": {
+              "CGST": 11.75,
+              "SGST": 11.75
+            },
+            "lineTotal": 493.5,
+            "variance": 20,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 470,
+          "discountTotal": 0,
+          "taxableValue": 470,
+          "centralTax": 11.75,
+          "stateTax": 11.75,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0.5,
+          "grandTotal": 494
+        }
+      }
+    },
+    {
+      "name": "cess: goods at 12% with 1% cess",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "GOODS_12_CESS_1",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 1000,
+            "discount": 0,
+            "taxableValue": 1000,
+            "taxes": {
+              "CGST": 60,
+              "SGST": 60,
+              "CESS": 10
+            },
+            "lineTotal": 1130,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 1000,
+          "discountTotal": 0,
+          "taxableValue": 1000,
+          "centralTax": 60,
+          "stateTax": 60,
+          "integratedTax": 0,
+          "cess": 10,
+          "roundOff": 0,
+          "grandTotal": 1130
+        }
+      }
+    },
+    {
+      "name": "nil-rated: an exempt service carries no tax component",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "NIL_ITEM",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 250,
+            "discount": 0,
+            "taxableValue": 250,
+            "taxes": {},
+            "lineTotal": 250,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 250,
+          "discountTotal": 0,
+          "taxableValue": 250,
+          "centralTax": 0,
+          "stateTax": 0,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 250
+        }
+      }
+    },
+    {
+      "name": "no-round-off-rule: the version says none, so 358.06 stands",
+      "taxInclusive": false,
+      "roundOff": "None",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "ITEM_341",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 341,
+            "discount": 0,
+            "taxableValue": 341,
+            "taxes": {
+              "CGST": 8.53,
+              "SGST": 8.53
+            },
+            "lineTotal": 358.06,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 341,
+          "discountTotal": 0,
+          "taxableValue": 341,
+          "centralTax": 8.53,
+          "stateTax": 8.53,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0,
+          "grandTotal": 358.06
+        }
+      }
+    },
+    {
+      "name": "half-paisa components: 10.0050 + 5.0050 are each rounded once, and the printed line adds up",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "RATE_10_0050",
+          "quantity": 1,
+          "surchargeItemCodes": [
+            "PI_5_0050"
+          ],
+          "discount": null,
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 15.02,
+            "discount": 0,
+            "taxableValue": 15.02,
+            "taxes": {
+              "CGST": 0.38,
+              "SGST": 0.38
+            },
+            "lineTotal": 15.78,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 15.02,
+          "discountTotal": 0,
+          "taxableValue": 15.02,
+          "centralTax": 0.38,
+          "stateTax": 0.38,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0.22,
+          "grandTotal": 16
+        }
+      }
+    },
+    {
+      "name": "half-paisa discount: 5% of 92.10 is 4.61 once rounded, and 92.10 less 4.61 is the taxable value printed",
+      "taxInclusive": false,
+      "roundOff": "NearestRupee",
+      "placeOfSupplyStateCode": "33",
+      "callerMayOverride": false,
+      "lines": [
+        {
+          "lineKey": "g1",
+          "itemCode": "RATE_92_10",
+          "quantity": 1,
+          "surchargeItemCodes": [],
+          "discount": {
+            "ruleCode": "FESTIVAL",
+            "value": 5,
+            "reason": null
+          },
+          "override": null
+        }
+      ],
+      "expected": {
+        "scheme": "IntraState",
+        "lines": [
+          {
+            "lineKey": "g1",
+            "gross": 92.1,
+            "discount": 4.61,
+            "taxableValue": 87.49,
+            "taxes": {
+              "CGST": 2.19,
+              "SGST": 2.19
+            },
+            "lineTotal": 91.87,
+            "variance": 0,
+            "approvalExercised": false
+          }
+        ],
+        "totals": {
+          "subtotal": 92.1,
+          "discountTotal": 4.61,
+          "taxableValue": 87.49,
+          "centralTax": 2.19,
+          "stateTax": 2.19,
+          "integratedTax": 0,
+          "cess": 0,
+          "roundOff": 0.13,
+          "grandTotal": 92
+        }
+      }
+    }
+  ]
+}

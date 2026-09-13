@@ -46,12 +46,14 @@ Four properties, in the order they matter. Each row of sections 3 to 5 exists to
 
 A required status check is matched **by the name GitHub displays**, which is the workflow job's `name:` value, not
 the job's key. The names below are read from the workflow files and are the complete set as of this document's
-date.
+date. `API contract` was running unrequired until 2026-09-12 — the section 3.1 failure mode, found
+by diffing this list against the workflow's job names rather than by anything going wrong.
 
 | Check name to require | Workflow | Job key | What it gates |
 | --- | --- | --- | --- |
 | `Pull-request policy` | [`../../.github/workflows/pr-policy.yml`](../../.github/workflows/pr-policy.yml) | `policy` | Exactly one open linked issue, the branch-name convention, and the mandatory evidence-checklist items once the pull request is out of draft |
-| `.NET build and tests` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `build-test-dotnet` | Restore, format check, build with warnings as errors, and the unit, architecture, contract and integration tiers with coverage collection |
+| `.NET build and tests` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `build-test-dotnet` | Restore, build with warnings as errors, and the unit, architecture, contract and integration tiers with coverage collection. The format check is the separate job below |
+| `.NET formatting` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `format-dotnet` | `dotnet format --verify-no-changes` over the solution, against `.editorconfig`. Split out of `build-test-dotnet` because it needs no database and nothing in that job depended on it, so it was 86 seconds of the critical path that also swallowed every test result whenever it failed |
 | `PWA build and tests` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `build-test-pwa` | Lint, type-check, unit tests and the production build of `clients/pwa` |
 | `Documentation links` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `documentation` | The link checker's self-test, then every relative link in `docs/`, `.github/`, the repository-root markdown and the per-tree `CLAUDE.md` and `README.md` guides |
 | `Security checks` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `security` | Secret scanning over the whole history, and dependency review when the dependency graph is available. The scanners live in the four jobs below, not in this one |
@@ -59,6 +61,7 @@ date.
 | `CodeQL (csharp)` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `codeql` | Static analysis of the .NET code, gated at high severity by `scripts/sarif-gate.py` whether or not the alerts page is available. Proves **RG-10** |
 | `CodeQL (javascript-typescript)` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `codeql` | The same over `clients/pwa`. The job is a matrix over two languages and GitHub reports **one check run per language**, so both names are required separately — requiring only the job key requires neither |
 | `Container and dependency scan` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `infrastructure-scan` | Trivy over the container definitions (gated at critical) and over the dependency tree (gated at high, fixed advisories only). Proves **RG-08** while dependency review is unavailable |
+| `API contract` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `api-contract` | The breaking-change classifier over the committed OpenAPI document against the base branch, and the Spectral lint of that document. A breaking change passes only with both the `api-breaking-approved` label and a row in `docs/api/breaking-changes.md`, which is how [`../architecture/conventions.md`](../architecture/conventions.md) section 5.2 is enforced per pull request |
 
 **Deliberately not required**, and both omissions are decisions rather than oversights:
 

@@ -40,9 +40,7 @@ public sealed class StepUpAuthorisationHandler(
 
         // A caller with no session has nothing to be stale; the authentication challenge answers first
         // and this stays a refusal rather than becoming an accidental pass.
-        if (!currentUser.IsAuthenticated
-            || currentUser.LastReauthenticatedAt is not { } last
-            || clock.UtcNow - last > options.Value.Freshness)
+        if (!StepUpFreshness.IsFresh(currentUser, clock, options.Value))
         {
             context.Fail(new RefusalReason(
                 this, AuthorisationRefusal.StepUpRequired, "Recent re-authentication required."));

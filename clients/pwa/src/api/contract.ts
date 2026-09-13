@@ -17,10 +17,30 @@ import type {
   CatalogVersion,
   CatalogVersionSummary,
   CategoryRequest,
+  DesignCheck,
+  DesignMigrationOutcome,
+  DesignPicker,
+  DesignSelectionDraft,
   OrderableCatalog,
   PresentationRequest,
+  SaveDesignSelectionsRequest,
   ServiceTypeRequest,
+  StartDesignSelectionDraftRequest,
 } from '../catalog/types'
+import type { CustomerCard, CustomerPage } from '../customers/types'
+import type {
+  ConfirmMeasurementsRequest,
+  MeasurementCaptureTemplate,
+  MeasurementCheck,
+  MeasurementComparison,
+  MeasurementDraft,
+  MeasurementSheet,
+  MeasurementSummary,
+  MeasurementVersion,
+  MeasurementVersionTemplate,
+  SaveMeasurementSectionRequest,
+  StartMeasurementDraftRequest,
+} from '../measurements/types'
 import type {
   AssignedAccess,
   AuditPage,
@@ -36,6 +56,25 @@ import type {
   TemplateFieldRequest,
   TemplateValidation,
 } from '../admin/types'
+import type {
+  AllocateAdvanceRequest,
+  ApproveReconciliationRequest,
+  AvailablePaymentMode,
+  CashierSession,
+  CloseCashierSessionRequest,
+  CreateDispatchExceptionRequest,
+  DispatchException,
+  InvoiceBalance,
+  InvoicePage,
+  InvoiceSummary,
+  OpenCashierSessionRequest,
+  OrderBalance,
+  Payment,
+  PrintJob,
+  PrintReceiptRequest,
+  ReconciliationBatch,
+  RecordPaymentRequest,
+} from '../billing/types'
 
 /**
  * The published API contract, in TypeScript.
@@ -78,9 +117,14 @@ type Response200<TOperation extends keyof operations> = operations[TOperation] e
  * discovers by failing to save something they typed. `TemplateFieldRequest` has nineteen members,
  * every one of them required by the schema even where nullable, which is precisely the shape that
  * rots quietly.
+ *
+ * The pattern matches an optional `requestBody` as well as a required one: a Billing command whose
+ * schema is `oneOf: [null, X]` — a body that may be entirely absent — generates an optional
+ * `requestBody?`, and the match has to reach into that shape too rather than only the older,
+ * always-required one every other module's writes still generate.
  */
 type RequestBody<TOperation extends keyof operations> = operations[TOperation] extends {
-  requestBody: { content: { 'application/json': infer TBody } }
+  requestBody?: { content: { 'application/json': infer TBody } }
 }
   ? TBody
   : never
@@ -295,4 +339,196 @@ export type ServiceTypeEditRequestConforms = Conforms<
 export type PresentationRequestConforms = Conforms<
   PresentationRequest,
   Immutable<RequestBody<'CorrectCatalogCategoryPresentation'>>
+>
+
+/*
+ * The design picker and the drafts Reception builds against it (#140, #142).
+ *
+ * `GarmentDesignSnapshot` is not pinned here: nothing publishes it on the wire yet, since it is
+ * #32a's (Orders) shape to populate once a garment is confirmed.
+ */
+
+export type DesignPickerConforms = Conforms<
+  DesignPicker,
+  Immutable<Response200<'GetCatalogDesignPicker'>>
+>
+
+export type StartDesignSelectionDraftRequestConforms = Conforms<
+  StartDesignSelectionDraftRequest,
+  Immutable<RequestBody<'StartCatalogDesignSelectionDraft'>>
+>
+
+export type DesignSelectionDraftConforms = Conforms<
+  DesignSelectionDraft,
+  Immutable<Response200<'GetCatalogDesignSelectionDraft'>>
+>
+
+export type SaveDesignSelectionsRequestConforms = Conforms<
+  SaveDesignSelectionsRequest,
+  Immutable<RequestBody<'SaveCatalogDesignSelectionDraft'>>
+>
+
+export type DesignCheckConforms = Conforms<
+  DesignCheck,
+  Immutable<Response200<'CheckCatalogDesignSelectionDraft'>>
+>
+
+export type DesignMigrationOutcomeConforms = Conforms<
+  DesignMigrationOutcome,
+  Immutable<Response200<'MigrateCatalogDesignSelectionDraft'>>
+>
+
+/* The customer search and the measurement capture (#26, #121, #123). ------------------------- */
+
+export type CustomerCardConforms = Conforms<
+  CustomerCard,
+  Immutable<components['schemas']['CustomerCardPayload']>
+>
+
+export type CustomerPageConforms = Conforms<CustomerPage, Immutable<Response200<'SearchCustomers'>>>
+
+export type MeasurementDraftConforms = Conforms<
+  MeasurementDraft,
+  Immutable<Response200<'GetMeasurementDraft'>>
+>
+
+export type MeasurementCaptureTemplateConforms = Conforms<
+  MeasurementCaptureTemplate,
+  Immutable<Response200<'GetMeasurementDraftTemplate'>>
+>
+
+export type MeasurementCheckConforms = Conforms<
+  MeasurementCheck,
+  Immutable<Response200<'CheckMeasurementDraft'>>
+>
+
+export type MeasurementVersionConforms = Conforms<
+  MeasurementVersion,
+  Immutable<components['schemas']['MeasurementVersionPayload']>
+>
+
+export type StartMeasurementDraftRequestConforms = Conforms<
+  StartMeasurementDraftRequest,
+  Immutable<RequestBody<'StartMeasurementDraft'>>
+>
+
+export type SaveMeasurementSectionRequestConforms = Conforms<
+  SaveMeasurementSectionRequest,
+  Immutable<RequestBody<'SaveMeasurementSection'>>
+>
+
+export type ConfirmMeasurementsRequestConforms = Conforms<
+  ConfirmMeasurementsRequest,
+  Immutable<RequestBody<'ConfirmMeasurements'>>
+>
+
+/* Reuse, comparison and the sheet (#124). ------------------------------------------------------ */
+
+export type MeasurementSummaryConforms = Conforms<
+  MeasurementSummary,
+  Immutable<components['schemas']['MeasurementSummaryPayload']>
+>
+
+export type MeasurementComparisonConforms = Conforms<
+  MeasurementComparison,
+  Immutable<Response200<'CompareMeasurements'>>
+>
+
+export type MeasurementSheetConforms = Conforms<
+  MeasurementSheet,
+  Immutable<Response200<'ReadMeasurementSheet'>>
+>
+
+export type MeasurementVersionTemplateConforms = Conforms<
+  MeasurementVersionTemplate,
+  Immutable<Response200<'GetMeasurementVersionTemplate'>>
+>
+
+export type MeasurementListConforms = Conforms<
+  readonly MeasurementSummary[],
+  Immutable<Response200<'ListCustomerMeasurements'>>
+>
+
+/* Billing — payments, the cashier session, dispatch exceptions (#161-#165). --------------------- */
+
+export type AvailablePaymentModeConforms = Conforms<
+  AvailablePaymentMode,
+  Immutable<components['schemas']['AvailablePaymentModePayload']>
+>
+
+export type InvoiceBalanceConforms = Conforms<
+  InvoiceBalance,
+  Immutable<components['schemas']['InvoiceBalancePayload']>
+>
+
+export type OrderBalanceConforms = Conforms<
+  OrderBalance,
+  Immutable<components['schemas']['OrderBalancePayload']>
+>
+
+export type InvoiceSummaryConforms = Conforms<
+  InvoiceSummary,
+  Immutable<components['schemas']['InvoiceSummaryPayload']>
+>
+
+export type InvoicePageConforms = Conforms<
+  InvoicePage,
+  Immutable<components['schemas']['InvoicePagePayload']>
+>
+
+export type PaymentConforms = Conforms<Payment, Immutable<components['schemas']['PaymentPayload']>>
+
+export type RecordPaymentRequestConforms = Conforms<
+  RecordPaymentRequest,
+  Immutable<RequestBody<'RecordPayment'>>
+>
+
+export type AllocateAdvanceRequestConforms = Conforms<
+  AllocateAdvanceRequest,
+  Immutable<RequestBody<'AllocateAdvance'>>
+>
+
+export type CashierSessionConforms = Conforms<
+  CashierSession,
+  Immutable<components['schemas']['CashierSessionPayload']>
+>
+
+export type OpenCashierSessionRequestConforms = Conforms<
+  OpenCashierSessionRequest,
+  Immutable<RequestBody<'OpenCashierSession'>>
+>
+
+export type CloseCashierSessionRequestConforms = Conforms<
+  CloseCashierSessionRequest,
+  Immutable<RequestBody<'CloseCashierSession'>>
+>
+
+export type ReconciliationBatchConforms = Conforms<
+  ReconciliationBatch,
+  Immutable<components['schemas']['ReconciliationBatchPayload']>
+>
+
+export type ApproveReconciliationRequestConforms = Conforms<
+  ApproveReconciliationRequest,
+  Immutable<RequestBody<'ApproveReconciliation'>>
+>
+
+export type DispatchExceptionConforms = Conforms<
+  DispatchException,
+  Immutable<components['schemas']['DispatchExceptionPayload']>
+>
+
+export type CreateDispatchExceptionRequestConforms = Conforms<
+  CreateDispatchExceptionRequest,
+  Immutable<RequestBody<'ApproveDispatchException'>>
+>
+
+export type PrintJobConforms = Conforms<
+  PrintJob,
+  Immutable<components['schemas']['PrintJobPayload']>
+>
+
+export type PrintReceiptRequestConforms = Conforms<
+  PrintReceiptRequest,
+  Immutable<RequestBody<'PrintReceipt'>>
 >

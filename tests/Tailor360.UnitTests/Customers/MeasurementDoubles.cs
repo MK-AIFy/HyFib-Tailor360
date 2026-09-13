@@ -133,6 +133,11 @@ internal sealed class StubCatalogAvailability(bool referencesTemplate) : ICatalo
         Guid organisationId,
         CancellationToken cancellationToken = default)
         => Task.FromResult(referencesTemplate);
+
+    public Task<IReadOnlyList<CatalogPriceListItemReference>> PublishedPriceListItemReferencesAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<CatalogPriceListItemReference>>([]);
 }
 
 /// <summary>

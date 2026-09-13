@@ -8,6 +8,7 @@ using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
+using Tailor360.Platform.Abstractions.Sequencing;
 using Tailor360.Platform.Abstractions.Time;
 
 namespace Tailor360.Modules.Catalog.Application.Catalogue;
@@ -48,13 +49,14 @@ namespace Tailor360.Modules.Catalog.Application.Catalogue;
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
 /// <param name="logger">The logger, for a validator that fell over.</param>
-public sealed class CatalogHandler(
+public sealed partial class CatalogHandler(
     ICatalogStore store,
     CatalogPublicationCheck publicationCheck,
     IEnumerable<ICatalogDependencyValidator> validators,
     ICatalogEventPublisher events,
     ICatalogCache cache,
     IAuditWriter audit,
+    ISequenceAllocator sequences,
     IClock clock,
     IIdGenerator ids,
     ILogger<CatalogHandler> logger)

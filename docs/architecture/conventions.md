@@ -45,6 +45,7 @@ Rules:
 | Line amount and each line tax component | Round **half away from zero** to two decimal places — paise — exactly once, at the end of the line calculation |
 | Document total | Sum the rounded line values. Never re-round a sum of already-rounded values |
 | Document round-off | Round the document total to the nearest rupee under the configured rule, and record the difference as an explicit round-off value on the document. The round-off is shown, never absorbed silently |
+| Inclusive rate | Where a price-list version quotes rates inclusive of tax, each tax component is taken from the net inclusive amount and rounded once, and the taxable value is the inclusive amount less those components — so the line total is the quoted price to the paisa, and the rounding lands on the taxable value rather than on what the customer pays (recorded under **OD-05**, #147) |
 | Allocation of a rounding difference across lines | Deterministic and repeatable: the same inputs always produce the same allocation |
 | Reversal, credit note, refund | Recompute from the original snapshot's values, never from a re-rounded total |
 
@@ -152,7 +153,7 @@ financial-year — sequences through Platform's `ISequenceAllocator` under a row
 | Order | `O-<branch>-<FY>-000001` | Branch + financial year | Confirmation |
 | Garment job | `J-<branch>-<FY>-000001-01` | The order number plus a two-digit job index | Confirmation |
 | Invoice | `INV-<branch>-<FY>-000001` — **interim, confirmed by issue #42 with the accountant** | Branch + financial year | Posting |
-| Receipt | `R-<branch>-<FY>-000001` | Branch + financial year | Payment |
+| Receipt | `RCPT-<branch>-<FY>-000001` — `R-` is the barcode namespace (section 3.3), not the number | Branch + financial year | Payment, inside the payment's own transaction, gapless as the invoice is |
 
 Rules:
 

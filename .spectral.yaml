@@ -108,18 +108,48 @@ rules:
       field: schema
       function: defined
 
-  success-response-schema:
+  success-response-content:
     description: >-
-      A success that returns a body says what shape the body has. Without it a generated client has
-      request types and no response types, and every call site casts. Declare the payload on the
-      endpoint with .Produces<T>(...); a handler whose branches return IResult publishes nothing on
-      its own. 204 and 304 are excluded, being defined to carry no body.
-    message: "{{path}} documents a success with no JSON schema"
+      A success that returns a body says so. A 2xx other than 204 with no content at all is the
+      state a generated client cannot be built from: request types come out and response types do
+      not, and every call site casts. Declare the payload on the endpoint with .Produces<T>(...);
+      a handler whose branches return IResult publishes nothing on its own. 204 is excluded, being
+      defined to carry no body.
+    message: "{{path}} documents a success with no body"
     severity: error
     given: $.paths[*][get,put,post,patch,delete].responses[?(@property.match(/^2/) && @property !== '204')]
     then:
-      field: content.application/json.schema
+      field: content
       function: defined
+
+  success-response-schema:
+    description: >-
+      Every body a success documents has a schema — the JSON payload's shape, or a binary string for
+      a streamed document under its own media type. A media type with no schema tells a caller
+      nothing about what arrives.
+    message: "{{path}} documents a success body with no schema"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete].responses[?(@property.match(/^2/) && @property !== '204')].content[*]
+    then:
+      field: schema
+      function: defined
+
+  success-response-binary:
+    description: >-
+      A success body under a media type other than application/json is a streamed document — a
+      rendered PDF, an export — and is documented as a binary string
+      (.Produces<Stream>(status, mediaType)); anything else under a non-JSON media type is a
+      payload the generated client cannot type.
+    message: "{{path}} documents a non-JSON success body that is not a binary string"
+    severity: error
+    given: $.paths[*][get,put,post,patch,delete].responses[?(@property.match(/^2/) && @property !== '204')].content[?(@property !== 'application/json')].schema
+    then:
+      - field: format
+        function: defined
+      - field: format
+        function: pattern
+        functionOptions:
+          match: "^binary$"
 
   request-body-example:
     description: >-

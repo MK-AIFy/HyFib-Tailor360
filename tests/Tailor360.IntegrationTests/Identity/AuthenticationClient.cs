@@ -373,9 +373,14 @@ public static class AuthenticationTestData
     /// </remarks>
     /// <param name="fixture">The hosted application.</param>
     /// <param name="prefix">A short, readable prefix so a row can be traced back to its test.</param>
+    /// <param name="homeBranchId">
+    /// The branch the account works in, which a session opens on. Null for the shared administration
+    /// branch; a test whose route reads the caller's current branch names a branch of its own.
+    /// </param>
     public static async Task<StaffUser> CreateSignInReadyUserAsync(
         WebApplicationFixture fixture,
-        string prefix)
+        string prefix,
+        Guid? homeBranchId = null)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -396,7 +401,7 @@ public static class AuthenticationTestData
             $"{userName}@synthetic.invalid",
             $"Test {userName}",
             now,
-            SessionTestData.HomeBranchId).Value;
+            homeBranchId ?? SessionTestData.HomeBranchId).Value;
 
         user.SetPassword(ids.NewId(), hashing.Hash(user, Password), hashing.AlgorithmName, now, by: null)
             .IsSuccess.ShouldBeTrue();

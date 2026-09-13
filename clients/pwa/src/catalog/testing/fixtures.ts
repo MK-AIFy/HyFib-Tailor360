@@ -1,10 +1,23 @@
 import type {
   CatalogCategory,
+  CatalogDesignGroup,
+  CatalogDesignOperand,
+  CatalogDesignOption,
+  CatalogDesignRule,
   CatalogFinding,
   CatalogServiceType,
   CatalogValidationReport,
   CatalogVersion,
   CatalogVersionSummary,
+  DesignCheck,
+  DesignMigrationPrompt,
+  DesignPicker,
+  DesignPickerGroup,
+  DesignPickerOption,
+  DesignPickerRule,
+  DesignSelectionDraft,
+  GarmentDesignSelectionSnapshot,
+  GarmentDesignSnapshot,
 } from '../types'
 
 /**
@@ -91,6 +104,70 @@ export function aCatalogVersion(overrides: Partial<CatalogVersion> = {}): Catalo
     version: aCatalogVersionSummary(),
     categories: [aCategory()],
     serviceTypes: [aServiceType()],
+    designGroups: [],
+    designRules: [],
+    ...overrides,
+  }
+}
+
+export function aDesignOption(overrides: Partial<CatalogDesignOption> = {}): CatalogDesignOption {
+  return {
+    designOptionId: '0199bb00-0000-7000-8000-0000000000e1',
+    designOptionGroupId: '0199bb00-0000-7000-8000-0000000000e0',
+    code: 'ROUND',
+    name: 'Round',
+    nameTamil: null,
+    helpText: 'A plain round neckline.',
+    illustrationKey: null,
+    illustrationAlt: 'A round neckline, no collar.',
+    priceListItemCode: null,
+    timeImpactDays: 0,
+    displayOrder: 0,
+    active: true,
+    ...overrides,
+  }
+}
+
+export function aDesignGroup(overrides: Partial<CatalogDesignGroup> = {}): CatalogDesignGroup {
+  return {
+    designOptionGroupId: '0199bb00-0000-7000-8000-0000000000e0',
+    categoryId: '0199bb00-0000-7000-8000-0000000000b1',
+    code: 'neckline',
+    name: 'Neckline',
+    nameTamil: null,
+    selectionMode: 'SingleChoice',
+    required: true,
+    displayOrder: 0,
+    activeFrom: null,
+    activeTo: null,
+    branchIds: [],
+    options: [aDesignOption()],
+    ...overrides,
+  }
+}
+
+export function anOperand(overrides: Partial<CatalogDesignOperand> = {}): CatalogDesignOperand {
+  return {
+    groupCode: 'neckline',
+    form: 'Equals',
+    optionCodes: ['ROUND'],
+    ...overrides,
+  }
+}
+
+export function aDesignRule(overrides: Partial<CatalogDesignRule> = {}): CatalogDesignRule {
+  return {
+    designRuleId: '0199bb00-0000-7000-8000-0000000000e2',
+    categoryId: '0199bb00-0000-7000-8000-0000000000b1',
+    number: 1,
+    identifier: 'DR-01',
+    type: 'Requires',
+    antecedent: anOperand(),
+    consequent: anOperand({ groupCode: 'sleeve', form: 'Equals', optionCodes: ['SHORT'] }),
+    note: null,
+    why: null,
+    statement: 'If neckline is Round, then sleeve is Short is required.',
+    blocks: true,
     ...overrides,
   }
 }
@@ -115,6 +192,147 @@ export function aValidationReport(
     errorCount: 0,
     warningCount: 0,
     findings: [],
+    ...overrides,
+  }
+}
+
+/* The design picker and the drafts Reception builds against it (#142). --------------------- */
+
+export function aDesignPickerOption(
+  overrides: Partial<DesignPickerOption> = {},
+): DesignPickerOption {
+  return {
+    designOptionId: '0199bb00-0000-7000-8000-0000000000e1',
+    code: 'ROUND',
+    name: 'Round',
+    nameTamil: null,
+    helpText: 'A plain round neckline.',
+    illustrationKey: null,
+    illustrationAlt: 'A round neckline, no collar.',
+    priceListItemCode: null,
+    timeImpactDays: 0,
+    displayOrder: 0,
+    ...overrides,
+  }
+}
+
+export function aDesignPickerGroup(overrides: Partial<DesignPickerGroup> = {}): DesignPickerGroup {
+  return {
+    designOptionGroupId: '0199bb00-0000-7000-8000-0000000000e0',
+    code: 'neckline',
+    name: 'Neckline',
+    nameTamil: null,
+    selectionMode: 'SingleChoice',
+    required: true,
+    displayOrder: 0,
+    options: [aDesignPickerOption()],
+    ...overrides,
+  }
+}
+
+export function aDesignPickerRule(overrides: Partial<DesignPickerRule> = {}): DesignPickerRule {
+  return {
+    identifier: 'DR-01',
+    type: 'Requires',
+    antecedent: anOperand(),
+    consequent: anOperand({ groupCode: 'sleeve', form: 'Equals', optionCodes: ['SHORT'] }),
+    note: null,
+    blocks: true,
+    ...overrides,
+  }
+}
+
+export function aDesignPicker(overrides: Partial<DesignPicker> = {}): DesignPicker {
+  return {
+    catalogVersionId: '0199bb00-0000-7000-8000-0000000000c1',
+    categoryId: '0199bb00-0000-7000-8000-0000000000b1',
+    serviceTypeId: '0199bb00-0000-7000-8000-0000000000d1',
+    groups: [aDesignPickerGroup()],
+    rules: [],
+    ...overrides,
+  }
+}
+
+export function aDesignSelectionDraft(
+  overrides: Partial<DesignSelectionDraft> = {},
+): DesignSelectionDraft {
+  return {
+    designSelectionDraftId: '0199bb00-0000-7000-8000-000000009a1',
+    branchId: COIMBATORE,
+    catalogVersionId: '0199bb00-0000-7000-8000-0000000000c1',
+    serviceTypeId: '0199bb00-0000-7000-8000-0000000000d1',
+    startedAt: '2026-09-01T09:00:00.000Z',
+    updatedAt: '2026-09-01T09:00:00.000Z',
+    expiresAt: '2026-09-02T09:00:00.000Z',
+    consumedAt: null,
+    instructions: null,
+    selections: [],
+    migrationPrompt: null,
+    ...overrides,
+  }
+}
+
+export function aDesignMigrationPrompt(
+  overrides: Partial<DesignMigrationPrompt> = {},
+): DesignMigrationPrompt {
+  return {
+    serviceTypeStillOffered: true,
+    changes: [
+      {
+        kind: 'design.option-retired',
+        groupCode: 'neckline',
+        optionCode: 'ROUND',
+        ruleIdentifier: null,
+        message:
+          "'neckline.ROUND' is no longer offered. A selection naming it cannot survive migration.",
+      },
+    ],
+    ...overrides,
+  }
+}
+
+export function aDesignCheck(overrides: Partial<DesignCheck> = {}): DesignCheck {
+  return {
+    designSelectionDraftId: '0199bb00-0000-7000-8000-000000009a1',
+    confirmable: true,
+    violations: [],
+    autoSelections: [],
+    notes: [],
+    ...overrides,
+  }
+}
+
+export function aGarmentDesignSelectionSnapshot(
+  overrides: Partial<GarmentDesignSelectionSnapshot> = {},
+): GarmentDesignSelectionSnapshot {
+  return {
+    groupCode: 'neckline',
+    groupLabel: 'Neckline',
+    groupDisplayOrder: 0,
+    optionCode: 'ROUND',
+    optionLabel: 'Round',
+    optionDisplayOrder: 0,
+    illustrationKey: null,
+    illustrationAlt: 'A round neckline, no collar.',
+    priceListItemCode: null,
+    optionVersion: 1,
+    ...overrides,
+  }
+}
+
+export function aGarmentDesignSnapshot(
+  overrides: Partial<GarmentDesignSnapshot> = {},
+): GarmentDesignSnapshot {
+  return {
+    catalogVersionId: '0199bb00-0000-7000-8000-0000000000c1',
+    catalogVersionNumber: 1,
+    categoryCode: 'BLOUSE',
+    categoryLabel: 'Blouse',
+    serviceTypeCode: 'PATTERN',
+    serviceTypeLabel: 'Pattern work',
+    selections: [aGarmentDesignSelectionSnapshot()],
+    conditionalNotes: [],
+    instructions: null,
     ...overrides,
   }
 }

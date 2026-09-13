@@ -52,7 +52,9 @@ public sealed record CatalogVersionSummaryPayload(
 public sealed record CatalogVersionPayload(
     CatalogVersionSummaryPayload Version,
     IReadOnlyList<CategoryPayload> Categories,
-    IReadOnlyList<ServiceTypePayload> ServiceTypes)
+    IReadOnlyList<ServiceTypePayload> ServiceTypes,
+    IReadOnlyList<DesignGroupPayload> DesignGroups,
+    IReadOnlyList<DesignRulePayload> DesignRules)
 {
     /// <summary>Projects a version and its tree.</summary>
     /// <param name="version">The version.</param>
@@ -68,7 +70,13 @@ public sealed record CatalogVersionPayload(
             [.. version.ServiceTypes
                 .OrderBy(service => service.DisplayOrder)
                 .ThenBy(service => service.Code, StringComparer.Ordinal)
-                .Select(ServiceTypePayload.From)]);
+                .Select(ServiceTypePayload.From)],
+            [.. version.InParentFirstOrder()
+                .SelectMany(category => version.DesignGroupsOf(category.Id))
+                .Select(DesignGroupPayload.From)],
+            [.. version.DesignRules
+                .OrderBy(rule => rule.Number)
+                .Select(DesignRulePayload.From)]);
     }
 }
 

@@ -741,6 +741,1066 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/barcodes/{payload}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve an I- barcode payload to the invoice it was printed on.
+         * @description For a caller working in the branch that issued the invoice. Another branch's invoice, another organisation's, a payload whose check character does not hold and a payload of nothing all read alike as not found: the lookup confirms the existence of nothing it does not show. The payload's namespace, check character and branch are re-validated here on every call.
+         */
+        get: operations["ResolveInvoiceBarcode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the branch's cashier sessions, newest first, optionally one status only.
+         * @description `status=open` is how a cashier finds the session they have open; at most one hundred are returned.
+         */
+        get: operations["ListCashierSessions"];
+        put?: never;
+        /**
+         * Open a cashier session at the caller's branch with the float put in the drawer.
+         * @description One open session per cashier per branch: a second is refused with 409. Until it is closed, every payment the cashier records is recorded in it.
+         */
+        post: operations["OpenCashierSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one cashier session with its count sheet, once it has one.
+         * @description A session at another branch reads as 404.
+         */
+        get: operations["GetCashierSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions/{sessionId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close a cashier session against its denomination count sheet and the counted totals by mode.
+         * @description Only the cashier who opened it closes it. The expected total per mode is computed from the session's own records, the float counted into cash; the cash counted is the sheet's sum. A variance beyond the configured threshold needs a reason. No If-Match: the close is a conditional update, so a second close of the same session is a 409, never a second record.
+         */
+        post: operations["CloseCashierSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the cashier session a reconciliation approval is about to decide on, with its count sheet.
+         * @description The same record `GetCashierSession` reads, reachable here under `payments.approve_reconciliation` alone (#220), because approving a variance needs to see the count sheet it was raised against and the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. Restricted to closed sessions: an approver never needs to see one still open, and `payments.approve_reconciliation` grants no view into a live drawer. A session at another branch, or one still open, reads as 404.
+         */
+        get: operations["GetCashierSessionForReconciliation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a closed cashier session's variance, by someone other than the cashier who closed it.
+         * @description Refused for the cashier who closed the session (INV-CSH-04), refused twice, and refused where no variance on the session's batch was ever beyond the configured threshold — the same number the close asked a reason for (OD-24). Step-up and a reason.
+         */
+        post: operations["ApproveReconciliation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/dispatch-exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a single-use dispatch exception for named jobs of an order.
+         * @description Bound to the order, exactly these garment jobs, a maximum outstanding amount, the dispatch policy version in force and an expiry of at most 72 hours. Refused where the order is not Billing's, is at another branch, or names a job that is not a live job of the order. Consumed exactly once through IDispatchEligibilityQuery, which re-validates the balance, the job set, the policy version, the expiry and that the dispatcher differs from the approver — none of that happens here. Step-up and a reason.
+         */
+        post: operations["ApproveDispatchException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/gst-registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the organisation's GST registrations, by branch and first day. */
+        get: operations["ListGstRegistrations"];
+        put?: never;
+        /**
+         * Record a branch's GST registration.
+         * @description The GSTIN is checked for shape and check character, never against the tax portal. At most one registration of a branch is in force on any day; an overlap is refused.
+         */
+        post: operations["AddGstRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/gst-registrations/{registrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one GST registration. The ETag is the token an amendment is made against. */
+        get: operations["GetGstRegistration"];
+        /**
+         * Amend a GST registration: its dates, names and number. The branch never changes.
+         * @description A registration is never deleted — invoices were issued under it — so a branch re-registered under a new number ends this one the day before and records the new one.
+         */
+        put: operations["AmendGstRegistration"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branch's invoices, newest first, by cursor.
+         * @description Filtered by `status` (Draft, Posted, Discarded) when given; the caller's current branch only.
+         */
+        get: operations["ListInvoices"];
+        put?: never;
+        /**
+         * Draft an invoice from an order's stored calculation.
+         * @description The order must be confirmed, not cancelled and taken at the caller's branch; the calculation named must reproduce on the versions it was made on; no live invoice may already charge for any of its garment jobs. Nothing is re-priced: the lines are the calculation's.
+         */
+        post: operations["CreateInvoiceDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an invoice with its lines, and the tag a change sends back as If-Match. */
+        get: operations["GetInvoice"];
+        /**
+         * Replace a draft's lines by pricing them afresh.
+         * @description Whole-value: the lines sent are the lines kept, priced by the engine under a reference of the draft's own. A discount beyond its rule's counter maximum or an override beyond the version's threshold needs billing.override_price on a recently re-authenticated session, as everywhere.
+         */
+        put: operations["RepriceInvoiceDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a posted invoice by its compensating record.
+         * @description Appends the cancellation and posts a credit note relieving the whole amount, in one transaction; the invoice keeps its number, its lines and its totals, and its displayed status becomes cancelled. Within the configured cancellation window where one is set. A reason is recorded, and the session must have re-authenticated recently. No If-Match: nothing on the invoice's row moves, so the row is locked and re-read in the transaction instead. The invoice's garment jobs are free to be invoiced again.
+         */
+        post: operations["CancelInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/credit-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a credit note against a posted invoice.
+         * @description Per line: each line names a garment job of the invoice and the taxable value relieved, taxed at that line's own rates and rounded once per component; a line is relieved at most to what it still carries. Numbered from the credit-note sequence, posted once, immutable.
+         */
+        post: operations["PostCreditNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/debit-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a debit note against a posted invoice.
+         * @description Per line, as a credit note, adding to what the customer owes. The same permission as a credit note: both are the compensating documents a posted invoice is corrected by.
+         */
+        post: operations["PostDebitNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandon a draft, freeing its garment jobs for another invoice.
+         * @description A reason is recorded. A posted invoice is never discarded; it is cancelled by its compensating record.
+         */
+        post: operations["DiscardInvoiceDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream the rendered invoice.
+         * @description The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is re-authorised in branch scope on every call, and the access is written to the audit trail against the invoice. Not available until the worker has rendered the document.
+         */
+        get: operations["DownloadInvoiceDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/notes/{noteId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream the rendered credit or debit note.
+         * @description As the invoice's document: re-authorised in branch scope through the invoice, audited against the invoice.
+         */
+        get: operations["DownloadNoteDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a draft: number it, mint its barcode and freeze it.
+         * @description The draft's figures are recomputed from the calculation it was drafted from and must match; the number is drawn under the sequence lock in the transaction that freezes the row, so two posts at one branch are numbered one after the other and a post that fails returns its number. A replay of the same Idempotency-Key answers the original. After posting, nothing about the invoice changes: it is cancelled by its compensating record.
+         */
+        post: operations["PostInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/{invoiceId}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the rendered invoice to the branch's print queue.
+         * @description Through the print-queue port; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).
+         */
+        post: operations["PrintInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/orders/{orderId}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read what an order still owes across its posted invoices, and what is held against it.
+         * @description Computed from rows on every read: posted charges minus credit notes plus debit notes minus allocations plus refunds, per invoice and in all, and the advances held against the order and not yet applied. An order Billing has not heard of, or one at another branch, reads as 404.
+         */
+        get: operations["GetOrderBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/orders/{orderId}/dispatch-exception-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read what an order still owes, for the approver about to set a dispatch exception's maximum allowance.
+         * @description The same figures `GetOrderBalance` reads, reachable here under `billing.approve_dispatch_exception` alone (#220), because setting a safety-critical maximum without seeing the real balance is worse than not asking, and the Owner who approves does not hold `payments.record`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. An order Billing has not heard of, or one at another branch, reads as 404.
+         */
+        get: operations["GetOrderBalanceForDispatchException"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-modes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organisation's payment modes, active or not, by code.
+         * @description Configuration, not money: the flags a payment in each mode is taken under, and where it is offered.
+         */
+        get: operations["ListPaymentModes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-modes/available": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the active payment modes the caller's branch may take money in.
+         * @description Only the code, the name and whether a reference is required: what the counter needs to record a payment.
+         */
+        get: operations["ListAvailablePaymentModes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-modes/{paymentModeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one payment mode with the ETag every change to it is made against.
+         * @description The list carries no token; a change is read here first, then sent with If-Match.
+         */
+        get: operations["GetPaymentMode"];
+        /**
+         * Change a payment mode's name, flags, branch restriction or active state.
+         * @description Every field is sent, against the ETag of the mode as read. The code never changes, and a payment already recorded keeps the mode it was taken in; deactivating a mode stops new use only.
+         */
+        put: operations["DescribePaymentMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a payment against an order in the caller's open cashier session, allocate it at once and issue its receipt.
+         * @description Refused without an open session (409). The money goes to the order's posted invoices oldest first; what is left is held as an advance and applied when the order posts its next invoice. The mode must be one the branch takes; a mode that requires a reference is refused without one, and a reference that reads as a card number is refused always. The same mode and reference twice is a 409. The receipt is numbered and issued in the same transaction; its document is rendered by the worker afterwards.
+         */
+        post: operations["RecordPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one payment with its allocations and what of it is still held.
+         * @description A payment taken at another branch reads as 404.
+         */
+        get: operations["GetPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments/{paymentId}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply part of a payment's held advance to a posted invoice of the same order, by hand.
+         * @description Against the automatic rule, so under step-up and with a reason. Never more than the advance still holds, never more than the invoice still owes; the invoice must be a posted invoice of the order the payment was taken against.
+         */
+        post: operations["AllocateAdvance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payments/{paymentId}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse a payment recorded in error: a compensating record, the original untouched.
+         * @description For money that never cleared. The payment's allocations and its advance count for nothing from here on and the invoices' paid status is recomputed from the rows that remain. Once per payment (409 on a second); refused where money has already been paid back from the payment. Step-up and a reason.
+         */
+        post: operations["ReversePayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the organisation's price lists, by code. */
+        get: operations["ListPriceLists"];
+        put?: never;
+        /** Create a price list. Most shops have one; a shop pricing branches differently has one per group of branches. */
+        post: operations["CreatePriceList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one price-list version and everything in it, whatever its status.
+         * @description The ETag is the token every change to the version is made against.
+         */
+        get: operations["GetPriceListVersion"];
+        /** Change a draft's name, notes, effective date, conventions and branches. Whole-value. */
+        put: operations["DescribePriceListVersion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/discount-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a discount rule — what kind, how much on the counter's own authority, how much with approval — to a draft. */
+        post: operations["AddDiscountRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/discount-rules/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a discount rule, whole-value. */
+        put: operations["EditDiscountRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/discount-rules/{ruleId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a discount rule from a draft. */
+        post: operations["RemoveDiscountRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an item — a service's base charge, a surcharge or a material — to a draft.
+         * @description The item's code is what the catalogue's service types and design options name; its tax code is one of the published tax configuration's, checked at publication so a half-entered list can be saved.
+         */
+        post: operations["AddPriceListItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about an item, whole-value. */
+        put: operations["EditPriceListItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/items/{itemId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove an item from a draft. */
+        post: operations["RemovePriceListItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a draft, retiring the list's published version in the same transaction.
+         * @description Refused while a publication check fails, with every finding in the problem detail. Publication changes what every future order is quoted at, so it demands a fresh second factor and a reason.
+         */
+        post: operations["PublishPriceListVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/versions/{versionId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run the publication checks against a version and report what they found.
+         * @description An item naming a tax code nobody published, a branch another list already prices, a code re-spelled after the catalogue referred to it. They encode no rate.
+         */
+        get: operations["ValidatePriceListVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/{priceListId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one price list. The ETag is the token a rename is made against. */
+        get: operations["GetPriceList"];
+        /** Rename a price list. Its code never changes: seeds and exports refer to it. */
+        put: operations["RenamePriceList"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/price-lists/{priceListId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a price list's versions, newest first. Summaries only. */
+        get: operations["ListPriceListVersions"];
+        put?: never;
+        /**
+         * Start a draft price-list version, empty or cloned from an existing version of the same list.
+         * @description Cloning the published version is the ordinary way to change a rate: a published version is immutable, so a change is a clone, an edit and a second publication. The clone carries the same items and rules as concepts with new rows of its own.
+         */
+        post: operations["CreatePriceListDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/pricing/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price lines against a named price-list version, draft or published, without storing the result.
+         * @description The same engine an order is priced by, run against the version an administrator names so that the effect of a change is seen before it is published. Nothing is stored; an override beyond the version's threshold or a discount beyond its rule's counter maximum still needs billing.override_price.
+         */
+        post: operations["PreviewPricing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/receipts/barcode/{payload}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve an R- barcode payload to the receipt it was printed on.
+         * @description For a caller working in the branch that issued the receipt. Another branch's receipt, another organisation's, a payload whose check character does not hold, an I- payload and a payload of nothing all read alike as not found: the lookup confirms the existence of nothing it does not show. Its own route rather than a second answer shape on the invoice lookup, so that route's contract stays as published.
+         */
+        get: operations["ResolveReceiptBarcode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/receipts/{receiptId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream the rendered receipt.
+         * @description The bytes the worker stored, as they were stored: no URL to the object is ever given out, the caller is re-authorised in branch scope on every call, and the access is written to the audit trail against the receipt. Not available until the worker has rendered the document.
+         */
+        get: operations["DownloadReceiptDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/receipts/{receiptId}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the rendered receipt to the branch's print queue, on the receipt roll.
+         * @description Through the print-queue port, one to five copies; acknowledged with the job's identifier and audited. Not available until the document is rendered. Until the print bridge of #55 replaces the adapter, the queue acknowledges and logs the job and nothing is printed (ADR-0014).
+         */
+        post: operations["PrintReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay money back to the customer in the caller's open cashier session, through a mode allowed for refunds.
+         * @description Against exactly one source: a payment's advance not applied and not yet paid back (paymentId), or a posted invoice that holds more than it charges — a credit note's value, an over-payment (invoiceId). Never more than the source still holds. Refused without an open session (409), through a mode not allowed for refunds, or without the reference the mode requires. Step-up and a reason. Whether an advance is paid back on a cancellation is the Owner's policy (OD-04, OD-05); this is the mechanism.
+         */
+        post: operations["RecordRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/refunds/{refundId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one refund.
+         * @description A refund paid at another branch reads as 404.
+         */
+        get: operations["GetRefund"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organisation's tax configuration versions, newest first.
+         * @description Summaries only; a version's codes are read one version at a time.
+         */
+        get: operations["ListTaxConfigurationVersions"];
+        put?: never;
+        /**
+         * Start a draft tax configuration version, empty or cloned from an existing one.
+         * @description Cloning the published version is the ordinary way to change what is in force: a published version is immutable, so a rate change is a clone, an edit and a second publication. The clone carries the same codes as concepts with new rows of its own.
+         */
+        post: operations["CreateTaxConfigurationDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one tax configuration version and its codes, whatever its status.
+         * @description The ETag is the token every change to the version is made against.
+         */
+        get: operations["GetTaxConfigurationVersion"];
+        /** Change a draft's name, notes and effective date. */
+        put: operations["DescribeTaxConfigurationVersion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a draft, retiring the version it supersedes in the same transaction.
+         * @description Refused while a publication check fails, with every finding in the problem detail. Two administrators publishing different drafts at once is settled by a partial unique index: one commits and the other is answered 409.
+         */
+        post: operations["PublishTaxConfigurationVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a tax code to a draft tax configuration version.
+         * @description A code is a classification (HSN or SAC) and the components it carries. Only a draft accepts it; the components' arithmetic is checked at publication so a half-entered code can be saved.
+         */
+        post: operations["AddTaxCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{taxCodeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace what a draft says about a tax code.
+         * @description Whole-value, not partial: an omitted rate list means 'nil-rated' rather than 'unchanged'.
+         */
+        put: operations["EditTaxCode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/tax-codes/{taxCodeId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a tax code from a draft tax configuration version. */
+        post: operations["RemoveTaxCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/tax-configuration/versions/{versionId}/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run the publication checks against a version and report what they found.
+         * @description The checks say what would make a calculation contradict itself — a CGST without its SGST, an IGST that is not their sum, a code re-spelled after invoices carried it. They encode no rate.
+         */
+        get: operations["ValidateTaxConfigurationVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/current": {
         parameters: {
             query?: never;
@@ -755,6 +1815,110 @@ export interface paths {
         get: operations["GetCurrentCatalog"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/current/service-types/{serviceTypeId}/design": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a service type offers for its design, at the caller's branch, today.
+         * @description The service type's groups in display order, each option with its label, help text, illustration reference and alt text, its price-list item code and day impact, and the rules in a client-evaluable form — only what is offerable at this branch today. Nothing about any customer.
+         */
+        get: operations["GetCatalogDesignPicker"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start choosing a design for a service type of the currently published version.
+         * @description Pinned to the currently published version for its life; republishing the catalogue changes nothing here until the draft is migrated. Expires after 24 hours by default, the same figure the measurement draft uses.
+         */
+        post: operations["StartCatalogDesignSelectionDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a design selection draft.
+         * @description The entity tag is what a save sends back as If-Match. When the catalogue was republished since the draft was pinned, the answer carries a migration prompt naming exactly what moved — an option retired, a group newly required, a rule added — and the pin holds until the draft is migrated.
+         */
+        get: operations["GetCatalogDesignSelectionDraft"];
+        /**
+         * Replace the whole selection set of a draft.
+         * @description Saved whole rather than per group: the picker renders and saves one garment's choices at once. A value for a group or an option this version does not have at all is refused; everything else — offerability, rules, a required group left unset — is answered by …/check rather than by this route.
+         */
+        put: operations["SaveCatalogDesignSelectionDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts/{draftId}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ask what stands between a draft and confirmation.
+         * @description Changes nothing. Reports every violation at once, blocking or not — a note never blocks. hasReferenceImage answers a requires-attachment rule: Catalog holds no garment and no media of its own, so the caller who does supplies it, the same way order confirmation will through IDesignSelectionQuery.
+         */
+        get: operations["CheckCatalogDesignSelectionDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts/{draftId}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-pin a draft to the currently published version and re-validate it.
+         * @description Applies exactly the migration the draft's own read named: a selection whose option was retired cannot survive it, and a group newly required or a rule newly added applies from here on, never retrospectively to the pinned version. Already-current is a no-op success rather than a refusal.
+         */
+        post: operations["MigrateCatalogDesignSelectionDraft"];
         delete?: never;
         options?: never;
         head?: never;
@@ -865,6 +2029,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/design-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a design option group to a category in a draft.
+         * @description A group belongs to one category of one version; a service type of that category offers it by naming it. The code is fixed once the version is published, because rules, snapshots and exports refer to it.
+         */
+        post: operations["AddCatalogDesignGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/design-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a requires, excludes, requires-attachment or note rule to a category in a draft.
+         * @description The rule's DR-nn number is allocated by the catalogue and never re-used. Its operands read groups of its own category; whether the options it names exist, and whether it agrees with the other rules, is checked at publication, where every finding arrives at once.
+         */
+        post: operations["AddCatalogDesignRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/versions/{versionId}/categories/{categoryId}/presentation": {
         parameters: {
             query?: never;
@@ -899,6 +2103,168 @@ export interface paths {
          * @description The five links may all be null here. Whether that is acceptable is decided at publication, where a missing link is an error unless the administrator accepted it with allowIncomplete, which flags the service not orderable.
          */
         post: operations["AddCatalogServiceType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a design option group. */
+        put: operations["EditCatalogDesignGroup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a design option group, its options and the rules that read it from a draft. */
+        post: operations["RemoveCatalogDesignGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an option to a design option group in a draft.
+         * @description Every option carries help text and alternative text, because the picker is a picture first and the job card is read in monochrome. NONE is the reserved code for 'the customer chose not to have this' and is selectable in every group.
+         */
+        post: operations["AddCatalogDesignOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-groups/{designOptionGroupId}/presentation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct the label, Tamil label or display order of a published design group.
+         * @description The one edit a published group admits. Nothing downstream reads a label, so the correction changes what is shown and nothing a confirmed garment is pinned to. A reason is required and the change is audited.
+         */
+        post: operations["CorrectCatalogDesignGroupPresentation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a design option. */
+        put: operations["EditCatalogDesignOption"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a design option from a draft. */
+        post: operations["RemoveCatalogDesignOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-options/{designOptionId}/presentation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct the label, Tamil label, help text, alternative text or display order of a published design option.
+         * @description The help text and the alternative text are words for people, like the label; the illustration is not correctable here, because the drawing the customer was shown is part of what they agreed to.
+         */
+        post: operations["CorrectCatalogDesignOptionPresentation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-rules/{designRuleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace what a draft says about a design rule. Its number and category never change. */
+        put: operations["EditCatalogDesignRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/versions/{versionId}/design-rules/{designRuleId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a design rule from a draft. Its number is retired with it. */
+        post: operations["RemoveCatalogDesignRule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1134,6 +2500,26 @@ export interface paths {
          * @description The values replace that step rather than merging into it, which is what lets a value be cleared. Nothing here is checked against the template's ranges: a half-measured garment is a normal state, and the check happens at confirmation.
          */
         post: operations["SaveMeasurementSection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurement-drafts/{draftId}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the template version a draft is pinned to, with its fields.
+         * @description The capture-side read of a template. The administration reads demand catalog.templates.edit, which a counter does not hold; this one answers through the draft, so it demands what starting the draft demanded and reaches only the version the draft will be confirmed against. The wizard renders its steps, fields, bands and diagrams from this and from nothing else.
+         */
+        get: operations["GetMeasurementDraftTemplate"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1433,9 +2819,29 @@ export interface paths {
         };
         /**
          * Read a customer's measurements as a tailor reads them.
-         * @description The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because "who looked at my measurements" is a question she may ask and the answer has to be somewhere a person can find.
+         * @description The measurements and nothing else about the customer — no name, no telephone number, no address — which is what lets the sheet be printed and handed to whoever is cutting. The template version the values render through travels with them, so the sheet is one read for a person who holds this key and not the capture key. A sensitive read (INV-MSR-06): the access is audited explicitly and appears on the customer's own timeline, because "who looked at my measurements" is a question she may ask and the answer has to be somewhere a person can find.
          */
         get: operations["ReadMeasurementSheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/measurements/{measurementVersionId}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the template version a confirmed measurement renders through, with its fields.
+         * @description The comparison screen and a correction both start from a confirmed measurement and need the labels, groups and units it was captured under — the version it renders through forever, whatever the template has become since. The capture-side read of a template by way of a measurement, as the draft route is by way of a draft; nothing about the customer travels here.
+         */
+        get: operations["GetMeasurementVersionTemplate"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1788,9 +3194,62 @@ export interface components {
             /** Format: int32 */
             unusedRecoveryCodes: number | string;
         };
+        AdjustmentNoteLinePayload: {
+            /** Format: uuid */
+            garmentJobId: string;
+            /** Format: int32 */
+            lineNumber: number | string;
+            /** Format: double */
+            lineTotal: number | string;
+            /** Format: double */
+            taxTotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+            taxes: components["schemas"]["InvoiceTaxComponentPayload"][];
+        };
+        AdjustmentNoteLineRequestPayload: {
+            /** Format: uuid */
+            garmentJobId: null | string;
+            /** Format: double */
+            taxableValue: null | number | string;
+        };
+        AdjustmentNotePayload: {
+            currency: string;
+            /** Format: uuid */
+            invoiceId: string;
+            kind: string;
+            lines: components["schemas"]["AdjustmentNoteLinePayload"][];
+            /** Format: uuid */
+            noteId: string;
+            number: string;
+            /** Format: date-time */
+            postedAt: string;
+            reason: string;
+            totals: components["schemas"]["InvoiceTotalsPayload"];
+        };
+        AdvancePayload: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            receivedAt: string;
+            /** Format: double */
+            unapplied: number | string;
+        };
+        AllocateAdvanceRequest: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            reason: null | string;
+        };
         AntiForgeryTokenResponse: {
             headerName: string;
             token: string;
+        };
+        ApproveReconciliationRequest: {
+            reason: null | string;
         };
         AssignedAccessPayload: {
             branches: components["schemas"]["BranchAssignmentPayload"][];
@@ -1821,6 +3280,44 @@ export interface components {
             entries: components["schemas"]["AuditEntryPayload"][];
             nextCursor: null | string;
         };
+        AvailablePaymentModePayload: {
+            code: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            requiresReference: boolean;
+        };
+        BarcodeResolutionPayload: {
+            /** Format: uuid */
+            branchId: string;
+            cancelled: boolean;
+            currency: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: string;
+            /** Format: uuid */
+            orderId: string;
+            status: string;
+        };
+        BillingFindingPayload: {
+            code: string;
+            message: string;
+            severity: string;
+            target: null | string;
+        };
+        BillingReasonRequest: {
+            reason: null | string;
+        };
+        BillingValidationReportPayload: {
+            canPublish: boolean;
+            findings: components["schemas"]["BillingFindingPayload"][];
+            /** Format: uuid */
+            versionId: string;
+        };
         BranchAssignmentPayload: {
             /** Format: uuid */
             branchId: string;
@@ -1843,6 +3340,34 @@ export interface components {
             statusReason: null | string;
             timeZoneId: string;
             version: string;
+        };
+        CashierSessionPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            cashierId: string;
+            /** Format: date-time */
+            closedAt: null | string;
+            /** Format: uuid */
+            closedBy: null | string;
+            /** Format: double */
+            countedTotal: number | string;
+            currency: string;
+            denominations: components["schemas"]["DenominationCountPayload"][];
+            /** Format: double */
+            expectedTotal: number | string;
+            /** Format: uuid */
+            id: string;
+            modeTotals: components["schemas"]["ModeTotalPayload"][];
+            /** Format: date-time */
+            openedAt: string;
+            /** Format: double */
+            openingFloat: number | string;
+            reconciliationBatch: null | components["schemas"]["ReconciliationBatchPayload"];
+            status: string;
+            /** Format: double */
+            variance: number | string;
+            varianceReason: null | string;
         };
         CatalogFindingPayload: {
             code: string;
@@ -1880,6 +3405,8 @@ export interface components {
         };
         CatalogVersionPayload: {
             categories: components["schemas"]["CategoryPayload"][];
+            designGroups: components["schemas"]["DesignGroupPayload"][];
+            designRules: components["schemas"]["DesignRulePayload"][];
             serviceTypes: components["schemas"]["ServiceTypePayload"][];
             version: components["schemas"]["CatalogVersionSummaryPayload"];
         };
@@ -1934,6 +3461,11 @@ export interface components {
             nameTamil: null | string;
             /** Format: uuid */
             parentCategoryId: null | string;
+            reason: null | string;
+        };
+        CloseCashierSessionRequest: {
+            denominations: null | components["schemas"]["DenominationCountRequest"][];
+            modeTotals: null | components["schemas"]["ModeCountRequest"][];
             reason: null | string;
         };
         CommunicationPreferencePayload: {
@@ -1999,10 +3531,41 @@ export interface components {
             name: null | string;
             notes: null | string;
         };
+        CreateDispatchExceptionRequest: {
+            /** Format: date-time */
+            expiresAt: string;
+            jobIds: null | string[];
+            /** Format: double */
+            maxOutstandingAmount: number | string;
+            /** Format: uuid */
+            orderId: string;
+            reasonCode: null | string;
+            reasonText: null | string;
+        };
+        CreateInvoiceRequest: {
+            calculationReference: null | string;
+            garmentJobIds: null | string[];
+            /** Format: uuid */
+            orderId: null | string;
+            reason: null | string;
+        };
         CreateMeasurementTemplateRequest: {
             code: string;
             description: null | string;
             name: string;
+        };
+        CreatePriceListRequest: {
+            code: null | string;
+            name: null | string;
+            reason: null | string;
+        };
+        CreateTaxConfigurationDraftRequest: {
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
+            /** Format: date */
+            effectiveFrom: null | string;
+            name: null | string;
+            notes: null | string;
         };
         CurrentUserResponse: {
             /** Format: uuid */
@@ -2163,10 +3726,316 @@ export interface components {
             reach: null | string;
             reason: null | string;
         };
+        DenominationCountPayload: {
+            /** Format: double */
+            denomination: number | string;
+            /** Format: int32 */
+            quantity: number | string;
+            /** Format: double */
+            value: number | string;
+        };
+        DenominationCountRequest: {
+            /** Format: double */
+            denomination: number | string;
+            /** Format: int32 */
+            quantity: number | string;
+        };
+        DescribePaymentModeRequest: {
+            allowedForRefund: boolean;
+            branchIds: null | string[];
+            isActive: boolean;
+            name: null | string;
+            requiresProvider: boolean;
+            requiresReference: boolean;
+        };
         DescribeRolePayload: {
             description: null | string;
             name: null | string;
             reason: null | string;
+        };
+        DescribeTaxConfigurationRequest: {
+            /** Format: date */
+            effectiveFrom: null | string;
+            name: null | string;
+            notes: null | string;
+            reason: null | string;
+        };
+        DesignAutoSelectionPayload: {
+            groupCode: string;
+            optionCode: string;
+            ruleIdentifier: string;
+        };
+        DesignCheckPayload: {
+            autoSelections: components["schemas"]["DesignAutoSelectionPayload"][];
+            confirmable: boolean;
+            /** Format: uuid */
+            designSelectionDraftId: string;
+            notes: components["schemas"]["DesignNotePayload"][];
+            violations: components["schemas"]["DesignViolationPayload"][];
+        };
+        DesignDraftSelectionPayload: {
+            groupCode: string;
+            optionCodes: string[];
+        };
+        DesignGroupPayload: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            branchIds: string[];
+            /** Format: uuid */
+            categoryId: string;
+            code: string;
+            /** Format: uuid */
+            designOptionGroupId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: string;
+            nameTamil: null | string;
+            options: components["schemas"]["DesignOptionPayload"][];
+            required: boolean;
+            selectionMode: string;
+        };
+        DesignGroupPresentationRequest: {
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+        };
+        DesignGroupRequest: {
+            /** Format: date */
+            activeFrom: null | string;
+            /** Format: date */
+            activeTo: null | string;
+            branchIds: null | string[];
+            code: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+            required: boolean;
+            selectionMode: null | string;
+        };
+        DesignMigrationChangePayload: {
+            groupCode: null | string;
+            kind: string;
+            message: string;
+            optionCode: null | string;
+            ruleIdentifier: null | string;
+        };
+        DesignMigrationOutcomePayload: {
+            appliedChanges: components["schemas"]["DesignMigrationChangePayload"][];
+            draft: components["schemas"]["DesignSelectionDraftPayload"];
+            evaluation: components["schemas"]["DesignCheckPayload"];
+        };
+        DesignMigrationPromptPayload: {
+            changes: components["schemas"]["DesignMigrationChangePayload"][];
+            serviceTypeStillOffered: boolean;
+        };
+        DesignNotePayload: {
+            ruleIdentifier: string;
+            text: string;
+        };
+        DesignOperandPayload: {
+            form: string;
+            groupCode: null | string;
+            optionCodes: string[];
+        };
+        DesignOperandRequest: {
+            form: null | string;
+            groupCode: null | string;
+            optionCodes: null | string[];
+        };
+        DesignOptionPayload: {
+            active: boolean;
+            code: string;
+            /** Format: uuid */
+            designOptionGroupId: string;
+            /** Format: uuid */
+            designOptionId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: string;
+            illustrationAlt: string;
+            illustrationKey: null | string;
+            name: string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            /** Format: int32 */
+            timeImpactDays: number | string;
+        };
+        DesignOptionPresentationRequest: {
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: null | string;
+            illustrationAlt: null | string;
+            name: null | string;
+            nameTamil: null | string;
+            reason: null | string;
+        };
+        DesignOptionRequest: {
+            active: boolean;
+            code: null | string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: null | string;
+            illustrationAlt: null | string;
+            illustrationKey: null | string;
+            name: null | string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            reason: null | string;
+            /** Format: int32 */
+            timeImpactDays: number | string;
+        };
+        DesignPickerGroupPayload: {
+            code: string;
+            /** Format: uuid */
+            designOptionGroupId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: string;
+            nameTamil: null | string;
+            options: components["schemas"]["DesignPickerOptionPayload"][];
+            required: boolean;
+            selectionMode: string;
+        };
+        DesignPickerOptionPayload: {
+            code: string;
+            /** Format: uuid */
+            designOptionId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: string;
+            illustrationAlt: string;
+            illustrationKey: null | string;
+            name: string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            /** Format: int32 */
+            timeImpactDays: number | string;
+        };
+        DesignPickerPayload: {
+            /** Format: uuid */
+            catalogVersionId: string;
+            /** Format: uuid */
+            categoryId: string;
+            groups: components["schemas"]["DesignPickerGroupPayload"][];
+            rules: components["schemas"]["DesignPickerRulePayload"][];
+            /** Format: uuid */
+            serviceTypeId: string;
+        };
+        DesignPickerRulePayload: {
+            antecedent: components["schemas"]["DesignOperandPayload"];
+            blocks: boolean;
+            consequent: null | components["schemas"]["DesignOperandPayload"];
+            identifier: string;
+            note: null | string;
+            type: string;
+        };
+        DesignRulePayload: {
+            antecedent: components["schemas"]["DesignOperandPayload"];
+            blocks: boolean;
+            /** Format: uuid */
+            categoryId: string;
+            consequent: null | components["schemas"]["DesignOperandPayload"];
+            /** Format: uuid */
+            designRuleId: string;
+            identifier: string;
+            note: null | string;
+            /** Format: int32 */
+            number: number | string;
+            statement: string;
+            type: string;
+            why: null | string;
+        };
+        DesignRuleRequest: {
+            antecedent: null | components["schemas"]["DesignOperandRequest"];
+            consequent: null | components["schemas"]["DesignOperandRequest"];
+            note: null | string;
+            reason: null | string;
+            type: null | string;
+            why: null | string;
+        };
+        DesignSelectionDraftPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            catalogVersionId: string;
+            /** Format: date-time */
+            consumedAt: null | string;
+            /** Format: uuid */
+            designSelectionDraftId: string;
+            /** Format: date-time */
+            expiresAt: string;
+            instructions: null | string;
+            migrationPrompt: null | components["schemas"]["DesignMigrationPromptPayload"];
+            selections: components["schemas"]["DesignDraftSelectionPayload"][];
+            /** Format: uuid */
+            serviceTypeId: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DesignViolationPayload: {
+            blocks: boolean;
+            code: string;
+            groupCode: null | string;
+            message: string;
+            optionCodes: string[];
+            relatedGroupCode: null | string;
+            relatedOptionCodes: string[];
+            ruleIdentifier: null | string;
+        };
+        DiscountRulePayload: {
+            active: boolean;
+            code: string;
+            description: string;
+            /** Format: uuid */
+            discountRuleId: string;
+            /** Format: uuid */
+            discountRuleKey: string;
+            kind: string;
+            /** Format: double */
+            maximum: number | string;
+            /** Format: double */
+            maximumWithoutApproval: number | string;
+        };
+        DiscountRuleRequest: {
+            active: null | boolean;
+            code: null | string;
+            description: null | string;
+            kind: null | string;
+            /** Format: double */
+            maximum: null | number | string;
+            /** Format: double */
+            maximumWithoutApproval: null | number | string;
+            reason: null | string;
+            saysActive?: boolean;
+        };
+        DispatchExceptionPayload: {
+            /** Format: date-time */
+            approvedAt: string;
+            /** Format: uuid */
+            approvedBy: string;
+            /** Format: uuid */
+            branchId: string;
+            currency: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            jobIds: string[];
+            /** Format: double */
+            maxOutstandingAmount: number | string;
+            /** Format: uuid */
+            orderId: string;
+            policyVersion: string;
+            reasonCode: string;
+            status: string;
         };
         DuplicateCandidatePayload: {
             confidence: string;
@@ -2211,6 +4080,37 @@ export interface components {
             updatedBy: null | string;
             version: string;
         };
+        GstRegistrationPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveTo: null | string;
+            /** Format: uuid */
+            gstRegistrationId: string;
+            gstin: string;
+            legalName: string;
+            stateCode: string;
+            tradeName: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        GstRegistrationRequest: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: date */
+            effectiveFrom: null | string;
+            /** Format: date */
+            effectiveTo: null | string;
+            gstin: null | string;
+            legalName: null | string;
+            reason: null | string;
+            stateCode: null | string;
+            tradeName: null | string;
+        };
         IResult: Record<string, never>;
         InviteStaffMemberPayload: {
             displayName: null | string;
@@ -2220,7 +4120,198 @@ export interface components {
             reason: null | string;
             userName: null | string;
         };
+        InvoiceBalancePayload: {
+            /** Format: double */
+            allocated: number | string;
+            /** Format: double */
+            charges: number | string;
+            /** Format: double */
+            credits: number | string;
+            currency: string;
+            /** Format: double */
+            debits: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: string;
+            /** Format: double */
+            outstanding: number | string;
+            /** Format: double */
+            refunds: number | string;
+            status: string;
+        };
+        InvoiceCalculationPayload: {
+            /** Format: uuid */
+            gstRegistrationId: string;
+            gstin: string;
+            placeOfSupplyStateCode: string;
+            /** Format: uuid */
+            priceListVersionId: string;
+            reference: string;
+            scheme: string;
+            supplierStateCode: string;
+            /** Format: uuid */
+            taxConfigurationVersionId: string;
+            taxInclusive: boolean;
+        };
+        InvoiceCancellationPayload: {
+            /** Format: uuid */
+            cancellationId: string;
+            /** Format: date-time */
+            cancelledAt: string;
+            /** Format: uuid */
+            creditNoteId: string;
+            reason: string;
+        };
+        InvoiceCustomerPayload: {
+            addressLine: null | string;
+            customerNumber: string;
+            displayName: string;
+            locality: null | string;
+            postcode: null | string;
+        };
+        InvoiceLinePayload: {
+            /** Format: double */
+            appliedRate: number | string;
+            /** Format: double */
+            base: number | string;
+            /** Format: double */
+            catalogueRate: number | string;
+            classification: string;
+            description: string;
+            /** Format: double */
+            discountAmount: number | string;
+            discountKind: null | string;
+            discountRuleCode: null | string;
+            /** Format: double */
+            discountValue: null | number | string;
+            /** Format: uuid */
+            garmentJobId: string;
+            /** Format: double */
+            gross: number | string;
+            itemCode: string;
+            /** Format: int32 */
+            lineNumber: number | string;
+            /** Format: double */
+            lineTotal: number | string;
+            /** Format: double */
+            quantity: number | string;
+            surcharges: components["schemas"]["InvoiceLineSurchargePayload"][];
+            taxCode: string;
+            taxCodeKind: string;
+            /** Format: double */
+            taxTotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+            taxes: components["schemas"]["InvoiceTaxComponentPayload"][];
+            /** Format: double */
+            variance: number | string;
+        };
+        InvoiceLineSurchargePayload: {
+            /** Format: double */
+            amount: number | string;
+            description: string;
+            itemCode: string;
+            /** Format: double */
+            rate: number | string;
+        };
+        InvoicePagePayload: {
+            invoices: components["schemas"]["InvoiceSummaryPayload"][];
+            nextCursor: null | string;
+        };
+        InvoicePayload: {
+            barcodePayload: null | string;
+            /** Format: uuid */
+            branchId: string;
+            calculation: components["schemas"]["InvoiceCalculationPayload"];
+            cancellation: null | components["schemas"]["InvoiceCancellationPayload"];
+            cancelled: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            currency: string;
+            customer: components["schemas"]["InvoiceCustomerPayload"];
+            /** Format: uuid */
+            customerId: string;
+            discardReason: null | string;
+            /** Format: date-time */
+            discardedAt: null | string;
+            financialYear: null | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: null | string;
+            lines: components["schemas"]["InvoiceLinePayload"][];
+            notes: components["schemas"]["AdjustmentNotePayload"][];
+            /** Format: uuid */
+            orderId: string;
+            orderNumber: string;
+            /** Format: int32 */
+            orderRevisionNumber: number | string;
+            /** Format: date-time */
+            postedAt: null | string;
+            /** Format: date */
+            postedOn: null | string;
+            /** Format: int32 */
+            revision: number | string;
+            status: string;
+            totals: components["schemas"]["InvoiceTotalsPayload"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        InvoiceSummaryPayload: {
+            cancelled: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            customerDisplayName: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: null | string;
+            /** Format: uuid */
+            orderId: string;
+            orderNumber: string;
+            status: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        InvoiceTaxComponentPayload: {
+            /** Format: double */
+            amount: number | string;
+            kind: string;
+            /** Format: double */
+            ratePercent: number | string;
+        };
+        InvoiceTotalsPayload: {
+            /** Format: double */
+            centralTax: number | string;
+            /** Format: double */
+            cess: number | string;
+            /** Format: double */
+            discountTotal: number | string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: double */
+            integratedTax: number | string;
+            /** Format: double */
+            roundOff: number | string;
+            /** Format: double */
+            stateTax: number | string;
+            /** Format: double */
+            subtotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+        };
         JsonElement: unknown;
+        MeasurementCaptureTemplatePayload: {
+            code: string;
+            /** Format: uuid */
+            measurementDraftId: string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            name: string;
+            version: components["schemas"]["TemplateVersionPayload"];
+        };
         MeasurementCheckPayload: {
             confirmable: boolean;
             findings: components["schemas"]["MeasurementFindingPayload"][];
@@ -2268,6 +4359,34 @@ export interface components {
             field: null | string;
             message: string;
         };
+        MeasurementSheetPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            correctsVersionId: null | string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            /** Format: uuid */
+            measurementVersionId: string;
+            reason: null | string;
+            /** Format: uuid */
+            reusedFromVersionId: null | string;
+            /** Format: date-time */
+            takenAt: string;
+            /** Format: uuid */
+            takenBy: null | string;
+            takenByName: null | string;
+            templateCode: string;
+            templateName: string;
+            templateVersion: components["schemas"]["TemplateVersionPayload"];
+            /** Format: uuid */
+            templateVersionId: string;
+            values: components["schemas"]["MeasurementValuePayload"][];
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
         MeasurementSummaryPayload: {
             /** Format: uuid */
             branchId: string;
@@ -2286,6 +4405,7 @@ export interface components {
             takenAt: string;
             /** Format: uuid */
             takenBy: null | string;
+            takenByName: null | string;
             /** Format: uuid */
             templateVersionId: string;
             /** Format: int32 */
@@ -2335,11 +4455,21 @@ export interface components {
             takenAt: string;
             /** Format: uuid */
             takenBy: null | string;
+            takenByName: null | string;
             /** Format: uuid */
             templateVersionId: string;
             values: components["schemas"]["MeasurementValuePayload"][];
             /** Format: int32 */
             versionNumber: number | string;
+        };
+        MeasurementVersionTemplatePayload: {
+            code: string;
+            /** Format: uuid */
+            measurementTemplateId: string;
+            /** Format: uuid */
+            measurementVersionId: string;
+            name: string;
+            version: components["schemas"]["TemplateVersionPayload"];
         };
         MergeCustomerRequest: {
             /** Format: uuid */
@@ -2359,6 +4489,20 @@ export interface components {
             otpAuthUri: string;
             /** Format: int32 */
             periodSeconds: number | string;
+        };
+        ModeCountRequest: {
+            /** Format: double */
+            counted: number | string;
+            modeCode: null | string;
+        };
+        ModeTotalPayload: {
+            /** Format: double */
+            counted: number | string;
+            /** Format: double */
+            expected: number | string;
+            modeCode: string;
+            /** Format: double */
+            variance: number | string;
         };
         MultiFactorChallengeRequest: {
             code: null | string;
@@ -2386,6 +4530,30 @@ export interface components {
             reason: null | string;
             state: null | string;
             timeZoneId: null | string;
+        };
+        OpenCashierSessionRequest: {
+            /** Format: double */
+            openingFloat: number | string;
+        };
+        OrderBalancePayload: {
+            /** Format: double */
+            allocated: number | string;
+            /** Format: double */
+            charges: number | string;
+            /** Format: double */
+            credits: number | string;
+            currency: string;
+            /** Format: double */
+            debits: number | string;
+            invoices: components["schemas"]["InvoiceBalancePayload"][];
+            /** Format: uuid */
+            orderId: string;
+            /** Format: double */
+            outstanding: number | string;
+            /** Format: double */
+            refunds: number | string;
+            /** Format: double */
+            unappliedAdvances: number | string;
         };
         OrderableCatalogPayload: {
             /** Format: uuid */
@@ -2441,6 +4609,77 @@ export interface components {
             credential: components["schemas"]["JsonElement"];
             label: null | string;
         };
+        PaymentAllocationPayload: {
+            /** Format: uuid */
+            advanceId: null | string;
+            /** Format: date-time */
+            allocatedAt: string;
+            /** Format: uuid */
+            allocatedBy: null | string;
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invoiceId: string;
+            kind: string;
+        };
+        PaymentModePayload: {
+            allowedForRefund: boolean;
+            branchIds: string[];
+            code: string;
+            /** Format: uuid */
+            id: string;
+            isActive: boolean;
+            name: string;
+            requiresProvider: boolean;
+            requiresReference: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PaymentPayload: {
+            advance: null | components["schemas"]["AdvancePayload"];
+            /** Format: double */
+            allocated: number | string;
+            allocations: components["schemas"]["PaymentAllocationPayload"][];
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            cashierId: string;
+            /** Format: uuid */
+            cashierSessionId: string;
+            currency: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            id: string;
+            modeCode: string;
+            /** Format: uuid */
+            orderId: string;
+            receipt: null | components["schemas"]["ReceiptPayload"];
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: uuid */
+            recordedBy: null | string;
+            reference: null | string;
+            /** Format: double */
+            refundedFromAdvance: number | string;
+            reversal: null | components["schemas"]["PaymentReversalPayload"];
+            status: string;
+            /** Format: double */
+            unappliedAdvance: number | string;
+        };
+        PaymentReversalPayload: {
+            /** Format: uuid */
+            id: string;
+            reason: string;
+            /** Format: date-time */
+            reversedAt: string;
+            /** Format: uuid */
+            reversedBy: null | string;
+        };
         PermissionPayload: {
             description: string;
             key: string;
@@ -2450,6 +4689,10 @@ export interface components {
             requiresStepUp: boolean;
             scope: string;
         };
+        PostAdjustmentNoteRequest: {
+            lines: null | components["schemas"]["AdjustmentNoteLineRequestPayload"][];
+            reason: null | string;
+        };
         PreferencesPayload: {
             density: string;
             landingRoute: null | string;
@@ -2457,6 +4700,230 @@ export interface components {
             reducedMotion: boolean;
             theme: string;
             timeZoneId: string;
+        };
+        PriceListItemPayload: {
+            active: boolean;
+            /** Format: double */
+            baseRate: number | string;
+            code: string;
+            description: string;
+            kind: string;
+            /** Format: uuid */
+            priceListItemId: string;
+            /** Format: uuid */
+            priceListItemKey: string;
+            taxCode: string;
+            unit: string;
+        };
+        PriceListItemRequest: {
+            active: null | boolean;
+            /** Format: double */
+            baseRate: null | number | string;
+            code: null | string;
+            description: null | string;
+            kind: null | string;
+            reason: null | string;
+            saysActive?: boolean;
+            taxCode: null | string;
+            unit: null | string;
+        };
+        PriceListPayload: {
+            code: string;
+            /** Format: date-time */
+            createdAt: string;
+            name: string;
+            /** Format: uuid */
+            priceListId: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PriceListPublicationPayload: {
+            findings: components["schemas"]["BillingFindingPayload"][];
+            published: components["schemas"]["PriceListVersionPayload"];
+            /** Format: uuid */
+            supersededVersionId: null | string;
+        };
+        PriceListVersionPayload: {
+            discountRules: components["schemas"]["DiscountRulePayload"][];
+            items: components["schemas"]["PriceListItemPayload"][];
+            version: components["schemas"]["PriceListVersionSummaryPayload"];
+        };
+        PriceListVersionRequest: {
+            branchIds: null | string[];
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
+            /** Format: date */
+            effectiveFrom: null | string;
+            name: null | string;
+            notes: null | string;
+            /** Format: double */
+            overrideThresholdPercent: null | number | string;
+            reason: null | string;
+            roundOff: null | string;
+            saysBranchIds?: boolean;
+            saysTaxInclusive?: boolean;
+            taxInclusive: null | boolean;
+        };
+        PriceListVersionSummaryPayload: {
+            branchIds: string[];
+            /** Format: uuid */
+            clonedFromVersionId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            name: string;
+            notes: null | string;
+            /** Format: double */
+            overrideThresholdPercent: number | string;
+            /** Format: uuid */
+            priceListId: string;
+            /** Format: uuid */
+            priceListVersionId: string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            roundOff: string;
+            status: string;
+            taxInclusive: boolean;
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
+        PricedDiscountPayload: {
+            /** Format: double */
+            amount: number | string;
+            approvalExercised: boolean;
+            kind: string;
+            ruleCode: string;
+            /** Format: double */
+            value: number | string;
+        };
+        PricedDocumentTotalsPayload: {
+            /** Format: double */
+            centralTax: number | string;
+            /** Format: double */
+            cess: number | string;
+            /** Format: double */
+            discountTotal: number | string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: double */
+            integratedTax: number | string;
+            /** Format: double */
+            roundOff: number | string;
+            /** Format: double */
+            stateTax: number | string;
+            /** Format: double */
+            subtotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+        };
+        PricedLinePayload: {
+            /** Format: double */
+            appliedRate: number | string;
+            approvalExercised: boolean;
+            /** Format: double */
+            base: number | string;
+            /** Format: double */
+            catalogueRate: number | string;
+            classification: string;
+            description: string;
+            discount: null | components["schemas"]["PricedDiscountPayload"];
+            /** Format: double */
+            gross: number | string;
+            itemCode: string;
+            lineKey: string;
+            /** Format: double */
+            lineTotal: number | string;
+            /** Format: double */
+            quantity: number | string;
+            surcharges: components["schemas"]["PricedSurchargePayload"][];
+            taxCode: string;
+            taxCodeKind: string;
+            /** Format: double */
+            taxTotal: number | string;
+            /** Format: double */
+            taxableValue: number | string;
+            taxes: components["schemas"]["PricedTaxComponentPayload"][];
+            /** Format: double */
+            variance: number | string;
+            /** Format: double */
+            variancePercent: number | string;
+        };
+        PricedSurchargePayload: {
+            /** Format: double */
+            amount: number | string;
+            description: string;
+            itemCode: string;
+            /** Format: double */
+            rate: number | string;
+        };
+        PricedTaxComponentPayload: {
+            /** Format: double */
+            amount: number | string;
+            kind: string;
+            /** Format: double */
+            ratePercent: number | string;
+        };
+        PricingDiscountRequestPayload: {
+            reason: null | string;
+            ruleCode: null | string;
+            /** Format: double */
+            value: null | number | string;
+        };
+        PricingLineRequestPayload: {
+            discount: null | components["schemas"]["PricingDiscountRequestPayload"];
+            itemCode: null | string;
+            lineKey: null | string;
+            override: null | components["schemas"]["PricingOverrideRequestPayload"];
+            /** Format: double */
+            quantity: null | number | string;
+            surchargeItemCodes: null | string[];
+        };
+        PricingOverrideRequestPayload: {
+            /** Format: double */
+            rate: null | number | string;
+            reason: null | string;
+        };
+        PricingPreviewRequest: {
+            /** Format: uuid */
+            branchId: null | string;
+            lines: null | components["schemas"]["PricingLineRequestPayload"][];
+            /** Format: date */
+            on: null | string;
+            placeOfSupplyStateCode: null | string;
+            /** Format: uuid */
+            priceListVersionId: null | string;
+            /** Format: uuid */
+            taxConfigurationVersionId: null | string;
+        };
+        PricingResultPayload: {
+            /** Format: date-time */
+            calculatedAt: string;
+            currency: string;
+            /** Format: uuid */
+            gstRegistrationId: string;
+            lines: components["schemas"]["PricedLinePayload"][];
+            /** Format: uuid */
+            priceListVersionId: string;
+            scheme: string;
+            /** Format: uuid */
+            taxConfigurationVersionId: string;
+            taxInclusive: boolean;
+            totals: components["schemas"]["PricedDocumentTotalsPayload"];
+        };
+        PrintInvoiceRequest: {
+            /** Format: int32 */
+            copies: null | number | string;
+        };
+        PrintJobPayload: {
+            /** Format: uuid */
+            printJobId: string;
+        };
+        PrintReceiptRequest: {
+            /** Format: int32 */
+            copies: null | number | string;
         };
         /**
          * Problem details
@@ -2497,6 +4964,56 @@ export interface components {
         ReasonPayload: {
             reason: null | string;
         };
+        ReceiptPayload: {
+            /** Format: double */
+            allocated: number | string;
+            /** Format: double */
+            amount: number | string;
+            barcodePayload: string;
+            /** Format: uuid */
+            branchId: string;
+            currency: string;
+            financialYear: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date */
+            issuedOn: string;
+            /** Format: double */
+            orderOutstanding: number | string;
+            /** Format: uuid */
+            paymentId: string;
+            receiptNumber: string;
+            /** Format: double */
+            unappliedAdvance: number | string;
+        };
+        ReconciliationBatchModeLinePayload: {
+            /** Format: double */
+            expected: number | string;
+            modeCode: string;
+            /** Format: double */
+            recorded: number | string;
+            /** Format: double */
+            variance: number | string;
+        };
+        ReconciliationBatchPayload: {
+            /** Format: date-time */
+            approvedAt: null | string;
+            /** Format: uuid */
+            approvedBy: null | string;
+            currency: string;
+            /** Format: double */
+            expectedTotal: number | string;
+            /** Format: uuid */
+            id: string;
+            modeLines: components["schemas"]["ReconciliationBatchModeLinePayload"][];
+            /** Format: double */
+            recordedTotal: number | string;
+            status: string;
+            /** Format: double */
+            variance: number | string;
+        };
         ReconfigureBranchPayload: {
             addressLine1: null | string;
             addressLine2: null | string;
@@ -2514,6 +5031,25 @@ export interface components {
             decision: null | string;
             purposeKey: null | string;
             source: null | string;
+        };
+        RecordPaymentRequest: {
+            /** Format: double */
+            amount: number | string;
+            modeCode: null | string;
+            /** Format: uuid */
+            orderId: string;
+            reference: null | string;
+        };
+        RecordRefundRequest: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            invoiceId: null | string;
+            modeCode: null | string;
+            /** Format: uuid */
+            paymentId: null | string;
+            reason: null | string;
+            reference: null | string;
         };
         RecoveryAcceptedPayload: {
             message: string;
@@ -2534,6 +5070,35 @@ export interface components {
         RecoveryRequestPayload: {
             email: null | string;
         };
+        RefundPayload: {
+            /** Format: double */
+            amount: number | string;
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            cashierId: string;
+            /** Format: uuid */
+            cashierSessionId: string;
+            currency: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invoiceId: null | string;
+            modeCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            paymentId: null | string;
+            reason: string;
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: uuid */
+            recordedBy: null | string;
+            reference: null | string;
+            source: string;
+        };
         RegisterCustomerRequest: {
             addressLine: null | string;
             alternatePhone: null | string;
@@ -2546,6 +5111,10 @@ export interface components {
             nativeName: null | string;
             phone: null | string;
             postcode: null | string;
+        };
+        RenamePriceListRequest: {
+            name: null | string;
+            reason: null | string;
         };
         ReplaceBranchesPayload: {
             branches: null | components["schemas"]["BranchAssignmentPayload"][];
@@ -2567,6 +5136,16 @@ export interface components {
             reason: null | string;
             roleKeys: null | string[];
         };
+        RepriceInvoiceRequest: {
+            lines: null | components["schemas"]["PricingLineRequestPayload"][];
+            /** Format: date */
+            on: null | string;
+            placeOfSupplyStateCode: null | string;
+            reason: null | string;
+        };
+        ReversePaymentRequest: {
+            reason: null | string;
+        };
         RolePayload: {
             assignedByDefault: boolean;
             description: string;
@@ -2584,6 +5163,10 @@ export interface components {
             /** Format: uuid */
             updatedBy: null | string;
             version: string;
+        };
+        SaveDesignSelectionsRequest: {
+            instructions: null | string;
+            selections: null | components["schemas"]["DesignDraftSelectionPayload"][];
         };
         SaveMeasurementSectionRequest: {
             groupName: string;
@@ -2727,6 +5310,10 @@ export interface components {
             userName: string;
             version: string;
         };
+        StartDesignSelectionDraftRequest: {
+            /** Format: uuid */
+            serviceTypeId: string;
+        };
         StartMeasurementDraftRequest: {
             /** Format: uuid */
             customerId: string;
@@ -2741,6 +5328,68 @@ export interface components {
             defaultDisplayUnit: string;
             name: string;
             notes: null | string;
+        };
+        /** Format: binary */
+        Stream: string;
+        TaxCodePayload: {
+            active: boolean;
+            classification: string;
+            code: string;
+            description: string;
+            kind: string;
+            rates: components["schemas"]["TaxRatePayload"][];
+            /** Format: uuid */
+            taxCodeId: string;
+            /** Format: uuid */
+            taxCodeKey: string;
+        };
+        TaxCodeRequest: {
+            active: boolean;
+            classification: null | string;
+            code: null | string;
+            description: null | string;
+            kind: null | string;
+            rates: null | components["schemas"]["TaxRateRequest"][];
+            reason: null | string;
+        };
+        TaxConfigurationPayload: {
+            taxCodes: components["schemas"]["TaxCodePayload"][];
+            version: components["schemas"]["TaxConfigurationSummaryPayload"];
+        };
+        TaxConfigurationPublicationPayload: {
+            findings: components["schemas"]["BillingFindingPayload"][];
+            published: components["schemas"]["TaxConfigurationPayload"];
+            /** Format: uuid */
+            supersededVersionId: null | string;
+        };
+        TaxConfigurationSummaryPayload: {
+            /** Format: uuid */
+            clonedFromVersionId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            name: string;
+            notes: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            status: string;
+            /** Format: uuid */
+            taxConfigurationVersionId: string;
+            /** Format: int32 */
+            versionNumber: number | string;
+        };
+        TaxRatePayload: {
+            kind: string;
+            /** Format: double */
+            ratePercent: number | string;
+        };
+        TaxRateRequest: {
+            kind: null | string;
+            /** Format: double */
+            ratePercent: null | number | string;
         };
         TemplateChoiceOption: {
             code: string;
@@ -5313,6 +7962,3580 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    ResolveInvoiceBarcode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payload: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BarcodeResolutionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListCashierSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    OpenCashierSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "openingFloat": 2000
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["OpenCashierSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCashierSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CloseCashierSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "denominations": [
+                 *         {
+                 *           "denomination": 500,
+                 *           "quantity": 3
+                 *         },
+                 *         {
+                 *           "denomination": 200,
+                 *           "quantity": 2
+                 *         },
+                 *         {
+                 *           "denomination": 100,
+                 *           "quantity": 1
+                 *         }
+                 *       ],
+                 *       "modeTotals": [
+                 *         {
+                 *           "counted": 4350,
+                 *           "modeCode": "CARD"
+                 *         },
+                 *         {
+                 *           "counted": 1200,
+                 *           "modeCode": "UPI"
+                 *         }
+                 *       ],
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CloseCashierSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCashierSessionForReconciliation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashierSessionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ApproveReconciliation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Counted twice with the Branch Manager present; the shortfall was change given from the wrong tray."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["ApproveReconciliationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationBatchPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ApproveDispatchException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "expiresAt": "2026-09-15T20:05:00Z",
+                 *       "jobIds": [
+                 *         "0199c000-0000-7000-8000-000000000031",
+                 *         "0199c000-0000-7000-8000-000000000032"
+                 *       ],
+                 *       "maxOutstandingAmount": 500,
+                 *       "orderId": "019bd6c1-3333-7f2a-9c3d-5e7f8a9b0c1d",
+                 *       "reasonCode": "CUSTOMER_TRAVELLING",
+                 *       "reasonText": "Customer is travelling tonight; balance to be settled on return within the week."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CreateDispatchExceptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchExceptionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListGstRegistrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddGstRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                 *       "effectiveFrom": "2026-04-01",
+                 *       "effectiveTo": null,
+                 *       "gstin": "33AAACH7409R1Z8",
+                 *       "legalName": "Example Tailors Private Limited",
+                 *       "reason": null,
+                 *       "stateCode": "33",
+                 *       "tradeName": "Example Tailors"
+                 *     }
+                 */
+                "application/json": components["schemas"]["GstRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetGstRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AmendGstRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                 *       "effectiveFrom": "2026-04-01",
+                 *       "effectiveTo": "2027-03-31",
+                 *       "gstin": "33AAACH7409R1Z8",
+                 *       "legalName": "Example Tailors Private Limited",
+                 *       "reason": "Re-registered under a new number from 1 April 2027.",
+                 *       "stateCode": "33",
+                 *       "tradeName": "Example Tailors"
+                 *     }
+                 */
+                "application/json": components["schemas"]["GstRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GstRegistrationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListInvoices: {
+        parameters: {
+            query?: {
+                status?: string;
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateInvoiceDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "calculationReference": "order:0199c2f0-0000-7000-8000-0000000000c1:1",
+                 *       "garmentJobIds": null,
+                 *       "orderId": "0199c2f0-0000-7000-8000-0000000000c1",
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RepriceInvoiceDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "lines": [
+                 *         {
+                 *           "discount": {
+                 *             "reason": null,
+                 *             "ruleCode": "FESTIVAL",
+                 *             "value": 5
+                 *           },
+                 *           "itemCode": "BLOUSE_PATTERN_STITCHING",
+                 *           "lineKey": "0199c2f0-0000-7000-8000-0000000000d1",
+                 *           "override": null,
+                 *           "quantity": 1,
+                 *           "surchargeItemCodes": [
+                 *             "PI_KATORI_CUP_LINING"
+                 *           ]
+                 *         }
+                 *       ],
+                 *       "on": "2027-04-05",
+                 *       "placeOfSupplyStateCode": "33",
+                 *       "reason": "The piping finish was dropped at the counter."
+                 *     }
+                 */
+                "application/json": components["schemas"]["RepriceInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CancelInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Issued to the wrong customer; re-invoiced as INV-MAIN-2627-000012."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PostCreditNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "lines": [
+                 *         {
+                 *           "garmentJobId": "0199c000-0000-7000-8000-000000000031",
+                 *           "taxableValue": 90
+                 *         }
+                 *       ],
+                 *       "reason": "Lining charged twice."
+                 *     }
+                 */
+                "application/json": components["schemas"]["PostAdjustmentNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdjustmentNotePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PostDebitNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "lines": [
+                 *         {
+                 *           "garmentJobId": "0199c000-0000-7000-8000-000000000031",
+                 *           "taxableValue": 50
+                 *         }
+                 *       ],
+                 *       "reason": "Express finishing agreed at collection."
+                 *     }
+                 */
+                "application/json": components["schemas"]["PostAdjustmentNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdjustmentNotePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DiscardInvoiceDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Drafted against the wrong order."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DownloadInvoiceDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["Stream"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DownloadNoteDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+                noteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["Stream"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PostInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PrintInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "copies": 1
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["PrintInvoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintJobPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetOrderBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderBalancePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetOrderBalanceForDispatchException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderBalancePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListPaymentModes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentModePayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListAvailablePaymentModes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailablePaymentModePayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPaymentMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentModeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentModePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DescribePaymentMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentModeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "allowedForRefund": false,
+                 *       "branchIds": [],
+                 *       "isActive": true,
+                 *       "name": "Card (terminal)",
+                 *       "requiresProvider": false,
+                 *       "requiresReference": true
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["DescribePaymentModeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentModePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RecordPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "amount": 1134,
+                 *       "modeCode": "UPI",
+                 *       "orderId": "019bd6b0-1111-7c3a-9d5e-2f4a6b8c0d1e",
+                 *       "reference": "UPI-426114-8QX2"
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["RecordPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AllocateAdvance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "amount": 500,
+                 *       "invoiceId": "019bd6b0-2222-7e4b-8f6a-3a5b7c9d1e2f",
+                 *       "reason": "The customer asked for the advance to go against the second invoice first."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["AllocateAdvanceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ReversePayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "The UPI transfer failed at the bank; the customer paid again in cash."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["ReversePaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListPriceLists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreatePriceList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "PL_CBE01",
+                 *       "name": "Coimbatore price list",
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreatePriceListRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DescribePriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "cloneFromVersionId": null,
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "Stitching up by 5%.",
+                 *       "overrideThresholdPercent": 10,
+                 *       "reason": "The effective date moved to the start of the financial year.",
+                 *       "roundOff": "NearestRupee",
+                 *       "taxInclusive": false
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddDiscountRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "FESTIVAL",
+                 *       "description": "Festival-season discount on stitching",
+                 *       "kind": "Percentage",
+                 *       "maximum": 15,
+                 *       "maximumWithoutApproval": 5,
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["DiscountRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscountRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditDiscountRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "FESTIVAL",
+                 *       "description": "Festival-season discount on stitching",
+                 *       "kind": "Percentage",
+                 *       "maximum": 20,
+                 *       "maximumWithoutApproval": 5,
+                 *       "reason": "The owner may now approve up to twenty percent."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DiscountRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscountRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveDiscountRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Withdrawn after the season."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddPriceListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "baseRate": 450,
+                 *       "code": "BLOUSE_PATTERN_STITCHING",
+                 *       "description": "Blouse stitching, pattern work",
+                 *       "kind": "Service",
+                 *       "reason": null,
+                 *       "taxCode": "STITCHING_5",
+                 *       "unit": "each"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListItemPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditPriceListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "baseRate": 472.5,
+                 *       "code": "BLOUSE_PATTERN_STITCHING",
+                 *       "description": "Blouse stitching, pattern work",
+                 *       "kind": "Service",
+                 *       "reason": "Up by 5% with the new year's list.",
+                 *       "taxCode": "STITCHING_5",
+                 *       "unit": "each"
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListItemPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemovePriceListItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Entered twice; the other row is the one the catalogue names."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PublishPriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPublicationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ValidatePriceListVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingValidationReportPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetPriceList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RenamePriceList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "name": "Coimbatore and Tiruppur price list",
+                 *       "reason": "The Tiruppur branch prices from the same list from April."
+                 *     }
+                 */
+                "application/json": components["schemas"]["RenamePriceListRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListPriceListVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionSummaryPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreatePriceListDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceListId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "Cloned from version 4; stitching up by 5%.",
+                 *       "overrideThresholdPercent": 10,
+                 *       "reason": null,
+                 *       "roundOff": "NearestRupee",
+                 *       "taxInclusive": false
+                 *     }
+                 */
+                "application/json": components["schemas"]["PriceListVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceListVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PreviewPricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+                 *       "lines": [
+                 *         {
+                 *           "discount": null,
+                 *           "itemCode": "BLOUSE_PATTERN_STITCHING",
+                 *           "lineKey": "garment-1",
+                 *           "override": null,
+                 *           "quantity": 1,
+                 *           "surchargeItemCodes": [
+                 *             "PI_KATORI_CUP_LINING",
+                 *             "PI_PIPING_FINISH"
+                 *           ]
+                 *         },
+                 *         {
+                 *           "discount": {
+                 *             "reason": null,
+                 *             "ruleCode": "FESTIVAL",
+                 *             "value": 5
+                 *           },
+                 *           "itemCode": "BLOUSE_AARI_STITCHING",
+                 *           "lineKey": "garment-2",
+                 *           "override": {
+                 *             "rate": 580,
+                 *             "reason": "Quoted at the sample rate before the revision."
+                 *           },
+                 *           "quantity": 1,
+                 *           "surchargeItemCodes": []
+                 *         }
+                 *       ],
+                 *       "on": "2027-04-05",
+                 *       "placeOfSupplyStateCode": "33",
+                 *       "priceListVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+                 *       "taxConfigurationVersionId": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["PricingPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingResultPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            415: components["responses"]["UnsupportedMediaType"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ResolveReceiptBarcode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payload: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DownloadReceiptDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["Stream"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PrintReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "copies": 1
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["PrintReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintJobPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RecordRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "amount": 300,
+                 *       "invoiceId": null,
+                 *       "modeCode": "CASH",
+                 *       "paymentId": "019bd6b0-8888-7c3a-9d5e-2f4a6b8c0d1e",
+                 *       "reason": "The order was cancelled before cutting; the advance is returned under the Owner's policy.",
+                 *       "reference": null
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["RecordRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListTaxConfigurationVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationSummaryPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateTaxConfigurationDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000d2",
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "Cloned from version 2; the accountant's revised classification list."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CreateTaxConfigurationDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DescribeTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "effectiveFrom": "2027-04-01",
+                 *       "name": "Rates from 1 April 2027",
+                 *       "notes": "The accountant's revised classification list.",
+                 *       "reason": "The effective date moved to the start of the financial year."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DescribeTaxConfigurationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    PublishTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxConfigurationPublicationPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddTaxCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "classification": "998822",
+                 *       "code": "STITCHING_5",
+                 *       "description": "Tailoring services",
+                 *       "kind": "Services",
+                 *       "rates": [
+                 *         {
+                 *           "kind": "Cgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Sgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Igst",
+                 *           "ratePercent": 5
+                 *         }
+                 *       ],
+                 *       "reason": null
+                 *     }
+                 */
+                "application/json": components["schemas"]["TaxCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxCodePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditTaxCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                taxCodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "classification": "998822",
+                 *       "code": "STITCHING_5",
+                 *       "description": "Tailoring services, as the accountant classifies them",
+                 *       "kind": "Services",
+                 *       "rates": [
+                 *         {
+                 *           "kind": "Cgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Sgst",
+                 *           "ratePercent": 2.5
+                 *         },
+                 *         {
+                 *           "kind": "Igst",
+                 *           "ratePercent": 5
+                 *         }
+                 *       ],
+                 *       "reason": "Description aligned with the accountant's wording."
+                 *     }
+                 */
+                "application/json": components["schemas"]["TaxCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxCodePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveTaxCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                taxCodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Entered twice; the other row is the one the price list names."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["BillingReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ValidateTaxConfigurationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingValidationReportPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     GetCurrentCatalog: {
         parameters: {
             query?: never;
@@ -5335,6 +11558,317 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCatalogDesignPicker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serviceTypeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignPickerPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    StartCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000e1"
+                 *     }
+                 */
+                "application/json": components["schemas"]["StartDesignSelectionDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignSelectionDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignSelectionDraftPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SaveCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "instructions": "Customer asked for a slightly looser fit around the shoulder.",
+                 *       "selections": [
+                 *         {
+                 *           "groupCode": "sleeve_style",
+                 *           "optionCodes": [
+                 *             "THREE_QUARTER"
+                 *           ]
+                 *         },
+                 *         {
+                 *           "groupCode": "padding",
+                 *           "optionCodes": [
+                 *             "LIGHT"
+                 *           ]
+                 *         },
+                 *         {
+                 *           "groupCode": "lining",
+                 *           "optionCodes": [
+                 *             "FULL"
+                 *           ]
+                 *         }
+                 *       ]
+                 *     }
+                 */
+                "application/json": components["schemas"]["SaveDesignSelectionsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignSelectionDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CheckCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: {
+                hasReferenceImage?: boolean;
+            };
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignCheckPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    MigrateCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: {
+                hasReferenceImage?: boolean;
+            };
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignMigrationOutcomePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -5704,6 +12238,186 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    AddCatalogDesignGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "sleeve_style",
+                 *       "displayOrder": 3,
+                 *       "name": "Sleeve length",
+                 *       "nameTamil": null,
+                 *       "reason": null,
+                 *       "required": true,
+                 *       "selectionMode": "SingleChoice"
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignGroupPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddCatalogDesignRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                categoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "antecedent": {
+                 *         "form": "In",
+                 *         "groupCode": "padding",
+                 *         "optionCodes": [
+                 *           "LIGHT",
+                 *           "MOULDED_CUP"
+                 *         ]
+                 *       },
+                 *       "consequent": {
+                 *         "form": "In",
+                 *         "groupCode": "lining",
+                 *         "optionCodes": [
+                 *           "FULL",
+                 *           "KATORI_CUP"
+                 *         ]
+                 *       },
+                 *       "note": null,
+                 *       "reason": null,
+                 *       "type": "Requires",
+                 *       "why": "Padding stitched against a single layer shows through and works loose."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     CorrectCatalogCategoryPresentation: {
         parameters: {
             query?: never;
@@ -5832,6 +12546,725 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceTypePayload"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogDesignGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "activeFrom": null,
+                 *       "activeTo": null,
+                 *       "branchIds": [
+                 *         "0199c2f0-0000-7000-8000-0000000000a1"
+                 *       ],
+                 *       "code": "sleeve_style",
+                 *       "displayOrder": 3,
+                 *       "name": "Sleeve length",
+                 *       "nameTamil": null,
+                 *       "reason": "Now offered at the second branch as well.",
+                 *       "required": true,
+                 *       "selectionMode": "SingleChoice"
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignGroupPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogDesignGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Added to the wrong category; it belongs on the gown."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddCatalogDesignOption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "THREE_QUARTER",
+                 *       "displayOrder": 4,
+                 *       "helpText": "Sleeve ends midway between elbow and wrist.",
+                 *       "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+                 *       "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.THREE_QUARTER",
+                 *       "name": "Three-quarter sleeve",
+                 *       "nameTamil": null,
+                 *       "priceListItemCode": null,
+                 *       "reason": null,
+                 *       "timeImpactDays": 0
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignOptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignOptionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCatalogDesignGroupPresentation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionGroupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "displayOrder": 3,
+                 *       "name": "Sleeve length",
+                 *       "nameTamil": "கை நீளம்",
+                 *       "reason": "Tamil label supplied after the native-speaker review."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignGroupPresentationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogDesignOption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "active": true,
+                 *       "code": "FULL",
+                 *       "displayOrder": 5,
+                 *       "helpText": "Sleeve ends at the wrist.",
+                 *       "illustrationAlt": "A sleeve reaching the wrist, hemmed straight.",
+                 *       "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.FULL",
+                 *       "name": "Full sleeve",
+                 *       "nameTamil": null,
+                 *       "priceListItemCode": "PI_BLOUSE_FULL_SLEEVE",
+                 *       "reason": "The full sleeve now carries its price-list item.",
+                 *       "timeImpactDays": 0
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignOptionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignOptionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogDesignOption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "Duplicated the cap sleeve under another code."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CorrectCatalogDesignOptionPresentation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designOptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "displayOrder": 4,
+                 *       "helpText": "Sleeve ends midway between elbow and wrist.",
+                 *       "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+                 *       "name": "Three-quarter sleeve",
+                 *       "nameTamil": null,
+                 *       "reason": "Clearer alternative text after the screen-reader walk."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignOptionPresentationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    EditCatalogDesignRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designRuleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "antecedent": {
+                 *         "form": "Equals",
+                 *         "groupCode": "padding",
+                 *         "optionCodes": [
+                 *           "MOULDED_CUP"
+                 *         ]
+                 *       },
+                 *       "consequent": null,
+                 *       "note": "Confirm the cup size against the customer's reference garment before cutting.",
+                 *       "reason": "Re-typed from an exclusion to a note after the owner review (OD-DES-04).",
+                 *       "type": "Note",
+                 *       "why": "Cup sizing is not in the measurement set."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DesignRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignRulePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveCatalogDesignRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                designRuleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "reason": "A shop preference, not a craft constraint; deleted at review (OD-DES-04)."
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CatalogReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {
@@ -6685,6 +14118,35 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetMeasurementDraftTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementCaptureTemplatePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
@@ -7632,7 +15094,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeasurementVersionPayload"];
+                    "application/json": components["schemas"]["MeasurementSheetPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetMeasurementVersionTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                measurementVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementVersionTemplatePayload"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -14,6 +14,12 @@ public static class CatalogPermissions
     /// <summary>Read what the catalogue offers at a branch.</summary>
     public const string Read = "catalog.read";
 
+    /// <summary>
+    /// Choose a design on the picker: start, save and migrate a selection draft (issue #140). Mirrors
+    /// <c>orders.intake</c>'s grant, because this is the counter's own work of building an order.
+    /// </summary>
+    public const string DesignSelect = "catalog.design.select";
+
     /// <summary>Draft a catalogue version — categories, service types, design options and rules.</summary>
     public const string Edit = "catalog.edit";
 
@@ -36,6 +42,8 @@ public static class CatalogPermissions
     public static IReadOnlyCollection<Permission> All { get; } =
     [
         new(Read, "Read the categories and services a branch may offer.",
+            PermissionModules.Catalog, PermissionScope.Branch),
+        new(DesignSelect, "Start, save and migrate a design selection draft on the picker.",
             PermissionModules.Catalog, PermissionScope.Branch),
         new(Edit, "Draft a catalogue version: categories, service types, design options and rules.",
             PermissionModules.Catalog, PermissionScope.Organisation),

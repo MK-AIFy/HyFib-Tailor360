@@ -1,6 +1,7 @@
 using Tailor360.Modules.Catalog.Application.Abstractions;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Modules.Catalog.Domain.Catalogue;
+using Tailor360.Modules.Catalog.Domain.Design;
 
 namespace Tailor360.Modules.Catalog.Application.Catalogue;
 
@@ -34,7 +35,11 @@ public static class CatalogProjection
             [.. version.Categories.Select(ToView)],
             [.. version.ServiceTypes.Select(ToView)],
             new CatalogCodeHistory(ledger.CategoryCodeByKey, ledger.CategoryKeyByCode),
-            new CatalogCodeHistory(ledger.ServiceCodeByKey, ledger.ServiceKeyByCode));
+            new CatalogCodeHistory(ledger.ServiceCodeByKey, ledger.ServiceKeyByCode),
+            [.. version.DesignGroups.Select(ToView)],
+            [.. version.DesignRules.Select(ToView)],
+            new CatalogCodeHistory(ledger.DesignGroupCodeByKey, ledger.DesignGroupKeyByCode),
+            new CatalogCodeHistory(ledger.DesignOptionCodeByKey, ledger.DesignOptionKeyByCode));
     }
 
     /// <summary>Projects one service type into the snapshot other modules read it through.</summary>
@@ -64,6 +69,50 @@ public static class CatalogProjection
             service.QcChecklistTemplateId,
             service.NotOrderable);
     }
+
+    private static CatalogDesignGroupView ToView(DesignOptionGroup group)
+        => new(
+            group.Id,
+            group.Key,
+            group.CategoryId,
+            group.Code,
+            group.Name,
+            group.SelectionMode.ToString(),
+            group.Required,
+            group.DisplayOrder,
+            group.ActiveFrom,
+            group.ActiveTo,
+            [.. group.BranchIds],
+            [.. group.Options.OrderBy(option => option.DisplayOrder).Select(ToView)]);
+
+    private static CatalogDesignOptionView ToView(DesignOption option)
+        => new(
+            option.Id,
+            option.Key,
+            option.Code,
+            option.Name,
+            option.Active,
+            option.IllustrationKey is not null,
+            !string.IsNullOrWhiteSpace(option.IllustrationAlt),
+            !string.IsNullOrWhiteSpace(option.HelpText),
+            option.PriceListItemCode,
+            option.TimeImpactDays,
+            option.DisplayOrder);
+
+    private static CatalogDesignRuleView ToView(DesignRule rule)
+        => new(
+            rule.Id,
+            rule.Key,
+            rule.CategoryId,
+            rule.Number,
+            rule.Identifier,
+            rule.Type.ToString(),
+            ToView(rule.Antecedent),
+            rule.Consequent is { } consequent ? ToView(consequent) : null,
+            rule.Note);
+
+    private static CatalogDesignOperandView ToView(DesignRuleOperand operand)
+        => new(operand.GroupCode, operand.Form.ToString(), [.. operand.OptionCodes]);
 
     private static CatalogCategoryView ToView(Category category)
         => new(

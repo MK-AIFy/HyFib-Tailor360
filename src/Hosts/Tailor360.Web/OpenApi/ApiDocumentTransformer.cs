@@ -46,6 +46,12 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             + "against one coherent snapshot of the hierarchy. A published version is immutable but "
             + "for its labels, so a correction is a clone, an edit and a second publication; "
             + "publishing supersedes what came before it and never changes work already under way.",
+        ["Billing"] =
+            "Money: the tax configuration and GST registrations every calculation reads, and — as the "
+            + "epic lands — price lists, the pricing engine, invoices, payments and receipts. Everything "
+            + "here is versioned, accountant-entered configuration rather than code: no statutory rate "
+            + "is built in, exactly one tax configuration version is published at a time, and a "
+            + "published version is immutable because every invoice since was calculated on it.",
         ["Platform"] =
             "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the "
             + "anti-forgery token pair and the build description the client shell reads on start-up.",

@@ -26,6 +26,391 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["CreateInvoiceDraft"] = """
+            {
+              "orderId": "0199c2f0-0000-7000-8000-0000000000c1",
+              "calculationReference": "order:0199c2f0-0000-7000-8000-0000000000c1:1",
+              "garmentJobIds": null,
+              "reason": null
+            }
+            """,
+
+        ["RepriceInvoiceDraft"] = """
+            {
+              "on": "2027-04-05",
+              "placeOfSupplyStateCode": "33",
+              "lines": [
+                {
+                  "lineKey": "0199c2f0-0000-7000-8000-0000000000d1",
+                  "itemCode": "BLOUSE_PATTERN_STITCHING",
+                  "quantity": 1,
+                  "surchargeItemCodes": ["PI_KATORI_CUP_LINING"],
+                  "discount": { "ruleCode": "FESTIVAL", "value": 5, "reason": null },
+                  "override": null
+                }
+              ],
+              "reason": "The piping finish was dropped at the counter."
+            }
+            """,
+
+        ["DiscardInvoiceDraft"] = """
+            {
+              "reason": "Drafted against the wrong order."
+            }
+            """,
+
+        ["PostInvoice"] = """
+            {
+              "reason": null
+            }
+            """,
+
+        ["DescribePaymentMode"] = """
+            {
+              "name": "Card (terminal)",
+              "requiresReference": true,
+              "requiresProvider": false,
+              "allowedForRefund": false,
+              "isActive": true,
+              "branchIds": []
+            }
+            """,
+
+        ["OpenCashierSession"] = """
+            {
+              "openingFloat": 2000.00
+            }
+            """,
+
+        ["RecordPayment"] = """
+            {
+              "orderId": "019bd6b0-1111-7c3a-9d5e-2f4a6b8c0d1e",
+              "modeCode": "UPI",
+              "amount": 1134.00,
+              "reference": "UPI-426114-8QX2"
+            }
+            """,
+
+        ["AllocateAdvance"] = """
+            {
+              "invoiceId": "019bd6b0-2222-7e4b-8f6a-3a5b7c9d1e2f",
+              "amount": 500.00,
+              "reason": "The customer asked for the advance to go against the second invoice first."
+            }
+            """,
+
+        ["CloseCashierSession"] = """
+            {
+              "denominations": [
+                { "denomination": 500, "quantity": 3 },
+                { "denomination": 200, "quantity": 2 },
+                { "denomination": 100, "quantity": 1 }
+              ],
+              "modeTotals": [
+                { "modeCode": "CARD", "counted": 4350.00 },
+                { "modeCode": "UPI", "counted": 1200.00 }
+              ],
+              "reason": null
+            }
+            """,
+
+        ["CancelInvoice"] = """
+            {
+              "reason": "Issued to the wrong customer; re-invoiced as INV-MAIN-2627-000012."
+            }
+            """,
+
+        ["PostCreditNote"] = """
+            {
+              "lines": [
+                { "garmentJobId": "0199c000-0000-7000-8000-000000000031", "taxableValue": 90.00 }
+              ],
+              "reason": "Lining charged twice."
+            }
+            """,
+
+        ["PrintInvoice"] = """
+            {
+              "copies": 1
+            }
+            """,
+
+        ["ReversePayment"] = """
+            {
+              "reason": "The UPI transfer failed at the bank; the customer paid again in cash."
+            }
+            """,
+
+        ["RecordRefund"] = """
+            {
+              "paymentId": "019bd6b0-8888-7c3a-9d5e-2f4a6b8c0d1e",
+              "invoiceId": null,
+              "modeCode": "CASH",
+              "amount": 300.00,
+              "reference": null,
+              "reason": "The order was cancelled before cutting; the advance is returned under the Owner's policy."
+            }
+            """,
+
+        ["PrintReceipt"] = """
+            {
+              "copies": 1
+            }
+            """,
+
+        ["ApproveReconciliation"] = """
+            {
+              "reason": "Counted twice with the Branch Manager present; the shortfall was change given from the wrong tray."
+            }
+            """,
+
+        ["ApproveDispatchException"] = """
+            {
+              "orderId": "019bd6c1-3333-7f2a-9c3d-5e7f8a9b0c1d",
+              "jobIds": ["0199c000-0000-7000-8000-000000000031", "0199c000-0000-7000-8000-000000000032"],
+              "maxOutstandingAmount": 500.00,
+              "reasonCode": "CUSTOMER_TRAVELLING",
+              "reasonText": "Customer is travelling tonight; balance to be settled on return within the week.",
+              "expiresAt": "2026-09-15T20:05:00Z"
+            }
+            """,
+
+        ["PostDebitNote"] = """
+            {
+              "lines": [
+                { "garmentJobId": "0199c000-0000-7000-8000-000000000031", "taxableValue": 50.00 }
+              ],
+              "reason": "Express finishing agreed at collection."
+            }
+            """,
+
+        ["PreviewPricing"] = """
+            {
+              "priceListVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+              "taxConfigurationVersionId": null,
+              "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+              "on": "2027-04-05",
+              "placeOfSupplyStateCode": "33",
+              "lines": [
+                {
+                  "lineKey": "garment-1",
+                  "itemCode": "BLOUSE_PATTERN_STITCHING",
+                  "quantity": 1,
+                  "surchargeItemCodes": ["PI_KATORI_CUP_LINING", "PI_PIPING_FINISH"],
+                  "discount": null,
+                  "override": null
+                },
+                {
+                  "lineKey": "garment-2",
+                  "itemCode": "BLOUSE_AARI_STITCHING",
+                  "quantity": 1,
+                  "surchargeItemCodes": [],
+                  "discount": { "ruleCode": "FESTIVAL", "value": 5, "reason": null },
+                  "override": { "rate": 580, "reason": "Quoted at the sample rate before the revision." }
+                }
+              ]
+            }
+            """,
+
+        ["CreatePriceList"] = """
+            {
+              "code": "PL_CBE01",
+              "name": "Coimbatore price list",
+              "reason": null
+            }
+            """,
+
+        ["RenamePriceList"] = """
+            {
+              "name": "Coimbatore and Tiruppur price list",
+              "reason": "The Tiruppur branch prices from the same list from April."
+            }
+            """,
+
+        ["CreatePriceListDraft"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "Cloned from version 4; stitching up by 5%.",
+              "effectiveFrom": "2027-04-01",
+              "taxInclusive": false,
+              "roundOff": "NearestRupee",
+              "overrideThresholdPercent": 10,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000e4",
+              "reason": null
+            }
+            """,
+
+        ["DescribePriceListVersion"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "Stitching up by 5%.",
+              "effectiveFrom": "2027-04-01",
+              "taxInclusive": false,
+              "roundOff": "NearestRupee",
+              "overrideThresholdPercent": 10,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "cloneFromVersionId": null,
+              "reason": "The effective date moved to the start of the financial year."
+            }
+            """,
+
+        ["AddPriceListItem"] = """
+            {
+              "code": "BLOUSE_PATTERN_STITCHING",
+              "description": "Blouse stitching, pattern work",
+              "kind": "Service",
+              "baseRate": 450,
+              "unit": "each",
+              "taxCode": "STITCHING_5",
+              "active": true,
+              "reason": null
+            }
+            """,
+
+        ["EditPriceListItem"] = """
+            {
+              "code": "BLOUSE_PATTERN_STITCHING",
+              "description": "Blouse stitching, pattern work",
+              "kind": "Service",
+              "baseRate": 472.5,
+              "unit": "each",
+              "taxCode": "STITCHING_5",
+              "active": true,
+              "reason": "Up by 5% with the new year's list."
+            }
+            """,
+
+        ["RemovePriceListItem"] = """
+            {
+              "reason": "Entered twice; the other row is the one the catalogue names."
+            }
+            """,
+
+        ["AddDiscountRule"] = """
+            {
+              "code": "FESTIVAL",
+              "description": "Festival-season discount on stitching",
+              "kind": "Percentage",
+              "maximumWithoutApproval": 5,
+              "maximum": 15,
+              "active": true,
+              "reason": null
+            }
+            """,
+
+        ["EditDiscountRule"] = """
+            {
+              "code": "FESTIVAL",
+              "description": "Festival-season discount on stitching",
+              "kind": "Percentage",
+              "maximumWithoutApproval": 5,
+              "maximum": 20,
+              "active": true,
+              "reason": "The owner may now approve up to twenty percent."
+            }
+            """,
+
+        ["RemoveDiscountRule"] = """
+            {
+              "reason": "Withdrawn after the season."
+            }
+            """,
+
+        ["PublishPriceListVersion"] = """
+            {
+              "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+            }
+            """,
+
+        ["CreateTaxConfigurationDraft"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "Cloned from version 2; the accountant's revised classification list.",
+              "effectiveFrom": "2027-04-01",
+              "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000d2"
+            }
+            """,
+
+        ["DescribeTaxConfigurationVersion"] = """
+            {
+              "name": "Rates from 1 April 2027",
+              "notes": "The accountant's revised classification list.",
+              "effectiveFrom": "2027-04-01",
+              "reason": "The effective date moved to the start of the financial year."
+            }
+            """,
+
+        ["AddTaxCode"] = """
+            {
+              "code": "STITCHING_5",
+              "description": "Tailoring services",
+              "classification": "998822",
+              "kind": "Services",
+              "active": true,
+              "rates": [
+                { "kind": "Cgst", "ratePercent": 2.5 },
+                { "kind": "Sgst", "ratePercent": 2.5 },
+                { "kind": "Igst", "ratePercent": 5 }
+              ],
+              "reason": null
+            }
+            """,
+
+        ["EditTaxCode"] = """
+            {
+              "code": "STITCHING_5",
+              "description": "Tailoring services, as the accountant classifies them",
+              "classification": "998822",
+              "kind": "Services",
+              "active": true,
+              "rates": [
+                { "kind": "Cgst", "ratePercent": 2.5 },
+                { "kind": "Sgst", "ratePercent": 2.5 },
+                { "kind": "Igst", "ratePercent": 5 }
+              ],
+              "reason": "Description aligned with the accountant's wording."
+            }
+            """,
+
+        ["RemoveTaxCode"] = """
+            {
+              "reason": "Entered twice; the other row is the one the price list names."
+            }
+            """,
+
+        ["PublishTaxConfigurationVersion"] = """
+            {
+              "reason": "Approved by the accountant on 12 September; in force from 1 April 2027."
+            }
+            """,
+
+        ["AddGstRegistration"] = """
+            {
+              "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+              "gstin": "33AAACH7409R1Z8",
+              "stateCode": "33",
+              "legalName": "Example Tailors Private Limited",
+              "tradeName": "Example Tailors",
+              "effectiveFrom": "2026-04-01",
+              "effectiveTo": null,
+              "reason": null
+            }
+            """,
+
+        ["AmendGstRegistration"] = """
+            {
+              "branchId": "0199c2f0-0000-7000-8000-0000000000a1",
+              "gstin": "33AAACH7409R1Z8",
+              "stateCode": "33",
+              "legalName": "Example Tailors Private Limited",
+              "tradeName": "Example Tailors",
+              "effectiveFrom": "2026-04-01",
+              "effectiveTo": "2027-03-31",
+              "reason": "Re-registered under a new number from 1 April 2027."
+            }
+            """,
+
         ["CreateCatalogDraft"] = """
             {
               "name": "Add the Kids age bands",
@@ -139,6 +524,145 @@ public static class PayloadExamples
         ["RemoveCatalogServiceType"] = """
             {
               "reason": "The shop does not offer re-stitching on this category."
+            }
+            """,
+
+        ["AddCatalogDesignGroup"] = """
+            {
+              "code": "sleeve_style",
+              "name": "Sleeve length",
+              "nameTamil": null,
+              "selectionMode": "SingleChoice",
+              "required": true,
+              "displayOrder": 3,
+              "activeFrom": null,
+              "activeTo": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogDesignGroup"] = """
+            {
+              "code": "sleeve_style",
+              "name": "Sleeve length",
+              "nameTamil": null,
+              "selectionMode": "SingleChoice",
+              "required": true,
+              "displayOrder": 3,
+              "activeFrom": null,
+              "activeTo": null,
+              "branchIds": ["0199c2f0-0000-7000-8000-0000000000a1"],
+              "reason": "Now offered at the second branch as well."
+            }
+            """,
+
+        ["RemoveCatalogDesignGroup"] = """
+            {
+              "reason": "Added to the wrong category; it belongs on the gown."
+            }
+            """,
+
+        ["AddCatalogDesignOption"] = """
+            {
+              "code": "THREE_QUARTER",
+              "name": "Three-quarter sleeve",
+              "nameTamil": null,
+              "helpText": "Sleeve ends midway between elbow and wrist.",
+              "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.THREE_QUARTER",
+              "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+              "priceListItemCode": null,
+              "timeImpactDays": 0,
+              "displayOrder": 4,
+              "active": true,
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogDesignOption"] = """
+            {
+              "code": "FULL",
+              "name": "Full sleeve",
+              "nameTamil": null,
+              "helpText": "Sleeve ends at the wrist.",
+              "illustrationKey": "design_blouse_sleeve_v1#sleeve_style.FULL",
+              "illustrationAlt": "A sleeve reaching the wrist, hemmed straight.",
+              "priceListItemCode": "PI_BLOUSE_FULL_SLEEVE",
+              "timeImpactDays": 0,
+              "displayOrder": 5,
+              "active": true,
+              "reason": "The full sleeve now carries its price-list item."
+            }
+            """,
+
+        ["RemoveCatalogDesignOption"] = """
+            {
+              "reason": "Duplicated the cap sleeve under another code."
+            }
+            """,
+
+        ["AddCatalogDesignRule"] = """
+            {
+              "type": "Requires",
+              "antecedent": { "groupCode": "padding", "form": "In", "optionCodes": ["LIGHT", "MOULDED_CUP"] },
+              "consequent": { "groupCode": "lining", "form": "In", "optionCodes": ["FULL", "KATORI_CUP"] },
+              "note": null,
+              "why": "Padding stitched against a single layer shows through and works loose.",
+              "reason": null
+            }
+            """,
+
+        ["EditCatalogDesignRule"] = """
+            {
+              "type": "Note",
+              "antecedent": { "groupCode": "padding", "form": "Equals", "optionCodes": ["MOULDED_CUP"] },
+              "consequent": null,
+              "note": "Confirm the cup size against the customer's reference garment before cutting.",
+              "why": "Cup sizing is not in the measurement set.",
+              "reason": "Re-typed from an exclusion to a note after the owner review (OD-DES-04)."
+            }
+            """,
+
+        ["RemoveCatalogDesignRule"] = """
+            {
+              "reason": "A shop preference, not a craft constraint; deleted at review (OD-DES-04)."
+            }
+            """,
+
+        ["CorrectCatalogDesignGroupPresentation"] = """
+            {
+              "name": "Sleeve length",
+              "nameTamil": "கை நீளம்",
+              "displayOrder": 3,
+              "reason": "Tamil label supplied after the native-speaker review."
+            }
+            """,
+
+        ["CorrectCatalogDesignOptionPresentation"] = """
+            {
+              "name": "Three-quarter sleeve",
+              "nameTamil": null,
+              "helpText": "Sleeve ends midway between elbow and wrist.",
+              "illustrationAlt": "A sleeve ending halfway down the forearm, hemmed straight.",
+              "displayOrder": 4,
+              "reason": "Clearer alternative text after the screen-reader walk."
+            }
+            """,
+
+        ["StartCatalogDesignSelectionDraft"] = """
+            {
+              "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000e1"
+            }
+            """,
+
+        ["SaveCatalogDesignSelectionDraft"] = """
+            {
+              "selections": [
+                { "groupCode": "sleeve_style", "optionCodes": ["THREE_QUARTER"] },
+                { "groupCode": "padding", "optionCodes": ["LIGHT"] },
+                { "groupCode": "lining", "optionCodes": ["FULL"] }
+              ],
+              "instructions": "Customer asked for a slightly looser fit around the shoulder."
             }
             """,
 

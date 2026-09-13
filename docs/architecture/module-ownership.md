@@ -329,7 +329,7 @@ draft → published (immutable) → retired versions so that administrators chan
 | `service_type_branches` | Which branches offer a service type. Validated at publish as a subset of its category's |
 | `service_type_design_groups` | The ordered set of design option groups a service type offers (#30) |
 | `catalog_versions` | The coherent published snapshot of the whole hierarchy an order is confirmed against. Exactly one is published per organisation, held by a partial unique index; a version is created as a draft and reaches published by being published, held by a trigger. Its categories and service types are immutable once it leaves draft — no insert, no delete, and no update but the four presentation fields — held by a second trigger, because freezing the rows that exist says nothing about a row added afterwards |
-| `design_option_groups`, `design_options`, `design_rules` | Groups, choices and the requires/excludes/conditional constraints between them |
+| `design_option_groups`, `design_option_group_branches`, `design_options`, `design_rules` | Groups, choices and the requires/excludes/requires-attachment/note rules between them (#30). Owned by the version like its categories: cloned into a draft with fresh rows and the same `design_option_group_key`, `design_option_key` and `design_rule_key`, and immutable once the version leaves draft — no insert, no delete, and no update but the words people read — held by the same trigger family. A rule's `rule_number` is the `DR-nn` of `docs/prd/design-options.md`, unique within a version and never re-used |
 | `qc_checklist_templates`, `qc_checklist_versions`, `qc_criteria`, `defect_codes` | Typed QC criteria, evidence requirements, responsible role and defect vocabulary |
 | `reference_breaches` | Cross-module references of the published catalogue that stopped being valid after publication, opened and closed by the reconciliation of **INV-MTV-06** and its siblings (#91). Written only from the delivery of an integration event, so a row commits with the inbox row recording the check ran. A partial unique index over `(catalog_version_id, code, target)` filtered on unresolved rows keeps at most one open breach per finding, and closed rows are kept because a reference that broke twice is a pattern worth seeing |
 
@@ -546,17 +546,19 @@ single-use exception that together form the shop's cash-protection control.
 
 | Table | Holds |
 | --- | --- |
-| `price_lists`, `price_list_versions`, `price_list_items` | Effective-dated base rates, inclusive/exclusive flags, discount and surcharge rules, approval thresholds |
+| `price_lists`, `price_list_versions`, `price_list_version_branches`, `price_list_items`, `discount_rules` | Effective-dated base rates, inclusive/exclusive flags, discount rules, surcharge items, the override threshold and the branches a version prices for (#146) |
 | `gst_registrations` | Branch GSTIN and state code — owned here even though the branch record is Identity's |
 | `tax_configuration_versions`, `tax_codes`, `tax_components` | Immutable, effective-dated tax codes, HSN/SAC mappings, rates and place-of-supply rules |
 | `calculation_snapshots` | The exact pricing result and the configuration versions used |
-| `invoices`, `invoice_lines`, `invoice_tax_components` | Draft to posted; posted rows never updated |
-| `invoice_cancellations`, `credit_notes`, `debit_notes` | Appended compensating records |
-| `document_sequences` | The per-branch, per-financial-year number series, allocated through Platform's `ISequenceAllocator` |
-| `document_artifacts` | Rendered PDFs under `documents/` with version and checksum |
-| `payment_modes`, `payments`, `payment_allocations`, `advances`, `refunds` | Append-only money movement and its application |
+| `order_facts`, `order_fact_jobs` | What Billing knows about an order — number, branch, customer, revision, status, and its garment jobs with their cancellations — written only by the consumers of Orders' events, never by reading Orders' tables (ARCH-010) |
+| `invoices`, `invoice_lines`, `invoice_line_surcharges`, `invoice_tax_components` | Draft to posted; posted rows never updated or deleted, at the database; a garment job charged on at most one live invoice; the number, the financial year and the `I-` barcode payload drawn at posting |
+| `invoice_cancellations` | The record a cancellation appends, from which the displayed status derives; the invoice keeps its number and totals, and its garment jobs are freed for another invoice. Append-only |
+| `adjustment_notes`, `adjustment_note_lines`, `adjustment_note_taxes` | Credit and debit notes against posted invoices, numbered from their own sequences, per line at the invoice line's rates. Append-only |
+| `document_artifacts` | One row per posted invoice, credit note and debit note: requested at posting through the outbox, rendered and stored by the worker under an opaque `documents/` key, with the size, the SHA-256 and the version; pending, completed or failed after the bounded attempts (`INV-INV-08`) |
+| `payment_modes`, `payment_mode_branches` | Configuration: the ways money is taken, their flags and the branches each is restricted to; seeded, renamed, never redefined |
+| `payments`, `payment_allocations`, `advances`, `payment_reversals`, `refunds` | Append-only money movement, its application and its compensating records |
 | `receipts` | Numbered acknowledgements carrying an `R-…` barcode |
-| `cashier_sessions`, `cashier_session_counts`, `reconciliation_batches` | Shift open to close, denomination sheets, variance and approval |
+| `cashier_sessions`, `cashier_session_counts`, `cashier_session_mode_totals`, `reconciliation_batches` | Shift open to close, denomination sheets, expected against counted by mode, variance and approval |
 | `dispatch_exceptions` | Single-use overrides bound to order, job set, maximum outstanding amount, policy version and expiry |
 
 **Owned object-storage prefix.** `documents/`.
@@ -706,6 +708,21 @@ in `Platform.Abstractions`.
 dispatcher, the claim semantics and the dead-letter handling, not the rows. Its own pair are the platform module's,
 not everybody's: a shared table would be a second connection and a second transaction for every other module, which
 is the one thing a transactional outbox exists to rule out (issue #77).
+
+The same problem — a change and its record on two connections is two commits, either of which can leave the other
+stranded — meets a different shape here, because there is one hash-chained ledger, not one table per module: giving
+every module its own `audit_events` would give it its own chain, which is not what CI-08 means by "the chain is
+unbroken". So rather than duplicating the table per schema the way `outbox_messages` does, `audit_events` is
+*mapped a second time* — never migrated, never owned — by a module's own context too, where that module has given
+itself an `IAuditWriter` binding of its own (`Billing`'s `IBillingAuditWriter`, over `AuditWriter<BillingDbContext>`):
+the entry is tracked by that context's own change tracker and saved by the same `SaveChangesAsync` call as the
+change it describes, so the two commit or roll back together (issue #179). This is still access through Platform's
+port, not a second owner: the table is still created, altered and hash-chained only by `Tailor360.Platform.Persistence`
+and `t360_migrator`, `ExcludeFromMigrations()` on every context that maps it except `PlatformDbContext`, and the
+application role still holds `INSERT` only. It is ARCH-005's one named exception, by table and by call site —
+[`ADR-0015`](../adr/0015-shared-audit-ledger-mapped-into-module-contexts.md) records why this shape was chosen over
+the per-module table above and over the shared-transaction mechanism ADR-0004 originally sketched for this exact
+crossing.
 
 **Owned object-storage prefix.** None.
 

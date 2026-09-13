@@ -28,7 +28,7 @@ namespace Tailor360.Modules.Catalog.Domain.Catalogue;
 /// that only the application believes is not immutable.
 /// </para>
 /// </remarks>
-public sealed class CatalogVersion
+public sealed partial class CatalogVersion
 {
     /// <summary>The longest version name the column holds.</summary>
     public const int MaximumNameLength = 120;
@@ -209,10 +209,15 @@ public sealed class CatalogVersion
             clone._categories.Add(copy);
         }
 
+        // The groups and rules go first, because a service type's design link names group rows and
+        // the copies must point at the copies, not at the rows of the version being cloned.
+        var copiedGroups = clone.CopyDesignFrom(this, ids, copiedCategories);
+
         foreach (var service in _serviceTypes)
         {
             clone._serviceTypes.Add(
-                service.CopyInto(ids.NewId(), clone.Id, copiedCategories[service.CategoryId]));
+                service.CopyInto(
+                    ids.NewId(), clone.Id, copiedCategories[service.CategoryId], copiedGroups));
         }
 
         return Result.Success(clone);
@@ -350,6 +355,7 @@ public sealed class CatalogVersion
         var removing = DescendantsOf(categoryId).Append(categoryId).ToHashSet();
 
         _serviceTypes.RemoveAll(service => removing.Contains(service.CategoryId));
+        RemoveDesignOf(removing);
         _categories.RemoveAll(category => removing.Contains(category.Id));
         Touch(now, by);
 

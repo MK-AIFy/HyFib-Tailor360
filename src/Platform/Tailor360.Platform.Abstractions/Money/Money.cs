@@ -30,7 +30,7 @@ public readonly record struct Money : IComparable<Money>
             throw new ArgumentException("Currency must be a three-letter upper-case ISO 4217 code.", nameof(currency));
         }
 
-        Amount = decimal.Round(amount, InternalScale, MidpointRounding.ToEven);
+        Amount = decimal.Round(amount, InternalScale, MidpointRounding.AwayFromZero);
         Currency = currency;
     }
 
@@ -53,11 +53,12 @@ public readonly record struct Money : IComparable<Money>
     public static Money Rupees(decimal amount) => new(amount);
 
     /// <summary>
-    /// Rounds to the currency's minor unit using banker's rounding, which is the rule applied when an
-    /// invoice line or total is written. Intermediate arithmetic is never rounded this way.
+    /// Rounds to the currency's minor unit half away from zero, the rule <c>docs/architecture/conventions.md</c>
+    /// section 1.2 fixes for a line and each of its tax components, applied exactly once at the end of a
+    /// line. Intermediate arithmetic is never rounded this way.
     /// </summary>
     public Money ToDocumentPrecision()
-        => new(decimal.Round(Amount, DocumentScale, MidpointRounding.ToEven), Currency);
+        => new(decimal.Round(Amount, DocumentScale, MidpointRounding.AwayFromZero), Currency);
 
     /// <summary>Adds two amounts of the same currency.</summary>
     /// <exception cref="InvalidOperationException">The currencies differ.</exception>

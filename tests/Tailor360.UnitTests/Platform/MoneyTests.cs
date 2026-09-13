@@ -20,15 +20,18 @@ public sealed class MoneyTests
 
     [Fact]
     public void RoundsToTwoDecimalPlacesForDocuments()
-        => new Money(12.345m).ToDocumentPrecision().Amount.ShouldBe(12.34m);
+        => new Money(12.345m).ToDocumentPrecision().Amount.ShouldBe(12.35m);
 
     [Fact]
-    public void UsesBankersRoundingSoRepeatedRoundingDoesNotDrift()
+    public void RoundsHalfAwayFromZeroAsTheConventionAndTheAccountantRequire()
     {
-        // Half-away-from-zero would bias every borderline line upwards; over a day of billing that
-        // becomes a visible discrepancy against the cash drawer.
-        new Money(2.345m).ToDocumentPrecision().Amount.ShouldBe(2.34m);
+        // docs/architecture/conventions.md section 1.2: "half away from zero" is what half-up means for
+        // the positive amounts this system handles, and it is what the golden master asserts. A borderline
+        // line is rounded exactly once, so there is no repeated rounding for banker's rounding to guard.
+        new Money(2.345m).ToDocumentPrecision().Amount.ShouldBe(2.35m);
         new Money(2.355m).ToDocumentPrecision().Amount.ShouldBe(2.36m);
+        new Money(-2.345m).ToDocumentPrecision().Amount.ShouldBe(-2.35m);
+        new Money(12.34565m).Amount.ShouldBe(12.3457m);
     }
 
     [Fact]

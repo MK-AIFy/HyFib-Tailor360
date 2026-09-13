@@ -233,7 +233,7 @@ public sealed class AuditTrailTests(PlatformDatabaseFixture fixture)
     /// <summary>Gate used by the skip conditions on every test in this class.</summary>
     public static bool Available => PlatformDatabaseFixture.IsAvailable;
 
-    private static AuditWriter NewWriter(PlatformDbContext context)
+    private static AuditWriter<PlatformDbContext> NewWriter(PlatformDbContext context)
         => new(context, new SystemAuditContext(), new SystemClock(), new UuidV7IdGenerator());
 
     private static async Task WriteAsync(PlatformDbContext context, string action, string summary)

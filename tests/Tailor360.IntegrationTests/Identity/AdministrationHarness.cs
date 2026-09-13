@@ -35,14 +35,39 @@ internal static class AdministrationHarness
     /// ordinary case, which is deliberately the common one: an account holding exactly what the
     /// endpoint asks for is what proves the endpoint is asking.
     /// </param>
-    public static async Task<AdministratorClient> AdministratorAsync(
+    public static Task<AdministratorClient> AdministratorAsync(
         WebApplicationFixture fixture,
         string prefix,
         string clientAddress,
         string? grantPermission = IdentityPermissions.Users,
         params string[] alsoGrant)
+        => AdministratorAtBranchAsync(fixture, prefix, clientAddress, SessionTestData.HomeBranchId, grantPermission, alsoGrant);
+
+    /// <summary>
+    /// <see cref="AdministratorAsync"/> for an account whose home branch — and so whose session's current
+    /// branch — is one the test opened itself.
+    /// </summary>
+    /// <remarks>
+    /// A route in <c>CurrentBranch</c> scope reads the branch the session is in, and the session opens on
+    /// the account's home branch. A test that needs its caller to be working in a branch of the run's own
+    /// (because the data it reads is keyed by branch, and the shared branch is shared) creates the account
+    /// here rather than switching branches after the fact.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="prefix">A short, readable prefix.</param>
+    /// <param name="clientAddress">The address the client presents.</param>
+    /// <param name="homeBranchId">An open branch of this organisation.</param>
+    /// <param name="grantPermission">The permission to grant, or null for none.</param>
+    /// <param name="alsoGrant">Further permissions to grant.</param>
+    public static async Task<AdministratorClient> AdministratorAtBranchAsync(
+        WebApplicationFixture fixture,
+        string prefix,
+        string clientAddress,
+        Guid homeBranchId,
+        string? grantPermission,
+        params string[] alsoGrant)
     {
-        var (user, _) = await AccountAsync(fixture, prefix, grantPermission, alsoGrant);
+        var (user, _) = await AccountAtBranchAsync(fixture, prefix, homeBranchId, grantPermission, alsoGrant);
         var client = AuthenticationClient.Open(fixture, clientAddress);
 
         (await client.PostAsync(
@@ -70,15 +95,29 @@ internal static class AdministrationHarness
     /// <param name="prefix">A short, readable prefix.</param>
     /// <param name="grantPermission">The administrative permission to grant, or null for none.</param>
     /// <param name="alsoGrant">Further permissions to grant, for an endpoint that demands more than one.</param>
-    public static async Task<(StaffUser User, Guid RoleId)> AccountAsync(
+    public static Task<(StaffUser User, Guid RoleId)> AccountAsync(
         WebApplicationFixture fixture,
         string prefix,
+        string? grantPermission,
+        params string[] alsoGrant)
+        => AccountAtBranchAsync(fixture, prefix, SessionTestData.HomeBranchId, grantPermission, alsoGrant);
+
+    /// <summary><see cref="AccountAsync"/> for an account whose home branch is one the test opened itself.</summary>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="prefix">A short, readable prefix.</param>
+    /// <param name="homeBranchId">An open branch of this organisation; the shared one is created here if it is the one named.</param>
+    /// <param name="grantPermission">The administrative permission to grant, or null for none.</param>
+    /// <param name="alsoGrant">Further permissions to grant, for an endpoint that demands more than one.</param>
+    public static async Task<(StaffUser User, Guid RoleId)> AccountAtBranchAsync(
+        WebApplicationFixture fixture,
+        string prefix,
+        Guid homeBranchId,
         string? grantPermission,
         params string[] alsoGrant)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, prefix);
+        var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, prefix, homeBranchId);
 
         using var scope = fixture.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
@@ -87,8 +126,10 @@ internal static class AdministrationHarness
         var now = clock.UtcNow;
 
         // The branch assignment has a foreign key, and this fixture migrates the schema without seeding
-        // reference data — so the branch is created once, by whichever test gets there first.
-        if (!await context.Branches.AnyAsync(
+        // reference data — so the shared branch is created once, by whichever test gets there first. A
+        // branch of a test's own was opened through the route before the test named it here.
+        if (homeBranchId == SessionTestData.HomeBranchId
+            && !await context.Branches.AnyAsync(
                 branch => branch.Id == SessionTestData.HomeBranchId, TestContext.Current.CancellationToken))
         {
             context.Branches.Add(Branch.Open(
@@ -132,7 +173,7 @@ internal static class AdministrationHarness
         context.Roles.Add(role);
         context.UserRoles.Add(UserRoleAssignment.Create(user.Id, role.Id, now));
         context.UserBranchAssignments.Add(
-            UserBranchAssignment.Create(user.Id, SessionTestData.HomeBranchId, now, isPrimary: true));
+            UserBranchAssignment.Create(user.Id, homeBranchId, now, isPrimary: true));
 
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 

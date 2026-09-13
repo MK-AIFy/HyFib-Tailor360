@@ -32,6 +32,10 @@ public static partial class LogRedaction
         "connectionstring", "privatekey", "certificate", "certificatepassword",
         "backupkey", "encryptionkey", "dataprotectionkey", "webhooksecret", "signature",
         "aadhaar", "pan", "upiid", "cardnumber", "cvv",
+        // A payment's external reference is the terminal's or the bank's transaction identifier and the
+        // payer is a person; neither belongs in a log line (#162). Masked by name so that no call site
+        // has to remember.
+        "reference", "externalreference", "providerreference", "paymentreference", "payer",
     };
 
     /// <summary>True when a property with this name must have its value redacted.</summary>
