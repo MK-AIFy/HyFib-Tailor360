@@ -242,6 +242,73 @@ export interface PresentationRequest {
   readonly reason: string | null
 }
 
+/** A design option group as the add and edit routes demand it (#141). */
+export interface DesignGroupRequest {
+  readonly code: string | null
+  readonly name: string | null
+  readonly nameTamil: string | null
+  /** `SingleChoice` or `MultipleChoice`. */
+  readonly selectionMode: string | null
+  readonly required: boolean
+  readonly displayOrder: number
+  readonly activeFrom: string | null
+  readonly activeTo: string | null
+  readonly branchIds: readonly string[] | null
+  readonly reason: string | null
+}
+
+/** A design option as the add and edit routes demand it. */
+export interface DesignOptionRequest {
+  readonly code: string | null
+  readonly name: string | null
+  readonly nameTamil: string | null
+  readonly helpText: string | null
+  readonly illustrationKey: string | null
+  readonly illustrationAlt: string | null
+  readonly priceListItemCode: string | null
+  readonly timeImpactDays: number
+  readonly displayOrder: number
+  readonly active: boolean
+  readonly reason: string | null
+}
+
+/** One side of a rule, as the rule editor composes it. */
+export interface DesignOperandRequest {
+  readonly groupCode: string | null
+  /** `Equals`, `NotEquals`, `In`, `Includes`, `Excludes`, `AnySelection` or `Always`. */
+  readonly form: string | null
+  readonly optionCodes: readonly string[] | null
+}
+
+/** A design rule as the add and edit routes demand it. */
+export interface DesignRuleRequest {
+  /** `Requires`, `Excludes`, `RequiresAttachment` or `Note`. */
+  readonly type: string | null
+  readonly antecedent: DesignOperandRequest | null
+  readonly consequent: DesignOperandRequest | null
+  readonly note: string | null
+  readonly why: string | null
+  readonly reason: string | null
+}
+
+/** The label correction a published design group admits. */
+export interface DesignGroupPresentationRequest {
+  readonly name: string | null
+  readonly nameTamil: string | null
+  readonly displayOrder: number
+  readonly reason: string | null
+}
+
+/** The label correction a published design option admits — never the illustration itself. */
+export interface DesignOptionPresentationRequest {
+  readonly name: string | null
+  readonly nameTamil: string | null
+  readonly helpText: string | null
+  readonly illustrationAlt: string | null
+  readonly displayOrder: number
+  readonly reason: string | null
+}
+
 /**
  * One thing a counter may order today, flattened.
  *

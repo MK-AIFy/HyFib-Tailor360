@@ -1,5 +1,9 @@
 import type {
   CatalogCategory,
+  CatalogDesignGroup,
+  CatalogDesignOperand,
+  CatalogDesignOption,
+  CatalogDesignRule,
   CatalogFinding,
   CatalogServiceType,
   CatalogValidationReport,
@@ -93,6 +97,68 @@ export function aCatalogVersion(overrides: Partial<CatalogVersion> = {}): Catalo
     serviceTypes: [aServiceType()],
     designGroups: [],
     designRules: [],
+    ...overrides,
+  }
+}
+
+export function aDesignOption(overrides: Partial<CatalogDesignOption> = {}): CatalogDesignOption {
+  return {
+    designOptionId: '0199bb00-0000-7000-8000-0000000000e1',
+    designOptionGroupId: '0199bb00-0000-7000-8000-0000000000e0',
+    code: 'ROUND',
+    name: 'Round',
+    nameTamil: null,
+    helpText: 'A plain round neckline.',
+    illustrationKey: null,
+    illustrationAlt: 'A round neckline, no collar.',
+    priceListItemCode: null,
+    timeImpactDays: 0,
+    displayOrder: 0,
+    active: true,
+    ...overrides,
+  }
+}
+
+export function aDesignGroup(overrides: Partial<CatalogDesignGroup> = {}): CatalogDesignGroup {
+  return {
+    designOptionGroupId: '0199bb00-0000-7000-8000-0000000000e0',
+    categoryId: '0199bb00-0000-7000-8000-0000000000b1',
+    code: 'neckline',
+    name: 'Neckline',
+    nameTamil: null,
+    selectionMode: 'SingleChoice',
+    required: true,
+    displayOrder: 0,
+    activeFrom: null,
+    activeTo: null,
+    branchIds: [],
+    options: [aDesignOption()],
+    ...overrides,
+  }
+}
+
+export function anOperand(overrides: Partial<CatalogDesignOperand> = {}): CatalogDesignOperand {
+  return {
+    groupCode: 'neckline',
+    form: 'Equals',
+    optionCodes: ['ROUND'],
+    ...overrides,
+  }
+}
+
+export function aDesignRule(overrides: Partial<CatalogDesignRule> = {}): CatalogDesignRule {
+  return {
+    designRuleId: '0199bb00-0000-7000-8000-0000000000e2',
+    categoryId: '0199bb00-0000-7000-8000-0000000000b1',
+    number: 1,
+    identifier: 'DR-01',
+    type: 'Requires',
+    antecedent: anOperand(),
+    consequent: anOperand({ groupCode: 'sleeve', form: 'Equals', optionCodes: ['SHORT'] }),
+    note: null,
+    why: null,
+    statement: 'If neckline is Round, then sleeve is Short is required.',
+    blocks: true,
     ...overrides,
   }
 }

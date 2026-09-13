@@ -191,6 +191,95 @@ export const catalogEn = {
   'catalog.current.column.reference': 'Reference',
   'catalog.current.column.duration': 'Usually takes',
   'catalog.current.days': '{count, plural, one {1 day} other {# days}}',
+
+  /* Design groups, options and rules on one category (#141). ---------------------------------- */
+  'catalog.design.open': 'Design options for {name}',
+  'catalog.design.title': 'Design options for {name}',
+  'catalog.design.loading': "this category's design options",
+  'catalog.design.categoryNotFound': 'No category matches that address.',
+  'catalog.design.caption': 'The groups and options {name} offers',
+  'catalog.design.empty':
+    'This category has no design groups yet. Add one, then the options a customer chooses from.',
+  'catalog.design.column.detail': 'Detail',
+  'catalog.design.column.illustration': 'Illustration',
+  'catalog.design.group.add': 'Add a group',
+  'catalog.design.group.addTitle': 'A new design group',
+  'catalog.design.group.editTitle': 'Editing {name}',
+  'catalog.design.group.edit': 'Edit {name}',
+  'catalog.design.group.remove': 'Remove {name}',
+  'catalog.design.group.code.hint':
+    'Set once and never again: rules, snapshots and job cards refer to it once the version is published.',
+  'catalog.design.group.selectionMode': 'How many the customer may choose',
+  'catalog.design.group.selectionMode.SingleChoice': 'One',
+  'catalog.design.group.selectionMode.MultipleChoice': 'One or more',
+  'catalog.design.group.required': 'Required',
+  'catalog.design.group.required.hint': 'The customer must choose something from this group.',
+  'catalog.design.group.branches.hint':
+    'Leave every branch unticked and this group is offered nowhere, even where the category is offered.',
+  'catalog.design.option.add': 'Add an option to {name}',
+  'catalog.design.option.addTitle': 'A new option',
+  'catalog.design.option.editTitle': 'Editing {name}',
+  'catalog.design.option.edit': 'Edit {name}',
+  'catalog.design.option.remove': 'Remove {name}',
+  'catalog.design.option.code.hint':
+    "Set once and never again. NONE is reserved for 'the customer chose not to have this' and is always selectable.",
+  'catalog.design.option.helpText': 'Help text',
+  'catalog.design.option.illustrationKey': 'Illustration key',
+  'catalog.design.option.illustrationKey.hint':
+    'There is no picker for this yet — the illustration catalogue arrives with its own screen — so it is entered as the key it is. Leave it blank and the picker falls back to the label and alternative text.',
+  'catalog.design.option.illustrationAlt': 'Alternative text',
+  'catalog.design.option.illustrationAlt.hint':
+    'What a customer is told when there is no drawing to show, or when one cannot be seen.',
+  'catalog.design.option.illustration.missing':
+    'No illustration yet. The picker shows the label and this alternative text instead.',
+  'catalog.design.option.illustration.key': 'Illustration: {key}',
+  'catalog.design.option.timeImpactDays': 'Extra days this option usually adds',
+  'catalog.design.option.active': 'Offered',
+  'catalog.design.option.active.hint':
+    'Untick to retire the option: it stays known to the catalogue but is no longer offered.',
+  'catalog.design.option.retired': 'Retired',
+  'catalog.design.rules.title': 'Rules',
+  'catalog.design.rules.empty': 'This category has no rules yet.',
+  'catalog.design.rules.caption': 'The rules between {name}’s design options',
+  'catalog.design.rule.add': 'Add a rule',
+  'catalog.design.rule.formTitle': 'A design rule',
+  'catalog.design.rule.edit': 'Edit {identifier}',
+  'catalog.design.rule.remove': 'Remove {identifier}',
+  'catalog.design.rule.identifier': 'Rule',
+  'catalog.design.rule.type': 'What the rule does',
+  'catalog.design.rule.type.Requires': 'Requires another choice',
+  'catalog.design.rule.type.Excludes': 'Excludes another choice',
+  'catalog.design.rule.type.RequiresAttachment': 'Requires a reference photo',
+  'catalog.design.rule.type.Note': 'Shows a note at the counter',
+  'catalog.design.rule.statement': 'The rule',
+  'catalog.design.rule.antecedent': 'When',
+  'catalog.design.rule.consequent': 'Then',
+  'catalog.design.rule.hasConsequent': 'This rule has a second side',
+  'catalog.design.rule.hasConsequent.hint':
+    'A note or a reference-photo requirement usually needs only the condition above; a requires or excludes rule needs this too.',
+  'catalog.design.rule.operand.form': 'Condition',
+  'catalog.design.rule.operand.form.Always': 'Always',
+  'catalog.design.rule.operand.form.AnySelection': 'Anything is chosen',
+  'catalog.design.rule.operand.form.Equals': 'Is exactly',
+  'catalog.design.rule.operand.form.NotEquals': 'Is not',
+  'catalog.design.rule.operand.form.In': 'Is one of',
+  'catalog.design.rule.operand.form.Includes': 'Includes',
+  'catalog.design.rule.operand.form.Excludes': 'Excludes',
+  'catalog.design.rule.operand.group': 'Group',
+  'catalog.design.rule.operand.group.none': 'Choose a group',
+  'catalog.design.rule.operand.group.pickFirst': 'Choose a group to see its options.',
+  'catalog.design.rule.operand.options': 'Options',
+  'catalog.design.rule.note': 'Note shown at the counter',
+  'catalog.design.rule.why': 'Why this rule exists',
+  'catalog.design.rule.why.hint': 'For the next person reading this rule, not for the customer.',
+  'catalog.design.rule.sentence': 'This rule reads:',
+  'catalog.design.rule.saved': 'Saved the rule.',
+  'catalog.design.rule.removed': 'Removed {identifier}.',
+  'catalog.design.remove.action': 'Remove {name}',
+  'catalog.design.order.up': 'Move {label} up',
+  'catalog.design.order.down': 'Move {label} down',
+  'catalog.design.order.atStart': 'Already first.',
+  'catalog.design.order.atEnd': 'Already last.',
 } as const
 
 /*
@@ -504,4 +593,171 @@ export const catalogTa: Record<keyof typeof catalogEn, string> = {
   'catalog.current.column.duration': 'Usually takes',
   // not translated — awaiting native-speaker review
   'catalog.current.days': '{count, plural, one {1 day} other {# days}}',
+
+  /* Design groups, options and rules on one category (#141). ---------------------------------- */
+  // not translated — awaiting native-speaker review
+  'catalog.design.open': 'Design options for {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.title': 'Design options for {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.loading': "this category's design options",
+  // not translated — awaiting native-speaker review
+  'catalog.design.categoryNotFound': 'No category matches that address.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.caption': 'The groups and options {name} offers',
+  // not translated — awaiting native-speaker review
+  'catalog.design.empty':
+    'This category has no design groups yet. Add one, then the options a customer chooses from.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.column.detail': 'Detail',
+  // not translated — awaiting native-speaker review
+  'catalog.design.column.illustration': 'Illustration',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.add': 'Add a group',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.addTitle': 'A new design group',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.editTitle': 'Editing {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.edit': 'Edit {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.remove': 'Remove {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.code.hint':
+    'Set once and never again: rules, snapshots and job cards refer to it once the version is published.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.selectionMode': 'How many the customer may choose',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.selectionMode.SingleChoice': 'One',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.selectionMode.MultipleChoice': 'One or more',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.required': 'Required',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.required.hint': 'The customer must choose something from this group.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.group.branches.hint':
+    'Leave every branch unticked and this group is offered nowhere, even where the category is offered.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.add': 'Add an option to {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.addTitle': 'A new option',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.editTitle': 'Editing {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.edit': 'Edit {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.remove': 'Remove {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.code.hint':
+    "Set once and never again. NONE is reserved for 'the customer chose not to have this' and is always selectable.",
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.helpText': 'Help text',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.illustrationKey': 'Illustration key',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.illustrationKey.hint':
+    'There is no picker for this yet — the illustration catalogue arrives with its own screen — so it is entered as the key it is. Leave it blank and the picker falls back to the label and alternative text.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.illustrationAlt': 'Alternative text',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.illustrationAlt.hint':
+    'What a customer is told when there is no drawing to show, or when one cannot be seen.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.illustration.missing':
+    'No illustration yet. The picker shows the label and this alternative text instead.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.illustration.key': 'Illustration: {key}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.timeImpactDays': 'Extra days this option usually adds',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.active': 'Offered',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.active.hint':
+    'Untick to retire the option: it stays known to the catalogue but is no longer offered.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.option.retired': 'Retired',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rules.title': 'Rules',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rules.empty': 'This category has no rules yet.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rules.caption': 'The rules between {name}’s design options',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.add': 'Add a rule',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.formTitle': 'A design rule',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.edit': 'Edit {identifier}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.remove': 'Remove {identifier}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.identifier': 'Rule',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.type': 'What the rule does',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.type.Requires': 'Requires another choice',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.type.Excludes': 'Excludes another choice',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.type.RequiresAttachment': 'Requires a reference photo',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.type.Note': 'Shows a note at the counter',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.statement': 'The rule',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.antecedent': 'When',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.consequent': 'Then',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.hasConsequent': 'This rule has a second side',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.hasConsequent.hint':
+    'A note or a reference-photo requirement usually needs only the condition above; a requires or excludes rule needs this too.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form': 'Condition',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.Always': 'Always',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.AnySelection': 'Anything is chosen',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.Equals': 'Is exactly',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.NotEquals': 'Is not',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.In': 'Is one of',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.Includes': 'Includes',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.form.Excludes': 'Excludes',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.group': 'Group',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.group.none': 'Choose a group',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.group.pickFirst': 'Choose a group to see its options.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.operand.options': 'Options',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.note': 'Note shown at the counter',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.why': 'Why this rule exists',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.why.hint': 'For the next person reading this rule, not for the customer.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.sentence': 'This rule reads:',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.saved': 'Saved the rule.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.rule.removed': 'Removed {identifier}.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.remove.action': 'Remove {name}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.order.up': 'Move {label} up',
+  // not translated — awaiting native-speaker review
+  'catalog.design.order.down': 'Move {label} down',
+  // not translated — awaiting native-speaker review
+  'catalog.design.order.atStart': 'Already first.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.order.atEnd': 'Already last.',
 }
