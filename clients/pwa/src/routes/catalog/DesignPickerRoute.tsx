@@ -36,6 +36,7 @@ import type {
   DesignAutoSelection,
   DesignCheck,
   DesignDraftSelection,
+  DesignMigrationPrompt,
   DesignPicker,
   DesignPickerGroup,
   DesignSelectionDraft,
@@ -115,7 +116,17 @@ export function DesignPickerRoute() {
    * kept Reception from ever seeing the migration choice at all. It reads again, against the fresh
    * id, only once the draft is either migrated or was never pinned to a superseded version.
    */
-  const pendingMigration = draft.value !== null && draft.value.value.migrationPrompt !== null
+  // `DesignPickerBody`'s own autosave notices a republish mid-session by re-reading the draft
+  // itself (`readCatalogDesignDraft`'s answer is the only place that fact appears). That read has
+  // already succeeded by the time it calls back here — asking `draft.reload()` to fetch it a
+  // second time would, if that second read failed, leave `draft.value` on its old pre-migration
+  // value (by design: a reload keeps the previous value on screen) with no way to surface the
+  // prompt this screen already has. Holding it directly sidesteps that second, avoidable read.
+  const [forcedMigrationPrompt, setForcedMigrationPrompt] = useState<DesignMigrationPrompt | null>(
+    null,
+  )
+  const migrationPrompt = draft.value?.value.migrationPrompt ?? forcedMigrationPrompt
+  const pendingMigration = draft.value !== null && migrationPrompt !== null
   const pickerServiceTypeId = draft.value?.value.serviceTypeId ?? null
   const picker = useAdminResource(
     `design-picker:${pendingMigration || pickerServiceTypeId === null ? '' : pickerServiceTypeId}`,
@@ -156,11 +167,12 @@ export function DesignPickerRoute() {
         >
           {intl.formatMessage({ id: 'catalog.design.picker.consumed.body' })}
         </EmptyState>
-      ) : pendingMigration ? (
+      ) : migrationPrompt !== null ? (
         <DesignMigrationGate
           draftId={draftId}
-          migrationPrompt={draft.value.value.migrationPrompt}
+          migrationPrompt={migrationPrompt}
           onMigrated={() => {
+            setForcedMigrationPrompt(null)
             setReloads((count) => count + 1)
           }}
           version={draft.value.version ?? ''}
@@ -186,6 +198,7 @@ export function DesignPickerRoute() {
               key={draft.value.version ?? 'untagged'}
               initial={draft.value}
               picker={picker.value}
+              onMigrationDetected={setForcedMigrationPrompt}
               onReload={() => {
                 setReloads((count) => count + 1)
               }}
@@ -231,14 +244,18 @@ function DesignMigrationGate({
   // succeeded server-side, but this screen never heard back — asks the server to do it a second
   // time under a key it has never seen, and `version` is now stale from the first attempt's own
   // success, so the retry is refused as a conflict rather than replaying the first outcome. The
-  // key changes only when the request it would be sent with actually differs.
+  // key changes only when the request it would be sent with actually differs. This component isn't
+  // remounted on a client-side navigation between drafts (unlike `DesignPickerBody`, which is keyed
+  // by version), so `draftId` is part of the fingerprint too — otherwise two drafts that happen to
+  // share a version tag (commonly the first, `W/"1"`) would reuse the first draft's key for the
+  // second and the server would reject it as a reused key on a different resolved path.
   const migrateKeyRef = useRef<{ readonly fingerprint: string; readonly key: string } | null>(null)
 
   const migrate = async (): Promise<void> => {
     setMigrating(true)
     setMigrateFailure(null)
     try {
-      const fingerprint = `${version}:false`
+      const fingerprint = `${draftId}:${version}:false`
       const existing = migrateKeyRef.current
       const key =
         existing !== null && existing.fingerprint === fingerprint
@@ -389,9 +406,17 @@ interface DesignPickerBodyProps {
   readonly initial: VersionedResponse<DesignSelectionDraft>
   readonly picker: DesignPicker
   readonly onReload: () => void
+  /** A republish was noticed mid-session, from a read this screen already made. */
+  readonly onMigrationDetected: (prompt: DesignMigrationPrompt) => void
 }
 
-function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBodyProps) {
+function DesignPickerBody({
+  draftId,
+  initial,
+  picker,
+  onReload,
+  onMigrationDetected,
+}: DesignPickerBodyProps) {
   const intl = useIntl()
   const network = useNetworkState()
 
@@ -542,10 +567,12 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       // Neither answer above ever carries a fresh migration prompt: the save endpoint always
       // returns one with a null plan, and check answers nothing about it at all. Asking the draft
       // itself is the only way to notice a republish that happened while this screen was already
-      // open, and `onReload` is what swaps it for the migration gate the moment one is found.
+      // open. This read has already succeeded by the time `fresh` exists, so the prompt it carries
+      // goes straight to the route rather than through another (avoidable, and possibly failing)
+      // read of its own.
       const fresh = await readCatalogDesignDraft(draftId)
       if (fresh.value.migrationPrompt !== null) {
-        onReload()
+        onMigrationDetected(fresh.value.migrationPrompt)
       }
     } catch (cause: unknown) {
       if (cause instanceof ApiError && cause.code === 'catalog.design-draft-changed') {
@@ -561,7 +588,7 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
         void commitRef.current()
       }
     }
-  }, [draftId, onReload])
+  }, [draftId, onMigrationDetected])
 
   useEffect(() => {
     commitRef.current = commit
