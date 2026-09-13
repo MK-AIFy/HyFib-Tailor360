@@ -22,6 +22,13 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.allocation-exceeds-invoice': 'billing.problem.allocationExceedsInvoice',
   'billing.allocation-invoice-not-of-order': 'billing.problem.allocationInvoiceNotOfOrder',
   'billing.invoice-not-found': 'billing.problem.invoiceNotFound',
+  // The one code the barcode lookup answers for four indistinguishable cases — another branch's
+  // invoice, another organisation's, a broken check character, a payload matching nothing — by
+  // design (matrix row 379, ResolveInvoiceBarcode's own description). `billing.value-required` with
+  // field `branch` is the route's only other answer, and is handled locally by the lookup field
+  // itself rather than here, because that code is shared with unrelated validation failures
+  // elsewhere in Billing and is not safe to map to one sentence for every screen.
+  'billing.document-not-found': 'billing.problem.barcodeNotFound',
   'billing.cashier-session-not-yours': 'billing.problem.sessionNotYours',
   'billing.cashier-session-already-closed': 'billing.problem.sessionAlreadyClosed',
   'billing.cashier-session-already-open': 'billing.problem.sessionAlreadyOpen',

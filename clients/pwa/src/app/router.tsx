@@ -10,6 +10,8 @@ import { AboutRoute } from '../routes/AboutRoute'
 import { AllocateAdvanceRoute } from '../routes/billing/AllocateAdvanceRoute'
 import { CashierSessionRoute } from '../routes/billing/CashierSessionRoute'
 import { DispatchExceptionApprovalRoute } from '../routes/billing/DispatchExceptionApprovalRoute'
+import { InvoiceDetailRoute } from '../routes/billing/InvoiceDetailRoute'
+import { InvoiceRegisterRoute } from '../routes/billing/InvoiceRegisterRoute'
 import { OutstandingBalancesRoute } from '../routes/billing/OutstandingBalancesRoute'
 import { PaymentDetailRoute } from '../routes/billing/PaymentDetailRoute'
 import { ReconciliationApprovalRoute } from '../routes/billing/ReconciliationApprovalRoute'
@@ -249,6 +251,25 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
                 <OutstandingBalancesRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // The register and the barcode lookup (#302): the first of the four client slices of #42,
+            // which opens the read surface the invoice screens, print view and cancellation screens
+            // hang off.
+            path: 'billing/invoices',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
+                <InvoiceRegisterRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/invoices/:invoiceId',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
+                <InvoiceDetailRoute />
               </RequirePermission>
             ),
           },

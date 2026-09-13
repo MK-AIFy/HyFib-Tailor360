@@ -111,6 +111,78 @@ export const billingEn = {
   'billing.outstanding.takePayment': 'Take payment',
   'billing.outstanding.takePayment.label': 'Take payment for order {order}',
   'billing.outstanding.loadMore': 'Show more',
+  'billing.problem.barcodeNotFound': 'No invoice matches that barcode.',
+  'billing.invoices.status.draft': 'Draft',
+  'billing.invoices.status.posted': 'Posted',
+  'billing.invoices.status.discarded': 'Discarded',
+  'billing.invoices.title': 'Invoices',
+  'billing.invoices.loading': 'invoices',
+  'billing.invoices.empty.title': 'No invoices at this branch yet',
+  'billing.invoices.empty': 'Draft one from a confirmed order to see it here.',
+  'billing.invoices.empty.filtered.title': 'No invoices match this filter',
+  'billing.invoices.empty.filtered': 'Clear the status filter to see every invoice.',
+  'billing.invoices.caption': "The branch's invoices, newest first",
+  'billing.invoices.column.order': 'Order',
+  'billing.invoices.column.invoice': 'Invoice',
+  'billing.invoices.column.customer': 'Customer',
+  'billing.invoices.column.total': 'Total',
+  'billing.invoices.column.status': 'Status',
+  'billing.invoices.column.created': 'Created',
+  'billing.invoices.filter.status.label': 'Status',
+  'billing.invoices.filter.status.all': 'All statuses',
+  'billing.invoices.filter.applied': 'Status: {status}',
+  'billing.invoices.loadMore': 'Show more',
+  'billing.invoices.loadMore.offlineAction': 'Loading more invoices',
+  'billing.invoices.open': 'Open',
+  'billing.invoices.open.label': 'Open invoice {reference}',
+  'billing.invoices.lookup.title': 'Find by barcode',
+  'billing.invoices.lookup.label': 'Barcode',
+  'billing.invoices.lookup.hint': 'Scan or type the I- payload printed on the invoice.',
+  'billing.invoices.lookup.action': 'Find',
+  'billing.invoices.lookup.finding': 'Finding…',
+  'billing.invoices.lookup.required': 'Enter a barcode before searching.',
+  'billing.invoices.lookup.offlineAction': 'Looking up a barcode',
+  'billing.invoices.lookup.branchRequired':
+    'Your session needs a branch before a barcode can be looked up.',
+  'billing.invoice.title': 'Invoice',
+  'billing.invoice.loading': 'the invoice',
+  'billing.invoice.header.draft': 'Draft',
+  'billing.invoice.header.order': 'Order {orderNumber}',
+  'billing.invoice.header.financialYear': 'Financial year {year}',
+  'billing.invoice.header.posted': 'Posted {date}',
+  'billing.invoice.header.notPosted': 'Not yet posted',
+  'billing.invoice.header.discarded': 'Discarded {date}',
+  'billing.invoice.customer.title': 'Billed to',
+  'billing.invoice.lines.caption': 'Invoice lines',
+  'billing.invoice.lines.column.line': '#',
+  'billing.invoice.lines.column.description': 'Description',
+  'billing.invoice.lines.column.classification': 'HSN/SAC',
+  'billing.invoice.lines.column.quantity': 'Qty',
+  'billing.invoice.lines.column.rate': 'Rate',
+  'billing.invoice.lines.column.discount': 'Discount',
+  'billing.invoice.lines.column.taxableValue': 'Taxable value',
+  'billing.invoice.lines.column.tax': 'Tax',
+  'billing.invoice.lines.column.total': 'Line total',
+  'billing.invoice.lines.discount.value': '{ruleCode} −{amount}',
+  'billing.invoice.lines.discount.none': '—',
+  'billing.invoice.lines.tax.component': '{kind} {rate}: {amount}',
+  'billing.invoice.totals.title': 'Totals',
+  'billing.invoice.totals.subtotal': 'Subtotal',
+  'billing.invoice.totals.discountTotal': 'Discount',
+  'billing.invoice.totals.taxableValue': 'Taxable value',
+  'billing.invoice.totals.centralTax': 'CGST',
+  'billing.invoice.totals.stateTax': 'SGST',
+  'billing.invoice.totals.integratedTax': 'IGST',
+  'billing.invoice.totals.cess': 'Cess',
+  'billing.invoice.totals.roundOff': 'Round-off',
+  'billing.invoice.totals.grandTotal': 'Grand total',
+  'billing.invoice.cancelled.title': 'This invoice is cancelled',
+  'billing.invoice.cancelled.body': 'Cancelled {date}. {reason}',
+  'billing.invoice.notes.title': 'Credit and debit notes',
+  'billing.invoice.notes.credit': 'Credit note {number}',
+  'billing.invoice.notes.debit': 'Debit note {number}',
+  'billing.invoice.notes.posted': 'Posted {date}',
+  'billing.invoice.notes.reason': 'Reason: {reason}',
   'billing.cashier.title': 'Cashier session',
   'billing.cashier.loading': 'your cashier session',
   'billing.cashier.open.title': 'Open a session',
@@ -428,6 +500,149 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
   'billing.outstanding.takePayment.label': 'Take payment for order {order}',
   // not translated — awaiting native-speaker review
   'billing.outstanding.loadMore': 'Show more',
+  // not translated — awaiting native-speaker review
+  'billing.problem.barcodeNotFound': 'No invoice matches that barcode.',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.status.draft': 'Draft',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.status.posted': 'Posted',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.status.discarded': 'Discarded',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.title': 'Invoices',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.loading': 'invoices',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.empty.title': 'No invoices at this branch yet',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.empty': 'Draft one from a confirmed order to see it here.',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.empty.filtered.title': 'No invoices match this filter',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.empty.filtered': 'Clear the status filter to see every invoice.',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.caption': "The branch's invoices, newest first",
+  // not translated — awaiting native-speaker review
+  'billing.invoices.column.order': 'Order',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.column.invoice': 'Invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.column.customer': 'Customer',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.column.total': 'Total',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.column.status': 'Status',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.column.created': 'Created',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.filter.status.label': 'Status',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.filter.status.all': 'All statuses',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.filter.applied': 'Status: {status}',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.loadMore': 'Show more',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.loadMore.offlineAction': 'Loading more invoices',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.open': 'Open',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.open.label': 'Open invoice {reference}',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.title': 'Find by barcode',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.label': 'Barcode',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.hint': 'Scan or type the I- payload printed on the invoice.',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.action': 'Find',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.finding': 'Finding…',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.required': 'Enter a barcode before searching.',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.offlineAction': 'Looking up a barcode',
+  // not translated — awaiting native-speaker review
+  'billing.invoices.lookup.branchRequired':
+    'Your session needs a branch before a barcode can be looked up.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.title': 'Invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.loading': 'the invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.header.draft': 'Draft',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.header.order': 'Order {orderNumber}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.header.financialYear': 'Financial year {year}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.header.posted': 'Posted {date}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.header.notPosted': 'Not yet posted',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.header.discarded': 'Discarded {date}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.customer.title': 'Billed to',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.caption': 'Invoice lines',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.line': '#',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.classification': 'HSN/SAC',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.quantity': 'Qty',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.rate': 'Rate',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.discount': 'Discount',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.taxableValue': 'Taxable value',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.tax': 'Tax',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.column.total': 'Line total',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.discount.value': '{ruleCode} −{amount}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.discount.none': '—',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.lines.tax.component': '{kind} {rate}: {amount}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.title': 'Totals',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.subtotal': 'Subtotal',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.discountTotal': 'Discount',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.taxableValue': 'Taxable value',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.centralTax': 'CGST',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.stateTax': 'SGST',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.integratedTax': 'IGST',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.cess': 'Cess',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.roundOff': 'Round-off',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.totals.grandTotal': 'Grand total',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancelled.title': 'This invoice is cancelled',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancelled.body': 'Cancelled {date}. {reason}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.title': 'Credit and debit notes',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.credit': 'Credit note {number}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.debit': 'Debit note {number}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.posted': 'Posted {date}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.reason': 'Reason: {reason}',
   // not translated — awaiting native-speaker review
   'billing.cashier.title': 'Cashier session',
   // not translated — awaiting native-speaker review

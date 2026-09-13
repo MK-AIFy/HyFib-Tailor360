@@ -57,16 +57,27 @@ import type {
   TemplateValidation,
 } from '../admin/types'
 import type {
+  AdjustmentNote,
+  AdjustmentNoteLine,
   AllocateAdvanceRequest,
   ApproveReconciliationRequest,
   AvailablePaymentMode,
+  BarcodeResolution,
   CashierSession,
   CloseCashierSessionRequest,
   CreateDispatchExceptionRequest,
   DispatchException,
+  Invoice,
   InvoiceBalance,
+  InvoiceCalculation,
+  InvoiceCancellation,
+  InvoiceCustomer,
+  InvoiceLine,
+  InvoiceLineSurcharge,
   InvoicePage,
   InvoiceSummary,
+  InvoiceTaxComponent,
+  InvoiceTotals,
   OpenCashierSessionRequest,
   OrderBalance,
   Payment,
@@ -474,6 +485,58 @@ export type InvoiceSummaryConforms = Conforms<
 export type InvoicePageConforms = Conforms<
   InvoicePage,
   Immutable<components['schemas']['InvoicePagePayload']>
+>
+
+export type InvoiceConforms = Conforms<Invoice, Immutable<components['schemas']['InvoicePayload']>>
+
+export type InvoiceCustomerConforms = Conforms<
+  InvoiceCustomer,
+  Immutable<components['schemas']['InvoiceCustomerPayload']>
+>
+
+export type InvoiceCalculationConforms = Conforms<
+  InvoiceCalculation,
+  Immutable<components['schemas']['InvoiceCalculationPayload']>
+>
+
+export type InvoiceLineConforms = Conforms<
+  InvoiceLine,
+  Immutable<components['schemas']['InvoiceLinePayload']>
+>
+
+export type InvoiceLineSurchargeConforms = Conforms<
+  InvoiceLineSurcharge,
+  Immutable<components['schemas']['InvoiceLineSurchargePayload']>
+>
+
+export type InvoiceTaxComponentConforms = Conforms<
+  InvoiceTaxComponent,
+  Immutable<components['schemas']['InvoiceTaxComponentPayload']>
+>
+
+export type InvoiceTotalsConforms = Conforms<
+  InvoiceTotals,
+  Immutable<components['schemas']['InvoiceTotalsPayload']>
+>
+
+export type InvoiceCancellationConforms = Conforms<
+  InvoiceCancellation,
+  Immutable<components['schemas']['InvoiceCancellationPayload']>
+>
+
+export type AdjustmentNoteConforms = Conforms<
+  AdjustmentNote,
+  Immutable<components['schemas']['AdjustmentNotePayload']>
+>
+
+export type AdjustmentNoteLineConforms = Conforms<
+  AdjustmentNoteLine,
+  Immutable<components['schemas']['AdjustmentNoteLinePayload']>
+>
+
+export type BarcodeResolutionConforms = Conforms<
+  BarcodeResolution,
+  Immutable<components['schemas']['BarcodeResolutionPayload']>
 >
 
 export type PaymentConforms = Conforms<Payment, Immutable<components['schemas']['PaymentPayload']>>

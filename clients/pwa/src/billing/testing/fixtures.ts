@@ -1,10 +1,15 @@
 import type {
+  AdjustmentNote,
   AvailablePaymentMode,
+  BarcodeResolution,
   CashierSession,
   DispatchException,
+  Invoice,
   InvoiceBalance,
+  InvoiceLine,
   InvoicePage,
   InvoiceSummary,
+  InvoiceTotals,
   OrderBalance,
   Payment,
   ReconciliationBatch,
@@ -103,6 +108,235 @@ export function anInvoicePage(overrides: Partial<InvoicePage> = {}): InvoicePage
   return {
     invoices: [anInvoiceSummary()],
     nextCursor: null,
+    ...overrides,
+  }
+}
+
+const NOTE_ID = '0199dd00-0000-7000-8000-000000005001'
+const CANCELLATION_ID = '0199dd00-0000-7000-8000-000000005002'
+
+/**
+ * One stitched line and one altered line with a loyalty discount, carrying real GST components.
+ *
+ * The totals fixture below is deliberately built to leave a non-zero round-off — checklist item
+ * A11Y-BI-06 has to be answered on an invoice that carries one, because a zero round-off is not
+ * rendered at all.
+ */
+export function anInvoiceLineList(): readonly InvoiceLine[] {
+  return [
+    {
+      lineNumber: 1,
+      garmentJobId: JOB_ID,
+      itemCode: 'STITCH_BLOUSE',
+      description: 'Blouse stitching',
+      quantity: 1,
+      catalogueRate: 505,
+      appliedRate: 505,
+      base: 505,
+      surcharges: [],
+      discountRuleCode: null,
+      discountKind: null,
+      discountValue: null,
+      discountAmount: 0,
+      gross: 505,
+      taxableValue: 505,
+      taxCode: 'GST5',
+      classification: '998821',
+      taxCodeKind: 'Services',
+      taxes: [
+        { kind: 'CGST', ratePercent: 2.5, amount: 12.63 },
+        { kind: 'SGST', ratePercent: 2.5, amount: 12.63 },
+      ],
+      taxTotal: 25.26,
+      lineTotal: 530.26,
+      variance: 0,
+    },
+    {
+      lineNumber: 2,
+      garmentJobId: '0199dd00-0000-7000-8000-000000005003',
+      itemCode: 'ALTER_SLEEVE',
+      description: 'Sleeve alteration',
+      quantity: 1,
+      catalogueRate: 200,
+      appliedRate: 200,
+      base: 200,
+      surcharges: [],
+      discountRuleCode: 'FESTIVE10',
+      discountKind: 'Percentage',
+      discountValue: 10,
+      discountAmount: 20,
+      gross: 180,
+      taxableValue: 180,
+      taxCode: 'GST5',
+      classification: '998821',
+      taxCodeKind: 'Services',
+      taxes: [
+        { kind: 'CGST', ratePercent: 2.5, amount: 4.5 },
+        { kind: 'SGST', ratePercent: 2.5, amount: 4.5 },
+      ],
+      taxTotal: 9,
+      lineTotal: 189,
+      variance: 0,
+    },
+  ]
+}
+
+/** Taxable value 685.00, CGST/SGST 17.13 each, a 0.74 round-off up to the whole rupee 720.00. */
+export function anInvoiceTotals(overrides: Partial<InvoiceTotals> = {}): InvoiceTotals {
+  return {
+    subtotal: 705,
+    discountTotal: 20,
+    taxableValue: 685,
+    centralTax: 17.13,
+    stateTax: 17.13,
+    integratedTax: 0,
+    cess: 0,
+    roundOff: 0.74,
+    grandTotal: 720,
+    ...overrides,
+  }
+}
+
+export function anInvoice(overrides: Partial<Invoice> = {}): Invoice {
+  return {
+    invoiceId: INVOICE_ID,
+    branchId: BRANCH_ID,
+    customerId: CUSTOMER_ID,
+    orderId: ORDER_ID,
+    orderNumber: 'O-CBE01-2627-000512',
+    status: 'Posted',
+    revision: 1,
+    customer: {
+      customerNumber: 'C-CBE01-000201',
+      displayName: 'Kavitha (counter)',
+      addressLine: '12 Second Street, Demo Nagar',
+      locality: 'Peelamedu',
+      postcode: '641004',
+    },
+    calculation: {
+      reference: `order:${ORDER_ID}:1`,
+      priceListVersionId: '0199dd00-0000-7000-8000-000000005004',
+      taxConfigurationVersionId: '0199dd00-0000-7000-8000-000000005005',
+      gstRegistrationId: '0199dd00-0000-7000-8000-000000005006',
+      gstin: '33AAACH7409R1Z8',
+      supplierStateCode: '33',
+      placeOfSupplyStateCode: '33',
+      scheme: 'IntraState',
+      taxInclusive: false,
+    },
+    currency: 'INR',
+    lines: anInvoiceLineList(),
+    totals: anInvoiceTotals(),
+    createdAt: '2026-09-12T05:00:00.000Z',
+    updatedAt: '2026-09-12T05:30:00.000Z',
+    discardedAt: null,
+    discardReason: null,
+    orderRevisionNumber: 1,
+    invoiceNumber: 'INV-CBE01-2627-000731',
+    barcodePayload: 'I-7K3M9QW2XZ4B',
+    financialYear: '2627',
+    postedOn: '2026-09-12',
+    postedAt: '2026-09-12T05:30:00.000Z',
+    cancelled: false,
+    cancellation: null,
+    notes: [],
+    ...overrides,
+  }
+}
+
+/** A credit note relieving the lining surcharge line, posted with its own reason. */
+export function anAdjustmentNote(overrides: Partial<AdjustmentNote> = {}): AdjustmentNote {
+  return {
+    noteId: NOTE_ID,
+    invoiceId: INVOICE_ID,
+    kind: 'Credit',
+    number: 'CN-CBE01-2627-000045',
+    reason: 'Lining charged twice.',
+    currency: 'INR',
+    lines: [
+      {
+        lineNumber: 1,
+        garmentJobId: JOB_ID,
+        taxableValue: 90,
+        taxes: [
+          { kind: 'CGST', ratePercent: 2.5, amount: 2.25 },
+          { kind: 'SGST', ratePercent: 2.5, amount: 2.25 },
+        ],
+        taxTotal: 4.5,
+        lineTotal: 94.5,
+      },
+    ],
+    totals: {
+      subtotal: 90,
+      discountTotal: 0,
+      taxableValue: 90,
+      centralTax: 2.25,
+      stateTax: 2.25,
+      integratedTax: 0,
+      cess: 0,
+      roundOff: 0,
+      grandTotal: 94.5,
+    },
+    postedAt: '2026-09-12T06:00:00.000Z',
+    ...overrides,
+  }
+}
+
+/** A cancelled invoice: the compensating credit note relieves the whole amount. */
+export function aCancelledInvoice(overrides: Partial<Invoice> = {}): Invoice {
+  return anInvoice({
+    cancelled: true,
+    cancellation: {
+      cancellationId: CANCELLATION_ID,
+      creditNoteId: NOTE_ID,
+      reason: 'Issued to the wrong customer.',
+      cancelledAt: '2026-09-12T07:00:00.000Z',
+    },
+    notes: [
+      anAdjustmentNote({
+        number: 'CN-CBE01-2627-000046',
+        reason: 'Issued to the wrong customer.',
+        totals: {
+          subtotal: 705,
+          discountTotal: 20,
+          taxableValue: 685,
+          centralTax: 17.13,
+          stateTax: 17.13,
+          integratedTax: 0,
+          cess: 0,
+          roundOff: 0.74,
+          grandTotal: 720,
+        },
+        lines: [
+          {
+            lineNumber: 1,
+            garmentJobId: JOB_ID,
+            taxableValue: 685,
+            taxes: [
+              { kind: 'CGST', ratePercent: 2.5, amount: 17.13 },
+              { kind: 'SGST', ratePercent: 2.5, amount: 17.13 },
+            ],
+            taxTotal: 34.26,
+            lineTotal: 719.26,
+          },
+        ],
+      }),
+    ],
+    ...overrides,
+  })
+}
+
+export function aBarcodeResolution(overrides: Partial<BarcodeResolution> = {}): BarcodeResolution {
+  return {
+    invoiceId: INVOICE_ID,
+    invoiceNumber: 'INV-CBE01-2627-000731',
+    branchId: BRANCH_ID,
+    customerId: CUSTOMER_ID,
+    orderId: ORDER_ID,
+    status: 'Posted',
+    cancelled: false,
+    grandTotal: 720,
+    currency: 'INR',
     ...overrides,
   }
 }

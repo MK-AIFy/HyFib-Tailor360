@@ -75,6 +75,162 @@ export interface InvoicePage {
   readonly nextCursor: string | null
 }
 
+/** The customer as an invoice names them — copied at drafting, kept as issued. */
+export interface InvoiceCustomer {
+  readonly customerNumber: string
+  readonly displayName: string
+  readonly addressLine: string | null
+  readonly locality: string | null
+  readonly postcode: string | null
+}
+
+/** The configuration an invoice's lines were calculated on. */
+export interface InvoiceCalculation {
+  readonly reference: string
+  readonly priceListVersionId: string
+  readonly taxConfigurationVersionId: string
+  readonly gstRegistrationId: string
+  readonly gstin: string
+  readonly supplierStateCode: string
+  readonly placeOfSupplyStateCode: string
+  readonly scheme: string
+  readonly taxInclusive: boolean
+}
+
+/** One CGST, SGST, IGST or cess component, with its rate and amount. */
+export interface InvoiceTaxComponent {
+  readonly kind: string
+  readonly ratePercent: number | string
+  readonly amount: number | string
+}
+
+/** A surcharge printed under a line. */
+export interface InvoiceLineSurcharge {
+  readonly itemCode: string
+  readonly description: string
+  readonly rate: number | string
+  readonly amount: number | string
+}
+
+/** One line of an invoice, with its surcharges and tax components. */
+export interface InvoiceLine {
+  readonly lineNumber: number | string
+  readonly garmentJobId: string
+  readonly itemCode: string
+  readonly description: string
+  readonly quantity: number | string
+  readonly catalogueRate: number | string
+  readonly appliedRate: number | string
+  readonly base: number | string
+  readonly surcharges: readonly InvoiceLineSurcharge[]
+  readonly discountRuleCode: string | null
+  readonly discountKind: string | null
+  readonly discountValue: number | string | null
+  readonly discountAmount: number | string
+  readonly gross: number | string
+  readonly taxableValue: number | string
+  readonly taxCode: string
+  /** The HSN/SAC classification. */
+  readonly classification: string
+  readonly taxCodeKind: string
+  readonly taxes: readonly InvoiceTaxComponent[]
+  readonly taxTotal: number | string
+  readonly lineTotal: number | string
+  readonly variance: number | string
+}
+
+/**
+ * The document totals. Nine fields exist here, but a screen or a printed document shows only
+ * `taxableValue` and `grandTotal` always — `discountTotal`, `centralTax`, `stateTax`,
+ * `integratedTax`, `cess` and `roundOff` are shown only when they are non-zero, following
+ * `BillingDocumentTemplate.cs`'s own suppression rule so the screen and the printed document agree.
+ */
+export interface InvoiceTotals {
+  readonly subtotal: number | string
+  readonly discountTotal: number | string
+  readonly taxableValue: number | string
+  readonly centralTax: number | string
+  readonly stateTax: number | string
+  readonly integratedTax: number | string
+  readonly cess: number | string
+  readonly roundOff: number | string
+  readonly grandTotal: number | string
+}
+
+/** The cancellation appended to a posted invoice: the invoice keeps its number and totals. */
+export interface InvoiceCancellation {
+  readonly cancellationId: string
+  readonly creditNoteId: string
+  readonly reason: string
+  readonly cancelledAt: string
+}
+
+/** One line of a credit or debit note: the invoice line it moves, by garment job. */
+export interface AdjustmentNoteLine {
+  readonly lineNumber: number | string
+  readonly garmentJobId: string
+  readonly taxableValue: number | string
+  readonly taxes: readonly InvoiceTaxComponent[]
+  readonly taxTotal: number | string
+  readonly lineTotal: number | string
+}
+
+/** A credit or debit note posted against a posted invoice, numbered from its own sequence. */
+export interface AdjustmentNote {
+  readonly noteId: string
+  readonly invoiceId: string
+  /** `Credit` or `Debit`. */
+  readonly kind: string
+  readonly number: string
+  readonly reason: string
+  readonly currency: string
+  readonly lines: readonly AdjustmentNoteLine[]
+  readonly totals: InvoiceTotals
+  readonly postedAt: string
+}
+
+/** An invoice with its lines, read for the detail screen. */
+export interface Invoice {
+  readonly invoiceId: string
+  readonly branchId: string
+  readonly customerId: string
+  readonly orderId: string
+  readonly orderNumber: string
+  readonly status: string
+  readonly revision: number | string
+  readonly customer: InvoiceCustomer
+  readonly calculation: InvoiceCalculation
+  readonly currency: string
+  readonly lines: readonly InvoiceLine[]
+  readonly totals: InvoiceTotals
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly discardedAt: string | null
+  readonly discardReason: string | null
+  readonly orderRevisionNumber: number | string
+  readonly invoiceNumber: string | null
+  readonly barcodePayload: string | null
+  readonly financialYear: string | null
+  readonly postedOn: string | null
+  readonly postedAt: string | null
+  readonly cancelled: boolean
+  readonly cancellation: InvoiceCancellation | null
+  readonly notes: readonly AdjustmentNote[]
+}
+
+/** What an `I-` barcode payload resolved to: the invoice, by identifier and number. */
+export interface BarcodeResolution {
+  readonly invoiceId: string
+  readonly invoiceNumber: string
+  readonly branchId: string
+  readonly customerId: string
+  readonly orderId: string
+  readonly status: string
+  readonly cancelled: boolean
+  readonly grandTotal: number | string
+  readonly currency: string
+}
+
 /** An order's outstanding balance, joined to the invoice it was found from, for one screen's list. */
 export interface OutstandingBalanceRow {
   readonly invoiceId: string
