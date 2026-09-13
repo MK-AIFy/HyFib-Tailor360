@@ -159,6 +159,7 @@ export function DesignPickerRoute() {
     readonly draftId: string
     readonly reloadGeneration: number
     readonly response: VersionedResponse<DesignSelectionDraft>
+    readonly hasReferenceImage: boolean
   } | null>(null)
   // Leaving the draft either override was captured for discards both outright, rather than merely
   // hiding them while elsewhere: returning to that same draft later re-reads it fresh (the read
@@ -170,12 +171,13 @@ export function DesignPickerRoute() {
     setForcedMigration(null)
     setResolvedDraft(null)
   }
-  const effectiveDraft =
+  const activeResolvedDraft =
     resolvedDraft !== null &&
     resolvedDraft.draftId === draftId &&
     draftValueGeneration < resolvedDraft.reloadGeneration
-      ? resolvedDraft.response
-      : draft.value
+      ? resolvedDraft
+      : null
+  const effectiveDraft = activeResolvedDraft?.response ?? draft.value
   const forcedMigrationForDraft =
     forcedMigration !== null && forcedMigration.draftId === draftId ? forcedMigration : null
   const migrationPrompt =
@@ -236,7 +238,12 @@ export function DesignPickerRoute() {
           hasReferenceImage={forcedMigrationForDraft?.hasReferenceImage ?? false}
           migrationPrompt={migrationPrompt}
           onMigrated={(migrated) => {
-            setResolvedDraft({ draftId, reloadGeneration: reloads + 1, response: migrated })
+            setResolvedDraft({
+              draftId,
+              reloadGeneration: reloads + 1,
+              response: migrated,
+              hasReferenceImage: forcedMigrationForDraft?.hasReferenceImage ?? false,
+            })
             setForcedMigration(null)
             setReloads((count) => count + 1)
           }}
@@ -263,6 +270,7 @@ export function DesignPickerRoute() {
               // uses for its wizard.
               key={effectiveDraft.version ?? 'untagged'}
               initial={effectiveDraft}
+              initialHasReferenceImage={activeResolvedDraft?.hasReferenceImage ?? false}
               picker={pickerForDraft}
               onMigrationDetected={(migration) => {
                 setForcedMigration({ draftId, ...migration })
@@ -487,6 +495,13 @@ function describeOperand(
 interface DesignPickerBodyProps {
   readonly draftId: string
   readonly initial: VersionedResponse<DesignSelectionDraft>
+  /**
+   * What to seed the reference-image checkbox with. `hasReferenceImage` is UI-only state the
+   * draft itself never carries, so a remount that follows a migration — which folded it into the
+   * migrate request — would otherwise reset it to unchecked and reintroduce the very
+   * requires-attachment violation that migration had just resolved.
+   */
+  readonly initialHasReferenceImage: boolean
   readonly picker: DesignPicker
   readonly onReload: () => void
   /** A republish was noticed mid-session, from a read this screen already made. */
@@ -500,6 +515,7 @@ interface DesignPickerBodyProps {
 function DesignPickerBody({
   draftId,
   initial,
+  initialHasReferenceImage,
   picker,
   onReload,
   onMigrationDetected,
@@ -511,7 +527,7 @@ function DesignPickerBody({
     mapFromSelections(initial.value.selections),
   )
   const [instructions, setInstructions] = useState(initial.value.instructions ?? '')
-  const [hasReferenceImage, setHasReferenceImage] = useState(false)
+  const [hasReferenceImage, setHasReferenceImage] = useState(initialHasReferenceImage)
   const [check, setCheck] = useState<DesignCheck | null>(null)
   /**
    * The exact inputs `check` was computed for. `check` answers for whatever `commit` submitted at
@@ -671,7 +687,11 @@ function DesignPickerBody({
         onMigrationDetected({
           prompt: fresh.value.migrationPrompt,
           version: fresh.version ?? tagRef.current,
-          hasReferenceImage: submittedHasReferenceImage,
+          // The live ref, not `submittedHasReferenceImage`: this same block already drops rather
+          // than replays a queued edit once a migration is found, so a change to this checkbox
+          // made while this request was in flight would otherwise never reach the server at all —
+          // this callback is its only remaining path there.
+          hasReferenceImage: hasReferenceImageRef.current,
         })
       }
     } catch (cause: unknown) {
