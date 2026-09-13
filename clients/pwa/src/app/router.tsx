@@ -5,7 +5,15 @@ import { RequireSession } from '../auth/RequireSession'
 import { DisplayPreferencesPanel } from '../components/layout/DisplayPreferencesPanel'
 import { ADMIN_PERMISSIONS } from '../admin/adminPermissions'
 import { RequirePermission } from '../admin/RequirePermission'
+import { BILLING_PERMISSIONS } from '../billing/billingPermissions'
 import { AboutRoute } from '../routes/AboutRoute'
+import { AllocateAdvanceRoute } from '../routes/billing/AllocateAdvanceRoute'
+import { CashierSessionRoute } from '../routes/billing/CashierSessionRoute'
+import { DispatchExceptionApprovalRoute } from '../routes/billing/DispatchExceptionApprovalRoute'
+import { OutstandingBalancesRoute } from '../routes/billing/OutstandingBalancesRoute'
+import { PaymentDetailRoute } from '../routes/billing/PaymentDetailRoute'
+import { ReconciliationApprovalRoute } from '../routes/billing/ReconciliationApprovalRoute'
+import { TakePaymentRoute } from '../routes/billing/TakePaymentRoute'
 import { AdminShell } from '../routes/admin/AdminShell'
 import { AuditTrailRoute } from '../routes/admin/AuditTrailRoute'
 import { BranchListRoute } from '../routes/admin/BranchListRoute'
@@ -207,6 +215,69 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={MEASUREMENT_PERMISSIONS.readSheet}>
                 <MeasurementSheetRoute />
+              </RequirePermission>
+            ),
+          },
+          // Billing (#161-#165): taking a payment, outstanding balances, the cashier session,
+          // reconciliation approval and the dispatch exception the Owner approves. Every write here
+          // is online-only (`OfflineBlockedAction`) — billing, payment and inventory reconciliation
+          // are never queued (plan Section 4.6).
+          {
+            path: 'billing/outstanding',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
+                <OutstandingBalancesRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/payments/new',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.recordPayment}>
+                <TakePaymentRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/payments/:paymentId',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.recordPayment}>
+                <PaymentDetailRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // Moving a held advance to a posted invoice by hand, against the automatic rule: a
+            // narrower key than reading the payment, and step-up on the server regardless.
+            path: 'billing/payments/:paymentId/allocate',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.allocateAdvanceManual}>
+                <AllocateAdvanceRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/cashier',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.cashierSession}>
+                <CashierSessionRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'billing/cashier-sessions/:sessionId/reconciliation',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.approveReconciliation}>
+                <ReconciliationApprovalRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // The Owner only, per the plan's interim position (raci.md footnote (15), XQ-02).
+            path: 'billing/dispatch-exceptions/new',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.approveDispatchException}>
+                <DispatchExceptionApprovalRoute />
               </RequirePermission>
             ),
           },

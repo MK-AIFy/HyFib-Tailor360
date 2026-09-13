@@ -1,0 +1,78 @@
+/*
+ * The billing screens: taking a payment, the receipt, outstanding balances, the cashier session,
+ * reconciliation approval, dispatch exceptions and allocating an advance by hand.
+ *
+ * Every value is a token, for the reason `measurements.css` records at its own top.
+ */
+@layer components {
+  .billing h1,
+  .billing h2 {
+    overflow-wrap: anywhere;
+  }
+
+  .billing__lede {
+    max-inline-size: 60ch;
+    color: var(--colour-ink-muted);
+  }
+
+  .billing__order {
+    font-weight: var(--font-weight-bold);
+  }
+
+  .billing__hint {
+    max-inline-size: 60ch;
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  .billing__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-inline-size: 60ch;
+  }
+
+  .billing__change {
+    margin: 0;
+    font-size: var(--font-size-200);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .billing__receipt {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-inline-size: 60ch;
+    padding: var(--space-4);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--colour-surface-sunken);
+  }
+
+  .billing__count-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-inline-size: 60ch;
+  }
+
+  .billing__count-row {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+
+  .billing__total {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .billing__mode-totals {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+}

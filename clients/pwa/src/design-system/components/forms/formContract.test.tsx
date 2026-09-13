@@ -13,6 +13,7 @@ import { FractionInput } from './FractionInput'
 import { MeasurementField } from './MeasurementField'
 import { NumericStepper } from './NumericStepper'
 import { RadioGroup } from './RadioGroup'
+import { SegmentedControl } from './SegmentedControl'
 import { Select } from './Select'
 import { Switch } from './Switch'
 import { TextArea } from './TextArea'
@@ -182,6 +183,29 @@ function makeCase(
       expectedValue: 'DRAWSTRING',
     },
     {
+      name: 'SegmentedControl',
+      render: (props) => (
+        <SegmentedControl
+          label={LABEL}
+          name={NAME}
+          onValueChange={change}
+          options={SELECT_OPTIONS}
+          {...props}
+        />
+      ),
+      host: () => screen.getByRole('radio', { name: 'Elastic' }),
+      describedByHost: () => screen.getByRole('group', { name: new RegExp(LABEL) }),
+      assertAccessibleName: () => {
+        expect(screen.getByRole('group', { name: new RegExp(LABEL) })).toBeInTheDocument()
+      },
+      acceptsUnit: false,
+      nativeReadOnly: false,
+      interact: async (user) => {
+        await user.click(screen.getByRole('radio', { name: 'Drawstring' }))
+      },
+      expectedValue: 'DRAWSTRING',
+    },
+    {
       name: 'DateField',
       render: (props) => (
         <DateField
@@ -271,6 +295,7 @@ const CONTROL_NAMES = [
   'Checkbox',
   'Switch',
   'RadioGroup',
+  'SegmentedControl',
   'DateField',
   'NumericStepper',
   'FractionInput',
