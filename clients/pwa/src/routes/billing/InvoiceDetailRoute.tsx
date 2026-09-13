@@ -1,33 +1,33 @@
+import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { useParams } from 'react-router'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
-import { getInvoice } from '../../billing/billingApi'
-import type { Invoice, InvoiceLine, InvoiceTotals } from '../../billing/types'
+import {
+  downloadInvoiceDocument,
+  downloadNoteDocument,
+  getInvoice,
+  printInvoice,
+} from '../../billing/billingApi'
+import { InvoiceDocumentView } from '../../billing/InvoiceDocumentView'
+import type { AdjustmentNote, Invoice } from '../../billing/types'
 import { Alert } from '../../components/primitives/Alert'
 import { Button } from '../../components/primitives/Button'
-import { DataTable } from '../../components/primitives/DataTable'
+import { ButtonGroup } from '../../components/primitives/ButtonGroup'
 import { LoadingState } from '../../components/states/LoadingState'
 import { NetworkStatusBanner } from '../../components/states/NetworkStatusBanner'
+import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
+import { useNetworkState } from '../../components/states/useNetworkState'
+import type { NetworkState } from '../../components/states/useNetworkState'
+import { NumericStepper } from '../../design-system/components/forms/NumericStepper'
 import { getFormatters } from '../../i18n/formatters'
-import type { Formatters } from '../../i18n/formatters'
 import './billing.css'
 
 /**
- * One invoice, with its lines, its tax components and its totals (#302).
- *
- * ## Why the totals block hides some of its own fields
- *
- * `InvoiceTotalsPayload` carries nine figures, but `BillingDocumentTemplate.cs` — the renderer of
- * the printed document this screen is the on-screen twin of — prints `Taxable value` and
- * `Grand total` unconditionally and omits every other line when it is zero. This screen follows the
- * identical rule (`TOTALS_ROWS` below), because an intra-state invoice's `IGST` row and a whole-rupee
- * invoice's `Round-off` row are not merely uninteresting zeroes here — printing them would be a
- * screen that disagrees with the document the accountant compares it against.
+ * One invoice: the document view, and the three ways to get it off the screen (#302, #336).
  */
 export function InvoiceDetailRoute() {
   const intl = useIntl()
-  const formatters = getFormatters()
   const { invoiceId } = useParams()
 
   const resource = useAdminResource(`invoice:${invoiceId ?? ''}`, (signal) =>
@@ -63,14 +63,28 @@ export function InvoiceDetailRoute() {
       {resource.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'billing.invoice.loading' })} />
       ) : invoice === null ? null : (
-        <InvoiceDetail formatters={formatters} invoice={invoice} />
+        <InvoiceDetail invoice={invoice} />
       )}
     </section>
   )
 }
 
-function InvoiceDetail({ invoice, formatters }: { invoice: Invoice; formatters: Formatters }) {
+function saveBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob)
+  try {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+function InvoiceDetail({ invoice }: { invoice: Invoice }) {
   const intl = useIntl()
+  const formatters = getFormatters()
+  const network = useNetworkState()
 
   return (
     <>
@@ -123,105 +137,9 @@ function InvoiceDetail({ invoice, formatters }: { invoice: Invoice; formatters: 
         </Alert>
       ) : null}
 
-      <section aria-labelledby="invoice-customer-heading">
-        <h2 id="invoice-customer-heading">
-          <FormattedMessage id="billing.invoice.customer.title" />
-        </h2>
-        <p>{invoice.customer.displayName}</p>
-        {invoice.customer.addressLine === null ? null : <p>{invoice.customer.addressLine}</p>}
-        {invoice.customer.locality === null && invoice.customer.postcode === null ? null : (
-          <p>{[invoice.customer.locality, invoice.customer.postcode].filter(Boolean).join(' ')}</p>
-        )}
-      </section>
+      <PrintControls invoice={invoice} network={network} />
 
-      <DataTable
-        caption={intl.formatMessage({ id: 'billing.invoice.lines.caption' })}
-        columns={[
-          {
-            id: 'line',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.line' }),
-            cell: (row: InvoiceLine) => String(row.lineNumber),
-          },
-          {
-            id: 'description',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.description' }),
-            primary: true,
-            cell: (row: InvoiceLine) => row.description,
-          },
-          {
-            id: 'classification',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.classification' }),
-            hideWhenNarrow: true,
-            cell: (row: InvoiceLine) => row.classification,
-          },
-          {
-            id: 'quantity',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.quantity' }),
-            numeric: true,
-            cell: (row: InvoiceLine) => formatters.formatNumber(row.quantity),
-          },
-          {
-            id: 'rate',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.rate' }),
-            numeric: true,
-            hideWhenNarrow: true,
-            cell: (row: InvoiceLine) => formatters.formatMoney(row.appliedRate),
-          },
-          {
-            id: 'discount',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.discount' }),
-            numeric: true,
-            hideWhenNarrow: true,
-            cell: (row: InvoiceLine) =>
-              Number(row.discountAmount) > 0
-                ? intl.formatMessage(
-                    { id: 'billing.invoice.lines.discount.value' },
-                    {
-                      ruleCode: row.discountRuleCode ?? '',
-                      amount: formatters.formatMoney(row.discountAmount),
-                    },
-                  )
-                : intl.formatMessage({ id: 'billing.invoice.lines.discount.none' }),
-          },
-          {
-            id: 'taxableValue',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.taxableValue' }),
-            numeric: true,
-            cell: (row: InvoiceLine) => formatters.formatMoney(row.taxableValue),
-          },
-          {
-            id: 'tax',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.tax' }),
-            cell: (row: InvoiceLine) => (
-              <ul className="billing__taxList">
-                {row.taxes.map((tax) => (
-                  <li key={tax.kind}>
-                    {intl.formatMessage(
-                      { id: 'billing.invoice.lines.tax.component' },
-                      {
-                        kind: tax.kind,
-                        rate: formatters.formatPercent(tax.ratePercent),
-                        amount: formatters.formatMoney(tax.amount),
-                      },
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ),
-          },
-          {
-            id: 'total',
-            header: intl.formatMessage({ id: 'billing.invoice.lines.column.total' }),
-            numeric: true,
-            cell: (row: InvoiceLine) => formatters.formatMoney(row.lineTotal),
-          },
-        ]}
-        rowKey={(row) => row.garmentJobId}
-        rowLabel={(row) => row.description}
-        rows={invoice.lines}
-      />
-
-      <InvoiceTotalsBlock formatters={formatters} totals={invoice.totals} />
+      <InvoiceDocumentView invoice={invoice} />
 
       {invoice.notes.length === 0 ? null : (
         <section aria-labelledby="invoice-notes-heading">
@@ -231,32 +149,7 @@ function InvoiceDetail({ invoice, formatters }: { invoice: Invoice; formatters: 
           <ul className="billing__notes">
             {invoice.notes.map((note) => (
               <li key={note.noteId}>
-                <article>
-                  <h3>
-                    {intl.formatMessage(
-                      {
-                        id:
-                          note.kind === 'Credit'
-                            ? 'billing.invoice.notes.credit'
-                            : 'billing.invoice.notes.debit',
-                      },
-                      { number: note.number },
-                    )}
-                  </h3>
-                  <p className="billing__hint">
-                    {intl.formatMessage(
-                      { id: 'billing.invoice.notes.posted' },
-                      { date: formatters.formatShortDate(note.postedAt) },
-                    )}
-                  </p>
-                  <p>
-                    {intl.formatMessage(
-                      { id: 'billing.invoice.notes.reason' },
-                      { reason: note.reason },
-                    )}
-                  </p>
-                  <p>{formatters.formatMoney(note.totals.grandTotal)}</p>
-                </article>
+                <NoteCard invoice={invoice} note={note} />
               </li>
             ))}
           </ul>
@@ -266,87 +159,211 @@ function InvoiceDetail({ invoice, formatters }: { invoice: Invoice; formatters: 
   )
 }
 
-/** One row of the totals block: whether it is shown when its amount is zero, and how it is signed. */
-interface TotalsRow {
-  readonly id: keyof InvoiceTotals
-  readonly labelId: string
-  readonly alwaysShown: boolean
-  readonly signed: boolean
-}
-
-// The exact order and suppression rule `BillingDocumentTemplate.cs`'s `Line(...)` calls declare:
-// every row is skipped when its amount is zero unless it is one of the renderer's two emphasised
-// rows, which are shown unconditionally.
-const TOTALS_ROWS: readonly TotalsRow[] = [
-  { id: 'subtotal', labelId: 'billing.invoice.totals.subtotal', alwaysShown: false, signed: false },
-  {
-    id: 'discountTotal',
-    labelId: 'billing.invoice.totals.discountTotal',
-    alwaysShown: false,
-    signed: false,
-  },
-  {
-    id: 'taxableValue',
-    labelId: 'billing.invoice.totals.taxableValue',
-    alwaysShown: true,
-    signed: false,
-  },
-  {
-    id: 'centralTax',
-    labelId: 'billing.invoice.totals.centralTax',
-    alwaysShown: false,
-    signed: false,
-  },
-  { id: 'stateTax', labelId: 'billing.invoice.totals.stateTax', alwaysShown: false, signed: false },
-  {
-    id: 'integratedTax',
-    labelId: 'billing.invoice.totals.integratedTax',
-    alwaysShown: false,
-    signed: false,
-  },
-  { id: 'cess', labelId: 'billing.invoice.totals.cess', alwaysShown: false, signed: false },
-  { id: 'roundOff', labelId: 'billing.invoice.totals.roundOff', alwaysShown: false, signed: true },
-  {
-    id: 'grandTotal',
-    labelId: 'billing.invoice.totals.grandTotal',
-    alwaysShown: true,
-    signed: false,
-  },
-]
-
-function formatSigned(formatters: Formatters, amount: number | string): string {
-  const value = Number(amount)
-  // A negative amount already carries `formatMoney`'s own sign; a positive one does not, by
-  // convention, so this is the one place a "+" is added rather than read from the formatter.
-  return value < 0 ? formatters.formatMoney(value) : `+${formatters.formatMoney(value)}`
-}
-
-function InvoiceTotalsBlock({
-  totals,
-  formatters,
-}: {
-  totals: InvoiceTotals
-  formatters: Formatters
-}) {
+function NoteCard({ invoice, note }: { invoice: Invoice; note: AdjustmentNote }) {
   const intl = useIntl()
+  const formatters = getFormatters()
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<unknown>(null)
+
+  const download = (): void => {
+    setBusy(true)
+    setFailure(null)
+    downloadNoteDocument({
+      invoiceId: invoice.invoiceId,
+      noteId: note.noteId,
+      fallbackFileName: `${note.number}.pdf`,
+    })
+      .then(({ blob, fileName }) => {
+        saveBlob(blob, fileName ?? `${note.number}.pdf`)
+      })
+      .catch((cause: unknown) => {
+        setFailure(cause)
+      })
+      .finally(() => {
+        setBusy(false)
+      })
+  }
 
   return (
-    <section aria-labelledby="invoice-totals-heading">
-      <h2 id="invoice-totals-heading">
-        <FormattedMessage id="billing.invoice.totals.title" />
+    <article>
+      <h3>
+        {intl.formatMessage(
+          {
+            id:
+              note.kind === 'Credit'
+                ? 'billing.invoice.notes.credit'
+                : 'billing.invoice.notes.debit',
+          },
+          { number: note.number },
+        )}
+      </h3>
+      <p className="billing__hint">
+        {intl.formatMessage(
+          { id: 'billing.invoice.notes.posted' },
+          { date: formatters.formatShortDate(note.postedAt) },
+        )}
+      </p>
+      <p>{intl.formatMessage({ id: 'billing.invoice.notes.reason' }, { reason: note.reason })}</p>
+      <p>{formatters.formatMoney(note.totals.grandTotal)}</p>
+      <Button
+        aria-label={intl.formatMessage(
+          { id: 'billing.invoice.notes.download.label' },
+          { number: note.number },
+        )}
+        busy={busy}
+        iconName="receipt"
+        onClick={download}
+        variant="subtle"
+      >
+        {intl.formatMessage({ id: 'billing.invoice.notes.download' })}
+      </Button>
+      <BillingProblemAlert failure={failure} />
+    </article>
+  )
+}
+
+/**
+ * The three named controls (#336): print this page over the document view, send to the branch's
+ * print station, and download the stored PDF. Only the first works offline — the other two are
+ * online-only, per every other billing write.
+ */
+function PrintControls({ invoice, network }: { invoice: Invoice; network: NetworkState }) {
+  const intl = useIntl()
+
+  const [copies, setCopies] = useState(1)
+  const [copiesIncomplete, setCopiesIncomplete] = useState(false)
+  const [printBusy, setPrintBusy] = useState(false)
+  const [printFailure, setPrintFailure] = useState<unknown>(null)
+  const [printJobId, setPrintJobId] = useState<string | null>(null)
+  const [printKey, setPrintKey] = useState<{
+    readonly fingerprint: string
+    readonly key: string
+  } | null>(null)
+
+  const [downloadBusy, setDownloadBusy] = useState(false)
+  const [downloadFailure, setDownloadFailure] = useState<unknown>(null)
+
+  const sendToStation = (): void => {
+    if (!Number.isInteger(copies) || copies < 1 || copies > 5) {
+      setCopiesIncomplete(true)
+      return
+    }
+    setCopiesIncomplete(false)
+    setPrintBusy(true)
+    setPrintFailure(null)
+
+    const fingerprint = `${invoice.invoiceId}:${copies}`
+    const key =
+      printKey !== null && printKey.fingerprint === fingerprint ? printKey.key : crypto.randomUUID()
+    setPrintKey({ fingerprint, key })
+
+    printInvoice({ invoiceId: invoice.invoiceId, body: { copies }, idempotencyKey: key })
+      .then((job) => {
+        setPrintKey(null)
+        setPrintJobId(job.printJobId)
+      })
+      .catch((cause: unknown) => {
+        setPrintFailure(cause)
+      })
+      .finally(() => {
+        setPrintBusy(false)
+      })
+  }
+
+  const download = (): void => {
+    setDownloadBusy(true)
+    setDownloadFailure(null)
+    const fallbackFileName = `${invoice.invoiceNumber ?? invoice.invoiceId}.pdf`
+
+    downloadInvoiceDocument(invoice.invoiceId, fallbackFileName)
+      .then(({ blob, fileName }) => {
+        saveBlob(blob, fileName ?? fallbackFileName)
+      })
+      .catch((cause: unknown) => {
+        setDownloadFailure(cause)
+      })
+      .finally(() => {
+        setDownloadBusy(false)
+      })
+  }
+
+  return (
+    <section aria-labelledby="invoice-print-heading" className="billing__actions">
+      <h2 id="invoice-print-heading">
+        <FormattedMessage id="billing.invoice.print.title" />
       </h2>
-      <dl className="billing__totals">
-        {TOTALS_ROWS.filter((row) => row.alwaysShown || Number(totals[row.id]) !== 0).map((row) => (
-          <div className="billing__totalsRow" data-emphasis={row.alwaysShown} key={row.id}>
-            <dt>{intl.formatMessage({ id: row.labelId })}</dt>
-            <dd>
-              {row.signed
-                ? formatSigned(formatters, totals[row.id])
-                : formatters.formatMoney(totals[row.id])}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <ButtonGroup>
+        <Button
+          iconName="clipboard"
+          onClick={() => {
+            window.print()
+          }}
+          variant="secondary"
+        >
+          <FormattedMessage id="billing.invoice.print.page" />
+        </Button>
+
+        {network.online ? (
+          <Button busy={printBusy} iconName="receipt" onClick={sendToStation} variant="secondary">
+            {intl.formatMessage({
+              id: printBusy
+                ? 'billing.invoice.print.station.sending'
+                : 'billing.invoice.print.station',
+            })}
+          </Button>
+        ) : null}
+
+        {network.online ? (
+          <Button busy={downloadBusy} iconName="receipt" onClick={download} variant="secondary">
+            {intl.formatMessage({
+              id: downloadBusy
+                ? 'billing.invoice.print.download.downloading'
+                : 'billing.invoice.print.download',
+            })}
+          </Button>
+        ) : null}
+      </ButtonGroup>
+
+      {network.online ? (
+        <NumericStepper
+          decimalPlaces={0}
+          description={intl.formatMessage({ id: 'billing.invoice.print.station.copies.hint' })}
+          id="invoice-print-copies"
+          label={intl.formatMessage({ id: 'billing.invoice.print.station.copies.label' })}
+          max={5}
+          min={1}
+          name="copies"
+          onValueChange={setCopies}
+          showRangeHint={false}
+          value={copies}
+          {...(copiesIncomplete
+            ? {
+                error: intl.formatMessage({
+                  id: 'billing.invoice.print.station.copies.outOfRange',
+                }),
+              }
+            : {})}
+        />
+      ) : null}
+
+      {network.online ? null : (
+        <>
+          <OfflineBlockedAction
+            action={intl.formatMessage({ id: 'billing.invoice.print.offlineAction.station' })}
+          />
+          <OfflineBlockedAction
+            action={intl.formatMessage({ id: 'billing.invoice.print.offlineAction.download' })}
+          />
+        </>
+      )}
+
+      {printJobId === null ? null : (
+        <Alert live="polite" tone="success">
+          {intl.formatMessage({ id: 'billing.invoice.print.station.sent' }, { jobId: printJobId })}
+        </Alert>
+      )}
+      <BillingProblemAlert failure={printFailure} />
+      <BillingProblemAlert failure={downloadFailure} />
     </section>
   )
 }

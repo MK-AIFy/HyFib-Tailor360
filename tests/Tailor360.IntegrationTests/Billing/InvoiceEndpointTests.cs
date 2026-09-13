@@ -60,6 +60,10 @@ public sealed class InvoiceEndpointTests(WebApplicationFixture fixture)
             customerName = root.GetProperty("customer").GetProperty("displayName").GetString()!;
             root.GetProperty("calculation").GetProperty("reference").GetString().ShouldBe(scene.Reference);
             root.GetProperty("calculation").GetProperty("gstin").GetString().ShouldBe("33AAACH7409R1Z8");
+            // #336: the two fields the document view's supplier block needs and GetInvoice did not
+            // project until now — frozen on the invoice with the GSTIN, from InvoiceScenes.RegisterAsync.
+            root.GetProperty("calculation").GetProperty("supplierLegalName").GetString().ShouldBe("Example Tailors Private Limited");
+            root.GetProperty("calculation").GetProperty("supplierTradeName").GetString().ShouldBe("Example Tailors");
             var lines = root.GetProperty("lines").EnumerateArray().ToArray();
             lines.Select(line => line.GetProperty("garmentJobId").GetGuid()).ShouldBe(scene.Jobs);
             lines.Select(line => line.GetProperty("lineNumber").GetInt32()).ShouldBe([1, 2]);

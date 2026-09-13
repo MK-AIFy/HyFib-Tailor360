@@ -183,6 +183,40 @@ export const billingEn = {
   'billing.invoice.notes.debit': 'Debit note {number}',
   'billing.invoice.notes.posted': 'Posted {date}',
   'billing.invoice.notes.reason': 'Reason: {reason}',
+  'billing.invoice.notes.download': 'Download PDF',
+  'billing.invoice.notes.download.label': 'Download {number} as a PDF',
+  'billing.invoice.document.title.invoice': 'Tax invoice',
+  'billing.invoice.document.title.credit': 'Credit note',
+  'billing.invoice.document.title.debit': 'Debit note',
+  'billing.invoice.document.issued': 'Date {date} · FY {year}',
+  'billing.invoice.document.cancelledMark': 'CANCELLED',
+  'billing.invoice.document.supplier.title': 'Supplier',
+  'billing.invoice.document.supplier.gstin': 'GSTIN {gstin} · State {stateCode}',
+  'billing.invoice.document.artefactNote':
+    'The downloadable PDF is the artefact of record and carries the letterhead and the terms.',
+  'billing.invoice.document.customer.number': 'Customer {number}',
+  'billing.invoice.document.reference.order': 'Order',
+  'billing.invoice.document.reference.note': 'Against invoice',
+  'billing.invoice.document.reference.placeOfSupply': 'Place of supply {state} · {scheme}',
+  'billing.invoice.document.line.itemAndClassification': '{itemCode} · HSN/SAC {classification}',
+  'billing.invoice.document.line.surcharge': '+ {description} {amount}',
+  'billing.invoice.document.balanceDue': 'Balance due',
+  'billing.invoice.print.title': 'Print and download',
+  'billing.invoice.print.page': 'Print this page',
+  'billing.invoice.print.station': 'Send to print station',
+  'billing.invoice.print.station.sending': 'Sending…',
+  'billing.invoice.print.station.copies.label': 'Copies',
+  'billing.invoice.print.station.copies.hint': 'One to five.',
+  'billing.invoice.print.station.copies.outOfRange': 'Choose between 1 and 5 copies.',
+  'billing.invoice.print.station.sent':
+    'Sent to the branch’s print queue as job {jobId}. Nothing prints yet — the print bridge is a later change.',
+  'billing.invoice.print.download': 'Download PDF',
+  'billing.invoice.print.download.downloading': 'Downloading…',
+  'billing.invoice.print.offlineAction.station': 'Sending to the print station',
+  'billing.invoice.print.offlineAction.download': 'Downloading the invoice',
+  'billing.problem.documentNotAvailable':
+    'This document has not finished rendering yet. You can still print this page — try downloading again shortly.',
+  'billing.problem.copiesOutOfRange': 'Choose between 1 and 5 copies.',
   'billing.cashier.title': 'Cashier session',
   'billing.cashier.loading': 'your cashier session',
   'billing.cashier.open.title': 'Open a session',
@@ -643,6 +677,71 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
   'billing.invoice.notes.posted': 'Posted {date}',
   // not translated — awaiting native-speaker review
   'billing.invoice.notes.reason': 'Reason: {reason}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.download': 'Download PDF',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.download.label': 'Download {number} as a PDF',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.title.invoice': 'Tax invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.title.credit': 'Credit note',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.title.debit': 'Debit note',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.issued': 'Date {date} · FY {year}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.cancelledMark': 'CANCELLED',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.supplier.title': 'Supplier',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.supplier.gstin': 'GSTIN {gstin} · State {stateCode}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.artefactNote':
+    'The downloadable PDF is the artefact of record and carries the letterhead and the terms.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.customer.number': 'Customer {number}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.reference.order': 'Order',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.reference.note': 'Against invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.reference.placeOfSupply': 'Place of supply {state} · {scheme}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.line.itemAndClassification': '{itemCode} · HSN/SAC {classification}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.line.surcharge': '+ {description} {amount}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.document.balanceDue': 'Balance due',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.title': 'Print and download',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.page': 'Print this page',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.station': 'Send to print station',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.station.sending': 'Sending…',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.station.copies.label': 'Copies',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.station.copies.hint': 'One to five.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.station.copies.outOfRange': 'Choose between 1 and 5 copies.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.station.sent':
+    'Sent to the branch’s print queue as job {jobId}. Nothing prints yet — the print bridge is a later change.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.download': 'Download PDF',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.download.downloading': 'Downloading…',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.offlineAction.station': 'Sending to the print station',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.print.offlineAction.download': 'Downloading the invoice',
+  // not translated — awaiting native-speaker review
+  'billing.problem.documentNotAvailable':
+    'This document has not finished rendering yet. You can still print this page — try downloading again shortly.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.copiesOutOfRange': 'Choose between 1 and 5 copies.',
   // not translated — awaiting native-speaker review
   'billing.cashier.title': 'Cashier session',
   // not translated — awaiting native-speaker review

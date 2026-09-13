@@ -95,6 +95,10 @@ export interface InvoiceCalculation {
   readonly placeOfSupplyStateCode: string
   readonly scheme: string
   readonly taxInclusive: boolean
+  /** The seller's registered legal name, frozen on the invoice with the GSTIN (#336). */
+  readonly supplierLegalName: string
+  /** The seller's trade name where it differs from the legal name, or null. */
+  readonly supplierTradeName: string | null
 }
 
 /** One CGST, SGST, IGST or cess component, with its rate and amount. */
@@ -216,6 +220,24 @@ export interface Invoice {
   readonly cancelled: boolean
   readonly cancellation: InvoiceCancellation | null
   readonly notes: readonly AdjustmentNote[]
+}
+
+/** What is sent to print an invoice or a note. Null asks for the server's own default of one copy. */
+export interface PrintInvoiceRequest {
+  readonly copies: number | null
+}
+
+/**
+ * A downloaded document: the bytes, their type, and the name to save them under.
+ *
+ * Not pinned against `schema.d.ts` — there is nothing to pin against. `Content-Disposition` is an
+ * HTTP header, not a JSON field, so this shape comes from `apiRequestBlob` reading the response
+ * rather than from anything the OpenAPI document describes.
+ */
+export interface DocumentDownload {
+  readonly blob: Blob
+  readonly contentType: string
+  readonly fileName: string | undefined
 }
 
 /** What an `I-` barcode payload resolved to: the invoice, by identifier and number. */

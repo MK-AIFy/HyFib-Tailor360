@@ -223,6 +223,8 @@ export function anInvoice(overrides: Partial<Invoice> = {}): Invoice {
       placeOfSupplyStateCode: '33',
       scheme: 'IntraState',
       taxInclusive: false,
+      supplierLegalName: 'Example Tailors Private Limited',
+      supplierTradeName: 'Example Tailors',
     },
     currency: 'INR',
     lines: anInvoiceLineList(),

@@ -141,4 +141,102 @@
     border: 1px solid var(--colour-border-subtle);
     border-radius: var(--radius-md);
   }
+
+  /* The invoice document view (#336): the printed document, in text, on screen. */
+
+  .billing__document {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--colour-border-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .billing__document-title {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .billing__document-number {
+    margin: 0;
+    font-size: var(--font-size-300);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .billing__document-cancelled {
+    margin: 0;
+    color: var(--colour-danger-ink, var(--colour-ink));
+    font-weight: var(--font-weight-bold);
+  }
+
+  .billing__document-barcode {
+    margin: 0;
+    color: var(--colour-ink-muted);
+    font-family: var(--font-family-mono, monospace);
+    font-size: var(--font-size-100);
+    letter-spacing: 0.08em;
+  }
+
+  .billing__document-parties {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .billing__document-name {
+    margin: 0;
+    font-weight: var(--font-weight-bold);
+  }
+
+  .billing__document-lines-scroll {
+    overflow-x: auto;
+  }
+
+  .billing__document-lines {
+    inline-size: 100%;
+    border-collapse: collapse;
+  }
+
+  .billing__document-lines th,
+  .billing__document-lines td {
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--colour-border-subtle);
+    text-align: start;
+    vertical-align: top;
+  }
+
+  .billing__document-lines th {
+    font-size: var(--font-size-100);
+  }
+
+  .billing__document-lines td > p {
+    margin: 0;
+  }
+
+  @media print {
+    body:has(.billing__document) * {
+      visibility: hidden;
+    }
+
+    body:has(.billing__document) .billing__document,
+    body:has(.billing__document) .billing__document * {
+      visibility: visible;
+    }
+
+    .billing__document {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      inline-size: 100%;
+      border: none;
+    }
+
+    .billing__document-artefactNote {
+      display: none;
+    }
+  }
 }
