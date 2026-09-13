@@ -9,14 +9,20 @@ import type {
   CatalogVersion,
   CatalogVersionSummary,
   CategoryRequest,
+  DesignCheck,
   DesignGroupPresentationRequest,
   DesignGroupRequest,
+  DesignMigrationOutcome,
   DesignOptionPresentationRequest,
   DesignOptionRequest,
+  DesignPicker,
   DesignRuleRequest,
+  DesignSelectionDraft,
   OrderableCatalog,
   PresentationRequest,
+  SaveDesignSelectionsRequest,
   ServiceTypeRequest,
+  StartDesignSelectionDraftRequest,
 } from './types'
 
 /**
@@ -528,6 +534,107 @@ export async function retireCatalogVersion(input: {
     {
       method: 'POST',
       body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/*
+ * The design picker and the drafts Reception builds against it (#140, #142).
+ *
+ * Gated on `catalog.design.select`, never on `catalog.edit` — a different permission from every
+ * other function in this file, because this surface is the counter's own rather than the
+ * administrator's. A draft is shared within the branch that started it, the same way a measurement
+ * draft is: `readCatalogDesignDraft` and every write below answer another branch's draft as
+ * not-found, not as forbidden.
+ */
+
+/** What a service type offers for its design, at the caller's branch, today. Reads the published catalogue. */
+export async function readCatalogDesignPicker(
+  serviceTypeId: string,
+  signal?: AbortSignal,
+): Promise<DesignPicker> {
+  return await apiRequest<DesignPicker>(
+    `${CATALOG}/current/service-types/${serviceTypeId}/design`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/** Starts choosing a design for a service type of the currently published version. */
+export async function startCatalogDesignDraft(input: {
+  readonly body: StartDesignSelectionDraftRequest
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<DesignSelectionDraft>> {
+  return await apiRequestVersioned<DesignSelectionDraft>(`${CATALOG}/design-drafts`, {
+    method: 'POST',
+    body: input.body,
+    idempotencyKey: input.idempotencyKey,
+  })
+}
+
+/** Reads a design selection draft, with the tag the next save must present. */
+export async function readCatalogDesignDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<VersionedResponse<DesignSelectionDraft>> {
+  return await apiRequestVersioned<DesignSelectionDraft>(`${CATALOG}/design-drafts/${draftId}`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/** Replaces the whole selection set of a draft. */
+export async function saveCatalogDesignDraft(input: {
+  readonly draftId: string
+  readonly body: SaveDesignSelectionsRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<DesignSelectionDraft>> {
+  return await apiRequestVersioned<DesignSelectionDraft>(
+    `${CATALOG}/design-drafts/${input.draftId}`,
+    {
+      method: 'PUT',
+      body: input.body,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Asks what stands between a draft and confirmation. Changes nothing.
+ *
+ * `hasReferenceImage` answers a requires-attachment rule: Catalog holds no garment and no media of
+ * its own, so the caller supplies it — a checkbox on the picker until #31 gives the garment a real
+ * upload to ask about instead.
+ */
+export async function checkCatalogDesignDraft(
+  draftId: string,
+  hasReferenceImage: boolean,
+  signal?: AbortSignal,
+): Promise<DesignCheck> {
+  const query = new URLSearchParams({ hasReferenceImage: String(hasReferenceImage) }).toString()
+
+  return await apiRequest<DesignCheck>(`${CATALOG}/design-drafts/${draftId}/check?${query}`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/** Re-pins a draft to the currently published version and re-validates it. Already-current is a no-op success. */
+export async function migrateCatalogDesignDraft(input: {
+  readonly draftId: string
+  readonly hasReferenceImage: boolean
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<DesignMigrationOutcome>> {
+  const query = new URLSearchParams({
+    hasReferenceImage: String(input.hasReferenceImage),
+  }).toString()
+
+  return await apiRequestVersioned<DesignMigrationOutcome>(
+    `${CATALOG}/design-drafts/${input.draftId}/migrate?${query}`,
+    {
+      method: 'POST',
       ifMatch: input.version,
       idempotencyKey: input.idempotencyKey,
     },
