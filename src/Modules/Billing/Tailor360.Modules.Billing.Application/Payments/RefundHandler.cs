@@ -3,7 +3,6 @@ using Tailor360.Modules.Billing.Contracts.Events;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Invoicing;
 using Tailor360.Modules.Billing.Domain.Payments;
-using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Abstractions.Results;
@@ -33,7 +32,7 @@ public sealed class RefundHandler(
     ICashierSessionStore sessions,
     IPaymentModeStore modes,
     IBillingEventPublisher events,
-    IAuditWriter audit,
+    IBillingAuditWriter audit,
     IClock clock,
     IIdGenerator ids)
 {
@@ -116,6 +115,16 @@ public sealed class RefundHandler(
                     PublishStatusIfMoved(invoice, was, was.Allocated - released, was.Refunds, now);
                 }
 
+                // Staged before the save so the entry rides the same SaveChangesAsync as the reversal it
+                // describes, and the two commit or roll back together (issue #179); no amount in the
+                // summary. `fresh` carries no reversal until the row is read back — AddReversal does not
+                // set the payment's own navigation property — so the "after" snapshot says so explicitly
+                // rather than reading a change that has not reached memory yet.
+                await BillingAudit.StageAsync(
+                    audit, ReversedAction, BillingAudit.PaymentEntity, fresh.Id,
+                    $"Payment in {payment.ModeCode} reversed; {payment.Allocations.Count} allocation(s) released.",
+                    command.Reason!.Trim(), PaymentSnapshot.Of(payment), PaymentSnapshot.Of(fresh, reversed: true), token);
+
                 var saved = await payments.SaveAsync(token);
                 return saved.IsFailure ? Result.Failure<Payment>(saved.Error) : Result.Success(fresh);
             },
@@ -126,13 +135,8 @@ public sealed class RefundHandler(
             return reversed;
         }
 
-        // The reversed payment, read again so the reversal rides on it; no amount in the summary.
+        // The reversed payment, read again so the reversal rides on it in the response.
         var after = await payments.FindAsync(command.PaymentId, command.OrganisationId, cancellationToken);
-        await BillingAudit.RecordAsync(
-            audit, ReversedAction, BillingAudit.PaymentEntity, command.PaymentId,
-            $"Payment in {payment.ModeCode} reversed; {payment.Allocations.Count} allocation(s) released.",
-            command.Reason!.Trim(), PaymentSnapshot.Of(payment), PaymentSnapshot.Of(after ?? reversed.Value), cancellationToken);
-
         return Result.Success(after ?? reversed.Value);
     }
 
@@ -248,21 +252,19 @@ public sealed class RefundHandler(
                     PublishStatusIfMoved(invoice, before, before.Allocated, before.Refunds + amount, now);
                 }
 
+                // Staged before the save so the entry rides the same SaveChangesAsync as the refund it
+                // describes, and the two commit or roll back together (issue #179). No amount in the
+                // summary: the trail is read by more people than the drawer is.
+                await BillingAudit.StageAsync(
+                    audit, RefundedAction, BillingAudit.RefundEntity, refund.Value.Id,
+                    $"Refund paid in {refund.Value.ModeCode} from {(refund.Value.Source == RefundSource.Advance ? "an advance" : "an invoice's surplus")}.",
+                    command.Reason!.Trim(), null, RefundSnapshot.Of(refund.Value), token);
+
                 var saved = await payments.SaveAsync(token);
                 return saved.IsFailure ? Result.Failure<Refund>(saved.Error) : refund;
             },
             async token => await payments.FindRefundAsync(refundId, command.OrganisationId, token) is not null,
             cancellationToken);
-        if (recorded.IsFailure)
-        {
-            return recorded;
-        }
-
-        // No amount in the summary: the trail is read by more people than the drawer is.
-        await BillingAudit.RecordAsync(
-            audit, RefundedAction, BillingAudit.RefundEntity, recorded.Value.Id,
-            $"Refund paid in {recorded.Value.ModeCode} from {(recorded.Value.Source == RefundSource.Advance ? "an advance" : "an invoice's surplus")}.",
-            command.Reason!.Trim(), null, RefundSnapshot.Of(recorded.Value), cancellationToken);
 
         return recorded;
     }

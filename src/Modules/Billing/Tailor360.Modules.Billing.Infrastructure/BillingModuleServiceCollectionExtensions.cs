@@ -60,6 +60,10 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<IOrderFactStore, OrderFactStore>();
         services.TryAddScoped<IInvoiceStore, InvoiceStore>();
         services.TryAddScoped<IBillingEventPublisher, BillingEventPublisher>();
+
+        // The audit trail over Billing's own context (#179): an entry staged through this rides the
+        // same SaveChangesAsync as the change it describes instead of a second, separate one.
+        services.TryAddScoped<IBillingAuditWriter, BillingAuditWriter>();
         services.Configure<InvoiceOptions>(configuration.GetSection(InvoiceOptions.SectionName));
         services.AddOptions<DocumentOptions>()
             .Bind(configuration.GetSection(DocumentOptions.SectionName))

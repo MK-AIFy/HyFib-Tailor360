@@ -2,7 +2,6 @@ using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Contracts.Events;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Payments;
-using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Abstractions.Time;
@@ -21,7 +20,7 @@ namespace Tailor360.Modules.Billing.Application.Payments;
 public sealed class ReconciliationHandler(
     IReconciliationBatchStore batches,
     IBillingEventPublisher events,
-    IAuditWriter audit,
+    IBillingAuditWriter audit,
     IClock clock,
     IIdGenerator ids)
 {
@@ -64,19 +63,17 @@ public sealed class ReconciliationHandler(
                 ids.NewId(), now, batch.Id, batch.OrganisationId, batch.BranchId, batch.CashierSessionId,
                 command.By, batch.Variance.Amount, batch.Variance.Currency));
 
+            // Staged before the save so the entry rides the same SaveChangesAsync as the approval it
+            // describes, and the two commit or roll back together (issue #179). No amount in the
+            // summary: the trail is read by more people than the drawer is.
+            await BillingAudit.StageAsync(
+                audit, ApprovedAction, BillingAudit.ReconciliationBatchEntity, batch.Id,
+                "Cashier session variance approved.",
+                command.Reason!.Trim(), before, ReconciliationBatchSnapshot.Of(batch), token);
+
             var saved = await batches.SaveAsync(token);
             return saved.IsFailure ? Result.Failure<ReconciliationBatch>(saved.Error) : Result.Success(batch);
         }, cancellationToken);
-        if (approved.IsFailure)
-        {
-            return approved;
-        }
-
-        // No amount in the summary: the trail is read by more people than the drawer is.
-        await BillingAudit.RecordAsync(
-            audit, ApprovedAction, BillingAudit.ReconciliationBatchEntity, approved.Value.Id,
-            "Cashier session variance approved.",
-            command.Reason!.Trim(), before, ReconciliationBatchSnapshot.Of(approved.Value), cancellationToken);
 
         return approved;
     }

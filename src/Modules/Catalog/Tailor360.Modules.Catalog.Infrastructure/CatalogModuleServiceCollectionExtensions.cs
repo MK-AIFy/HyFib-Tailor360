@@ -66,6 +66,7 @@ public static class CatalogModuleServiceCollectionExtensions
         services.TryAddScoped<CatalogPublicationCheck>();
         services.TryAddScoped<CatalogHandler>();
         services.TryAddScoped<ICatalogReferenceDataSeeder, CatalogReferenceDataSeeder>();
+        services.TryAddScoped<IDesignCatalogueReferenceDataSeeder, DesignCatalogueReferenceDataSeeder>();
 
         // The reconciliation of INV-MTV-06 and every other cross-module reference (issue #91). Three
         // handlers because the race has two orderings and a third event heals it, and because the inbox

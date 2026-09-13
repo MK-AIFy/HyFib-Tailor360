@@ -8,6 +8,7 @@ using Tailor360.Modules.Billing.Domain.Registrations;
 using Tailor360.Modules.Billing.Domain.Tax;
 using Tailor360.Platform.Abstractions.Barcodes;
 using Tailor360.Platform.Abstractions.Money;
+using Tailor360.Platform.Persistence.Auditing;
 using Tailor360.Platform.Persistence.Conventions;
 
 namespace Tailor360.Modules.Billing.Infrastructure.Persistence;
@@ -192,6 +193,12 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
         ConfigureDispatchExceptions(modelBuilder);
         ConfigureOrderFacts(modelBuilder);
         ConfigureInvoices(modelBuilder);
+
+        // Shared with PlatformDbContext, which owns the table: mapping it here too is what lets
+        // AuditWriter<BillingDbContext> (behind IBillingAuditWriter) track an entry on this context's own
+        // change tracker, so it commits or rolls back with the change it describes instead of through a
+        // second, separate save (issue #179). See AuditEventMapping's remarks.
+        AuditEventMapping.Configure(modelBuilder);
     }
 
     private static void ConfigureOrderFacts(ModelBuilder modelBuilder)
