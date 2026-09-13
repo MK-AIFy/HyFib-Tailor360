@@ -103,8 +103,20 @@ export function DesignPickerRoute() {
   }, [draftId, navigate, network.online, serviceTypeId])
 
   const [reloads, setReloads] = useState(0)
-  const draft = useAdminResource(`design-draft:${draftId ?? ''}:${String(reloads)}`, (signal) =>
-    readCatalogDesignDraft(draftId ?? '', signal),
+  // Which generation `draft.value` actually answers for — distinct from `reloads` itself, which
+  // changes the instant a reload is merely requested, before its `GET` has landed. A resolved
+  // override below must wait for this rather than for the request, or a second reload started
+  // before the first one lands would retire the override immediately and expose whatever
+  // `draft.value` still holds, which can be stale all the way back to before the first reload.
+  const [draftValueGeneration, setDraftValueGeneration] = useState(0)
+  const draft = useAdminResource(
+    `design-draft:${draftId ?? ''}:${String(reloads)}`,
+    async (signal) => {
+      const requestedGeneration = reloads
+      const result = await readCatalogDesignDraft(draftId ?? '', signal)
+      setDraftValueGeneration(requestedGeneration)
+      return result
+    },
   )
 
   /**
@@ -135,9 +147,12 @@ export function DesignPickerRoute() {
   // would still answer with the pre-migration draft until it resolved, and a slow or failed one
   // would either flash the stale picker (a remounted body autosaving against the old ETag) back
   // into view or leave the gate stuck up. `reloads` is still bumped alongside it so `draft` itself
-  // catches up in the background — and this override steps aside the moment `reloads` moves on
-  // again, so a later conflict's own "read it again" isn't stuck behind a migration from earlier
-  // in the same session: `reloadGeneration` is the value `reloads` will hold once that bump lands,
+  // catches up in the background — and this override steps aside once `draftValueGeneration` shows
+  // that catch-up has actually landed, so a later conflict's own "read it again" isn't stuck behind
+  // a migration from earlier in the same session. It cannot step aside merely because `reloads` has
+  // moved on again (a second reload requested before the first lands): `draft.value` would still be
+  // holding whatever it held before either reload, which can be stale all the way back to before
+  // the migration. `reloadGeneration` is the value `reloads` will hold once that first bump lands,
   // and it is the only generation this override answers for.
   const [resolvedDraft, setResolvedDraft] = useState<{
     readonly draftId: string
@@ -157,7 +172,7 @@ export function DesignPickerRoute() {
   const effectiveDraft =
     resolvedDraft !== null &&
     resolvedDraft.draftId === draftId &&
-    resolvedDraft.reloadGeneration === reloads
+    draftValueGeneration < resolvedDraft.reloadGeneration
       ? resolvedDraft.response
       : draft.value
   const forcedMigrationForDraft =
@@ -176,6 +191,15 @@ export function DesignPickerRoute() {
           })
         : readCatalogDesignPicker(pickerServiceTypeId, signal),
   )
+  // `useAdminResource` deliberately keeps its previous value on screen across a key change, so a
+  // migration that re-keys this read to the new service type still shows the retired groups and
+  // options until the new GET lands — long enough for Reception to select one and have it rejected
+  // against the newly pinned draft. Rendering only once the retained value actually matches the
+  // service type it was just re-keyed to closes that window; a mismatch reads as still loading.
+  const pickerForDraft =
+    picker.value !== null && picker.value.serviceTypeId === pickerServiceTypeId
+      ? picker.value
+      : null
 
   const starting = draftId === undefined && startFailure === null
 
@@ -219,9 +243,9 @@ export function DesignPickerRoute() {
       ) : (
         <>
           <AuthProblemAlert failure={picker.failure} />
-          {picker.loading ? (
+          {picker.loading || pickerForDraft === null ? (
             <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
-          ) : picker.value === null ? null : picker.value.groups.length === 0 ? (
+          ) : pickerForDraft.groups.length === 0 ? (
             <EmptyState
               iconName="alert-circle"
               live="polite"
@@ -237,7 +261,7 @@ export function DesignPickerRoute() {
               // uses for its wizard.
               key={effectiveDraft.version ?? 'untagged'}
               initial={effectiveDraft}
-              picker={picker.value}
+              picker={pickerForDraft}
               onMigrationDetected={(migration) => {
                 setForcedMigration({ draftId, ...migration })
               }}
