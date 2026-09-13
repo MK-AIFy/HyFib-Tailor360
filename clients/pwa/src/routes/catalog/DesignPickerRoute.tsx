@@ -74,10 +74,6 @@ export function DesignPickerRoute() {
   const network = useNetworkState()
   const { serviceTypeId, draftId } = useParams()
 
-  const picker = useAdminResource(`design-picker:${serviceTypeId ?? ''}`, (signal) =>
-    readCatalogDesignPicker(serviceTypeId ?? '', signal),
-  )
-
   const [startFailure, setStartFailure] = useState<unknown>(null)
   const startKeyRef = useRef(crypto.randomUUID())
 
@@ -110,6 +106,28 @@ export function DesignPickerRoute() {
     readCatalogDesignDraft(draftId ?? '', signal),
   )
 
+  /**
+   * A republish gives every service type in the new version a fresh row id — the pinned
+   * `draft.serviceTypeId` a `migrationPrompt` reports on stops resolving against `/current` the
+   * moment any newer version publishes, whatever this draft's own category did. So the picker read
+   * below is never attempted while a migration is pending: reading it would 404 on an id the current
+   * catalogue no longer has, and gating the whole screen on that read — as this once did — is what
+   * kept Reception from ever seeing the migration choice at all. It reads again, against the fresh
+   * id, only once the draft is either migrated or was never pinned to a superseded version.
+   */
+  const pendingMigration = draft.value !== null && draft.value.value.migrationPrompt !== null
+  const pickerServiceTypeId = draft.value?.value.serviceTypeId ?? null
+  const picker = useAdminResource(
+    `design-picker:${pendingMigration || pickerServiceTypeId === null ? '' : pickerServiceTypeId}`,
+    (signal) =>
+      pendingMigration || pickerServiceTypeId === null
+        ? new Promise<DesignPicker>(() => {
+            // Never resolves: there is nothing to read until the migration gate below is resolved,
+            // and the key above changes the moment it is, starting a real read then.
+          })
+        : readCatalogDesignPicker(pickerServiceTypeId, signal),
+  )
+
   const starting = draftId === undefined && startFailure === null
 
   return (
@@ -118,16 +136,15 @@ export function DesignPickerRoute() {
         <FormattedMessage id="catalog.design.picker.title" />
       </h1>
 
-      <AuthProblemAlert failure={picker.failure} />
       {draftId === undefined ? <AuthProblemAlert failure={startFailure} /> : null}
 
       {!network.online && draftId === undefined ? (
         <OfflineBlockedAction
           action={intl.formatMessage({ id: 'catalog.design.picker.offline.start' })}
         />
-      ) : picker.loading || starting ? (
+      ) : starting || draftId === undefined ? (
         <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
-      ) : picker.value === null ? null : draftId === undefined ? null : draft.loading ? (
+      ) : draft.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
       ) : draft.value === null ? (
         <AuthProblemAlert failure={draft.failure} />
@@ -139,28 +156,161 @@ export function DesignPickerRoute() {
         >
           {intl.formatMessage({ id: 'catalog.design.picker.consumed.body' })}
         </EmptyState>
-      ) : picker.value.groups.length === 0 ? (
-        <EmptyState
-          iconName="alert-circle"
-          live="polite"
-          title={intl.formatMessage({ id: 'catalog.design.picker.empty.title' })}
-        >
-          {intl.formatMessage({ id: 'catalog.design.picker.empty.body' })}
-        </EmptyState>
-      ) : (
-        <DesignPickerBody
+      ) : pendingMigration ? (
+        <DesignMigrationGate
           draftId={draftId}
-          // Keyed by the tag the read carried: a reload after a conflict remounts this with the
-          // fresh draft, the same reasoning `MeasurementDraftRoute` uses for its wizard.
-          key={draft.value.version ?? 'untagged'}
-          initial={draft.value}
-          picker={picker.value}
-          onReload={() => {
+          migrationPrompt={draft.value.value.migrationPrompt}
+          onMigrated={() => {
             setReloads((count) => count + 1)
           }}
+          version={draft.value.version ?? ''}
         />
+      ) : (
+        <>
+          <AuthProblemAlert failure={picker.failure} />
+          {picker.loading ? (
+            <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
+          ) : picker.value === null ? null : picker.value.groups.length === 0 ? (
+            <EmptyState
+              iconName="alert-circle"
+              live="polite"
+              title={intl.formatMessage({ id: 'catalog.design.picker.empty.title' })}
+            >
+              {intl.formatMessage({ id: 'catalog.design.picker.empty.body' })}
+            </EmptyState>
+          ) : (
+            <DesignPickerBody
+              draftId={draftId}
+              // Keyed by the tag the read carried: a reload after a conflict remounts this with the
+              // fresh draft, the same reasoning `MeasurementDraftRoute` uses for its wizard.
+              key={draft.value.version ?? 'untagged'}
+              initial={draft.value}
+              picker={picker.value}
+              onReload={() => {
+                setReloads((count) => count + 1)
+              }}
+            />
+          )}
+        </>
       )}
     </section>
+  )
+}
+
+interface DesignMigrationGateProps {
+  readonly draftId: string
+  readonly migrationPrompt: NonNullable<DesignSelectionDraft['migrationPrompt']>
+  readonly version: string
+  /** The draft was migrated — re-read it, which re-keys the picker read to the fresh service type. */
+  readonly onMigrated: () => void
+}
+
+/**
+ * What stands between a resumed draft and the picker: the catalogue moved on since it was pinned,
+ * and Reception chooses to update to the current version or to finish on this one (#142).
+ *
+ * "Finish on this version" is not a request — there is nothing to migrate away from and nothing to
+ * ask the server for — so it is a purely local acknowledgement. What it leaves the screen showing is
+ * a plain notice rather than the interactive picker: Reception holds no permission to read a
+ * superseded catalogue version's groups and options (that is `catalog.edit`'s screen, not
+ * `catalog.design.select`'s), so there is nothing here to render labels, illustrations or rules
+ * from. The selections already saved on the draft stand as they are for whoever confirms the garment
+ * to read back.
+ */
+function DesignMigrationGate({
+  draftId,
+  migrationPrompt,
+  version,
+  onMigrated,
+}: DesignMigrationGateProps) {
+  const intl = useIntl()
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [migrating, setMigrating] = useState(false)
+  const [migrateFailure, setMigrateFailure] = useState<unknown>(null)
+
+  const migrate = async (): Promise<void> => {
+    setMigrating(true)
+    setMigrateFailure(null)
+    try {
+      await migrateCatalogDesignDraft({
+        draftId,
+        hasReferenceImage: false,
+        version,
+        idempotencyKey: crypto.randomUUID(),
+      })
+      onMigrated()
+    } catch (cause: unknown) {
+      setMigrateFailure(cause)
+    } finally {
+      setMigrating(false)
+    }
+  }
+
+  if (acknowledged) {
+    return (
+      <EmptyState
+        actions={
+          <Button
+            onClick={() => {
+              setAcknowledged(false)
+            }}
+            variant="secondary"
+          >
+            {intl.formatMessage({ id: 'catalog.design.migration.migrate' })}
+          </Button>
+        }
+        iconName="info"
+        live="polite"
+        title={intl.formatMessage({ id: 'catalog.design.migration.finished.title' })}
+      >
+        {intl.formatMessage({ id: 'catalog.design.migration.finished.body' })}
+      </EmptyState>
+    )
+  }
+
+  return (
+    <Dialog
+      closeOnScrimPress={false}
+      description={intl.formatMessage({ id: 'catalog.design.migration.description' })}
+      onClose={() => {
+        // Finishing on the pinned version is the other sanctioned choice — dismissing says exactly
+        // that, and needs no request: it is what happens by simply not migrating.
+        setAcknowledged(true)
+      }}
+      open
+      title={intl.formatMessage({ id: 'catalog.design.migration.title' })}
+      footer={
+        <>
+          <Button
+            onClick={() => {
+              setAcknowledged(true)
+            }}
+            variant="secondary"
+          >
+            {intl.formatMessage({ id: 'catalog.design.migration.keep' })}
+          </Button>
+          <Button
+            busy={migrating}
+            onClick={() => {
+              void migrate()
+            }}
+            unavailable={!migrationPrompt.serviceTypeStillOffered}
+            variant="primary"
+          >
+            {intl.formatMessage({ id: 'catalog.design.migration.migrate' })}
+          </Button>
+        </>
+      }
+    >
+      <AuthProblemAlert failure={migrateFailure} />
+      <ul>
+        {migrationPrompt.changes.map((change) => (
+          <li data-drops={dropsAChoice(change.kind) ? 'true' : undefined} key={change.message}>
+            {change.message}
+          </li>
+        ))}
+      </ul>
+    </Dialog>
   )
 }
 
@@ -240,9 +390,6 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
   const [saving, setSaving] = useState(false)
   const [saveFailure, setSaveFailure] = useState<unknown>(null)
   const [conflict, setConflict] = useState(false)
-  const [migration, setMigration] = useState(initial.value.migrationPrompt)
-  const [migrating, setMigrating] = useState(false)
-  const [migrateFailure, setMigrateFailure] = useState<unknown>(null)
   const [zoom, setZoom] = useState<{
     readonly groupCode: string
     readonly optionCode: string
@@ -253,8 +400,36 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
   const queuedRef = useRef(false)
   const saveKeyRef = useRef<{ readonly fingerprint: string; readonly key: string } | null>(null)
 
+  // `commit` reads every mutable input through a ref rather than closing over `selections`,
+  // `instructions` and `hasReferenceImage` directly, and stays the same function across renders
+  // (its own deps are just `draftId`). A change that arrives while a save is already in flight sets
+  // `queuedRef` and this same function replays itself once the in-flight one finishes — with a
+  // closure that captured the state at the moment of THAT change would replay the state as it stood
+  // when the save started, not what changed while it waited, silently dropping the latest edit.
+  const selectionsRef = useRef(selections)
+  const instructionsRef = useRef(instructions)
+  const hasReferenceImageRef = useRef(hasReferenceImage)
+  const onlineRef = useRef(network.online)
+  // A ref rather than the `commit` binding itself for the recursive replay below: referencing a
+  // `useCallback` result from inside its own body defeats the compiler's memoization analysis
+  // (`react-hooks/preserve-manual-memoization`), and a ref updated after every render always calls
+  // whichever `commit` currently exists without the function needing to name itself.
+  const commitRef = useRef<() => Promise<void>>(() => Promise.resolve())
+  useEffect(() => {
+    selectionsRef.current = selections
+  }, [selections])
+  useEffect(() => {
+    instructionsRef.current = instructions
+  }, [instructions])
+  useEffect(() => {
+    hasReferenceImageRef.current = hasReferenceImage
+  }, [hasReferenceImage])
+  useEffect(() => {
+    onlineRef.current = network.online
+  }, [network.online])
+
   const commit = useCallback(async (): Promise<void> => {
-    if (!network.online) {
+    if (!onlineRef.current) {
       return
     }
     if (committingRef.current) {
@@ -267,8 +442,8 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
 
     try {
       const body: SaveDesignSelectionsRequest = {
-        selections: payloadFromMap(selections),
-        instructions: instructions.trim() === '' ? null : instructions,
+        selections: payloadFromMap(selectionsRef.current),
+        instructions: instructionsRef.current.trim() === '' ? null : instructionsRef.current,
       }
       const fingerprint = `${tagRef.current}:${JSON.stringify(body)}`
       const existingKey = saveKeyRef.current
@@ -287,11 +462,12 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       tagRef.current = saved.version ?? tagRef.current
       setConflict(false)
 
-      const result = await checkCatalogDesignDraft(draftId, hasReferenceImage)
+      const result = await checkCatalogDesignDraft(draftId, hasReferenceImageRef.current)
       setCheck(result)
 
-      const merged = mergeAutoSelections(selections, result.autoSelections)
-      if (merged !== selections) {
+      const merged = mergeAutoSelections(selectionsRef.current, result.autoSelections)
+      if (merged !== selectionsRef.current) {
+        selectionsRef.current = merged
         setSelections(merged)
       }
     } catch (cause: unknown) {
@@ -305,10 +481,14 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       committingRef.current = false
       if (queuedRef.current) {
         queuedRef.current = false
-        void commit()
+        void commitRef.current()
       }
     }
-  }, [draftId, hasReferenceImage, instructions, network.online, selections])
+  }, [draftId])
+
+  useEffect(() => {
+    commitRef.current = commit
+  }, [commit])
 
   useEffect(() => {
     if (!network.online) {
@@ -320,31 +500,9 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
     return () => {
       clearTimeout(timer)
     }
-  }, [commit, network.online])
+  }, [commit, network.online, selections, instructions, hasReferenceImage])
 
-  const migrate = async (): Promise<void> => {
-    setMigrating(true)
-    setMigrateFailure(null)
-    try {
-      const outcome = await migrateCatalogDesignDraft({
-        draftId,
-        hasReferenceImage,
-        version: tagRef.current,
-        idempotencyKey: crypto.randomUUID(),
-      })
-      tagRef.current = outcome.version ?? tagRef.current
-      setSelections(mapFromSelections(outcome.value.draft.selections))
-      setInstructions(outcome.value.draft.instructions ?? '')
-      setCheck(outcome.value.evaluation)
-      setMigration(outcome.value.draft.migrationPrompt)
-    } catch (cause: unknown) {
-      setMigrateFailure(cause)
-    } finally {
-      setMigrating(false)
-    }
-  }
-
-  const effects = evaluateDesignPickerEffects(picker.rules, selections)
+  const effects = evaluateDesignPickerEffects(picker.groups, picker.rules, selections)
 
   const zoomedOption =
     zoom === null
@@ -544,51 +702,6 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
         saving={saving}
         selections={selections}
       />
-
-      {migration === null ? null : (
-        <Dialog
-          closeOnScrimPress={false}
-          description={intl.formatMessage({ id: 'catalog.design.migration.description' })}
-          onClose={() => {
-            // Finishing on the pinned version is the other sanctioned choice — dismissing says
-            // exactly that, and needs no request: it is what happens by simply not migrating.
-            setMigration(null)
-          }}
-          open
-          title={intl.formatMessage({ id: 'catalog.design.migration.title' })}
-          footer={
-            <>
-              <Button
-                onClick={() => {
-                  setMigration(null)
-                }}
-                variant="secondary"
-              >
-                {intl.formatMessage({ id: 'catalog.design.migration.keep' })}
-              </Button>
-              <Button
-                busy={migrating}
-                onClick={() => {
-                  void migrate()
-                }}
-                unavailable={!migration.serviceTypeStillOffered}
-                variant="primary"
-              >
-                {intl.formatMessage({ id: 'catalog.design.migration.migrate' })}
-              </Button>
-            </>
-          }
-        >
-          <AuthProblemAlert failure={migrateFailure} />
-          <ul>
-            {migration.changes.map((change) => (
-              <li data-drops={dropsAChoice(change.kind) ? 'true' : undefined} key={change.message}>
-                {change.message}
-              </li>
-            ))}
-          </ul>
-        </Dialog>
-      )}
 
       {zoomedOption === null ? null : (
         <Dialog

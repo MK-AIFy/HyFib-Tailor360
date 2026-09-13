@@ -1,4 +1,4 @@
-import type { CatalogDesignOperand, DesignPickerRule } from './types'
+import type { CatalogDesignOperand, DesignPickerGroup, DesignPickerRule } from './types'
 
 /**
  * What the picker's rules mean for the cards on screen, ahead of any network round trip (#142).
@@ -85,13 +85,42 @@ export function operandHolds(
   }
 }
 
-/** The concrete option codes a consequent names — empty for `Always` and `AnySelection`, which name none. */
-function targetOptionCodes(operand: CatalogDesignOperand): readonly string[] {
-  return operand.form === 'Always' || operand.form === 'AnySelection' ? [] : operand.optionCodes
+/** Every option code a group currently offers — the picker already narrows this to what is active. */
+function offeredOptionCodes(
+  groups: readonly DesignPickerGroup[],
+  groupCode: string | null,
+): readonly string[] {
+  if (groupCode === null) {
+    return []
+  }
+  return (
+    groups.find((group) => group.code === groupCode)?.options.map((option) => option.code) ?? []
+  )
+}
+
+/**
+ * The concrete option codes that satisfy an operand — empty for `Always` and `AnySelection`, which
+ * name none. `NotEquals` and `Excludes` name the one option they read, but the set they *satisfy* is
+ * everything else the group offers, the same complement `DesignRuleOperand.SatisfyingSet` computes
+ * server-side: a rule reading `sleeve_style ≠ SLEEVELESS` is satisfied by every sleeve but that one.
+ */
+function targetOptionCodes(
+  operand: CatalogDesignOperand,
+  groups: readonly DesignPickerGroup[],
+): readonly string[] {
+  if (operand.form === 'Always' || operand.form === 'AnySelection') {
+    return []
+  }
+  if (operand.form === 'NotEquals' || operand.form === 'Excludes') {
+    const named = operand.optionCodes[0]
+    return offeredOptionCodes(groups, operand.groupCode).filter((code) => code !== named)
+  }
+  return operand.optionCodes
 }
 
 /** Evaluates every rule's antecedent against the current selections, independently of the others. */
 export function evaluateDesignPickerEffects(
+  groups: readonly DesignPickerGroup[],
   rules: readonly DesignPickerRule[],
   selections: DesignPickerSelections,
 ): DesignPickerEffects {
@@ -113,7 +142,7 @@ export function evaluateDesignPickerEffects(
 
     if (rule.type === 'Excludes' && rule.consequent?.groupCode !== null) {
       const targetGroup = rule.consequent?.groupCode
-      for (const code of targetOptionCodes(rule.consequent ?? rule.antecedent)) {
+      for (const code of targetOptionCodes(rule.consequent ?? rule.antecedent, groups)) {
         if (targetGroup !== null && targetGroup !== undefined) {
           disabledOptions.set(`${targetGroup}.${code}`, reason)
         }
@@ -139,13 +168,4 @@ function isSatisfiedByCurrent(
   selections: DesignPickerSelections,
 ): boolean {
   return operandHolds(consequent, selections)
-}
-
-/** The options a `requires` rule's consequent names, filtered to those an admissible group still offers. */
-export function requiredCandidates(
-  consequent: CatalogDesignOperand,
-  admissibleCodes: readonly string[],
-): readonly string[] {
-  const named = targetOptionCodes(consequent)
-  return named.filter((code) => admissibleCodes.includes(code))
 }

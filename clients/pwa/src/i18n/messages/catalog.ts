@@ -324,6 +324,9 @@ export const catalogEn = {
     'What moved, and the choice between updating to the current version or finishing on this one.',
   'catalog.design.migration.keep': 'Finish on this version',
   'catalog.design.migration.migrate': 'Update to the current version',
+  'catalog.design.migration.finished.title': 'Finishing on the version already chosen.',
+  'catalog.design.migration.finished.body':
+    'The choices already made are kept as they are. Updating to the current version is still available whenever it is wanted.',
 
   /* The selection summary (#142). -------------------------------------------------------------- */
   'catalog.design.summary.title': 'Summary',
@@ -893,6 +896,11 @@ export const catalogTa: Record<keyof typeof catalogEn, string> = {
   'catalog.design.migration.keep': 'Finish on this version',
   // not translated — awaiting native-speaker review
   'catalog.design.migration.migrate': 'Update to the current version',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.finished.title': 'Finishing on the version already chosen.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.finished.body':
+    'The choices already made are kept as they are. Updating to the current version is still available whenever it is wanted.',
 
   // not translated — awaiting native-speaker review
   'catalog.design.summary.title': 'Summary',

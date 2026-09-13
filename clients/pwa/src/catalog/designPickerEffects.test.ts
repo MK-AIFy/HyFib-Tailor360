@@ -1,6 +1,26 @@
 import { expect, it } from 'vitest'
 import { evaluateDesignPickerEffects, operandHolds } from './designPickerEffects'
-import { aDesignPickerRule, anOperand } from './testing/fixtures'
+import {
+  aDesignPickerGroup,
+  aDesignPickerOption,
+  aDesignPickerRule,
+  anOperand,
+} from './testing/fixtures'
+
+const NECKLINE = aDesignPickerGroup({
+  code: 'neckline',
+  options: [aDesignPickerOption({ code: 'ROUND' }), aDesignPickerOption({ code: 'V_NECK' })],
+})
+const SLEEVE = aDesignPickerGroup({
+  designOptionGroupId: 'group-sleeve',
+  code: 'sleeve',
+  options: [
+    aDesignPickerOption({ code: 'SHORT' }),
+    aDesignPickerOption({ code: 'PUFF' }),
+    aDesignPickerOption({ code: 'SLEEVELESS' }),
+  ],
+})
+const GROUPS = [NECKLINE, SLEEVE]
 
 /**
  * The single-antecedent test this module runs ahead of any `…/check` round trip (#142). Every case
@@ -68,11 +88,28 @@ it('greys out only the option an excludes rule names, once its antecedent holds'
     consequent: anOperand({ groupCode: 'sleeve', form: 'Equals', optionCodes: ['PUFF'] }),
   })
 
-  const before = evaluateDesignPickerEffects([rule], new Map())
+  const before = evaluateDesignPickerEffects(GROUPS, [rule], new Map())
   expect(before.disabledOptions.size).toBe(0)
 
-  const after = evaluateDesignPickerEffects([rule], new Map([['neckline', ['ROUND']]]))
+  const after = evaluateDesignPickerEffects(GROUPS, [rule], new Map([['neckline', ['ROUND']]]))
   expect([...after.disabledOptions.keys()]).toEqual(['sleeve.PUFF'])
+})
+
+it('expands a NotEquals/Excludes consequent to the options it satisfies, not the named one', () => {
+  // Mirrors the seeded gown rule DR-25: a halter neckline excludes `sleeve_style != SLEEVELESS` —
+  // every sleeve but SLEEVELESS should grey out, and SLEEVELESS itself, the one thing the rule
+  // actually permits, must stay enabled.
+  const rule = aDesignPickerRule({
+    identifier: 'DR-25',
+    type: 'Excludes',
+    antecedent: anOperand({ groupCode: 'neckline', form: 'Equals', optionCodes: ['V_NECK'] }),
+    consequent: anOperand({ groupCode: 'sleeve', form: 'NotEquals', optionCodes: ['SLEEVELESS'] }),
+  })
+
+  const result = evaluateDesignPickerEffects(GROUPS, [rule], new Map([['neckline', ['V_NECK']]]))
+
+  expect([...result.disabledOptions.keys()].sort()).toEqual(['sleeve.PUFF', 'sleeve.SHORT'])
+  expect(result.disabledOptions.has('sleeve.SLEEVELESS')).toBe(false)
 })
 
 it('flags a required group only while its requires rule is not yet satisfied', () => {
@@ -82,10 +119,15 @@ it('flags a required group only while its requires rule is not yet satisfied', (
     consequent: anOperand({ groupCode: 'sleeve', form: 'Equals', optionCodes: ['SHORT'] }),
   })
 
-  const unsatisfied = evaluateDesignPickerEffects([rule], new Map([['neckline', ['ROUND']]]))
+  const unsatisfied = evaluateDesignPickerEffects(
+    GROUPS,
+    [rule],
+    new Map([['neckline', ['ROUND']]]),
+  )
   expect(unsatisfied.requiredGroups.has('sleeve')).toBe(true)
 
   const satisfied = evaluateDesignPickerEffects(
+    GROUPS,
     [rule],
     new Map([
       ['neckline', ['ROUND']],
@@ -110,7 +152,11 @@ it('collects a requires-attachment rule and a note rule only while their anteced
     note: 'Confirm the depth with the customer before cutting.',
   })
 
-  const result = evaluateDesignPickerEffects([attachment, note], new Map([['neckline', ['ROUND']]]))
+  const result = evaluateDesignPickerEffects(
+    GROUPS,
+    [attachment, note],
+    new Map([['neckline', ['ROUND']]]),
+  )
   expect(result.attachmentReasons.map((reason) => reason.ruleIdentifier)).toEqual(['DR-08'])
   expect(result.activeNotes).toHaveLength(0)
 })

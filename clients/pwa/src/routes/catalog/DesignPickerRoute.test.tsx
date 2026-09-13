@@ -292,7 +292,7 @@ it('shows a conflict when another device saved first, and reads the draft again 
   })
 })
 
-it('offers migrating or finishing on the pinned version when the catalogue changed', async () => {
+it('offers migrating or finishing on the pinned version when the catalogue changed, without ever reading the picker for a stale service type', async () => {
   const user = userEvent.setup()
   transport.route(`GET ${DRAFT_PATH}`, () =>
     versionedResponse(
@@ -303,6 +303,10 @@ it('offers migrating or finishing on the pinned version when the catalogue chang
       'W/"1"',
     ),
   )
+  // A republish gives every service type a fresh row id (`CatalogVersion.CloneAsDraft`), so the
+  // draft's pinned `serviceTypeId` never resolves against `/current` once any newer version has
+  // published — this route answers 404 to prove the migration gate never attempts that read at all.
+  transport.route(`GET ${PICKER_PATH}`, () => jsonResponse(null, 404))
   renderPicker()
 
   expect(
@@ -311,8 +315,45 @@ it('offers migrating or finishing on the pinned version when the catalogue chang
   expect(
     screen.getByText(/no longer offered\. A selection naming it cannot survive migration\./),
   ).toBeInTheDocument()
+  expect(transport.callsTo(`GET ${PICKER_PATH}`)).toHaveLength(0)
 
   await user.click(screen.getByRole('button', { name: 'Finish on this version' }))
 
   expect(screen.queryByText('The catalogue changed since this was started')).not.toBeInTheDocument()
+  expect(await screen.findByText('Finishing on the version already chosen.')).toBeInTheDocument()
+  expect(transport.callsTo(`GET ${PICKER_PATH}`)).toHaveLength(0)
+})
+
+it('migrates a draft and then reads the current picker fresh', async () => {
+  const user = userEvent.setup()
+  let reads = 0
+  transport.route(`GET ${DRAFT_PATH}`, () => {
+    reads += 1
+    return versionedResponse(
+      aDesignSelectionDraft({
+        designSelectionDraftId: DRAFT_ID,
+        migrationPrompt: reads === 1 ? aDesignMigrationPrompt() : null,
+      }),
+      'W/"1"',
+    )
+  })
+  transport.route(`POST ${DRAFT_PATH}/migrate?hasReferenceImage=false`, () =>
+    versionedResponse(
+      {
+        draft: aDesignSelectionDraft({ designSelectionDraftId: DRAFT_ID }),
+        appliedChanges: [],
+        evaluation: aDesignCheck(),
+      },
+      'W/"2"',
+    ),
+  )
+  renderPicker()
+
+  await user.click(await screen.findByRole('button', { name: 'Update to the current version' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(`POST ${DRAFT_PATH}/migrate?hasReferenceImage=false`)).toHaveLength(1)
+  })
+  expect(await screen.findByLabelText('Round')).toBeInTheDocument()
+  expect(transport.callsTo(`GET ${PICKER_PATH}`)).toHaveLength(1)
 })
