@@ -19,7 +19,8 @@ import { DispatchExceptionApprovalRoute } from './DispatchExceptionApprovalRoute
 let transport: FetchStub
 const formatters = getFormatters()
 
-const balanceUrl = (orderId: string) => `/api/v1/billing/orders/${orderId}/balance`
+const balanceUrl = (orderId: string) =>
+  `/api/v1/billing/orders/${orderId}/dispatch-exception-balance`
 const DISPATCH = '/api/v1/billing/dispatch-exceptions'
 const OTHER_ORDER_ID = '0199dd00-0000-7000-8000-0000000da1da'
 

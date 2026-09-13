@@ -5,7 +5,10 @@ import { useSearchParams } from 'react-router'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
-import { approveDispatchException, getOrderBalance } from '../../billing/billingApi'
+import {
+  approveDispatchException,
+  getOrderBalanceForDispatchException,
+} from '../../billing/billingApi'
 import type { DispatchException } from '../../billing/types'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import { Alert } from '../../components/primitives/Alert'
@@ -42,16 +45,11 @@ function parseJobIds(text: string): readonly string[] {
  * pastes the job references this exception is bound to; the server refuses any that do not belong
  * to a live job of the order (`billing.dispatch-exception-job-not-of-order`).
  *
- * ## A known gap in the balance read (Codex review, PR #217)
- *
- * `getOrderBalance` is read behind `payments.record`, and the permission matrix does not grant that
- * to the Owner — the only role this screen is for (`billing.approve_dispatch_exception`,
- * `docs/security/permission-matrix.md`). No other read this role holds answers an order's balance;
- * `IDispatchEligibilityQuery` is a `Billing.Contracts` query for Custody's dispatch scan (#37), not
- * an HTTP endpoint. Until a server-side change adds one — a new read, or widening this one's
- * permission — the Owner sees the generic forbidden state below rather than the pre-filled balance,
- * and must enter the maximum outstanding amount from what they already know about the order. This
- * is a server-side gap, not something this screen can close on its own.
+ * Reads the balance through `getOrderBalanceForDispatchException`, authorised by
+ * `billing.approve_dispatch_exception` itself rather than the general-purpose balance read's own
+ * `payments.record` — the Owner, the only role this screen is for, holds the former but not the
+ * latter, so the pre-filled balance was previously always a 403. Fixed server-side in #220 with a
+ * dedicated, narrowly-scoped read rather than widening what the Owner can read generally.
  */
 export function DispatchExceptionApprovalRoute() {
   const intl = useIntl()
@@ -61,7 +59,7 @@ export function DispatchExceptionApprovalRoute() {
 
   const [orderId, setOrderId] = useState(params.get('orderId') ?? '')
   const balance = useAdminResource(`dispatch-balance:${orderId}`, async (signal) =>
-    orderId === '' ? null : await getOrderBalance(orderId, signal),
+    orderId === '' ? null : await getOrderBalanceForDispatchException(orderId, signal),
   )
 
   /**

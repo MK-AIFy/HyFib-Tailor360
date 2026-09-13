@@ -63,6 +63,20 @@ export async function getOrderBalance(
 }
 
 /**
+ * Reads the balance an Owner is weighing a dispatch exception against, authorised by
+ * `billing.approve_dispatch_exception` itself rather than the general-purpose balance read's own
+ * `payments.record`, which the Owner does not hold (#220).
+ */
+export async function getOrderBalanceForDispatchException(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<OrderBalance> {
+  return await apiRequest<OrderBalance>(`${BILLING}/orders/${orderId}/dispatch-exception-balance`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/**
  * Records a payment in the caller's open cashier session and allocates it at once, oldest posted
  * invoice first; what is left is held as an advance. Issues the receipt in the same transaction.
  */
@@ -208,6 +222,21 @@ export async function getCashierSession(
   return await apiRequest<CashierSession>(`${BILLING}/cashier-sessions/${sessionId}`, {
     ...(signal === undefined ? {} : { signal }),
   })
+}
+
+/**
+ * Reads the session an approver is reconciling, authorised by the approval permission itself
+ * (`payments.approve_reconciliation`) rather than the general-purpose session read's own
+ * `payments.session`, which the Owner does not hold (#220).
+ */
+export async function getCashierSessionForReconciliation(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<CashierSession> {
+  return await apiRequest<CashierSession>(
+    `${BILLING}/cashier-sessions/${sessionId}/reconciliation`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
 }
 
 /** Opens a session at the caller's branch with the float put in the drawer. */

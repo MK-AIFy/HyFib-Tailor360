@@ -180,6 +180,82 @@ public sealed class ReconciliationEndpointTests(WebApplicationFixture fixture)
             .StatusCode.ShouldBe(HttpStatusCode.NotFound, "another branch's session");
     }
 
+    /// <summary>
+    /// #220: an Owner who holds only <c>payments.approve_reconciliation</c> — not <c>payments.session</c> —
+    /// can now read the very session they are authorised to approve, and can go on to approve it. The
+    /// permission grants nothing wider: every other cashier-session route, and the same route for a
+    /// session at another branch, still refuse them.
+    /// </summary>
+    [Fact]
+    public async Task AnOwnerHoldingOnlyTheApprovalPermissionReadsAndApprovesButGainsNothingElseOfPaymentsSession()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await SeedPaymentModesAsync();
+        using var owner = await AdministrationHarness.AdministratorAsync(fixture, "rec-nar-o", "203.0.113.253", IdentityPermissions.Branches);
+        var branch = await BillingHarness.OpenBranchAsync(owner);
+        var elsewhere = await BillingHarness.OpenBranchAsync(owner);
+        using var cashier = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-nar-c", "203.0.113.254", branch, BillingPermissions.Session);
+        // Holds exactly billing.approve_reconciliation and nothing else: the permission this issue is about.
+        using var approverOnly = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-nar-a", "203.0.113.255", branch, BillingPermissions.ApproveReconciliation);
+
+        var opened = await cashier.PostAsync("/api/v1/billing/cashier-sessions", new { openingFloat = 2000m }, Key());
+        var sessionId = CreatedId(opened);
+        var shortSheet = new[] { new { denomination = 500m, quantity = 3 }, new { denomination = 200m, quantity = 2 } };
+        var closed = await cashier.PostAsync(
+            $"/api/v1/billing/cashier-sessions/{sessionId}/close",
+            new { denominations = shortSheet, modeTotals = Array.Empty<object>(), reason = "Short at the count." },
+            Key());
+        closed.StatusCode.ShouldBe(HttpStatusCode.OK, await closed.Content.ReadAsStringAsync(Token));
+
+        // The gap this issue closes: reading the session they are about to approve now answers 200, not 403.
+        var read = await approverOnly.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation");
+        read.StatusCode.ShouldBe(HttpStatusCode.OK, await read.Content.ReadAsStringAsync(Token));
+        var readBody = JsonDocument.Parse(await read.Content.ReadAsStringAsync(Token)).RootElement;
+        readBody.GetProperty("id").GetGuid().ShouldBe(sessionId);
+        readBody.GetProperty("reconciliationBatch").GetProperty("variance").GetDecimal().ShouldBe(-100m);
+
+        // And they can go on to approve, exactly as before.
+        (await approverOnly.PostAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve", new { reason = "Counted with the cashier; the float was short." }, Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // Narrow scope: the same permission grants none of payments.session's other reach.
+        (await approverOnly.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}")).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "GetCashierSession still needs payments.session");
+        (await approverOnly.GetAsync("/api/v1/billing/cashier-sessions?status=open")).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "listing still needs payments.session");
+        (await approverOnly.PostAsync("/api/v1/billing/cashier-sessions", new { openingFloat = 0m }, Key())).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "opening still needs payments.session");
+
+        // Narrow scope on the other axis: the new route does not travel to a session at another branch.
+        using var stranger = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-nar-s", "203.0.113.256", elsewhere, BillingPermissions.ApproveReconciliation);
+        (await stranger.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation")).StatusCode.ShouldBe(HttpStatusCode.NotFound, "another branch's session");
+
+        // And holding neither permission at all still gets nowhere near it.
+        using var clerk = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-nar-k", "203.0.113.257", branch, BillingPermissions.RecordPayment);
+        (await clerk.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
+    /// Codex review, PR #222: an open session has no reconciliation to approve, so this read must not
+    /// hand an approver-only caller a live drawer's cashier identity and opening float just because the
+    /// session ID resolves. Closed is the only state <c>ApproveReconciliation</c> itself ever reaches.
+    /// </summary>
+    [Fact]
+    public async Task AnOpenSessionReadsAsNotFoundToTheApprovalPermission()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await SeedPaymentModesAsync();
+        using var owner = await AdministrationHarness.AdministratorAsync(fixture, "rec-open-o", "203.0.113.258", IdentityPermissions.Branches);
+        var branch = await BillingHarness.OpenBranchAsync(owner);
+        using var cashier = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-open-c", "203.0.113.259", branch, BillingPermissions.Session);
+        using var approverOnly = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-open-a", "203.0.113.260", branch, BillingPermissions.ApproveReconciliation);
+
+        var opened = await cashier.PostAsync("/api/v1/billing/cashier-sessions", new { openingFloat = 2000m }, Key());
+        var sessionId = CreatedId(opened);
+
+        (await approverOnly.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation"))
+            .StatusCode.ShouldBe(HttpStatusCode.NotFound, "a session with nothing to approve yet, still open");
+    }
+
     private async Task SeedPaymentModesAsync()
     {
         using var scope = fixture.Services.CreateScope();
