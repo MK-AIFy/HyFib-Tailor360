@@ -139,6 +139,9 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
     /// <summary>An invoice is cancelled once: the second cancellation of a race trips this rather than appending twice.</summary>
     public const string OneCancellationPerInvoiceIndex = "ux_invoice_cancellations_invoice";
 
+    /// <summary>Reads one customer's posted documents (#309) without scanning the branch's invoices.</summary>
+    public const string CustomerTimelineIndex = "ix_invoices_organisation_customer_posted_at";
+
     /// <summary>What Billing knows about orders.</summary>
     public DbSet<OrderFact> OrderFacts => Set<OrderFact>();
 
@@ -326,6 +329,12 @@ public sealed class BillingDbContext(DbContextOptions<BillingDbContext> options)
                 .HasDatabaseName("ix_invoices_organisation_branch_status_updated_at");
             entity.HasIndex(invoice => new { invoice.OrganisationId, invoice.OrderId })
                 .HasDatabaseName("ix_invoices_organisation_order");
+
+            // A customer's timeline (#309) reads her posted documents by organisation and customer; without
+            // this the read would scan every invoice of the branch rather than seek her own.
+            entity.HasIndex(invoice => new { invoice.OrganisationId, invoice.CustomerId, invoice.PostedAt })
+                .HasDatabaseName(CustomerTimelineIndex)
+                .HasFilter("posted_at IS NOT NULL");
             UseRowVersion(entity);
         });
 

@@ -15,6 +15,7 @@ using Tailor360.Modules.Billing.Infrastructure.Invoicing;
 using Tailor360.Modules.Billing.Infrastructure.Payments;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
+using Tailor360.Platform.Abstractions.Ports;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
@@ -139,6 +140,11 @@ public static class BillingModuleServiceCollectionExtensions
         // answered here. Enumerable, not TryAdd: every module that owns something a service type links
         // to adds its own validator, and a second registration must join the list rather than replace it.
         services.AddScoped<ICatalogDependencyValidator, PriceListCatalogValidator>();
+
+        // E09-F02-8: what this module contributes to a customer's timeline. AddScoped, not TryAddScoped —
+        // a second module registering its own source must join the list the host composes, not replace it,
+        // exactly as Customers' own registration already does.
+        services.AddScoped<ITimelineSource, BillingTimelineSource>();
 
         return services;
     }
