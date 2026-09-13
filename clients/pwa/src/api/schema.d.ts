@@ -834,7 +834,7 @@ export interface paths {
         };
         /**
          * Read the cashier session a reconciliation approval is about to decide on, with its count sheet.
-         * @description The same record `GetCashierSession` reads, reachable here under `payments.approve_reconciliation` alone (#220), because approving a variance needs to see the count sheet it was raised against and the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. A session at another branch reads as 404.
+         * @description The same record `GetCashierSession` reads, reachable here under `payments.approve_reconciliation` alone (#220), because approving a variance needs to see the count sheet it was raised against and the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. Restricted to closed sessions: an approver never needs to see one still open, and `payments.approve_reconciliation` grants no view into a live drawer. A session at another branch, or one still open, reads as 404.
          */
         get: operations["GetCashierSessionForReconciliation"];
         put?: never;
