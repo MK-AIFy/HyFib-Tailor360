@@ -221,6 +221,10 @@ it('folds a single-option `requires` auto-selection back in once the server sett
   await waitFor(() => {
     expect(summary.getByText('Short')).toBeInTheDocument()
   })
+  // "the summary lists what A brought with it" (docs/prd/design-options.md section 4) — the
+  // provenance survives even though the very next check stops reporting it as an auto-selection
+  // once it is satisfied.
+  expect(summary.getByText('Added automatically because Neckline is Round.')).toBeInTheDocument()
 })
 
 it('discards a stale check’s auto-selection once the selection it was computed against has moved on', async () => {
