@@ -1,12 +1,15 @@
-import { apiRequest } from '../auth/apiClient'
+import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
+import type { VersionedResponse } from '../auth/apiClient'
 import type {
   AllocateAdvanceRequest,
   ApproveReconciliationRequest,
   AvailablePaymentMode,
+  BarcodeResolution,
   CashierSession,
   CloseCashierSessionRequest,
   CreateDispatchExceptionRequest,
   DispatchException,
+  Invoice,
   InvoicePage,
   OpenCashierSessionRequest,
   OrderBalance,
@@ -199,6 +202,39 @@ export async function listOutstandingBalances(
     }
     cursor = page.nextCursor
   }
+}
+
+/* Reading one invoice, and finding one from its barcode. ---------------------------------------- */
+
+/**
+ * Reads an invoice with its lines, and the version an edit sends back as `If-Match`.
+ *
+ * `#42`'s later slices send `If-Match` back to cancel or correct a posted invoice; this slice reads
+ * only, so the version travels along for whichever screen edits it next rather than being read
+ * itself.
+ */
+export async function getInvoice(
+  invoiceId: string,
+  signal?: AbortSignal,
+): Promise<VersionedResponse<Invoice>> {
+  return await apiRequestVersioned<Invoice>(`${BILLING}/invoices/${invoiceId}`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/**
+ * Resolves a scanned or typed `I-` barcode payload to the invoice it was printed on, for the
+ * caller's own branch. Another branch's invoice, another organisation's, a payload whose check
+ * character does not hold and a payload of nothing all answer alike — `billing.document-not-found` —
+ * so this reveals nothing about what exists elsewhere.
+ */
+export async function resolveInvoiceBarcode(
+  payload: string,
+  signal?: AbortSignal,
+): Promise<BarcodeResolution> {
+  return await apiRequest<BarcodeResolution>(`${BILLING}/barcodes/${encodeURIComponent(payload)}`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
 }
 
 /* The cashier session. ------------------------------------------------------------------------- */
