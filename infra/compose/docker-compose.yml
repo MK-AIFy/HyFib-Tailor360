@@ -34,7 +34,7 @@ services:
   postgres:
     # Pinned to a patch release rather than the 16 tag: an unnoticed minor upgrade is exactly the
     # kind of difference that makes "works on my machine" reports impossible to reproduce.
-    image: postgres:16.13-alpine
+    image: postgres:18.6-alpine
     container_name: tailor360-postgres
     restart: unless-stopped
     command:
