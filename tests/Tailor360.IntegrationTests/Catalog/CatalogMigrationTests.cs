@@ -10,14 +10,18 @@ using Tailor360.Platform.Persistence.Conventions;
 namespace Tailor360.IntegrationTests.Catalog;
 
 /// <summary>
-/// The design catalogue migrations (#137, and the composite option key that followed it) applied, rolled back
-/// and re-applied against real PostgreSQL, in a scratch database of its own. <c>src/Modules/CLAUDE.md</c> section 6 asks that every <c>Down</c> has been
-/// executed at least once; this is where it is.
+/// The design catalogue migrations (#137, the composite option key that followed it, and the selection
+/// drafts of #140) applied, rolled back and re-applied against real PostgreSQL, in a scratch database of
+/// its own. <c>src/Modules/CLAUDE.md</c> section 6 asks that every <c>Down</c> has been executed at least
+/// once; this is where it is.
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class CatalogMigrationTests
 {
     private const string BeforeDesign = "20260910215657_CatalogReferenceBreaches";
+
+    /// <summary>How many migrations sit between <see cref="BeforeDesign"/> and the current model.</summary>
+    private const int DesignMigrationCount = 3;
 
     private static readonly string[] DesignTables =
     [
@@ -25,6 +29,8 @@ public sealed class CatalogMigrationTests
         "design_option_groups",
         "design_options",
         "design_rules",
+        "design_selection_draft_selections",
+        "design_selection_drafts",
     ];
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -48,25 +54,26 @@ public sealed class CatalogMigrationTests
             }
 
             var tables = await TablesAsync(connectionString);
-            DesignTables.ShouldAllBe(table => tables.Contains(table), "Up creates the four design tables");
+            DesignTables.ShouldAllBe(table => tables.Contains(table), "Up creates every design table");
             var functions = await FunctionCountAsync(connectionString);
             var applied = await AppliedMigrationCountAsync(connectionString);
 
-            // Down two steps: the composite option key, then the design tables and their two trigger functions
-            // go; the rest of the schema stays.
+            // Down three steps: the selection drafts of #140, the composite option key, then the design
+            // tables and their two trigger functions go; the rest of the schema stays.
             await using (var context = CreateContext(connectionString))
             {
                 await context.GetService<IMigrator>().MigrateAsync(BeforeDesign, Token);
             }
 
             var rolledBack = await TablesAsync(connectionString);
-            DesignTables.ShouldAllBe(table => !rolledBack.Contains(table), "Down drops the four design tables");
+            DesignTables.ShouldAllBe(table => !rolledBack.Contains(table), "Down drops every design table");
             rolledBack.ShouldContain("categories", "Down touches only what this migration created");
             (await FunctionCountAsync(connectionString)).ShouldBe(
                 functions - 2,
-                "the two functions this migration created are gone; a function left behind makes the "
-                + "re-applied CREATE FUNCTION fail on a name already taken");
-            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(applied - 2);
+                "the two functions the design-catalogue migration created are gone; a function left behind "
+                + "makes the re-applied CREATE FUNCTION fail on a name already taken. The selection-drafts "
+                + "migration of #140 creates none of its own");
+            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(applied - DesignMigrationCount);
 
             await using (var context = CreateContext(connectionString))
             {

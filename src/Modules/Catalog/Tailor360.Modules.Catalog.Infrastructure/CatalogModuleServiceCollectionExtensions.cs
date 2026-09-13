@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Catalog.Application.Abstractions;
 using Tailor360.Modules.Catalog.Application.Catalogue;
+using Tailor360.Modules.Catalog.Application.Options;
 using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Modules.Catalog.Infrastructure.Catalogue;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
@@ -13,6 +14,7 @@ using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Persistence.Outbox;
+using Tailor360.Platform.Security.Authorisation;
 
 namespace Tailor360.Modules.Catalog.Infrastructure;
 
@@ -21,14 +23,16 @@ namespace Tailor360.Modules.Catalog.Infrastructure;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The module registers <strong>no <c>IResourceScopeResolver</c></strong>, and that is a decision
-/// rather than an omission. A resolver reports the one branch a row belongs to so the platform can
-/// refuse a caller who cannot reach it, which is right for a garment job and wrong for a catalogue: a
-/// catalogue version is organisation-wide configuration, and a category is offered at a <em>set</em>
-/// of branches rather than owned by one. Its routes therefore declare
-/// <see cref="Tailor360.Platform.Abstractions.Multitenancy.BranchScope.Organisation"/>, which is the
-/// honest description of what they touch, and branch availability is enforced where it means
-/// something — in <c>ICatalogAvailabilityQuery</c>, which decides what a branch may order.
+/// The catalogue's own administration and picker routes declare
+/// <see cref="Tailor360.Platform.Abstractions.Multitenancy.BranchScope.Organisation"/> or
+/// <see cref="Tailor360.Platform.Abstractions.Multitenancy.BranchScope.CurrentBranch"/> with no
+/// <c>IResourceScopeResolver</c> behind them, and that is a decision rather than an omission: a
+/// catalogue version is organisation-wide configuration, and a category is offered at a <em>set</em> of
+/// branches rather than owned by one, so branch availability is enforced where it means something — in
+/// <c>ICatalogAvailabilityQuery</c>, which decides what a branch may order. A design selection draft
+/// (issue #140) is the one row in this module that genuinely belongs to a single branch for its life, the
+/// same way a measurement draft does in Customers, and it is the module's first and only registered
+/// resolver.
 /// </para>
 /// <para>
 /// The built-in validator is registered as one of the enumerable
@@ -78,6 +82,21 @@ public static class CatalogModuleServiceCollectionExtensions
         services.AddScoped<ICatalogDependencyValidator, BuiltInCatalogValidator>();
         services.AddScoped<ICatalogDependencyValidator, DesignRuleValidator>();
         services.TryAddScoped<IDesignSelectionValidator, DesignSelectionValidator>();
+
+        // The design picker's own drafts (issue #140): a fourth aggregate beside the version, its own
+        // store, and the module's first resource resolver.
+        services.AddOptions<DesignSelectionDraftOptions>()
+            .Bind(configuration.GetSection(DesignSelectionDraftOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(
+                designOptions => designOptions.IsLifetimeUsable,
+                "Catalog:DesignSelectionDraft:DraftLifetime must be between one hour and thirty days.")
+            .ValidateOnStart();
+
+        services.TryAddScoped<IDesignSelectionDraftStore, DesignSelectionDraftStore>();
+        services.TryAddScoped<DesignSelectionDraftHandler>();
+        services.TryAddScoped<IDesignSelectionQuery, DesignSelectionQuery>();
+        services.AddScoped<IResourceScopeResolver, DesignSelectionDraftScopeResolver>();
 
         // A singleton, because the point of it is to survive the request that filled it. The
         // implementation is registered as itself as well as through the port, because the query reads
