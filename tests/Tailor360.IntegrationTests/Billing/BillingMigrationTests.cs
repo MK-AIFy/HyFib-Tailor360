@@ -91,6 +91,11 @@ public sealed class BillingMigrationTests
             (await TablesAsync(connectionString)).ShouldBe(tables, "the migration re-applies cleanly");
             (await FunctionCountAsync(connectionString)).ShouldBe(functions);
 
+            // #309's own index, named rather than counted: a re-run of `Down` then `Up` is the proof its
+            // `Down` was executed at least once, and this is what confirms it came back rather than merely
+            // that the schema's row and function counts matched.
+            (await IndexNamesAsync(connectionString, "invoices")).ShouldContain(BillingDbContext.CustomerTimelineIndex);
+
             await using var probe = CreateContext(connectionString);
             (await probe.Database.GetPendingMigrationsAsync(Token)).ShouldBeEmpty();
         }
@@ -267,6 +272,24 @@ public sealed class BillingMigrationTests
         }
 
         return tables;
+    }
+
+    private static async Task<IReadOnlyList<string>> IndexNamesAsync(string connectionString, string table)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(Token);
+        await using var command = new NpgsqlCommand(
+            "SELECT indexname FROM pg_indexes WHERE schemaname = 'billing' AND tablename = @table",
+            connection);
+        command.Parameters.AddWithValue("table", table);
+        var names = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(Token);
+        while (await reader.ReadAsync(Token))
+        {
+            names.Add(reader.GetString(0));
+        }
+
+        return names;
     }
 
     private static async Task<int> FunctionCountAsync(string connectionString)
