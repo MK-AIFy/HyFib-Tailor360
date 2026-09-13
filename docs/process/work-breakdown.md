@@ -17,7 +17,7 @@ and where this document and an issue body disagree, the issue wins and this docu
 | Authority for scope | The GitHub issue. This document indexes; the issue body carries scope, out of scope, acceptance criteria and the evidence list |
 | Read with | [`definition-of-ready.md`](definition-of-ready.md), [`definition-of-done.md`](definition-of-done.md), [`release-gates.md`](release-gates.md), plan Sections 6.2, 6.4, 7 and 8–9 |
 | Covers | **256 units across 24 parents**, about 193,990 estimated production lines, plus the 35 open issues already session-sized, and the schedule over all of them |
-| Does not cover | The per-unit detail. Every unit has a full body — scope, out of scope, acceptance criteria with a negative and an exception case, data classification, permission keys, migration shape, test tiers and evidence list — filed on its own issue |
+| Does not cover | The per-unit detail. Every unit has a full body — scope, out of scope, acceptance criteria with a negative and an exception case, data classification, permission keys, migration shape, test tiers and evidence list — filed on its own issue, and preserved as source text under [`work-items/`](work-items/README.md) until every unit carries its number |
 
 **What this is for.** Several Sonnet sessions will work this backlog concurrently, each in its own container, each able
 to see only its own issue. A session cannot discover that the issue beside it is about to rewrite the same file, that
