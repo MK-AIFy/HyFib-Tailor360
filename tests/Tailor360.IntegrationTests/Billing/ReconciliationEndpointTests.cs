@@ -233,6 +233,29 @@ public sealed class ReconciliationEndpointTests(WebApplicationFixture fixture)
         (await clerk.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
+    /// <summary>
+    /// Codex review, PR #222: an open session has no reconciliation to approve, so this read must not
+    /// hand an approver-only caller a live drawer's cashier identity and opening float just because the
+    /// session ID resolves. Closed is the only state <c>ApproveReconciliation</c> itself ever reaches.
+    /// </summary>
+    [Fact]
+    public async Task AnOpenSessionReadsAsNotFoundToTheApprovalPermission()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await SeedPaymentModesAsync();
+        using var owner = await AdministrationHarness.AdministratorAsync(fixture, "rec-open-o", "203.0.113.258", IdentityPermissions.Branches);
+        var branch = await BillingHarness.OpenBranchAsync(owner);
+        using var cashier = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-open-c", "203.0.113.259", branch, BillingPermissions.Session);
+        using var approverOnly = await AdministrationHarness.AdministratorAtBranchAsync(fixture, "rec-open-a", "203.0.113.260", branch, BillingPermissions.ApproveReconciliation);
+
+        var opened = await cashier.PostAsync("/api/v1/billing/cashier-sessions", new { openingFloat = 2000m }, Key());
+        var sessionId = CreatedId(opened);
+
+        (await approverOnly.GetAsync($"/api/v1/billing/cashier-sessions/{sessionId}/reconciliation"))
+            .StatusCode.ShouldBe(HttpStatusCode.NotFound, "a session with nothing to approve yet, still open");
+    }
+
     private async Task SeedPaymentModesAsync()
     {
         using var scope = fixture.Services.CreateScope();

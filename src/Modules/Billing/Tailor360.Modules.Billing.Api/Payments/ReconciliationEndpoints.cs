@@ -47,7 +47,7 @@ internal static class ReconciliationEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var session = await store.FindAsync(sessionId, caller.Context.OrganisationId, cancellationToken);
-                if (session is null)
+                if (session is null || session.IsOpen)
                 {
                     return Problems.From(BillingErrors.CashierSessionNotFound, context);
                 }
@@ -64,7 +64,9 @@ internal static class ReconciliationEndpoints
                 + "alone (#220), because approving a variance needs to see the count sheet it was raised against and "
                 + "the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half "
                 + "of an operation whose permission demands it and the catalogue's flag is per permission, not per "
-                + "route. A session at another branch reads as 404.")
+                + "route. Restricted to closed sessions: an approver never needs to see one still open, and "
+                + "`payments.approve_reconciliation` grants no view into a live drawer. A session at another "
+                + "branch, or one still open, reads as 404.")
             .RequirePermission(BillingPermissions.ApproveReconciliation, BranchScope.CurrentBranch)
             .ScopedToResource(BillingResourceKinds.CashierSession, "sessionId")
             .RequireStepUp()
