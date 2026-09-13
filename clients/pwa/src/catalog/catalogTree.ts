@@ -270,6 +270,93 @@ export function findingsForServiceType(
   })
 }
 
+/**
+ * The findings about design groups and rules, read the same way as a category's or a service type's.
+ *
+ * `DesignRuleValidator`'s own targets are `designGroups[<categoryCode>.<groupCode>].<field>` and
+ * `designRules[<identifier>].<field>` — a different shape from {@link TARGET} because a group's own
+ * code is unique within its category rather than the version, and a rule already carries a version-
+ * unique `DR-nn` identifier that needs no category qualifier at all (#141).
+ */
+export interface DesignGroupFindingSubject {
+  readonly kind: 'designGroup'
+  readonly categoryCode: string
+  readonly groupCode: string
+  readonly field: string | null
+}
+
+/** A rule's own subject: its `DR-nn` identifier needs no further qualifier. */
+export interface DesignRuleFindingSubject {
+  readonly kind: 'designRule'
+  readonly identifier: string
+  readonly field: string | null
+}
+
+const DESIGN_GROUP_TARGET = /^designGroups\[([^.\]]+)\.([^\]]+)\](?:\.(.+))?$/
+const DESIGN_RULE_TARGET = /^designRules\[([^\]]+)\](?:\.(.+))?$/
+
+/** Reads a finding's target back to the design group it is about, or null if it is not one. */
+export function designGroupFindingSubject(
+  finding: CatalogFinding,
+): DesignGroupFindingSubject | null {
+  if (finding.target === null) {
+    return null
+  }
+
+  const match = DESIGN_GROUP_TARGET.exec(finding.target)
+
+  if (match === null) {
+    return null
+  }
+
+  return {
+    kind: 'designGroup',
+    categoryCode: match[1] ?? '',
+    groupCode: match[2] ?? '',
+    field: match[3] ?? null,
+  }
+}
+
+/** Reads a finding's target back to the design rule it is about, or null if it is not one. */
+export function designRuleFindingSubject(finding: CatalogFinding): DesignRuleFindingSubject | null {
+  if (finding.target === null) {
+    return null
+  }
+
+  const match = DESIGN_RULE_TARGET.exec(finding.target)
+
+  if (match === null) {
+    return null
+  }
+
+  return { kind: 'designRule', identifier: match[1] ?? '', field: match[2] ?? null }
+}
+
+/** The findings about one design group, by its category's code and its own. */
+export function findingsForDesignGroup(
+  findings: readonly CatalogFinding[],
+  categoryCode: string,
+  groupCode: string,
+): readonly CatalogFinding[] {
+  return findings.filter((finding) => {
+    const subject = designGroupFindingSubject(finding)
+    return (
+      subject !== null && subject.categoryCode === categoryCode && subject.groupCode === groupCode
+    )
+  })
+}
+
+/** The findings about one design rule, by its identifier. */
+export function findingsForDesignRule(
+  findings: readonly CatalogFinding[],
+  identifier: string,
+): readonly CatalogFinding[] {
+  return findings.filter((finding) => {
+    const subject = designRuleFindingSubject(finding)
+    return subject !== null && subject.identifier === identifier
+  })
+}
+
 /** The findings no control on screen can carry, which the summary has to state itself. */
 export function unanchoredCatalogFindings(
   findings: readonly CatalogFinding[],

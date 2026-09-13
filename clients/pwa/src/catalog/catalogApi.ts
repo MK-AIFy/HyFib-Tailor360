@@ -1,11 +1,19 @@
 import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 import type {
+  CatalogDesignGroup,
+  CatalogDesignOption,
+  CatalogDesignRule,
   CatalogPublication,
   CatalogValidationReport,
   CatalogVersion,
   CatalogVersionSummary,
   CategoryRequest,
+  DesignGroupPresentationRequest,
+  DesignGroupRequest,
+  DesignOptionPresentationRequest,
+  DesignOptionRequest,
+  DesignRuleRequest,
   OrderableCatalog,
   PresentationRequest,
   ServiceTypeRequest,
@@ -269,6 +277,239 @@ export async function publishCatalogVersion(input: {
     {
       method: 'POST',
       body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Adds a design option group to a category of a draft (#141).
+ *
+ * The write answers with the group alone, not the whole version — unlike a category or service type
+ * — so the screen always reloads the version afterward to see the group in place among the rest of
+ * the tree. Only the `ETag` this carries is used directly, as every other command's is.
+ */
+export async function addCatalogDesignGroup(input: {
+  readonly versionId: string
+  readonly categoryId: string
+  readonly group: DesignGroupRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogDesignGroup>> {
+  return await apiRequestVersioned<CatalogDesignGroup>(
+    `${CATALOG}/versions/${input.versionId}/categories/${input.categoryId}/design-groups`,
+    {
+      method: 'POST',
+      body: input.group,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Replaces a design option group of a draft. */
+export async function editCatalogDesignGroup(input: {
+  readonly versionId: string
+  readonly designOptionGroupId: string
+  readonly group: DesignGroupRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogDesignGroup>> {
+  return await apiRequestVersioned<CatalogDesignGroup>(
+    `${CATALOG}/versions/${input.versionId}/design-groups/${input.designOptionGroupId}`,
+    {
+      method: 'PUT',
+      body: input.group,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Removes a design option group, its options and the rules that read it from a draft. */
+export async function removeCatalogDesignGroup(input: {
+  readonly versionId: string
+  readonly designOptionGroupId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<void>> {
+  return await apiRequestVersioned<void>(
+    `${CATALOG}/versions/${input.versionId}/design-groups/${input.designOptionGroupId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Adds an option to a design option group in a draft. */
+export async function addCatalogDesignOption(input: {
+  readonly versionId: string
+  readonly designOptionGroupId: string
+  readonly option: DesignOptionRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogDesignOption>> {
+  return await apiRequestVersioned<CatalogDesignOption>(
+    `${CATALOG}/versions/${input.versionId}/design-groups/${input.designOptionGroupId}/options`,
+    {
+      method: 'POST',
+      body: input.option,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Replaces a design option of a draft. */
+export async function editCatalogDesignOption(input: {
+  readonly versionId: string
+  readonly designOptionId: string
+  readonly option: DesignOptionRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogDesignOption>> {
+  return await apiRequestVersioned<CatalogDesignOption>(
+    `${CATALOG}/versions/${input.versionId}/design-options/${input.designOptionId}`,
+    {
+      method: 'PUT',
+      body: input.option,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Removes a design option from a draft. */
+export async function removeCatalogDesignOption(input: {
+  readonly versionId: string
+  readonly designOptionId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<void>> {
+  return await apiRequestVersioned<void>(
+    `${CATALOG}/versions/${input.versionId}/design-options/${input.designOptionId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Adds a requires, excludes, requires-attachment or note rule to a category in a draft.
+ *
+ * The rule's `DR-nn` number is allocated by the catalogue; whether the options it names exist, and
+ * whether it agrees with the other rules, is a publication check rather than something this call
+ * answers — the editor shows its own composed sentence before saving, but the server's findings are
+ * what a save can actually be refused on.
+ */
+export async function addCatalogDesignRule(input: {
+  readonly versionId: string
+  readonly categoryId: string
+  readonly rule: DesignRuleRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogDesignRule>> {
+  return await apiRequestVersioned<CatalogDesignRule>(
+    `${CATALOG}/versions/${input.versionId}/categories/${input.categoryId}/design-rules`,
+    {
+      method: 'POST',
+      body: input.rule,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Replaces a design rule of a draft. Its number and category never change. */
+export async function editCatalogDesignRule(input: {
+  readonly versionId: string
+  readonly designRuleId: string
+  readonly rule: DesignRuleRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogDesignRule>> {
+  return await apiRequestVersioned<CatalogDesignRule>(
+    `${CATALOG}/versions/${input.versionId}/design-rules/${input.designRuleId}`,
+    {
+      method: 'PUT',
+      body: input.rule,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Removes a design rule from a draft. Its number is retired with it. */
+export async function removeCatalogDesignRule(input: {
+  readonly versionId: string
+  readonly designRuleId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<void>> {
+  return await apiRequestVersioned<void>(
+    `${CATALOG}/versions/${input.versionId}/design-rules/${input.designRuleId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Corrects the label or position of a design group in a **published** version.
+ *
+ * The same narrow edit the category and service-type presentation corrections make: what a person
+ * reads, never what ordering it means. Unlike those, this answers with the whole version — there is
+ * no group-only read a screen would otherwise need a second round trip for.
+ */
+export async function correctCatalogDesignGroupPresentation(input: {
+  readonly versionId: string
+  readonly designOptionGroupId: string
+  readonly presentation: DesignGroupPresentationRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogVersion>> {
+  return await apiRequestVersioned<CatalogVersion>(
+    `${CATALOG}/versions/${input.versionId}/design-groups/${input.designOptionGroupId}/presentation`,
+    {
+      method: 'POST',
+      body: input.presentation,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * The same correction, for a design option.
+ *
+ * The illustration itself is never correctable here — the drawing a customer was shown is part of
+ * what they agreed to — only its label, help text and alternative text.
+ */
+export async function correctCatalogDesignOptionPresentation(input: {
+  readonly versionId: string
+  readonly designOptionId: string
+  readonly presentation: DesignOptionPresentationRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CatalogVersion>> {
+  return await apiRequestVersioned<CatalogVersion>(
+    `${CATALOG}/versions/${input.versionId}/design-options/${input.designOptionId}/presentation`,
+    {
+      method: 'POST',
+      body: input.presentation,
       ifMatch: input.version,
       idempotencyKey: input.idempotencyKey,
     },

@@ -23,6 +23,7 @@ import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
 import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
+import { CatalogDesignRoute } from '../routes/catalog/CatalogDesignRoute'
 import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEditorRoute'
 import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
@@ -375,6 +376,17 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
                     <CatalogVersionEditorRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // Groups, options and rules for one category, on an address of its own (#141) — the
+                // same reasoning the version editor itself gets one: a working set of rules survives
+                // a reload. Guarded the same way, on the drafting key rather than the publishing one.
+                path: 'catalog/:versionId/categories/:categoryId/design',
+                element: (
+                  <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
+                    <CatalogDesignRoute />
                   </RequirePermission>
                 ),
               },
