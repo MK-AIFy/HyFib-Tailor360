@@ -82,3 +82,29 @@ it('says there are no standing instructions rather than printing an empty sectio
 
   expect(screen.queryByText('Standing instructions')).not.toBeInTheDocument()
 })
+
+it('renders every option a multiple-choice group carries, even though they share a group code', () => {
+  // Two selections from the same group are two rows, and each needs its own React key —
+  // `groupCode` alone collides between them.
+  renderCard({
+    snapshot: aGarmentDesignSnapshot({
+      selections: [
+        aGarmentDesignSelectionSnapshot({
+          groupCode: 'trims',
+          groupLabel: 'Trims',
+          optionCode: 'LACE',
+          optionLabel: 'Lace edging',
+        }),
+        aGarmentDesignSelectionSnapshot({
+          groupCode: 'trims',
+          groupLabel: 'Trims',
+          optionCode: 'ZARI',
+          optionLabel: 'Zari border',
+        }),
+      ],
+    }),
+  })
+
+  expect(screen.getByText('Lace edging')).toBeInTheDocument()
+  expect(screen.getByText('Zari border')).toBeInTheDocument()
+})

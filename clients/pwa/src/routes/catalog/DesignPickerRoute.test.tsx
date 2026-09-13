@@ -223,6 +223,58 @@ it('folds a single-option `requires` auto-selection back in once the server sett
   })
 })
 
+it('discards a stale check’s auto-selection once the selection it was computed against has moved on', async () => {
+  const user = userEvent.setup()
+  const rule = aDesignPickerRule({
+    identifier: 'DR-02',
+    type: 'Requires',
+    antecedent: anOperand({ groupCode: 'neckline', form: 'Equals', optionCodes: ['ROUND'] }),
+    consequent: anOperand({ groupCode: 'sleeve', form: 'Equals', optionCodes: ['SHORT'] }),
+  })
+  transport.route(`PUT ${DRAFT_PATH}`, () =>
+    versionedResponse(aDesignSelectionDraft({ designSelectionDraftId: DRAFT_ID }), 'W/"2"'),
+  )
+  const deferredCheck: { resolve: (response: Response) => void } = {
+    resolve: () => {
+      throw new Error('the check response was resolved before the request was made')
+    },
+  }
+  transport.route(
+    `GET ${CHECK_PATH}`,
+    () =>
+      new Promise<Response>((resolve) => {
+        deferredCheck.resolve = resolve
+      }),
+  )
+
+  renderPicker([NECKLINE, SLEEVE], [rule])
+
+  await user.click(await screen.findByLabelText('Round'))
+  await waitFor(() => {
+    expect(transport.callsTo(`GET ${CHECK_PATH}`)).toHaveLength(1)
+  })
+
+  // Moves away from Round while that check is still in flight — DR-02's antecedent no longer
+  // holds, so whatever the stalled check answers about it is about a state that no longer exists.
+  await user.click(screen.getByLabelText('V neck'))
+
+  deferredCheck.resolve(
+    jsonResponse(
+      aDesignCheck({
+        confirmable: false,
+        autoSelections: [{ ruleIdentifier: 'DR-02', groupCode: 'sleeve', optionCode: 'SHORT' }],
+      }),
+    ),
+  )
+
+  // Give the resolved promise a turn to be handled, then assert the stale auto-selection was
+  // never folded in: `sleeve` stays unset, not `SHORT`.
+  await waitFor(() => {
+    expect(screen.getByLabelText('V neck')).toBeChecked()
+  })
+  expect(screen.getByLabelText('Short')).not.toBeChecked()
+})
+
 it('shows a blocking violation in the summary, naming both options, and never reaches a clean summary', async () => {
   transport.route(`PUT ${DRAFT_PATH}`, () =>
     versionedResponse(aDesignSelectionDraft({ designSelectionDraftId: DRAFT_ID }), 'W/"2"'),

@@ -50,7 +50,10 @@ export function GarmentDesignCard({
 
         <dl className="job-card__selections">
           {selections.map((selection) => (
-            <div className="job-card__selection" key={selection.groupCode}>
+            <div
+              className="job-card__selection"
+              key={`${selection.groupCode}.${selection.optionCode}`}
+            >
               <dt>{selection.groupLabel}</dt>
               <dd>
                 <IllustrationPreview

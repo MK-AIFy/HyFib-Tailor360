@@ -440,9 +440,18 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
     setSaving(true)
     setSaveFailure(null)
 
+    // Captured once, up front: what this request actually saves and checks. If a later edit
+    // arrives before the check answers, `selectionsRef.current` moves on but this does not — and
+    // the auto-selections below are folded back only while the two still agree. `check` reads no
+    // body of its own; it reports on whatever the save just before it persisted, so an
+    // auto-selection computed against `submittedSelections` means nothing once that snapshot is no
+    // longer current, and appending it to the newer one could resurrect a choice already changed
+    // away from. The queued replay this same change triggers asks again, against what is current.
+    const submittedSelections = selectionsRef.current
+
     try {
       const body: SaveDesignSelectionsRequest = {
-        selections: payloadFromMap(selectionsRef.current),
+        selections: payloadFromMap(submittedSelections),
         instructions: instructionsRef.current.trim() === '' ? null : instructionsRef.current,
       }
       const fingerprint = `${tagRef.current}:${JSON.stringify(body)}`
@@ -465,10 +474,12 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       const result = await checkCatalogDesignDraft(draftId, hasReferenceImageRef.current)
       setCheck(result)
 
-      const merged = mergeAutoSelections(selectionsRef.current, result.autoSelections)
-      if (merged !== selectionsRef.current) {
-        selectionsRef.current = merged
-        setSelections(merged)
+      if (selectionsRef.current === submittedSelections) {
+        const merged = mergeAutoSelections(submittedSelections, result.autoSelections)
+        if (merged !== submittedSelections) {
+          selectionsRef.current = merged
+          setSelections(merged)
+        }
       }
     } catch (cause: unknown) {
       if (cause instanceof ApiError && cause.code === 'catalog.design-draft-changed') {
