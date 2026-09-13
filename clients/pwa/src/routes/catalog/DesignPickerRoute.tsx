@@ -121,11 +121,20 @@ export function DesignPickerRoute() {
   // already succeeded by the time it calls back here — asking `draft.reload()` to fetch it a
   // second time would, if that second read failed, leave `draft.value` on its old pre-migration
   // value (by design: a reload keeps the previous value on screen) with no way to surface the
-  // prompt this screen already has. Holding it directly sidesteps that second, avoidable read.
-  const [forcedMigrationPrompt, setForcedMigrationPrompt] = useState<DesignMigrationPrompt | null>(
-    null,
-  )
-  const migrationPrompt = draft.value?.value.migrationPrompt ?? forcedMigrationPrompt
+  // prompt this screen already has. Holding it directly sidesteps that second, avoidable read. It
+  // carries the read's own version alongside the prompt — that autosave already advanced the
+  // draft's ETag, and the migration gate must send that precondition, not the stale one `draft.value`
+  // still holds — and it is scoped to the draftId it was captured for, since this route component
+  // is not remounted on a client-side navigation to a different draft.
+  const [forcedMigration, setForcedMigration] = useState<{
+    readonly draftId: string
+    readonly prompt: DesignMigrationPrompt
+    readonly version: string
+  } | null>(null)
+  const forcedMigrationForDraft =
+    forcedMigration !== null && forcedMigration.draftId === draftId ? forcedMigration : null
+  const migrationPrompt =
+    draft.value?.value.migrationPrompt ?? forcedMigrationForDraft?.prompt ?? null
   const pendingMigration = draft.value !== null && migrationPrompt !== null
   const pickerServiceTypeId = draft.value?.value.serviceTypeId ?? null
   const picker = useAdminResource(
@@ -172,10 +181,10 @@ export function DesignPickerRoute() {
           draftId={draftId}
           migrationPrompt={migrationPrompt}
           onMigrated={() => {
-            setForcedMigrationPrompt(null)
+            setForcedMigration(null)
             setReloads((count) => count + 1)
           }}
-          version={draft.value.version ?? ''}
+          version={forcedMigrationForDraft?.version ?? draft.value.version ?? ''}
         />
       ) : (
         <>
@@ -198,7 +207,9 @@ export function DesignPickerRoute() {
               key={draft.value.version ?? 'untagged'}
               initial={draft.value}
               picker={picker.value}
-              onMigrationDetected={setForcedMigrationPrompt}
+              onMigrationDetected={(migration) => {
+                setForcedMigration({ draftId, ...migration })
+              }}
               onReload={() => {
                 setReloads((count) => count + 1)
               }}
@@ -407,7 +418,10 @@ interface DesignPickerBodyProps {
   readonly picker: DesignPicker
   readonly onReload: () => void
   /** A republish was noticed mid-session, from a read this screen already made. */
-  readonly onMigrationDetected: (prompt: DesignMigrationPrompt) => void
+  readonly onMigrationDetected: (migration: {
+    readonly prompt: DesignMigrationPrompt
+    readonly version: string
+  }) => void
 }
 
 function DesignPickerBody({
@@ -569,10 +583,15 @@ function DesignPickerBody({
       // itself is the only way to notice a republish that happened while this screen was already
       // open. This read has already succeeded by the time `fresh` exists, so the prompt it carries
       // goes straight to the route rather than through another (avoidable, and possibly failing)
-      // read of its own.
+      // read of its own — along with this read's own version, which the migration gate must send
+      // as its precondition: the autosave above already advanced the draft's ETag past whatever
+      // `draft.value.version` still holds.
       const fresh = await readCatalogDesignDraft(draftId)
       if (fresh.value.migrationPrompt !== null) {
-        onMigrationDetected(fresh.value.migrationPrompt)
+        onMigrationDetected({
+          prompt: fresh.value.migrationPrompt,
+          version: fresh.version ?? tagRef.current,
+        })
       }
     } catch (cause: unknown) {
       if (cause instanceof ApiError && cause.code === 'catalog.design-draft-changed') {
