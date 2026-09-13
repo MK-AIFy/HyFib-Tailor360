@@ -131,21 +131,35 @@ export function DesignPickerRoute() {
     readonly prompt: DesignMigrationPrompt
     readonly version: string
   } | null>(null)
-  // Leaving the draft the override was captured for discards it outright, rather than merely
-  // hiding it while elsewhere: returning to that same draft later re-reads it fresh (the read
+  // A migrated draft, from the migrate response itself rather than a further `GET`: that read
+  // would still answer with the pre-migration draft until it resolved, and a slow or failed one
+  // would either flash the stale picker (a remounted body autosaving against the old ETag) back
+  // into view or leave the gate stuck up. `reloads` is still bumped alongside it so `draft` itself
+  // catches up in the background, but nothing here waits on that to happen.
+  const [resolvedDraft, setResolvedDraft] = useState<{
+    readonly draftId: string
+    readonly response: VersionedResponse<DesignSelectionDraft>
+  } | null>(null)
+  // Leaving the draft either override was captured for discards both outright, rather than merely
+  // hiding them while elsewhere: returning to that same draft later re-reads it fresh (the read
   // above is keyed by `draftId`), and a still-held override would otherwise outrank that fresh
   // answer — including a `null` one, if another client had since resolved or migrated it.
-  const [forcedMigrationDraftId, setForcedMigrationDraftId] = useState(draftId)
-  if (draftId !== forcedMigrationDraftId) {
-    setForcedMigrationDraftId(draftId)
+  const [overridesDraftId, setOverridesDraftId] = useState(draftId)
+  if (draftId !== overridesDraftId) {
+    setOverridesDraftId(draftId)
     setForcedMigration(null)
+    setResolvedDraft(null)
   }
+  const effectiveDraft =
+    resolvedDraft !== null && resolvedDraft.draftId === draftId
+      ? resolvedDraft.response
+      : draft.value
   const forcedMigrationForDraft =
     forcedMigration !== null && forcedMigration.draftId === draftId ? forcedMigration : null
   const migrationPrompt =
-    draft.value?.value.migrationPrompt ?? forcedMigrationForDraft?.prompt ?? null
-  const pendingMigration = draft.value !== null && migrationPrompt !== null
-  const pickerServiceTypeId = draft.value?.value.serviceTypeId ?? null
+    effectiveDraft?.value.migrationPrompt ?? forcedMigrationForDraft?.prompt ?? null
+  const pendingMigration = effectiveDraft !== null && migrationPrompt !== null
+  const pickerServiceTypeId = effectiveDraft?.value.serviceTypeId ?? null
   const picker = useAdminResource(
     `design-picker:${pendingMigration || pickerServiceTypeId === null ? '' : pickerServiceTypeId}`,
     (signal) =>
@@ -175,9 +189,9 @@ export function DesignPickerRoute() {
         <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
       ) : draft.loading ? (
         <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
-      ) : draft.value === null ? (
+      ) : effectiveDraft === null ? (
         <AuthProblemAlert failure={draft.failure} />
-      ) : draft.value.value.consumedAt !== null ? (
+      ) : effectiveDraft.value.consumedAt !== null ? (
         <EmptyState
           iconName="check"
           live="polite"
@@ -189,11 +203,12 @@ export function DesignPickerRoute() {
         <DesignMigrationGate
           draftId={draftId}
           migrationPrompt={migrationPrompt}
-          onMigrated={() => {
+          onMigrated={(migrated) => {
+            setResolvedDraft({ draftId, response: migrated })
             setForcedMigration(null)
             setReloads((count) => count + 1)
           }}
-          version={forcedMigrationForDraft?.version ?? draft.value.version ?? ''}
+          version={forcedMigrationForDraft?.version ?? effectiveDraft.version ?? ''}
         />
       ) : (
         <>
@@ -211,10 +226,11 @@ export function DesignPickerRoute() {
           ) : (
             <DesignPickerBody
               draftId={draftId}
-              // Keyed by the tag the read carried: a reload after a conflict remounts this with the
-              // fresh draft, the same reasoning `MeasurementDraftRoute` uses for its wizard.
-              key={draft.value.version ?? 'untagged'}
-              initial={draft.value}
+              // Keyed by the tag the read carried: a reload after a conflict (or a migration)
+              // remounts this with the fresh draft, the same reasoning `MeasurementDraftRoute`
+              // uses for its wizard.
+              key={effectiveDraft.version ?? 'untagged'}
+              initial={effectiveDraft}
               picker={picker.value}
               onMigrationDetected={(migration) => {
                 setForcedMigration({ draftId, ...migration })
@@ -234,8 +250,13 @@ interface DesignMigrationGateProps {
   readonly draftId: string
   readonly migrationPrompt: NonNullable<DesignSelectionDraft['migrationPrompt']>
   readonly version: string
-  /** The draft was migrated — re-read it, which re-keys the picker read to the fresh service type. */
-  readonly onMigrated: () => void
+  /**
+   * The draft was migrated. Carries the migrate response's own draft and version rather than
+   * asking the route to wait on a fresh `GET`: that read would still show the pre-migration draft
+   * until it resolved, and if it were slow or failed, the route would either flash the stale
+   * picker (a remounted body autosaving against the old ETag) or get stuck showing the gate.
+   */
+  readonly onMigrated: (migrated: VersionedResponse<DesignSelectionDraft>) => void
 }
 
 /**
@@ -283,13 +304,13 @@ function DesignMigrationGate({
           : crypto.randomUUID()
       migrateKeyRef.current = { fingerprint, key }
 
-      await migrateCatalogDesignDraft({
+      const outcome = await migrateCatalogDesignDraft({
         draftId,
         hasReferenceImage: false,
         version,
         idempotencyKey: key,
       })
-      onMigrated()
+      onMigrated({ value: outcome.value.draft, version: outcome.version })
     } catch (cause: unknown) {
       setMigrateFailure(cause)
     } finally {
