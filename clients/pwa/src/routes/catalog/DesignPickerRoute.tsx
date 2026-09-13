@@ -135,9 +135,13 @@ export function DesignPickerRoute() {
   // would still answer with the pre-migration draft until it resolved, and a slow or failed one
   // would either flash the stale picker (a remounted body autosaving against the old ETag) back
   // into view or leave the gate stuck up. `reloads` is still bumped alongside it so `draft` itself
-  // catches up in the background, but nothing here waits on that to happen.
+  // catches up in the background — and this override steps aside the moment `reloads` moves on
+  // again, so a later conflict's own "read it again" isn't stuck behind a migration from earlier
+  // in the same session: `reloadGeneration` is the value `reloads` will hold once that bump lands,
+  // and it is the only generation this override answers for.
   const [resolvedDraft, setResolvedDraft] = useState<{
     readonly draftId: string
+    readonly reloadGeneration: number
     readonly response: VersionedResponse<DesignSelectionDraft>
   } | null>(null)
   // Leaving the draft either override was captured for discards both outright, rather than merely
@@ -151,7 +155,9 @@ export function DesignPickerRoute() {
     setResolvedDraft(null)
   }
   const effectiveDraft =
-    resolvedDraft !== null && resolvedDraft.draftId === draftId
+    resolvedDraft !== null &&
+    resolvedDraft.draftId === draftId &&
+    resolvedDraft.reloadGeneration === reloads
       ? resolvedDraft.response
       : draft.value
   const forcedMigrationForDraft =
@@ -204,7 +210,7 @@ export function DesignPickerRoute() {
           draftId={draftId}
           migrationPrompt={migrationPrompt}
           onMigrated={(migrated) => {
-            setResolvedDraft({ draftId, response: migrated })
+            setResolvedDraft({ draftId, reloadGeneration: reloads + 1, response: migrated })
             setForcedMigration(null)
             setReloads((count) => count + 1)
           }}
