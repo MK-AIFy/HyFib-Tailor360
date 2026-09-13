@@ -208,21 +208,32 @@ the same pull request, or the baseline is measured against a narrower pipeline t
 | Job (as reported) | Timeout | Run 1 | Run 2 | Run 3 | Median | Notes |
 | --- | ---: | --- | --- | --- | --- | --- |
 | `Pull-request policy` | 5:00 | | | | | |
-| `.NET build and tests` | 30:00 | | | | | Four test tiers and a real PostgreSQL service container. The critical path: measured at 8:54 of a 8:58 pipeline on run 201, of which the integration tier was 4:59 |
+| `release-ready label` | 5:00 | | | | | Applies a label rather than producing a verdict; deliberately not a required check |
+| `.NET build and tests` | 30:00 | | | | | The unit, architecture and contract tiers, and no database — the integration tier is the three shards below. Was the critical path at 9:32 of a 10:36 pipeline on run 34767820984, of which the integration tier alone was 6:53 |
+| `.NET integration tests (shard 1)` | 30:00 | | | | | Billing, the heaviest namespace in the tier at 3.49 s a case. Its own PostgreSQL service container |
+| `.NET integration tests (shard 2)` | 30:00 | | | | | Identity and Catalog |
+| `.NET integration tests (shard 3)` | 30:00 | | | | | Everything the other two do not name, by `--filter-not-namespace`, so the three cover the tier exactly |
+| `Coverage floor` | 10:00 | | | | | Downloads every tier's and shard's coverage and enforces the per-project floor once over the union |
 | `.NET formatting` | 10:00 | | | | | Split out of `.NET build and tests`, where it was 1:26 of serial time ahead of the build |
 | `PWA build and tests` | 20:00 | | | | | |
 | `Documentation links` | 5:00 | | | | | |
+| `API contract` | 10:00 | | | | | The breaking-change classifier against the base branch, and the Spectral lint |
 | `Security checks` | 15:00 | | | | | gitleaks scans the whole history |
 | `Database migrations` | 20:00 | | | | | Builds the command line and runs a second PostgreSQL |
-| `CodeQL (csharp)` | 25:00 | | | | | `build-mode: none` |
+| `CodeQL (csharp)` | 25:00 | | | | | `build-mode: none`. At 3:30 from the start of the run it is the floor the pipeline cannot go below, which is why the tier is sharded three ways and not more |
 | `CodeQL (javascript-typescript)` | 25:00 | | | | | |
 | `Container and dependency scan` | 15:00 | | | | | |
 | `Software bill of materials` | 20:00 | | | | | Restores and builds all 66 projects a second time |
+| `CI gate` | 5:00 | | | | | Always runs; fails unless every job above ended `success` or `skipped`. Additive — it does not replace the per-job checks |
 | **Whole pipeline (wall clock)** | — | | | | | Budget: **≤ 15:00** |
 
-The timeout column is a ceiling that stops a hung job, not an expectation: five of the eleven permit more than the
-whole budget on their own. Whether the pipeline fits is what the Median column is for, and until it has numbers
+The timeout column is a ceiling that stops a hung job, not an expectation: eight of the seventeen permit more than
+the whole budget on their own. Whether the pipeline fits is what the Median column is for, and until it has numbers
 nothing anywhere should be read as a claim that it does.
+
+Two rows above — `release-ready label` and `API contract` — were missing from this table before #495 and are added
+here rather than left for the next person to rediscover, since the preamble makes one row per reported job the
+rule. Neither is a job this change introduced.
 
 | Question | Answer |
 | --- | --- |
