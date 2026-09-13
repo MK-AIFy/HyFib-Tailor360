@@ -649,6 +649,23 @@ public static class PayloadExamples
             }
             """,
 
+        ["StartCatalogDesignSelectionDraft"] = """
+            {
+              "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000e1"
+            }
+            """,
+
+        ["SaveCatalogDesignSelectionDraft"] = """
+            {
+              "selections": [
+                { "groupCode": "sleeve_style", "optionCodes": ["THREE_QUARTER"] },
+                { "groupCode": "padding", "optionCodes": ["LIGHT"] },
+                { "groupCode": "lining", "optionCodes": ["FULL"] }
+              ],
+              "instructions": "Customer asked for a slightly looser fit around the shoulder."
+            }
+            """,
+
         ["CreateMeasurementTemplate"] = """
             {
               "code": "MT_BLOUSE_PATTERN",

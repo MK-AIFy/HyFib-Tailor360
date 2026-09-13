@@ -28,7 +28,8 @@ public static class CatalogEndpoints
             .WithTags(OpenApiTag)
             .MapCurrentCatalogEndpoints()
             .MapCatalogVersionEndpoints()
-            .MapCatalogDesignEndpoints();
+            .MapCatalogDesignEndpoints()
+            .MapCatalogDesignSelectionEndpoints();
 
         return endpoints;
     }

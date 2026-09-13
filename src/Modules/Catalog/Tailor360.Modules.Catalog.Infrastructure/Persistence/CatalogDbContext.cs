@@ -98,6 +98,13 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     /// <summary>The design rules of every version.</summary>
     public DbSet<DesignRule> DesignRules => Set<DesignRule>();
 
+    /// <summary>
+    /// Design selection drafts (#30, issue #140). A separate aggregate from <see cref="CatalogVersion"/>:
+    /// a draft is per-branch, ephemeral work in progress, never part of the tree an administrator edits
+    /// or a version an order is pinned to.
+    /// </summary>
+    public DbSet<DesignSelectionDraft> DesignSelectionDrafts => Set<DesignSelectionDraft>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -111,6 +118,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
         ConfigureDesignOptions(modelBuilder);
         ConfigureDesignRules(modelBuilder);
         ConfigureReferenceBreaches(modelBuilder);
+        ConfigureDesignSelectionDrafts(modelBuilder);
     }
 
     private static void ConfigureVersions(ModelBuilder modelBuilder)
@@ -525,5 +533,41 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
 
             entity.Navigation(service => service.Branches).AutoInclude();
             entity.Navigation(service => service.DesignGroups).AutoInclude();
+        });
+
+    /// <summary>
+    /// A design selection draft carries a row version: it is shared within its branch, and two people
+    /// choosing a design between them race on <c>If-Match</c> exactly as a measurement draft's do.
+    /// </summary>
+    private static void ConfigureDesignSelectionDrafts(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<DesignSelectionDraft>(entity =>
+        {
+            entity.ToTable("design_selection_drafts", table => table.HasCheckConstraint(
+                "ck_design_selection_drafts_expires_after_it_started", "expires_at > started_at"));
+
+            entity.HasKey(draft => draft.Id);
+            entity.Ignore(draft => draft.IsOpen);
+
+            entity.Property(draft => draft.Instructions).HasMaxLength(2000);
+
+            // What the retention job will sweep by, and what a "where was I" list would read — the same
+            // shape measurement_drafts carries for the same reason.
+            entity.HasIndex(draft => new { draft.OrganisationId, draft.ExpiresAt })
+                .HasDatabaseName("ix_design_selection_drafts_organisation_expiry");
+
+            entity.OwnsMany(draft => draft.Selections, selections =>
+            {
+                selections.ToTable("design_selection_draft_selections");
+                selections.WithOwner();
+
+                selections.Property(selection => selection.GroupCode)
+                    .HasMaxLength(DesignCode.MaximumLength).IsRequired();
+            });
+
+            entity.Navigation(draft => draft.Selections)
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .AutoInclude();
+
+            UseRowVersion(entity);
         });
 }
