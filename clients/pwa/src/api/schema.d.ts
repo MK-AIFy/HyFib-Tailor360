@@ -1781,6 +1781,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/current/service-types/{serviceTypeId}/design": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a service type offers for its design, at the caller's branch, today.
+         * @description The service type's groups in display order, each option with its label, help text, illustration reference and alt text, its price-list item code and day impact, and the rules in a client-evaluable form — only what is offerable at this branch today. Nothing about any customer.
+         */
+        get: operations["GetCatalogDesignPicker"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start choosing a design for a service type of the currently published version.
+         * @description Pinned to the currently published version for its life; republishing the catalogue changes nothing here until the draft is migrated. Expires after 24 hours by default, the same figure the measurement draft uses.
+         */
+        post: operations["StartCatalogDesignSelectionDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a design selection draft.
+         * @description The entity tag is what a save sends back as If-Match. When the catalogue was republished since the draft was pinned, the answer carries a migration prompt naming exactly what moved — an option retired, a group newly required, a rule added — and the pin holds until the draft is migrated.
+         */
+        get: operations["GetCatalogDesignSelectionDraft"];
+        /**
+         * Replace the whole selection set of a draft.
+         * @description Saved whole rather than per group: the picker renders and saves one garment's choices at once. A value for a group or an option this version does not have at all is refused; everything else — offerability, rules, a required group left unset — is answered by …/check rather than by this route.
+         */
+        put: operations["SaveCatalogDesignSelectionDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts/{draftId}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ask what stands between a draft and confirmation.
+         * @description Changes nothing. Reports every violation at once, blocking or not — a note never blocks. hasReferenceImage answers a requires-attachment rule: Catalog holds no garment and no media of its own, so the caller who does supplies it, the same way order confirmation will through IDesignSelectionQuery.
+         */
+        get: operations["CheckCatalogDesignSelectionDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/design-drafts/{draftId}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-pin a draft to the currently published version and re-validate it.
+         * @description Applies exactly the migration the draft's own read named: a selection whose option was retired cannot survive it, and a group newly required or a rule newly added applies from here on, never retrospectively to the pinned version. Already-current is a no-op success rather than a refusal.
+         */
+        post: operations["MigrateCatalogDesignSelectionDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/versions": {
         parameters: {
             query?: never;
@@ -3616,6 +3720,23 @@ export interface components {
             notes: null | string;
             reason: null | string;
         };
+        DesignAutoSelectionPayload: {
+            groupCode: string;
+            optionCode: string;
+            ruleIdentifier: string;
+        };
+        DesignCheckPayload: {
+            autoSelections: components["schemas"]["DesignAutoSelectionPayload"][];
+            confirmable: boolean;
+            /** Format: uuid */
+            designSelectionDraftId: string;
+            notes: components["schemas"]["DesignNotePayload"][];
+            violations: components["schemas"]["DesignViolationPayload"][];
+        };
+        DesignDraftSelectionPayload: {
+            groupCode: string;
+            optionCodes: string[];
+        };
         DesignGroupPayload: {
             /** Format: date */
             activeFrom: null | string;
@@ -3656,6 +3777,26 @@ export interface components {
             reason: null | string;
             required: boolean;
             selectionMode: null | string;
+        };
+        DesignMigrationChangePayload: {
+            groupCode: null | string;
+            kind: string;
+            message: string;
+            optionCode: null | string;
+            ruleIdentifier: null | string;
+        };
+        DesignMigrationOutcomePayload: {
+            appliedChanges: components["schemas"]["DesignMigrationChangePayload"][];
+            draft: components["schemas"]["DesignSelectionDraftPayload"];
+            evaluation: components["schemas"]["DesignCheckPayload"];
+        };
+        DesignMigrationPromptPayload: {
+            changes: components["schemas"]["DesignMigrationChangePayload"][];
+            serviceTypeStillOffered: boolean;
+        };
+        DesignNotePayload: {
+            ruleIdentifier: string;
+            text: string;
         };
         DesignOperandPayload: {
             form: string;
@@ -3709,6 +3850,51 @@ export interface components {
             /** Format: int32 */
             timeImpactDays: number | string;
         };
+        DesignPickerGroupPayload: {
+            code: string;
+            /** Format: uuid */
+            designOptionGroupId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            name: string;
+            nameTamil: null | string;
+            options: components["schemas"]["DesignPickerOptionPayload"][];
+            required: boolean;
+            selectionMode: string;
+        };
+        DesignPickerOptionPayload: {
+            code: string;
+            /** Format: uuid */
+            designOptionId: string;
+            /** Format: int32 */
+            displayOrder: number | string;
+            helpText: string;
+            illustrationAlt: string;
+            illustrationKey: null | string;
+            name: string;
+            nameTamil: null | string;
+            priceListItemCode: null | string;
+            /** Format: int32 */
+            timeImpactDays: number | string;
+        };
+        DesignPickerPayload: {
+            /** Format: uuid */
+            catalogVersionId: string;
+            /** Format: uuid */
+            categoryId: string;
+            groups: components["schemas"]["DesignPickerGroupPayload"][];
+            rules: components["schemas"]["DesignPickerRulePayload"][];
+            /** Format: uuid */
+            serviceTypeId: string;
+        };
+        DesignPickerRulePayload: {
+            antecedent: components["schemas"]["DesignOperandPayload"];
+            blocks: boolean;
+            consequent: null | components["schemas"]["DesignOperandPayload"];
+            identifier: string;
+            note: null | string;
+            type: string;
+        };
         DesignRulePayload: {
             antecedent: components["schemas"]["DesignOperandPayload"];
             blocks: boolean;
@@ -3732,6 +3918,37 @@ export interface components {
             reason: null | string;
             type: null | string;
             why: null | string;
+        };
+        DesignSelectionDraftPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: uuid */
+            catalogVersionId: string;
+            /** Format: date-time */
+            consumedAt: null | string;
+            /** Format: uuid */
+            designSelectionDraftId: string;
+            /** Format: date-time */
+            expiresAt: string;
+            instructions: null | string;
+            migrationPrompt: null | components["schemas"]["DesignMigrationPromptPayload"];
+            selections: components["schemas"]["DesignDraftSelectionPayload"][];
+            /** Format: uuid */
+            serviceTypeId: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DesignViolationPayload: {
+            blocks: boolean;
+            code: string;
+            groupCode: null | string;
+            message: string;
+            optionCodes: string[];
+            relatedGroupCode: null | string;
+            relatedOptionCodes: string[];
+            ruleIdentifier: null | string;
         };
         DiscountRulePayload: {
             active: boolean;
@@ -4907,6 +5124,10 @@ export interface components {
             updatedBy: null | string;
             version: string;
         };
+        SaveDesignSelectionsRequest: {
+            instructions: null | string;
+            selections: null | components["schemas"]["DesignDraftSelectionPayload"][];
+        };
         SaveMeasurementSectionRequest: {
             groupName: string;
             values: components["schemas"]["MeasurementValueRequest"][];
@@ -5048,6 +5269,10 @@ export interface components {
             userId: string;
             userName: string;
             version: string;
+        };
+        StartDesignSelectionDraftRequest: {
+            /** Format: uuid */
+            serviceTypeId: string;
         };
         StartMeasurementDraftRequest: {
             /** Format: uuid */
@@ -11235,6 +11460,317 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCatalogDesignPicker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serviceTypeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignPickerPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    StartCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000e1"
+                 *     }
+                 */
+                "application/json": components["schemas"]["StartDesignSelectionDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignSelectionDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignSelectionDraftPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SaveCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "instructions": "Customer asked for a slightly looser fit around the shoulder.",
+                 *       "selections": [
+                 *         {
+                 *           "groupCode": "sleeve_style",
+                 *           "optionCodes": [
+                 *             "THREE_QUARTER"
+                 *           ]
+                 *         },
+                 *         {
+                 *           "groupCode": "padding",
+                 *           "optionCodes": [
+                 *             "LIGHT"
+                 *           ]
+                 *         },
+                 *         {
+                 *           "groupCode": "lining",
+                 *           "optionCodes": [
+                 *             "FULL"
+                 *           ]
+                 *         }
+                 *       ]
+                 *     }
+                 */
+                "application/json": components["schemas"]["SaveDesignSelectionsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignSelectionDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CheckCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: {
+                hasReferenceImage?: boolean;
+            };
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignCheckPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    MigrateCatalogDesignSelectionDraft: {
+        parameters: {
+            query?: {
+                hasReferenceImage?: boolean;
+            };
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignMigrationOutcomePayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };
