@@ -706,11 +706,20 @@ function DesignPickerBody({
       // as its precondition: the autosave above already advanced the draft's ETag past whatever
       // `draft.value.version` still holds.
       const fresh = await readCatalogDesignDraft(draftId)
-      if (fresh.value.migrationPrompt !== null) {
+      const freshVersion = fresh.version ?? tagRef.current
+      if (freshVersion !== tagRef.current) {
+        // Another write landed in the gap between this save and this read — `fresh` answers for
+        // selections this screen never rendered, and trusting its version as the migration
+        // precondition would let `POST /migrate` satisfy `If-Match` against that unseen state
+        // instead of being refused, re-pinning past a change nobody here has looked at. Surfacing
+        // it the same way the save above surfaces its own ETag mismatch — a conflict, with a manual
+        // re-read — is what actually needed to happen; migration detection waits for that re-read.
+        setConflict(true)
+      } else if (fresh.value.migrationPrompt !== null) {
         migrationDetected = true
         onMigrationDetected({
           prompt: fresh.value.migrationPrompt,
-          version: fresh.version ?? tagRef.current,
+          version: freshVersion,
           // The live ref, not `submittedHasReferenceImage`: this same block already drops rather
           // than replays a queued edit once a migration is found, so a change to this checkbox
           // made while this request was in flight would otherwise never reach the server at all —
