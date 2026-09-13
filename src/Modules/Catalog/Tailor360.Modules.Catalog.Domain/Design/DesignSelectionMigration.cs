@@ -41,12 +41,16 @@ public static class DesignSelectionMigration
     /// <param name="pinnedServiceTypeId">The service type the draft names, a row of <paramref name="pinnedVersion"/>.</param>
     /// <param name="currentVersion">The currently published version.</param>
     /// <param name="selections">What the draft holds today, coded against <paramref name="pinnedVersion"/>.</param>
+    /// <param name="branchId">The draft's branch, which decides whether a key-matched successor is one it can still choose from.</param>
+    /// <param name="on">The day, in the branch's timezone, which decides a successor's active period.</param>
     /// <returns>The plan. See <see cref="DesignSelectionMigrationPlan.UpToDate"/> for whether it is a no-op.</returns>
     public static DesignSelectionMigrationPlan Plan(
         CatalogVersion pinnedVersion,
         Guid pinnedServiceTypeId,
         CatalogVersion currentVersion,
-        IReadOnlyCollection<DesignDraftSelection> selections)
+        IReadOnlyCollection<DesignDraftSelection> selections,
+        Guid branchId,
+        DateOnly on)
     {
         ArgumentNullException.ThrowIfNull(pinnedVersion);
         ArgumentNullException.ThrowIfNull(currentVersion);
@@ -80,7 +84,13 @@ public static class DesignSelectionMigration
 
         foreach (var oldGroup in pinnedGroups)
         {
-            currentGroupsByKey.TryGetValue(oldGroup.Key, out var newGroup);
+            currentGroupsByKey.TryGetValue(oldGroup.Key, out var matched);
+
+            // A key match that is no longer offerable at this branch today — its active period lapsed,
+            // or the branch was dropped from it — is not a usable successor: the customer could never
+            // choose it again here, so a selection kept by key alone would freeze on an option nobody
+            // at this branch can see. Read exactly like a group that was removed outright.
+            var newGroup = matched is not null && IsOfferable(matched, branchId, on) ? matched : null;
             successor[oldGroup.Code] = newGroup;
 
             if (newGroup is null)
@@ -164,9 +174,18 @@ public static class DesignSelectionMigration
             currentVersion.Id, currentService.Id, changes, migrated);
     }
 
-    /// <summary>The groups a service type offers, as rows of its own version.</summary>
-    private static List<DesignOptionGroup> GroupsOf(CatalogVersion version, ServiceType serviceType)
+    /// <summary>
+    /// The groups a service type offers, as rows of its own version. Public so the one place that
+    /// resolves "the groups this draft's service type actually offers" is shared with
+    /// <see cref="DesignSelectionDraft.Save"/> and with narrowing a category-wide evaluation to this
+    /// service (#140) rather than duplicated at each.
+    /// </summary>
+    public static List<DesignOptionGroup> GroupsOf(CatalogVersion version, ServiceType serviceType)
         => [.. serviceType.DesignOptionGroupIds.Select(version.FindDesignGroup).OfType<DesignOptionGroup>()];
+
+    /// <summary>Whether a group could be chosen from at this branch today: active, and offered here.</summary>
+    private static bool IsOfferable(DesignOptionGroup group, Guid branchId, DateOnly on)
+        => group.IsActiveOn(on) && group.BranchIds.Contains(branchId);
 }
 
 /// <summary>What migrating a draft to the currently published version would do.</summary>

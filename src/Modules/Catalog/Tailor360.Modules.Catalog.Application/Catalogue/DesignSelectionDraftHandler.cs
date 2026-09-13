@@ -218,7 +218,7 @@ public sealed class DesignSelectionDraftHandler(
         var (version, service) = pinned.Value;
 
         var saved = draft.Save(
-            version, service.CategoryId, command.Selections, command.Instructions, clock.UtcNow, command.By);
+            version, service, command.Selections, command.Instructions, clock.UtcNow, command.By);
 
         if (saved.IsFailure)
         {
@@ -263,9 +263,17 @@ public sealed class DesignSelectionDraftHandler(
 
         var (version, service) = pinned.Value;
 
-        return await validator.ValidateAsync(
+        var evaluated = await validator.ValidateAsync(
             RequestOf(organisationId, version.Id, service.CategoryId, draft, hasReferenceImage, clock.UtcNow),
             cancellationToken);
+
+        if (evaluated.IsFailure)
+        {
+            return Result.Failure<DesignEvaluation>(evaluated.Error);
+        }
+
+        return Result.Success(DesignEvaluationScope.Narrow(
+            evaluated.Value, DesignEvaluationScope.OfferedGroupCodesOf(version, service)));
     }
 
     /// <summary>Re-pins a draft to the currently published version and re-validates it.</summary>
@@ -351,8 +359,11 @@ public sealed class DesignSelectionDraftHandler(
             return Result.Failure<DesignMigrationOutcome>(evaluated.Error);
         }
 
+        var scoped = DesignEvaluationScope.Narrow(
+            evaluated.Value, DesignEvaluationScope.OfferedGroupCodesOf(currentVersion, service));
+
         return Result.Success(new DesignMigrationOutcome(
-            draft, draftStore.EntityTagOf(draft), plan.Changes, evaluated.Value));
+            draft, draftStore.EntityTagOf(draft), plan.Changes, scoped));
     }
 
     /// <summary>
@@ -400,7 +411,8 @@ public sealed class DesignSelectionDraftHandler(
             return null;
         }
 
-        return DesignSelectionMigration.Plan(pinnedVersion, draft.ServiceTypeId, currentVersion, draft.Selections);
+        return DesignSelectionMigration.Plan(
+            pinnedVersion, draft.ServiceTypeId, currentVersion, draft.Selections, draft.BranchId, TodayAt(clock.UtcNow));
     }
 
     private async Task<Result<(CatalogVersion Version, ServiceType Service)>> LoadPinnedAsync(

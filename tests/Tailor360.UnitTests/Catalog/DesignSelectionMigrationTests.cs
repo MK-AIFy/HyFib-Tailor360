@@ -13,6 +13,8 @@ namespace Tailor360.UnitTests.Catalog;
 [Trait("Category", "Unit")]
 public sealed class DesignSelectionMigrationTests
 {
+    private static readonly DateOnly Today = DateOnly.FromDateTime(CatalogTestData.Now.DateTime);
+
     [Fact]
     public void APinnedVersionThatIsStillCurrentPlansAsUpToDateWithNothingToMigrate()
     {
@@ -24,7 +26,8 @@ public sealed class DesignSelectionMigrationTests
         version.Publish(CatalogTestData.Now, null, "Approved.").IsSuccess.ShouldBeTrue();
 
         var plan = DesignSelectionMigration.Plan(
-            version, service.Id, version, [DesignDraftSelection.Of("sleeve_style", ["FULL"])]);
+            version, service.Id, version, [DesignDraftSelection.Of("sleeve_style", ["FULL"])],
+            CatalogTestData.MainBranch, Today);
 
         plan.UpToDate.ShouldBeTrue();
         plan.ServiceTypeStillOffered.ShouldBeTrue();
@@ -49,7 +52,8 @@ public sealed class DesignSelectionMigrationTests
         current.Publish(CatalogTestData.Now, null, "Approved.").IsSuccess.ShouldBeTrue();
 
         var plan = DesignSelectionMigration.Plan(
-            pinned, pinnedService.Id, current, [DesignDraftSelection.Of("sleeve_style", ["FULL"])]);
+            pinned, pinnedService.Id, current, [DesignDraftSelection.Of("sleeve_style", ["FULL"])],
+            CatalogTestData.MainBranch, Today);
 
         plan.UpToDate.ShouldBeFalse();
         plan.ServiceTypeStillOffered.ShouldBeFalse();
@@ -77,7 +81,8 @@ public sealed class DesignSelectionMigrationTests
         clone.Publish(CatalogTestData.Now, null, "Retired the plain full lining.").IsSuccess.ShouldBeTrue();
 
         var plan = DesignSelectionMigration.Plan(
-            pinned, service.Id, clone, [DesignDraftSelection.Of("lining", ["FULL"])]);
+            pinned, service.Id, clone, [DesignDraftSelection.Of("lining", ["FULL"])],
+            CatalogTestData.MainBranch, Today);
 
         plan.UpToDate.ShouldBeFalse();
         plan.ServiceTypeStillOffered.ShouldBeTrue();
@@ -110,7 +115,7 @@ public sealed class DesignSelectionMigrationTests
             .IsSuccess.ShouldBeTrue();
         clone.Publish(CatalogTestData.Now, null, "The lining is no longer optional.").IsSuccess.ShouldBeTrue();
 
-        var plan = DesignSelectionMigration.Plan(pinned, service.Id, clone, []);
+        var plan = DesignSelectionMigration.Plan(pinned, service.Id, clone, [], CatalogTestData.MainBranch, Today);
 
         var change = plan.Changes.ShouldHaveSingleItem("closure was already required and must not be reported");
         change.Kind.ShouldBe("design.group-newly-required");
@@ -142,7 +147,7 @@ public sealed class DesignSelectionMigrationTests
             null, "Bind the armhole.", null)).IsSuccess.ShouldBeTrue();
         clone.Publish(CatalogTestData.Now, null, "Two new notes.").IsSuccess.ShouldBeTrue();
 
-        var plan = DesignSelectionMigration.Plan(pinned, service.Id, clone, []);
+        var plan = DesignSelectionMigration.Plan(pinned, service.Id, clone, [], CatalogTestData.MainBranch, Today);
 
         var change = plan.Changes.ShouldHaveSingleItem(
             "the sleeve_style rule cannot fire on a garment of a service that never offered that group");
@@ -169,9 +174,91 @@ public sealed class DesignSelectionMigrationTests
 
         var plan = DesignSelectionMigration.Plan(
             pinned, service.Id, clone,
-            [DesignDraftSelection.Of("lining", ["FULL"]), DesignDraftSelection.Of("sleeve_style", ["CAP"])]);
+            [DesignDraftSelection.Of("lining", ["FULL"]), DesignDraftSelection.Of("sleeve_style", ["CAP"])],
+            CatalogTestData.MainBranch, Today);
 
         plan.Changes.ShouldContain(change => change.Kind == "design.group-no-longer-offered" && change.GroupCode == "lining");
+        plan.MigratedSelections.ShouldHaveSingleItem().GroupCode.ShouldBe("sleeve_style");
+    }
+
+    [Fact]
+    public void AKeyMatchedGroupWhoseActivePeriodHasLapsedIsTreatedAsRemovedRatherThanAsASuccessor()
+    {
+        // The republished group is still the very same concept (same Key, same options), but it is no
+        // longer offerable at all as of today — the same as if it had been removed outright, and never a
+        // silent successor whose selection just carries forward.
+        var pinned = CatalogTestData.Draft(1);
+        var blouse = Category(pinned, "BLOUSE_PATTERN");
+        var lining = Group(pinned, blouse, "lining").Value;
+        var sleeve = Group(pinned, blouse, "sleeve_style").Value;
+        Option(pinned, lining.Id, "FULL");
+        Option(pinned, sleeve.Id, "CAP");
+        var service = Service(pinned, blouse, "STITCHING", [lining.Id, sleeve.Id]);
+        pinned.Publish(CatalogTestData.Now, null, "Approved.").IsSuccess.ShouldBeTrue();
+
+        var clone = pinned.CloneAsDraft(new CountingCatalogIds(), 2, "Version 2", null, CatalogTestData.Now, null).Value;
+        var clonedLining = clone.DesignGroups.Single(group => group.Key == lining.Key);
+        clone.EditDesignGroup(
+                clonedLining.Id, clonedLining.Details with { ActiveTo = Today.AddDays(-1) },
+                CatalogTestData.Now, null)
+            .IsSuccess.ShouldBeTrue();
+        clone.Publish(CatalogTestData.Now, null, "Lining's season ended.").IsSuccess.ShouldBeTrue();
+
+        var plan = DesignSelectionMigration.Plan(
+            pinned, service.Id, clone,
+            [DesignDraftSelection.Of("lining", ["FULL"]), DesignDraftSelection.Of("sleeve_style", ["CAP"])],
+            CatalogTestData.MainBranch, Today);
+
+        var change = plan.Changes.ShouldHaveSingleItem(
+            "a key-matched group that lapsed today is exactly as gone as one removed outright, not a successor");
+        change.Kind.ShouldBe("design.group-no-longer-offered");
+        change.GroupCode.ShouldBe("lining");
+        plan.MigratedSelections.ShouldHaveSingleItem().GroupCode.ShouldBe("sleeve_style");
+    }
+
+    [Fact]
+    public void AKeyMatchedGroupNoLongerOfferedAtThisDraftsBranchIsTreatedAsRemovedRatherThanAsASuccessor()
+    {
+        // The republished group is still active and still linked, but only at a branch that is not this
+        // draft's own — the same "not this branch" gap DesignRuleEngine.IsOfferable already refuses a
+        // selection over, now applied to whether a key-matched successor may be trusted at all.
+        var pinned = CatalogTestData.Draft(1);
+
+        // The category itself spans both branches, so a group narrowing from one to the other is a
+        // configuration a publish accepts — the group's own branches stay a subset of the category's.
+        var blouse = pinned.AddCategory(
+                CatalogTestData.Id("cat-multi-branch-BLOUSE_PATTERN"),
+                CatalogTestData.Id("cat-key-multi-branch-BLOUSE_PATTERN"),
+                null,
+                CatalogTestData.CategoryOf(
+                    "BLOUSE_PATTERN", branches: [CatalogTestData.MainBranch, CatalogTestData.SecondBranch]),
+                CatalogTestData.Now,
+                null)
+            .Value.Id;
+        var lining = Group(pinned, blouse, "lining").Value;
+        var sleeve = Group(pinned, blouse, "sleeve_style").Value;
+        Option(pinned, lining.Id, "FULL");
+        Option(pinned, sleeve.Id, "CAP");
+        var service = Service(pinned, blouse, "STITCHING", [lining.Id, sleeve.Id]);
+        pinned.Publish(CatalogTestData.Now, null, "Approved.").IsSuccess.ShouldBeTrue();
+
+        var clone = pinned.CloneAsDraft(new CountingCatalogIds(), 2, "Version 2", null, CatalogTestData.Now, null).Value;
+        var clonedLining = clone.DesignGroups.Single(group => group.Key == lining.Key);
+        clone.EditDesignGroup(
+                clonedLining.Id, clonedLining.Details with { BranchIds = [CatalogTestData.SecondBranch] },
+                CatalogTestData.Now, null)
+            .IsSuccess.ShouldBeTrue();
+        clone.Publish(CatalogTestData.Now, null, "Lining moved to the other branch.").IsSuccess.ShouldBeTrue();
+
+        var plan = DesignSelectionMigration.Plan(
+            pinned, service.Id, clone,
+            [DesignDraftSelection.Of("lining", ["FULL"]), DesignDraftSelection.Of("sleeve_style", ["CAP"])],
+            CatalogTestData.MainBranch, Today);
+
+        var change = plan.Changes.ShouldHaveSingleItem(
+            "a group offered only at another branch is exactly as gone as one removed outright, at this branch");
+        change.Kind.ShouldBe("design.group-no-longer-offered");
+        change.GroupCode.ShouldBe("lining");
         plan.MigratedSelections.ShouldHaveSingleItem().GroupCode.ShouldBe("sleeve_style");
     }
 
@@ -201,7 +288,8 @@ public sealed class DesignSelectionMigrationTests
         clone.Publish(CatalogTestData.Now, null, "Renamed for clarity.").IsSuccess.ShouldBeTrue();
 
         var plan = DesignSelectionMigration.Plan(
-            pinned, service.Id, clone, [DesignDraftSelection.Of("sleeve_style", ["FULL"])]);
+            pinned, service.Id, clone, [DesignDraftSelection.Of("sleeve_style", ["FULL"])],
+            CatalogTestData.MainBranch, Today);
 
         plan.Changes.ShouldBeEmpty("a rename never breaks a code-keyed selection and is not a migration prompt");
         var migrated = plan.MigratedSelections.ShouldHaveSingleItem();

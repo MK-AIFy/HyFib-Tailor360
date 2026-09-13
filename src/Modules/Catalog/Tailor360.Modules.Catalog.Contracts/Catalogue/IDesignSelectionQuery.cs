@@ -44,7 +44,10 @@ public interface IDesignSelectionQuery
 /// <summary>One design selection draft, as Orders reads it at confirmation.</summary>
 /// <param name="DraftId">The draft.</param>
 /// <param name="BranchId">The branch it was chosen at.</param>
-/// <param name="IsOpen">Whether the draft may still be consumed — false once spent.</param>
+/// <param name="IsOpen">
+/// Whether the draft may still be consumed — false once spent, and false once it has outlived its
+/// lifetime even if nothing has consumed it yet, because <c>Consume</c> would refuse it too.
+/// </param>
 /// <param name="IsConfirmable">
 /// Whether nothing blocking stands, from the same rule evaluation <c>…/check</c> answers. A note never
 /// blocks; the caller decides what to do with one that does.

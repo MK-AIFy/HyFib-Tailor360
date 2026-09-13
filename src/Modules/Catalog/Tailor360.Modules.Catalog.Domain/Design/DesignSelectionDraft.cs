@@ -29,15 +29,20 @@ namespace Tailor360.Modules.Catalog.Domain.Design;
 /// </para>
 /// <para>
 /// <strong>A draft accepts only what could never be meant.</strong> <see cref="Save"/> refuses a value
-/// for a group or an option this version does not have at all — the same line
-/// <c>MeasurementDraft.SaveSection</c> draws — and says nothing about whether an option is offerable at a
-/// branch today, whether a rule is satisfied, or whether a required group is still unset. Those are
+/// for a group or an option its own service type does not link at all — the same line
+/// <c>MeasurementDraft.SaveSection</c> draws, narrowed from the whole version to this service type's own
+/// groups so a group only a sibling service offers is never accepted — and says nothing about whether an
+/// option is offerable at a branch today, whether a rule is satisfied, or whether a required group is
+/// still unset. Those are
 /// <see cref="Catalogue.IDesignSelectionValidator"/>'s answer, asked as many times as the picker likes
 /// and asked once more, authoritatively, wherever a selection is about to be relied on.
 /// </para>
 /// </remarks>
 public sealed class DesignSelectionDraft
 {
+    /// <summary>The longest free-text instructions this draft accepts, matching the column's <c>varchar(2000)</c>.</summary>
+    public const int MaximumInstructionsLength = 2000;
+
     private readonly List<DesignDraftSelection> _selections = [];
 
     private DesignSelectionDraft()
@@ -169,7 +174,12 @@ public sealed class DesignSelectionDraft
     /// same way <c>DesignRuleEngine</c> refuses more than one value for a single-choice group.
     /// </remarks>
     /// <param name="version">The version this draft is pinned to.</param>
-    /// <param name="categoryId">The category the service type belongs to, in that version.</param>
+    /// <param name="serviceType">
+    /// The service type this draft names, a row of <paramref name="version"/>. What may be saved is
+    /// narrowed to exactly <see cref="ServiceType.DesignOptionGroupIds"/> rather than the whole
+    /// category, so a group only a sibling service offers is refused the same way a group this version
+    /// never had at all is (#140).
+    /// </param>
     /// <param name="selections">What was chosen, one entry per group.</param>
     /// <param name="instructions">Free-text craft instructions, or null.</param>
     /// <param name="now">The clock.</param>
@@ -177,13 +187,14 @@ public sealed class DesignSelectionDraft
     /// <returns>Success, or the reason the save was refused.</returns>
     public Result Save(
         CatalogVersion version,
-        Guid categoryId,
+        ServiceType serviceType,
         IReadOnlyCollection<DesignSelectionInput> selections,
         string? instructions,
         DateTimeOffset now,
         Guid? by)
     {
         ArgumentNullException.ThrowIfNull(version);
+        ArgumentNullException.ThrowIfNull(serviceType);
         ArgumentNullException.ThrowIfNull(selections);
 
         if (!IsOpen)
@@ -199,7 +210,13 @@ public sealed class DesignSelectionDraft
             return Result.Failure(CatalogErrors.DesignDraftExpired);
         }
 
-        var groups = version.DesignGroupsOf(categoryId).ToDictionary(group => group.Code, StringComparer.Ordinal);
+        if (instructions is { Length: > MaximumInstructionsLength })
+        {
+            return Result.Failure(CatalogErrors.TooLong("instructions", MaximumInstructionsLength));
+        }
+
+        var groups = DesignSelectionMigration.GroupsOf(version, serviceType)
+            .ToDictionary(group => group.Code, StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var built = new List<DesignDraftSelection>(selections.Count);
 

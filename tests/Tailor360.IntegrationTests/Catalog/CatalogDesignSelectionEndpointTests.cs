@@ -27,6 +27,8 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     private static readonly string RunToken = AdministrationHarness.UniqueToken(6).ToUpperInvariant();
     private static readonly string[] CapOnly = ["CAP"];
     private static readonly string[] ZipOnly = ["ZIP"];
+    private static readonly string[] OptionStyleB = ["STYLE_B"];
+    private static readonly string[] PipingOnly = ["PIPING"];
 
     [Fact]
     public async Task APickerReadADraftAndACheckAgreeAndTheQuerySnapshotIsDeterministic()
@@ -317,6 +319,18 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
                 Token);
         }
 
+        // Nothing has consumed this draft yet — Consume itself would refuse it too, and the
+        // confirmation-facing read (Orders, at #32a) is expected to already say so rather than let a
+        // caller press on toward confirmation with a draft that has simply outlived its lifetime.
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var query = scope.ServiceProvider.GetRequiredService<IDesignSelectionQuery>();
+            var read = await query.GetAsync(
+                expiredDraftId, SessionTestData.OrganisationId, hasReferenceImage: false, Token);
+            read.IsSuccess.ShouldBeTrue();
+            read.Value.IsOpen.ShouldBeFalse("an expired draft may never be consumed, open or not");
+        }
+
         // The direct SQL above moves the row's own xmin, so the tag has to be re-read afterwards — a
         // stale tag would report "changed" before the expiry check is ever reached, which is not what
         // this test is about.
@@ -342,6 +356,104 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
             $"/api/v1/catalog/design-drafts/{consumedDraftId}", SaveBody([("sleeve_style", ["FULL"])], null), consumedKey);
         consumed.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await CodeOfAsync(consumed)).ShouldBe("catalog.design-draft-already-consumed");
+    }
+
+    [Fact]
+    public async Task AServiceScopedEvaluationAutoSelectsNarrowsRequiredGroupsAndRefusesOutOfScopeSaves()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("sel-scope-o", "203.0.113.257");
+        var fixtureData = await BuildMultiServiceCatalogueAsync(owner, "sel-scope");
+
+        using var counter = await CounterAsync("sel-scope-c", "203.0.113.258");
+
+        // Service A never links "lining" at all — it belongs only to service B — so a draft of service A
+        // must never be blocked by lining being required and unset.
+        var draftA = await StartDraftAsync(counter, fixtureData.ServiceAId);
+
+        // Only cut = STYLE_B is chosen; trim is never touched. DR-01 requires trim = PIPING whenever
+        // cut = STYLE_B, and trim has exactly one admissible option, so the rule settles it on the
+        // customer's behalf.
+        (await counter.PutAsync(
+                $"/api/v1/catalog/design-drafts/{draftA}",
+                SaveBody([("cut", ["STYLE_B"])], null),
+                await DraftKeyAsync(counter, draftA)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var checkA = JsonDocument.Parse(
+            await (await counter.GetAsync($"/api/v1/catalog/design-drafts/{draftA}/check"))
+                .Content.ReadAsStringAsync(Token));
+        checkA.RootElement.GetProperty("confirmable").GetBoolean()
+            .ShouldBeTrue("lining belongs only to the sibling service and must never gate this one");
+        checkA.RootElement.GetProperty("violations").EnumerateArray()
+            .ShouldNotContain(violation => violation.GetProperty("groupCode").GetString() == "lining");
+
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var query = scope.ServiceProvider.GetRequiredService<IDesignSelectionQuery>();
+            var readA = await query.GetAsync(
+                draftA, SessionTestData.OrganisationId, hasReferenceImage: false, Token);
+            readA.IsSuccess.ShouldBeTrue();
+            readA.Value.IsConfirmable.ShouldBeTrue();
+            readA.Value.Snapshot.Selections.Select(selection => (selection.GroupCode, selection.OptionCode))
+                .ShouldBe([("cut", "STYLE_B"), ("trim", "PIPING")], ignoreOrder: true,
+                    "the rule's own auto-selection must reach the frozen snapshot, price-list item included");
+        }
+
+        // "lining" is a real group of this category — just never linked to service A. A crafted request
+        // naming it must be refused, never silently accepted and later snapshotted.
+        var leaky = await counter.PutAsync(
+            $"/api/v1/catalog/design-drafts/{draftA}",
+            SaveBody([("cut", ["STYLE_A"]), ("lining", ["FULL"])], null),
+            await DraftKeyAsync(counter, draftA));
+        leaky.StatusCode.ShouldBe(HttpStatusCode.NotFound, await leaky.Content.ReadAsStringAsync(Token));
+        (await CodeOfAsync(leaky)).ShouldBe("catalog.design-group-not-found");
+
+        using var unchanged = JsonDocument.Parse(
+            await (await counter.GetAsync($"/api/v1/catalog/design-drafts/{draftA}")).Content.ReadAsStringAsync(Token));
+        unchanged.RootElement.GetProperty("selections").EnumerateArray()
+            .Select(selection => selection.GetProperty("groupCode").GetString())
+            .ShouldBe(["cut"], "the refused save must leave the draft exactly as it was");
+
+        // The scoping must be real, not a blanket skip of the required-group check: service B still
+        // offers and requires lining, and a draft of its own with lining unset is still non-confirmable.
+        var draftB = await StartDraftAsync(counter, fixtureData.ServiceBId);
+        (await counter.PutAsync(
+                $"/api/v1/catalog/design-drafts/{draftB}",
+                SaveBody([("cut", ["STYLE_A"])], null),
+                await DraftKeyAsync(counter, draftB)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var checkB = JsonDocument.Parse(
+            await (await counter.GetAsync($"/api/v1/catalog/design-drafts/{draftB}/check"))
+                .Content.ReadAsStringAsync(Token));
+        checkB.RootElement.GetProperty("confirmable").GetBoolean().ShouldBeFalse();
+        checkB.RootElement.GetProperty("violations").EnumerateArray()
+            .Select(violation => violation.GetProperty("groupCode").GetString())
+            .ShouldContain("lining");
+    }
+
+    [Fact]
+    public async Task SavingInstructionsOverTheColumnLimitIsRefusedAsACleanValidationErrorRatherThanA500()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("sel-long-o", "203.0.113.259");
+        var fixtureData = await BuildCatalogueAsync(owner, "sel-long");
+
+        using var counter = await CounterAsync("sel-long-c", "203.0.113.260");
+        var draftId = await StartDraftAsync(counter, fixtureData.ServiceTypeId);
+
+        var tooLong = new string('a', 2001);
+        var response = await counter.PutAsync(
+            $"/api/v1/catalog/design-drafts/{draftId}",
+            SaveBody([("sleeve_style", ["FULL"])], tooLong),
+            await DraftKeyAsync(counter, draftId));
+
+        response.StatusCode.ShouldBe(
+            HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync(Token));
+        (await CodeOfAsync(response)).ShouldBe("catalog.value-too-long");
     }
 
     [Fact]
@@ -744,4 +856,57 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     }
 
     private sealed record FixtureCatalogue(Guid VersionId, Guid CategoryId, Guid ServiceTypeId);
+
+    /// <summary>
+    /// Builds and publishes a catalogue with two service types of one category, each linking only a
+    /// subset of its groups (#140, the finding that a category-wide check leaks across services): cut
+    /// (A, B) is shared by both; trim (PIPING only) belongs only to service A, and DR-01 requires it
+    /// whenever cut = B, settling it on the customer's behalf since it has exactly one admissible option;
+    /// lining (NONE, FULL — required) belongs only to service B.
+    /// </summary>
+    private async Task<MultiServiceFixture> BuildMultiServiceCatalogueAsync(
+        AdministrationHarness.AdministratorClient owner, string prefix)
+    {
+        var measurementTemplateId = await PublishedTemplateAsync(prefix);
+        var version = await DraftAsync(owner, $"{prefix} catalogue");
+        var category = await AddCategoryAsync(
+            owner, version, Code($"{prefix.Replace('-', '_').ToUpperInvariant()}_CAT"));
+        var cut = await AddGroupAsync(owner, version, category, "cut", required: false);
+        var trim = await AddGroupAsync(owner, version, category, "trim", required: false, displayOrder: 1);
+        var lining = await AddGroupAsync(owner, version, category, "lining", required: true, displayOrder: 2);
+        await AddOptionAsync(owner, version, cut, "STYLE_A");
+        await AddOptionAsync(owner, version, cut, "STYLE_B", displayOrder: 1);
+        await AddOptionAsync(owner, version, trim, "PIPING");
+        await AddOptionAsync(owner, version, lining, "NONE");
+        await AddOptionAsync(owner, version, lining, "FULL", displayOrder: 1);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Requires",
+                    antecedent = new { groupCode = "cut", form = "Equals", optionCodes = OptionStyleB },
+                    consequent = new { groupCode = "trim", form = "Equals", optionCodes = PipingOnly },
+                    note = (string?)null,
+                    why = "A style-B cut is always finished with piped trim.",
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var serviceA = await AddServiceAsync(
+            owner, version, category, "STITCHING_A", [cut, trim], measurementTemplateId);
+        var serviceB = await AddServiceAsync(
+            owner, version, category, "STITCHING_B", [cut, lining], measurementTemplateId);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/publish",
+                new { reason = "Approved for the multi-service tests." },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        return new MultiServiceFixture(version, category, serviceA, serviceB);
+    }
+
+    private sealed record MultiServiceFixture(Guid VersionId, Guid CategoryId, Guid ServiceAId, Guid ServiceBId);
 }
