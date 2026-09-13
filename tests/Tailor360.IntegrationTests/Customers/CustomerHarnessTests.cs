@@ -1,5 +1,6 @@
 using System.Globalization;
 using Shouldly;
+using Tailor360.Modules.Customers.Infrastructure.Persistence;
 
 namespace Tailor360.IntegrationTests.Customers;
 
@@ -69,6 +70,31 @@ public sealed class CustomerHarnessTests
         }
 
         seen.Count.ShouldBe(Calls + 1);
+    }
+
+    /// <summary>
+    /// <see cref="CustomerDirectory.SearchAsync"/> matches the search term against a phone tail
+    /// <em>or</em> against a customer number containing it, and <see cref="CustomerStore.NextCustomerNumberAsync"/>
+    /// formats a customer number with the same six zero-padded digits, counted per branch from one. A
+    /// tail below <see cref="CustomerHarness.PhoneSequenceFloor"/> is one a branch's own count could
+    /// plausibly reach within a run — <c>000001</c> is what the very first customer of every branch the
+    /// suite has touched gets — so a search meant to find one phone instead finds one row per such
+    /// branch. That is the collision <c>CustomerEndpointTests.AWithdrawnRecordLeavesOrdinarySearchAndComesBackWhenItIsRestored</c>
+    /// and its neighbour hit on a fresh database, through this pair of unrelated sequences rather than
+    /// the phone-to-phone one <see cref="UniquePhoneTailsIncreaseStrictlyAcrossManyCalls"/> already
+    /// closes. No branch in this suite creates within six orders of magnitude of the floor, which is why
+    /// staying above it — not merely counting upward from wherever the database happens to start —
+    /// is what a fresh run actually needs.
+    /// </summary>
+    [Fact]
+    public void UniquePhoneNeverHandsBackATailABranchsOwnCustomerNumberCouldReach()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        for (var i = 0; i < 5; i++)
+        {
+            Tail(CustomerHarness.UniquePhone()).ShouldBeGreaterThanOrEqualTo(CustomerHarness.PhoneSequenceFloor);
+        }
     }
 
     private static int Tail(string phone) =>
