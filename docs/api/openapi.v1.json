@@ -2667,6 +2667,80 @@
         ],
         "type": "object"
       },
+      "DesignAutoSelectionPayload": {
+        "properties": {
+          "groupCode": {
+            "type": "string"
+          },
+          "optionCode": {
+            "type": "string"
+          },
+          "ruleIdentifier": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruleIdentifier",
+          "groupCode",
+          "optionCode"
+        ],
+        "type": "object"
+      },
+      "DesignCheckPayload": {
+        "properties": {
+          "autoSelections": {
+            "items": {
+              "$ref": "#/components/schemas/DesignAutoSelectionPayload"
+            },
+            "type": "array"
+          },
+          "confirmable": {
+            "type": "boolean"
+          },
+          "designSelectionDraftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/DesignNotePayload"
+            },
+            "type": "array"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/DesignViolationPayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "designSelectionDraftId",
+          "confirmable",
+          "violations",
+          "autoSelections",
+          "notes"
+        ],
+        "type": "object"
+      },
+      "DesignDraftSelectionPayload": {
+        "properties": {
+          "groupCode": {
+            "type": "string"
+          },
+          "optionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "groupCode",
+          "optionCodes"
+        ],
+        "type": "object"
+      },
       "DesignGroupPayload": {
         "properties": {
           "activeFrom": {
@@ -2863,6 +2937,97 @@
           "activeTo",
           "branchIds",
           "reason"
+        ],
+        "type": "object"
+      },
+      "DesignMigrationChangePayload": {
+        "properties": {
+          "groupCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "optionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ruleIdentifier": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "groupCode",
+          "optionCode",
+          "ruleIdentifier",
+          "message"
+        ],
+        "type": "object"
+      },
+      "DesignMigrationOutcomePayload": {
+        "properties": {
+          "appliedChanges": {
+            "items": {
+              "$ref": "#/components/schemas/DesignMigrationChangePayload"
+            },
+            "type": "array"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DesignSelectionDraftPayload"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/DesignCheckPayload"
+          }
+        },
+        "required": [
+          "draft",
+          "appliedChanges",
+          "evaluation"
+        ],
+        "type": "object"
+      },
+      "DesignMigrationPromptPayload": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/DesignMigrationChangePayload"
+            },
+            "type": "array"
+          },
+          "serviceTypeStillOffered": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "serviceTypeStillOffered",
+          "changes"
+        ],
+        "type": "object"
+      },
+      "DesignNotePayload": {
+        "properties": {
+          "ruleIdentifier": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruleIdentifier",
+          "text"
         ],
         "type": "object"
       },
@@ -3134,6 +3299,201 @@
         ],
         "type": "object"
       },
+      "DesignPickerGroupPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "designOptionGroupId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/DesignPickerOptionPayload"
+            },
+            "type": "array"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "selectionMode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "designOptionGroupId",
+          "code",
+          "name",
+          "nameTamil",
+          "selectionMode",
+          "required",
+          "displayOrder",
+          "options"
+        ],
+        "type": "object"
+      },
+      "DesignPickerOptionPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "designOptionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "displayOrder": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "helpText": {
+            "type": "string"
+          },
+          "illustrationAlt": {
+            "type": "string"
+          },
+          "illustrationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameTamil": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priceListItemCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeImpactDays": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "designOptionId",
+          "code",
+          "name",
+          "nameTamil",
+          "helpText",
+          "illustrationKey",
+          "illustrationAlt",
+          "priceListItemCode",
+          "timeImpactDays",
+          "displayOrder"
+        ],
+        "type": "object"
+      },
+      "DesignPickerPayload": {
+        "properties": {
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "categoryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/DesignPickerGroupPayload"
+            },
+            "type": "array"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/DesignPickerRulePayload"
+            },
+            "type": "array"
+          },
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "catalogVersionId",
+          "categoryId",
+          "serviceTypeId",
+          "groups",
+          "rules"
+        ],
+        "type": "object"
+      },
+      "DesignPickerRulePayload": {
+        "properties": {
+          "antecedent": {
+            "$ref": "#/components/schemas/DesignOperandPayload"
+          },
+          "blocks": {
+            "type": "boolean"
+          },
+          "consequent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DesignOperandPayload"
+              }
+            ]
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "identifier",
+          "type",
+          "antecedent",
+          "consequent",
+          "note",
+          "blocks"
+        ],
+        "type": "object"
+      },
       "DesignRulePayload": {
         "properties": {
           "antecedent": {
@@ -3259,6 +3619,135 @@
           "note",
           "why",
           "reason"
+        ],
+        "type": "object"
+      },
+      "DesignSelectionDraftPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "consumedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "designSelectionDraftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "instructions": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "migrationPrompt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DesignMigrationPromptPayload"
+              }
+            ]
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/DesignDraftSelectionPayload"
+            },
+            "type": "array"
+          },
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "designSelectionDraftId",
+          "branchId",
+          "catalogVersionId",
+          "serviceTypeId",
+          "startedAt",
+          "updatedAt",
+          "expiresAt",
+          "consumedAt",
+          "instructions",
+          "selections",
+          "migrationPrompt"
+        ],
+        "type": "object"
+      },
+      "DesignViolationPayload": {
+        "properties": {
+          "blocks": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "groupCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "optionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "relatedGroupCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "relatedOptionCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "ruleIdentifier": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "ruleIdentifier",
+          "groupCode",
+          "optionCodes",
+          "relatedGroupCode",
+          "relatedOptionCodes",
+          "message",
+          "blocks"
         ],
         "type": "object"
       },
@@ -8158,6 +8647,30 @@
         ],
         "type": "object"
       },
+      "SaveDesignSelectionsRequest": {
+        "properties": {
+          "instructions": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/DesignDraftSelectionPayload"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "selections",
+          "instructions"
+        ],
+        "type": "object"
+      },
       "SaveMeasurementSectionRequest": {
         "properties": {
           "groupName": {
@@ -8756,6 +9269,18 @@
           "lastSignInAt",
           "createdAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "StartDesignSelectionDraftRequest": {
+        "properties": {
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "serviceTypeId"
         ],
         "type": "object"
       },
@@ -14000,6 +14525,67 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation": {
+      "get": {
+        "description": "The same record `GetCashierSession` reads, reachable here under `payments.approve_reconciliation` alone (#220), because approving a variance needs to see the count sheet it was raised against and the Owner who approves does not hold `payments.session`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. Restricted to closed sessions: an approver never needs to see one still open, and `payments.approve_reconciliation` grants no view into a live drawer. A session at another branch, or one still open, reads as 404.",
+        "operationId": "GetCashierSessionForReconciliation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashierSessionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read the cashier session a reconciliation approval is about to decide on, with its count sheet.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:payments.approve_reconciliation",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
     "/api/v1/billing/cashier-sessions/{sessionId}/reconciliation/approve": {
       "post": {
         "description": "Refused for the cashier who closed the session (INV-CSH-04), refused twice, and refused where no variance on the session's batch was ever beyond the configured threshold — the same number the close asked a reason for (OD-24). Step-up and a reason.",
@@ -15789,6 +16375,67 @@
           "Billing"
         ],
         "x-tailor360-authorisation": "permission:payments.record",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/orders/{orderId}/dispatch-exception-balance": {
+      "get": {
+        "description": "The same figures `GetOrderBalance` reads, reachable here under `billing.approve_dispatch_exception` alone (#220), because setting a safety-critical maximum without seeing the real balance is worse than not asking, and the Owner who approves does not hold `payments.record`. Step-up, because it is the reading half of an operation whose permission demands it and the catalogue's flag is per permission, not per route. An order Billing has not heard of, or one at another branch, reads as 404.",
+        "operationId": "GetOrderBalanceForDispatchException",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderBalancePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read what an order still owes, for the approver about to set a dispatch exception's maximum allowance.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.approve_dispatch_exception",
         "x-tailor360-rate-limit": "default-user"
       }
     },
@@ -19526,6 +20173,529 @@
         ],
         "x-tailor360-authorisation": "permission:catalog.read",
         "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/catalog/current/service-types/{serviceTypeId}/design": {
+      "get": {
+        "description": "The service type's groups in display order, each option with its label, help text, illustration reference and alt text, its price-list item code and day impact, and the rules in a client-evaluable form — only what is offerable at this branch today. Nothing about any customer.",
+        "operationId": "GetCatalogDesignPicker",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "serviceTypeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignPickerPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "What a service type offers for its design, at the caller's branch, today.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.design.select",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/catalog/design-drafts": {
+      "post": {
+        "description": "Pinned to the currently published version for its life; republishing the catalogue changes nothing here until the draft is migrated. Expires after 24 hours by default, the same figure the measurement draft uses.",
+        "operationId": "StartCatalogDesignSelectionDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000e1"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StartDesignSelectionDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignSelectionDraftPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start choosing a design for a service type of the currently published version.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_selection_draft.started",
+        "x-tailor360-authorisation": "permission:catalog.design.select",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/design-drafts/{draftId}": {
+      "get": {
+        "description": "The entity tag is what a save sends back as If-Match. When the catalogue was republished since the draft was pinned, the answer carries a migration prompt naming exactly what moved — an option retired, a group newly required, a rule added — and the pin holds until the draft is migrated.",
+        "operationId": "GetCatalogDesignSelectionDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignSelectionDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read a design selection draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.design.select",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "Saved whole rather than per group: the picker renders and saves one garment's choices at once. A value for a group or an option this version does not have at all is refused; everything else — offerability, rules, a required group left unset — is answered by …/check rather than by this route.",
+        "operationId": "SaveCatalogDesignSelectionDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "instructions": "Customer asked for a slightly looser fit around the shoulder.",
+                "selections": [
+                  {
+                    "groupCode": "sleeve_style",
+                    "optionCodes": [
+                      "THREE_QUARTER"
+                    ]
+                  },
+                  {
+                    "groupCode": "padding",
+                    "optionCodes": [
+                      "LIGHT"
+                    ]
+                  },
+                  {
+                    "groupCode": "lining",
+                    "optionCodes": [
+                      "FULL"
+                    ]
+                  }
+                ]
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SaveDesignSelectionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignSelectionDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace the whole selection set of a draft.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_selection_draft.saved",
+        "x-tailor360-authorisation": "permission:catalog.design.select",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/catalog/design-drafts/{draftId}/check": {
+      "get": {
+        "description": "Changes nothing. Reports every violation at once, blocking or not — a note never blocks. hasReferenceImage answers a requires-attachment rule: Catalog holds no garment and no media of its own, so the caller who does supplies it, the same way order confirmation will through IDesignSelectionQuery.",
+        "operationId": "CheckCatalogDesignSelectionDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hasReferenceImage",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignCheckPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Ask what stands between a draft and confirmation.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.design.select",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/catalog/design-drafts/{draftId}/migrate": {
+      "post": {
+        "description": "Applies exactly the migration the draft's own read named: a selection whose option was retired cannot survive it, and a group newly required or a rule newly added applies from here on, never retrospectively to the pinned version. Already-current is a no-op success rather than a refusal.",
+        "operationId": "MigrateCatalogDesignSelectionDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hasReferenceImage",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignMigrationOutcomePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Re-pin a draft to the currently published version and re-validate it.",
+        "tags": [
+          "Catalog"
+        ],
+        "x-tailor360-audit": "catalog.design_selection_draft.migrated",
+        "x-tailor360-authorisation": "permission:catalog.design.select",
+        "x-tailor360-rate-limit": "write"
       }
     },
     "/api/v1/catalog/versions": {

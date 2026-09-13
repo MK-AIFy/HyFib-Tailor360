@@ -100,6 +100,15 @@ public static class InitReferenceDataCommand
                   + $"categories and {catalog.ServiceTypeCount} service types."
                 : $"Catalogue: version {catalog.VersionNumber} already exists; nothing was changed.");
 
+            var designCatalogue = scope.ServiceProvider.GetRequiredService<IDesignCatalogueReferenceDataSeeder>();
+            var design = await designCatalogue.SeedDesignGroupsAsync(organisationId, cancellationToken);
+
+            Console.WriteLine(design.Created
+                ? $"Design catalogue: {design.GroupCount} design option groups and {design.RuleCount} "
+                  + "design rules drafted from docs/prd/design-options.md section 9."
+                : $"Design catalogue: {design.GroupCount} design option groups and {design.RuleCount} "
+                  + "design rules already exist; nothing was changed.");
+
             if (catalog.AwaitingPublication)
             {
                 // Not a warning about the seeder; a statement about what the shop cannot do yet. The

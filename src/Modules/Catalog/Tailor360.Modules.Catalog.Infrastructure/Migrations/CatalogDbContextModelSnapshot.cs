@@ -700,6 +700,76 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignSelectionDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<Guid>("CatalogVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_version_id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Instructions")
+                        .HasMaxLength(2000)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("instructions");
+
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organisation_id");
+
+                    b.Property<Guid>("ServiceTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("service_type_id");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("started_at");
+
+                    b.Property<Guid?>("StartedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("started_by");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_design_selection_drafts");
+
+                    b.HasIndex("OrganisationId", "ExpiresAt")
+                        .HasDatabaseName("ix_design_selection_drafts_organisation_expiry");
+
+                    b.ToTable("design_selection_drafts", "catalog", t =>
+                        {
+                            t.HasCheckConstraint("ck_design_selection_drafts_expires_after_it_started", "expires_at > started_at");
+                        });
+                });
+
             modelBuilder.Entity("Tailor360.Platform.Persistence.Entities.InboxMessage", b =>
                 {
                     b.Property<Guid>("MessageId")
@@ -972,6 +1042,46 @@ namespace Tailor360.Modules.Catalog.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_design_rules_categories_category_id");
+                });
+
+            modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Design.DesignSelectionDraft", b =>
+                {
+                    b.OwnsMany("Tailor360.Modules.Catalog.Domain.Design.DesignDraftSelection", "Selections", b1 =>
+                        {
+                            b1.Property<Guid>("DesignSelectionDraftId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("design_selection_draft_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<string>("GroupCode")
+                                .IsRequired()
+                                .HasMaxLength(40)
+                                .IsUnicode(true)
+                                .HasColumnType("character varying(40)")
+                                .HasColumnName("group_code");
+
+                            b1.PrimitiveCollection<string[]>("OptionCodes")
+                                .IsRequired()
+                                .HasColumnType("text[]")
+                                .HasColumnName("option_codes");
+
+                            b1.HasKey("DesignSelectionDraftId", "Id")
+                                .HasName("pk_design_selection_draft_selections");
+
+                            b1.ToTable("design_selection_draft_selections", "catalog");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DesignSelectionDraftId")
+                                .HasConstraintName("fk_design_selection_draft_selections_design_selection_drafts_d");
+                        });
+
+                    b.Navigation("Selections");
                 });
 
             modelBuilder.Entity("Tailor360.Modules.Catalog.Domain.Catalogue.CatalogVersion", b =>

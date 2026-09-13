@@ -2956,6 +2956,119 @@ namespace Tailor360.Modules.Billing.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Tailor360.Platform.Persistence.Entities.AuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("actor_display_name");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<string>("After")
+                        .IsUnicode(true)
+                        .HasColumnType("jsonb")
+                        .HasColumnName("after");
+
+                    b.Property<string>("Before")
+                        .IsUnicode(true)
+                        .HasColumnType("jsonb")
+                        .HasColumnName("before");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(64)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("hash");
+
+                    b.Property<string>("PreviousHash")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("previous_hash");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("Sequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("sequence");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Sequence"));
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .IsUnicode(true)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("summary");
+
+                    b.HasKey("Id", "OccurredAt")
+                        .HasName("pk_audit_events");
+
+                    b.HasIndex("ActorId")
+                        .HasDatabaseName("ix_audit_events_actor");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_audit_events_occurred_at");
+
+                    b.HasIndex("EntityType", "EntityId")
+                        .HasDatabaseName("ix_audit_events_entity");
+
+                    b.ToTable("audit_events", "platform", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Tailor360.Platform.Persistence.Entities.InboxMessage", b =>
                 {
                     b.Property<Guid>("MessageId")

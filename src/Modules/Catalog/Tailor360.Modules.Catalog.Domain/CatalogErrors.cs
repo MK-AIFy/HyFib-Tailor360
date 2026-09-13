@@ -279,4 +279,42 @@ public static class CatalogErrors
     public static readonly Error DesignRuleNotFound = Error.NotFound(
         "catalog.design-rule-not-found",
         "That design rule is not in this catalogue version.");
+
+    /// <summary>A service type was named that is not offered at the caller's branch today.</summary>
+    /// <remarks>
+    /// Answered exactly as a service type that does not exist at all, so that "not offered here" and
+    /// "unknown" read alike: the picker never lists anything else, and a caller probing an identifier
+    /// learns nothing about what another branch offers.
+    /// </remarks>
+    public static readonly Error ServiceTypeNotOrderableHere = Error.NotFound(
+        "catalog.service-type-not-orderable-here",
+        "That service type is not offered at this branch today.");
+
+    /// <summary>A draft could not be migrated because its service type is no longer in the published version.</summary>
+    public static readonly Error ServiceTypeNoLongerOffered = Error.Conflict(
+        "catalog.service-type-no-longer-offered",
+        "The published catalogue no longer offers this service type at all, so the draft cannot be "
+        + "migrated to it. Finish on the pinned version, or start a fresh selection.");
+
+    /// <summary>A design selection draft was named that does not exist for this organisation.</summary>
+    public static readonly Error DesignDraftNotFound = Error.NotFound(
+        "catalog.design-draft-not-found",
+        "That design selection draft does not exist.");
+
+    /// <summary>The draft was changed by somebody else on the branch since it was read.</summary>
+    public static readonly Error DesignDraftChanged = Error.Conflict(
+        "catalog.design-draft-changed",
+        "Somebody else on this branch changed these design selections since they were read. Read them "
+        + "again and make the change against what is there now.");
+
+    /// <summary>The draft is past the moment it stops being work in progress.</summary>
+    public static readonly Error DesignDraftExpired = Error.Conflict(
+        "catalog.design-draft-expired",
+        "This draft is too old to work on. Start a fresh selection rather than build on choices nobody "
+        + "can vouch for.");
+
+    /// <summary>The draft has already been consumed at confirmation.</summary>
+    public static readonly Error DesignDraftAlreadyConsumed = Error.Conflict(
+        "catalog.design-draft-already-consumed",
+        "This draft has already been used to confirm a garment. Nothing was recorded twice.");
 }

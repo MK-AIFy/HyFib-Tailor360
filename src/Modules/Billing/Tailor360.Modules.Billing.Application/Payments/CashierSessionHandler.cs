@@ -3,7 +3,6 @@ using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Modules.Billing.Contracts.Events;
 using Tailor360.Modules.Billing.Domain;
 using Tailor360.Modules.Billing.Domain.Payments;
-using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Money;
@@ -33,7 +32,7 @@ public sealed class CashierSessionHandler(
     IReconciliationBatchStore batches,
     IBillingEventPublisher events,
     IOptions<CashierOptions> options,
-    IAuditWriter audit,
+    IBillingAuditWriter audit,
     IClock clock,
     IIdGenerator ids)
 {
@@ -62,6 +61,13 @@ public sealed class CashierSessionHandler(
         var session = opened.Value;
         sessions.Add(session);
 
+        // Staged before the save so the entry rides the same SaveChangesAsync as the session it
+        // describes, and the two commit or roll back together (issue #179).
+        await BillingAudit.StageAsync(
+            audit, OpenedAction, BillingAudit.CashierSessionEntity, session.Id,
+            "Cashier session opened.",
+            null, null, CashierSessionSnapshot.Of(session), cancellationToken);
+
         // The index is the guard; the read above only answers the ordinary case without a round trip
         // that ends in a constraint violation.
         var saved = await sessions.SaveAsync(cancellationToken);
@@ -70,19 +76,14 @@ public sealed class CashierSessionHandler(
             return Result.Failure<AdministeredCashierSession>(saved.Error);
         }
 
-        await BillingAudit.RecordAsync(
-            audit, OpenedAction, BillingAudit.CashierSessionEntity, session.Id,
-            "Cashier session opened.",
-            null, null, CashierSessionSnapshot.Of(session), cancellationToken);
-
         return Result.Success(new AdministeredCashierSession(session, sessions.EntityTagOf(session)));
     }
 
     /// <summary>
     /// Closes a session against its count sheet. The expected totals are what the session took per mode,
     /// the float counted into cash, over every mode active at the branch, so the close sheet always has a
-    /// line for each mode that could have taken money. The close, the counts and the event commit
-    /// together; the audit row follows.
+    /// line for each mode that could have taken money. The close, the counts, the event and the audit row
+    /// all commit together.
     /// </summary>
     public async Task<Result<AdministeredCashierSession>> CloseAsync(CloseCashierSessionCommand command, CancellationToken cancellationToken = default)
     {
@@ -124,6 +125,14 @@ public sealed class CashierSessionHandler(
             // decides, from the same threshold, whether the variance it just recorded needs approval.
             batches.Add(ReconciliationBatch.OpenForClose(ids.NewId(), session, Money.Rupees(options.Value.VarianceReasonThreshold), now));
 
+            // Staged before the save so the entry rides the same SaveChangesAsync as the close it
+            // describes, and the two commit or roll back together (issue #179). No amount in the
+            // summary: the trail is read by more people than the drawer is.
+            await BillingAudit.StageAsync(
+                audit, ClosedAction, BillingAudit.CashierSessionEntity, session.Id,
+                session.Variance.IsZero ? "Cashier session closed; the count agreed." : "Cashier session closed with a variance.",
+                command.Reason, before, CashierSessionSnapshot.Of(session), token);
+
             var saved = await sessions.SaveAsync(token);
             return saved.IsFailure ? Result.Failure<CashierSession>(saved.Error) : Result.Success(session);
         }, cancellationToken);
@@ -132,13 +141,7 @@ public sealed class CashierSessionHandler(
             return Result.Failure<AdministeredCashierSession>(closed.Error);
         }
 
-        // No amount in the summary: the trail is read by more people than the drawer is.
         var session = closed.Value;
-        await BillingAudit.RecordAsync(
-            audit, ClosedAction, BillingAudit.CashierSessionEntity, session.Id,
-            session.Variance.IsZero ? "Cashier session closed; the count agreed." : "Cashier session closed with a variance.",
-            command.Reason, before, CashierSessionSnapshot.Of(session), cancellationToken);
-
         return Result.Success(new AdministeredCashierSession(session, sessions.EntityTagOf(session)));
     }
 

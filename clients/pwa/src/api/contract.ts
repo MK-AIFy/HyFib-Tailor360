@@ -50,6 +50,25 @@ import type {
   TemplateFieldRequest,
   TemplateValidation,
 } from '../admin/types'
+import type {
+  AllocateAdvanceRequest,
+  ApproveReconciliationRequest,
+  AvailablePaymentMode,
+  CashierSession,
+  CloseCashierSessionRequest,
+  CreateDispatchExceptionRequest,
+  DispatchException,
+  InvoiceBalance,
+  InvoicePage,
+  InvoiceSummary,
+  OpenCashierSessionRequest,
+  OrderBalance,
+  Payment,
+  PrintJob,
+  PrintReceiptRequest,
+  ReconciliationBatch,
+  RecordPaymentRequest,
+} from '../billing/types'
 
 /**
  * The published API contract, in TypeScript.
@@ -92,9 +111,14 @@ type Response200<TOperation extends keyof operations> = operations[TOperation] e
  * discovers by failing to save something they typed. `TemplateFieldRequest` has nineteen members,
  * every one of them required by the schema even where nullable, which is precisely the shape that
  * rots quietly.
+ *
+ * The pattern matches an optional `requestBody` as well as a required one: a Billing command whose
+ * schema is `oneOf: [null, X]` — a body that may be entirely absent — generates an optional
+ * `requestBody?`, and the match has to reach into that shape too rather than only the older,
+ * always-required one every other module's writes still generate.
  */
 type RequestBody<TOperation extends keyof operations> = operations[TOperation] extends {
-  requestBody: { content: { 'application/json': infer TBody } }
+  requestBody?: { content: { 'application/json': infer TBody } }
 }
   ? TBody
   : never
@@ -380,4 +404,88 @@ export type MeasurementVersionTemplateConforms = Conforms<
 export type MeasurementListConforms = Conforms<
   readonly MeasurementSummary[],
   Immutable<Response200<'ListCustomerMeasurements'>>
+>
+
+/* Billing — payments, the cashier session, dispatch exceptions (#161-#165). --------------------- */
+
+export type AvailablePaymentModeConforms = Conforms<
+  AvailablePaymentMode,
+  Immutable<components['schemas']['AvailablePaymentModePayload']>
+>
+
+export type InvoiceBalanceConforms = Conforms<
+  InvoiceBalance,
+  Immutable<components['schemas']['InvoiceBalancePayload']>
+>
+
+export type OrderBalanceConforms = Conforms<
+  OrderBalance,
+  Immutable<components['schemas']['OrderBalancePayload']>
+>
+
+export type InvoiceSummaryConforms = Conforms<
+  InvoiceSummary,
+  Immutable<components['schemas']['InvoiceSummaryPayload']>
+>
+
+export type InvoicePageConforms = Conforms<
+  InvoicePage,
+  Immutable<components['schemas']['InvoicePagePayload']>
+>
+
+export type PaymentConforms = Conforms<Payment, Immutable<components['schemas']['PaymentPayload']>>
+
+export type RecordPaymentRequestConforms = Conforms<
+  RecordPaymentRequest,
+  Immutable<RequestBody<'RecordPayment'>>
+>
+
+export type AllocateAdvanceRequestConforms = Conforms<
+  AllocateAdvanceRequest,
+  Immutable<RequestBody<'AllocateAdvance'>>
+>
+
+export type CashierSessionConforms = Conforms<
+  CashierSession,
+  Immutable<components['schemas']['CashierSessionPayload']>
+>
+
+export type OpenCashierSessionRequestConforms = Conforms<
+  OpenCashierSessionRequest,
+  Immutable<RequestBody<'OpenCashierSession'>>
+>
+
+export type CloseCashierSessionRequestConforms = Conforms<
+  CloseCashierSessionRequest,
+  Immutable<RequestBody<'CloseCashierSession'>>
+>
+
+export type ReconciliationBatchConforms = Conforms<
+  ReconciliationBatch,
+  Immutable<components['schemas']['ReconciliationBatchPayload']>
+>
+
+export type ApproveReconciliationRequestConforms = Conforms<
+  ApproveReconciliationRequest,
+  Immutable<RequestBody<'ApproveReconciliation'>>
+>
+
+export type DispatchExceptionConforms = Conforms<
+  DispatchException,
+  Immutable<components['schemas']['DispatchExceptionPayload']>
+>
+
+export type CreateDispatchExceptionRequestConforms = Conforms<
+  CreateDispatchExceptionRequest,
+  Immutable<RequestBody<'ApproveDispatchException'>>
+>
+
+export type PrintJobConforms = Conforms<
+  PrintJob,
+  Immutable<components['schemas']['PrintJobPayload']>
+>
+
+export type PrintReceiptRequestConforms = Conforms<
+  PrintReceiptRequest,
+  Immutable<RequestBody<'PrintReceipt'>>
 >

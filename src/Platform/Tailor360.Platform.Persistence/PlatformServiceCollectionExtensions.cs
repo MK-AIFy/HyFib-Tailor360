@@ -160,7 +160,12 @@ public static class PlatformServiceCollectionExtensions
         services.TryAddScoped<IJobLease>(provider => provider.GetRequiredService<JobLeaseService>());
 
         services.TryAddScoped<IAuditContext, SystemAuditContext>();
-        services.TryAddScoped<IAuditWriter, AuditWriter>();
+
+        // The default binding, for a module that has not yet given itself its own audit-writer port (see
+        // AuditWriter<TContext>'s remarks). It writes through PlatformDbContext, exactly as before #179 —
+        // a module keeps this until it adopts the same pattern IBillingAuditWriter uses, at which point
+        // its own writes start riding its own SaveChangesAsync instead of a second, separate one.
+        services.TryAddScoped<IAuditWriter, AuditWriter<PlatformDbContext>>();
         services.TryAddScoped<SequenceAllocator>();
         services.TryAddScoped<ISequenceAllocator>(provider => provider.GetRequiredService<SequenceAllocator>());
         services.TryAddScoped<ITransactionalSequenceAllocator>(provider => provider.GetRequiredService<SequenceAllocator>());

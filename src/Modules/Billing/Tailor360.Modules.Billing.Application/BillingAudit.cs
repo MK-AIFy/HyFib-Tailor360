@@ -1,3 +1,4 @@
+using Tailor360.Modules.Billing.Application.Abstractions;
 using Tailor360.Platform.Abstractions.Auditing;
 
 namespace Tailor360.Modules.Billing.Application;
@@ -5,6 +6,25 @@ namespace Tailor360.Modules.Billing.Application;
 /// <summary>Writes one audit entry and saves it. Every Billing command records itself through this.</summary>
 internal static class BillingAudit
 {
+    /// <summary>
+    /// Stages one audit entry on <paramref name="audit"/>'s own context without saving it. Call this
+    /// <em>before</em> the store call that saves the change the entry describes — inside the same
+    /// transactional callback, on the store's own context — so the entry rides that save instead of a
+    /// second, separate one (issue #179). Callers that use this never also call <c>RecordAsync</c> for
+    /// the same command: exactly one save should carry the entry.
+    /// </summary>
+    public static Task StageAsync(
+        IBillingAuditWriter audit,
+        string action,
+        string entityType,
+        Guid entityId,
+        string summary,
+        string? reason,
+        object? before,
+        object? after,
+        CancellationToken cancellationToken)
+        => audit.WriteAsync(new AuditEntry(action, entityType, entityId, summary, reason, before, after), cancellationToken);
+
     /// <summary>The entity type of a tax configuration version in the audit trail.</summary>
     public const string TaxConfigurationEntity = "billing.tax_configuration_version";
 
