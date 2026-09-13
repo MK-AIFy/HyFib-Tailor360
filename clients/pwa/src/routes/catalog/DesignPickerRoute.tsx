@@ -227,16 +227,30 @@ function DesignMigrationGate({
   const [acknowledged, setAcknowledged] = useState(false)
   const [migrating, setMigrating] = useState(false)
   const [migrateFailure, setMigrateFailure] = useState<unknown>(null)
+  // A fresh key on every attempt would mean a retry after a lost response — the migration
+  // succeeded server-side, but this screen never heard back — asks the server to do it a second
+  // time under a key it has never seen, and `version` is now stale from the first attempt's own
+  // success, so the retry is refused as a conflict rather than replaying the first outcome. The
+  // key changes only when the request it would be sent with actually differs.
+  const migrateKeyRef = useRef<{ readonly fingerprint: string; readonly key: string } | null>(null)
 
   const migrate = async (): Promise<void> => {
     setMigrating(true)
     setMigrateFailure(null)
     try {
+      const fingerprint = `${version}:false`
+      const existing = migrateKeyRef.current
+      const key =
+        existing !== null && existing.fingerprint === fingerprint
+          ? existing.key
+          : crypto.randomUUID()
+      migrateKeyRef.current = { fingerprint, key }
+
       await migrateCatalogDesignDraft({
         draftId,
         hasReferenceImage: false,
         version,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: key,
       })
       onMigrated()
     } catch (cause: unknown) {
@@ -387,9 +401,33 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
   const [instructions, setInstructions] = useState(initial.value.instructions ?? '')
   const [hasReferenceImage, setHasReferenceImage] = useState(false)
   const [check, setCheck] = useState<DesignCheck | null>(null)
+  /**
+   * The exact inputs `check` was computed for. `check` answers for whatever `commit` submitted at
+   * the time, and the instant any of these three moves on, that answer is about a selection set
+   * that no longer exists — comparing them at render time, rather than clearing `check` from an
+   * effect, is what keeps a failed retry (or the 500ms before the debounce even fires) from reading
+   * a stale "clean" for input nobody has verified, without the render-only rule an effect that
+   * calls `setState` on every keystroke would otherwise break.
+   */
+  const [checkedFor, setCheckedFor] = useState<{
+    readonly selections: DesignPickerSelections
+    readonly instructions: string
+    readonly hasReferenceImage: boolean
+  } | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveFailure, setSaveFailure] = useState<unknown>(null)
   const [conflict, setConflict] = useState(false)
+  /**
+   * What brought an option in on the customer's behalf, keyed `groupCode.optionCode` — "the summary
+   * lists what A brought with it" (`docs/prd/design-options.md` section 4). Once folded into
+   * `selections` an auto-selected option is ordinary state, and the very next `check` that finds it
+   * already satisfied stops reporting it as one at all, so this is the only place that fact survives
+   * to be shown. It is cleared for an option the moment a person touches that option directly —
+   * choosing it again, or away from it, is choosing it, not the rule bringing it along.
+   */
+  const [autoSelectedBy, setAutoSelectedBy] = useState<ReadonlyMap<string, DesignAutoSelection>>(
+    new Map(),
+  )
   const [zoom, setZoom] = useState<{
     readonly groupCode: string
     readonly optionCode: string
@@ -448,11 +486,13 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
     // longer current, and appending it to the newer one could resurrect a choice already changed
     // away from. The queued replay this same change triggers asks again, against what is current.
     const submittedSelections = selectionsRef.current
+    const submittedInstructions = instructionsRef.current
+    const submittedHasReferenceImage = hasReferenceImageRef.current
 
     try {
       const body: SaveDesignSelectionsRequest = {
         selections: payloadFromMap(submittedSelections),
-        instructions: instructionsRef.current.trim() === '' ? null : instructionsRef.current,
+        instructions: submittedInstructions.trim() === '' ? null : submittedInstructions,
       }
       const fingerprint = `${tagRef.current}:${JSON.stringify(body)}`
       const existingKey = saveKeyRef.current
@@ -471,15 +511,41 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       tagRef.current = saved.version ?? tagRef.current
       setConflict(false)
 
-      const result = await checkCatalogDesignDraft(draftId, hasReferenceImageRef.current)
+      const result = await checkCatalogDesignDraft(draftId, submittedHasReferenceImage)
       setCheck(result)
+      setCheckedFor({
+        selections: submittedSelections,
+        instructions: submittedInstructions,
+        hasReferenceImage: submittedHasReferenceImage,
+      })
 
       if (selectionsRef.current === submittedSelections) {
+        const newlyAdded = result.autoSelections.filter(
+          (auto) => !(submittedSelections.get(auto.groupCode) ?? []).includes(auto.optionCode),
+        )
         const merged = mergeAutoSelections(submittedSelections, result.autoSelections)
         if (merged !== submittedSelections) {
           selectionsRef.current = merged
           setSelections(merged)
         }
+        if (newlyAdded.length > 0) {
+          setAutoSelectedBy((current) => {
+            const next = new Map(current)
+            for (const auto of newlyAdded) {
+              next.set(`${auto.groupCode}.${auto.optionCode}`, auto)
+            }
+            return next
+          })
+        }
+      }
+
+      // Neither answer above ever carries a fresh migration prompt: the save endpoint always
+      // returns one with a null plan, and check answers nothing about it at all. Asking the draft
+      // itself is the only way to notice a republish that happened while this screen was already
+      // open, and `onReload` is what swaps it for the migration gate the moment one is found.
+      const fresh = await readCatalogDesignDraft(draftId)
+      if (fresh.value.migrationPrompt !== null) {
+        onReload()
       }
     } catch (cause: unknown) {
       if (cause instanceof ApiError && cause.code === 'catalog.design-draft-changed') {
@@ -495,7 +561,7 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
         void commitRef.current()
       }
     }
-  }, [draftId])
+  }, [draftId, onReload])
 
   useEffect(() => {
     commitRef.current = commit
@@ -512,6 +578,15 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       clearTimeout(timer)
     }
   }, [commit, network.online, selections, instructions, hasReferenceImage])
+
+  const currentCheck =
+    check !== null &&
+    checkedFor !== null &&
+    checkedFor.selections === selections &&
+    checkedFor.instructions === instructions &&
+    checkedFor.hasReferenceImage === hasReferenceImage
+      ? check
+      : null
 
   const effects = evaluateDesignPickerEffects(picker.groups, picker.rules, selections)
 
@@ -538,10 +613,20 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       )
       return next
     })
+    // Touching this option directly is choosing it, whichever way — it is no longer a rule's doing.
+    setAutoSelectedBy((current) => {
+      const key = `${group.code}.${optionCode}`
+      if (!current.has(key)) {
+        return current
+      }
+      const next = new Map(current)
+      next.delete(key)
+      return next
+    })
   }
 
   const violationsFor = (groupCode: string) =>
-    (check?.violations ?? []).filter((violation) => violation.groupCode === groupCode)
+    (currentCheck?.violations ?? []).filter((violation) => violation.groupCode === groupCode)
 
   return (
     <>
@@ -707,7 +792,8 @@ function DesignPickerBody({ draftId, initial, picker, onReload }: DesignPickerBo
       />
 
       <DesignSelectionSummary
-        check={check}
+        autoSelectedBy={autoSelectedBy}
+        check={currentCheck}
         instructions={instructions}
         picker={picker}
         saving={saving}
@@ -741,6 +827,8 @@ interface DesignSelectionSummaryProps {
   readonly instructions: string
   readonly check: DesignCheck | null
   readonly saving: boolean
+  /** What brought each auto-selected option in, keyed `groupCode.optionCode`. */
+  readonly autoSelectedBy: ReadonlyMap<string, DesignAutoSelection>
 }
 
 /**
@@ -758,6 +846,7 @@ function DesignSelectionSummary({
   instructions,
   check,
   saving,
+  autoSelectedBy,
 }: DesignSelectionSummaryProps) {
   const intl = useIntl()
 
@@ -805,20 +894,45 @@ function DesignSelectionSummary({
       )}
 
       <dl>
-        {rows.map(({ group, options, blocked }) => (
-          <div key={group.code}>
-            <dt>{group.name}</dt>
-            <dd data-blocked={blocked ? 'true' : undefined}>
-              {options.length > 0
-                ? new Intl.ListFormat(intl.locale, { type: 'conjunction' }).format(
-                    options.map((option) => option.name),
-                  )
-                : blocked
-                  ? intl.formatMessage({ id: 'catalog.design.summary.requiredUnset' })
-                  : intl.formatMessage({ id: 'catalog.design.summary.notChosen' })}
-            </dd>
-          </div>
-        ))}
+        {rows.map(({ group, options, blocked }) => {
+          const autoNotes = options
+            .map((option) => autoSelectedBy.get(`${group.code}.${option.code}`))
+            .filter((auto): auto is DesignAutoSelection => auto !== undefined)
+            .map((auto) => {
+              const rule = picker.rules.find(
+                (candidate) => candidate.identifier === auto.ruleIdentifier,
+              )
+              return intl.formatMessage(
+                { id: 'catalog.design.summary.autoSelected' },
+                {
+                  reason:
+                    rule === undefined
+                      ? auto.ruleIdentifier
+                      : describeOperand(intl, picker.groups, rule.antecedent),
+                },
+              )
+            })
+
+          return (
+            <div key={group.code}>
+              <dt>{group.name}</dt>
+              <dd data-blocked={blocked ? 'true' : undefined}>
+                {options.length > 0
+                  ? new Intl.ListFormat(intl.locale, { type: 'conjunction' }).format(
+                      options.map((option) => option.name),
+                    )
+                  : blocked
+                    ? intl.formatMessage({ id: 'catalog.design.summary.requiredUnset' })
+                    : intl.formatMessage({ id: 'catalog.design.summary.notChosen' })}
+              </dd>
+              {autoNotes.map((note) => (
+                <p className="design-picker__summary-autoNote" key={note}>
+                  {note}
+                </p>
+              ))}
+            </div>
+          )
+        })}
       </dl>
 
       <p>
