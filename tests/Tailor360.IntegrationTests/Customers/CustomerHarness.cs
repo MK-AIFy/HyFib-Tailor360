@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using OtpNet;
 using Shouldly;
 using Tailor360.IntegrationTests.Identity;
@@ -323,38 +324,110 @@ internal static class CustomerHarness
     }
 
     /// <summary>
-    /// A telephone number nothing else in the suite uses.
+    /// A telephone number nothing else in the suite, or any run before it, has ever used.
     /// </summary>
     /// <remarks>
-    /// Synthetic and obviously so — <c>+91 9000 …</c> with a tail taken from a version-7 identifier —
-    /// so that no fixture can be reading a number a person really holds, and two tests running in the
-    /// same second cannot collide on the duplicate check the way a fixed number would.
+    /// <para>
+    /// Synthetic and obviously so — <c>+91 90 00 …</c> — with a tail that is <strong>counted, not
+    /// drawn</strong>. What this replaced reasoned about the whole ten-digit number: a random four-digit
+    /// run prefix plus a per-run counter, "collide only by drawing the same four-digit prefix, one pair
+    /// in ten thousand". That was true of the whole number and false of the six digits several tests
+    /// actually search on — <c>docs/security/permission-matrix.md</c> documents the tail search, and
+    /// <c>CustomerEndpointTests</c> asserts against it — because only two of the four prefix digits
+    /// reached the tail. Two runs shared tail space whenever their prefixes agreed in their last two
+    /// digits: one pair in a hundred, which is what made
+    /// <c>CustomerEndpointTests.AWithdrawnRecordLeavesOrdinarySearchAndComesBackWhenItIsRestored</c> and
+    /// its neighbour fail on an unrelated run's leftover customer (issue #125).
+    /// </para>
+    /// <para>
+    /// No narrower random draw fixes this — the arithmetic does not allow it, because the tail has only
+    /// a million values and one run already uses a few hundred of them, so any scheme that draws a
+    /// random run identity and leaves the rest to a per-run counter trades within-run uniqueness against
+    /// across-run uniqueness. The fix removes the draw instead of shrinking it: once per process, the
+    /// starting point is read from the database as the highest tail any earlier run already claimed —
+    /// through <see cref="PhoneSequenceSeed"/> — and every call after that takes the next integer.
+    /// That is collision-free within a run by construction, and against every run before it because the
+    /// sequence only ever counts up from what they left behind.
+    /// </para>
     /// </remarks>
     /// <returns>The number, in E.164.</returns>
     public static string UniquePhone()
     {
-        // A counter, not a draw. What this replaced took the last six decimal digits of a UUIDv7's hex
-        // and hoped: a space of a million, drawn from a few hundred times per run, into a database the
-        // suite does not empty between runs. By the birthday bound that is a 7.7% chance of a collision
-        // at four hundred customers and a near-certainty by three thousand — and a collision is not a
-        // duplicate phone number quietly appearing, it is a registration answered 409
-        // "customers.duplicates-not-reviewed", because two records sharing a telephone number score
-        // High. That is what made CustomerMergeEndpointTests fail roughly one run in eight, on a test
-        // whose subject is not duplicates at all.
-        //
-        // Eight digits instead of six widens the space a hundredfold, and the run prefix plus a
-        // monotonic counter makes a collision within one run impossible rather than unlikely. Two runs
-        // collide only by drawing the same four-digit prefix, which is one pair in ten thousand.
-        var sequence = Interlocked.Increment(ref _phoneSequence) % 10_000;
+        var sequence = PhoneSequenceSeed.Value + Interlocked.Increment(ref _phoneSequence);
 
-        return string.Create(CultureInfo.InvariantCulture, $"+9190{PhoneRunPrefix}{sequence:D4}");
+        // The tail search this whole scheme depends on has exactly a million values. Silently letting
+        // the sum spill past it would print a seventh digit and reset the tail to a range earlier runs
+        // already used — the exact wraparound this fix exists to remove. Fail loudly instead: a test
+        // database this full needs resetting, not a scheme that pretends it still has room.
+        if (sequence > 999_999)
+        {
+            throw new InvalidOperationException(
+                $"CustomerHarness.UniquePhone has exhausted its six-digit tail space (reached {sequence}). "
+                + "Reset the test database (./scripts/dev reset) rather than continuing to draw numbers "
+                + "past it — a wrapped tail would collide with numbers earlier runs already claimed.");
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"+919000{sequence:D6}");
     }
 
-    /// <summary>Distinguishes this run's telephone numbers from those a previous run left behind.</summary>
-    private static readonly string PhoneRunPrefix =
-        Random.Shared.Next(1000, 10_000).ToString(CultureInfo.InvariantCulture);
+    /// <summary>
+    /// A floor no branch's own customer-number sequence can plausibly reach within a single run, so the
+    /// two never coincide.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CustomerStore.NextCustomerNumberAsync"/> formats <c>C-{branch}-{sequence:000000}</c> —
+    /// the same six zero-padded digits <see cref="UniquePhone"/> hands out, from a counter that also
+    /// starts at one, per branch. <see cref="CustomerDirectory.SearchAsync"/> matches those six digits
+    /// against a phone tail <em>or</em> against a customer number containing them, because a receptionist
+    /// searches by either — so a phone tail of <c>000001</c> finds not only the customer who holds it but
+    /// the first customer of every other branch the suite has touched, and the search this scheme exists
+    /// to keep unambiguous (<c>CustomerEndpointTests.AWithdrawnRecordLeavesOrdinarySearchAndComesBackWhenItIsRestored</c>
+    /// and its neighbour) comes back with more than the one row it asserts on. On a database this suite
+    /// has run against for a while <see cref="PhoneSequenceSeed"/> is already past anything a branch's own
+    /// count reaches, which is exactly why this was never seen outside a fresh one — issue #125's original
+    /// failure, and this run's, are the same collision through two different unrelated-sequence pairs. No
+    /// branch in this suite creates within six orders of magnitude of a million customers, so starting
+    /// here rather than at zero costs nothing against <see cref="UniquePhone"/>'s own tail-space ceiling.
+    /// </remarks>
+    internal const int PhoneSequenceFloor = 900_000;
+
+    /// <summary>
+    /// The highest tail any earlier run already claimed, read once per process from the same connection
+    /// string the integration tier resolves for itself (<see cref="DatabaseAvailability.ConnectionString"/>),
+    /// never lower than <see cref="PhoneSequenceFloor"/>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PhoneSequenceFloor"/> when no database is reachable — a fixture that reaches this far
+    /// without one is already failing elsewhere, so falling back here does not hide anything, and it
+    /// keeps the seed a pure function of what the database actually holds rather than of process
+    /// start-up order.
+    /// </remarks>
+    private static readonly Lazy<int> PhoneSequenceSeed = new(ReadPhoneSequenceSeed);
 
     private static int _phoneSequence;
+
+    private static int ReadPhoneSequenceSeed()
+    {
+        if (DatabaseAvailability.ConnectionString is not { } connectionString)
+        {
+            return PhoneSequenceFloor;
+        }
+
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
+
+        using var command = new NpgsqlCommand(
+            """
+            select coalesce(max(right(phone_e164, 6)::int), 0)
+            from customers.customers
+            where phone_e164 like '+9190%'
+            """,
+            connection);
+
+        var claimed = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+
+        return Math.Max(claimed, PhoneSequenceFloor);
+    }
 
     /// <summary>
     /// Defines a consent purpose of this test's own, and optionally publishes a wording for it.

@@ -241,7 +241,9 @@ jobs:
               >> "$GITHUB_STEP_SUMMARY"
           done
 
-          # Failing test names save a trip into the raw log.
+          # Failing test names save a trip into the raw log. Printed to the job's own console output
+          # as well as the step summary: the summary is not reachable from the API a reviewing agent
+          # has, so a name that exists only there is, in practice, unrecoverable.
           failures=$(grep -ho 'testName="[^"]*" outcome="Failed"' "${reports[@]}" \
             | sed 's/testName="//; s/" outcome="Failed"//' | sort -u || true)
           if [ -n "$failures" ]; then
@@ -251,6 +253,9 @@ jobs:
               echo
               printf '%s\n' "$failures" | sed 's/^/- `/; s/$/`/'
             } >> "$GITHUB_STEP_SUMMARY"
+
+            echo "Failed tests:"
+            printf '%s\n' "$failures" | sed 's/^/  - /'
           fi
 
       - name: Upload test results
