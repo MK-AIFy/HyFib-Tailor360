@@ -163,6 +163,7 @@ jobs:
       - name: Unit tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: >-
+          scripts/coverage-collect-with-retry.sh
           dotnet-coverage collect
           --output-format cobertura
           --output artifacts/coverage/unit.cobertura.xml
@@ -175,6 +176,7 @@ jobs:
       - name: Architecture tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: >-
+          scripts/coverage-collect-with-retry.sh
           dotnet-coverage collect
           --output-format cobertura
           --output artifacts/coverage/architecture.cobertura.xml
@@ -187,6 +189,7 @@ jobs:
       - name: Contract tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: >-
+          scripts/coverage-collect-with-retry.sh
           dotnet-coverage collect
           --output-format cobertura
           --output artifacts/coverage/contract.cobertura.xml
@@ -204,6 +207,7 @@ jobs:
           # TAILOR360_TEST_S3_ENDPOINT is deliberately absent until the Media module needs MinIO.
           TAILOR360_TEST_DATABASE_URL: "Host=localhost;Port=5432;Database=tailor360_test;Username=postgres"
         run: >-
+          scripts/coverage-collect-with-retry.sh
           dotnet-coverage collect
           --output-format cobertura
           --output artifacts/coverage/integration.cobertura.xml
