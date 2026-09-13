@@ -560,9 +560,11 @@ describe('apiRequestBlob, the binary read path (#336)', () => {
     if (disposition !== null) {
       headers.set('Content-Disposition', disposition)
     }
-    return new Response(new Blob(['%PDF-1.4 synthetic'], { type: 'application/pdf' }), {
-      status: 200,
-      headers,
-    })
+    // A string body, not a Blob: constructing a Response from a Blob is unreliable across jsdom's
+    // fetch polyfill versions (it fails outright under some Node/jsdom combinations CI exercises,
+    // even though the two ought to be equivalent). Response.blob() reads Content-Type off the
+    // response's own headers regardless of what the body was constructed from, so this is identical
+    // from apiRequestBlob's side.
+    return new Response('%PDF-1.4 synthetic', { status: 200, headers })
   }
 })

@@ -155,10 +155,12 @@ describe('the print and download controls (#336)', () => {
     if (disposition !== null) {
       headers.set('Content-Disposition', disposition)
     }
-    return new Response(new Blob(['%PDF-1.4 synthetic'], { type: 'application/pdf' }), {
-      status: 200,
-      headers,
-    })
+    // A string body, not a Blob: constructing a Response from a Blob is unreliable across jsdom's
+    // fetch polyfill versions (it fails outright under some Node/jsdom combinations CI exercises,
+    // even though the two ought to be equivalent). Response.blob() reads Content-Type off the
+    // response's own headers regardless of what the body was constructed from, so this is identical
+    // from apiRequestBlob's side.
+    return new Response('%PDF-1.4 synthetic', { status: 200, headers })
   }
 
   it('downloads the document: streams the bytes and revokes the object URL it created', async () => {
@@ -179,7 +181,13 @@ describe('the print and download controls (#336)', () => {
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
     })
     expect(createObjectURL).toHaveBeenCalledTimes(1)
-    expect(createObjectURL.mock.calls[0]?.[0]).toBeInstanceOf(Blob)
+    // Not toBeInstanceOf(Blob): jsdom's Response.blob() and the test's global Blob constructor are
+    // different classes under some Node versions, even though the object is a real, correctly-shaped
+    // blob — duck-type it instead of asserting a realm-specific identity the browser this ships to
+    // does not have two of.
+    const blobArg = createObjectURL.mock.calls[0]?.[0] as unknown as Blob
+    expect(blobArg.size).toBeGreaterThan(0)
+    expect(blobArg.type).toBe('application/pdf')
   })
 
   it('sends one to five copies to the print station, announces the job, and a retry after a failure reuses the same Idempotency-Key', async () => {
