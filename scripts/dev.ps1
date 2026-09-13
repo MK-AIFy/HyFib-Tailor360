@@ -4,13 +4,15 @@
   HyFib Tailor360 developer entry point for Windows (issue #20).
 
 .DESCRIPTION
-  The PowerShell twin of scripts/dev. It carries the same verbs — up, restore, build, test, run,
-  reset, status, doctor — and prints the same output shape, so documentation, pull-request evidence
+  The PowerShell twin of scripts/dev. It carries the same verbs - up, restore, build, test, run,
+  reset, status, doctor - and prints the same output shape, so documentation, pull-request evidence
   and continuous integration can quote either one.
 
   It targets Windows 11 without WSL and is written for Windows PowerShell 5.1 as well as
   PowerShell 7: no ternary operator, no null-coalescing and no $PSStyle, because 5.1 is what a new
-  machine has before anything is installed.
+  machine has before anything is installed. For the same reason this file stays ASCII-only and
+  BOM-less: 5.1 reads a BOM-less script using the system's ANSI codepage, not UTF-8, so a non-ASCII
+  character here is silently misdecoded and can corrupt parsing far past its own line.
 
   Everything is resolved from the location of this file, so every verb works from any working
   directory.
@@ -42,7 +44,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Every command runs from the repository root. This is not cosmetic: `dotnet` resolves global.json
 # from the working directory, and global.json is what selects the SDK version and the
-# Microsoft.Testing.Platform test runner — from another directory `dotnet test` silently falls back
+# Microsoft.Testing.Platform test runner - from another directory `dotnet test` silently falls back
 # to VSTest and rejects the runner's own options.
 Set-Location -LiteralPath $RepoRoot
 
@@ -104,7 +106,7 @@ function Write-Warn { param([string]$Text) Write-Host "$($script:CYellow)warning
 function Write-Failure { param([string]$Text) Write-Host "$($script:CRed)error:$($script:CReset) $Text" }
 
 # Echoes the command before running it, so that the transcript of a session is also a record of
-# exactly what was executed — this is what pull-request evidence is quoted from.
+# exactly what was executed - this is what pull-request evidence is quoted from.
 function Invoke-Step {
   param(
     [Parameter(Mandatory = $true)][string]$Command,
@@ -193,12 +195,12 @@ This is expected in a Claude Code cloud session and on a machine without Docker 
 
 Use the services the environment already provides instead:
 
-  1. PostgreSQL — point the integration tests and the hosts at an instance you have:
+  1. PostgreSQL - point the integration tests and the hosts at an instance you have:
        `$env:TAILOR360_TEST_DATABASE_URL = "Host=127.0.0.1;Port=5432;Database=tailor360;Username=postgres"
      Without that variable the Integration tier skips with a visible warning, and CI=true turns
      that skip into a failure, so nothing merges unverified.
 
-  2. Object storage — when a MinIO or other S3-compatible endpoint is available:
+  2. Object storage - when a MinIO or other S3-compatible endpoint is available:
        `$env:TAILOR360_TEST_S3_ENDPOINT = "http://127.0.0.1:$MinioPort"
 
   3. Check what can run here:
@@ -225,7 +227,7 @@ function Get-ComposeEnvValue {
 }
 
 # Extracts one keyword from an ADO.NET connection string, case-insensitively. Only Host, Port,
-# Database and Username are ever read — a password must never reach the output of this script.
+# Database and Username are ever read - a password must never reach the output of this script.
 function Get-ConnectionKeyword {
   param([string]$ConnectionString, [string]$Key)
   foreach ($part in $ConnectionString.Split(';')) {
@@ -251,7 +253,7 @@ function Resolve-PostgresTarget {
   $url = [Environment]::GetEnvironmentVariable('TAILOR360_TEST_DATABASE_URL')
   if (-not [string]::IsNullOrWhiteSpace($url)) {
     # An externally provided instance is the one the integration tests use, so it is the one
-    # `status` must report — not a compose service that is not running.
+    # `status` must report - not a compose service that is not running.
     $target.Source = 'TAILOR360_TEST_DATABASE_URL'
     if ($url -match '^(postgres|postgresql)://') {
       $rest = $url -replace '^(postgres|postgresql)://', ''
@@ -409,7 +411,7 @@ function Invoke-Test {
   switch ($Tier) {
     'all' {
       Assert-Tool 'pnpm'
-      Write-Heading 'Tests — all tiers'
+      Write-Heading 'Tests - all tiers'
       Invoke-Step -Command 'dotnet' -CommandArguments @('test', '--solution', $Solution)
       Invoke-Step -Command 'pnpm' -CommandArguments @('--dir', $PwaDir, 'test')
     }
@@ -426,7 +428,7 @@ function Invoke-Test {
         'unit' = 'Tailor360.UnitTests'; 'architecture' = 'Tailor360.ArchitectureTests'
         'contract' = 'Tailor360.ContractTests'; 'integration' = 'Tailor360.IntegrationTests'
       }[$Tier]
-      Write-Heading "Tests — $category tier"
+      Write-Heading "Tests - $category tier"
       if ($Tier -eq 'integration' -and
           [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('TAILOR360_TEST_DATABASE_URL')) -and
           -not (Test-DockerDaemon)) {
@@ -438,11 +440,11 @@ function Invoke-Test {
     }
     'pwa' {
       Assert-Tool 'pnpm'
-      Write-Heading 'Tests — progressive web application'
+      Write-Heading 'Tests - progressive web application'
       Invoke-Step -Command 'pnpm' -CommandArguments @('--dir', $PwaDir, 'test')
     }
     'e2e' {
-      Write-Heading 'Tests — end to end'
+      Write-Heading 'Tests - end to end'
       $e2e = Join-Path $RepoRoot 'tests/e2e'
       if (-not (Test-Path -LiteralPath $e2e)) {
         # tests/e2e and its Playwright configuration are owned by issue #52; saying so is more
@@ -543,7 +545,7 @@ function Invoke-Run {
   Write-Info "Worker health   http://127.0.0.1:$WorkerHealthPort/health/ready"
   Write-Info "PWA dev server  http://127.0.0.1:$PwaPort"
   Write-Detail 'The PWA proxies /api and /health to the web host, so open the PWA URL, not the host URL.'
-  Write-Detail "Logs: $LogDir\{web,worker,pwa}.log — press Ctrl-C to stop all three."
+  Write-Detail "Logs: $LogDir\{web,worker,pwa}.log - press Ctrl-C to stop all three."
   Write-Info ''
 
   # The children inherit this process's environment, which is how the ports reach them.
@@ -629,7 +631,7 @@ function Invoke-Reset {
 
   Assert-Tool 'dotnet'
 
-  Write-Heading 'Reset — destroying local data'
+  Write-Heading 'Reset - destroying local data'
   if (Test-DockerDaemon) {
     # --volumes is the point of the verb: it removes the PostgreSQL, MinIO and Mailpit volumes.
     Invoke-Compose @('down', '--volumes', '--remove-orphans')
@@ -639,7 +641,7 @@ function Invoke-Reset {
     Write-Warn 'The database named by TAILOR360_TEST_DATABASE_URL is re-initialised in place instead.'
   }
 
-  Write-Heading 'Reset — re-creating data'
+  Write-Heading 'Reset - re-creating data'
   # Order matters: schema first, then the reference data every installation needs, then the
   # synthetic dataset that development and tests use.
   foreach ($command in @('migrate', 'init-reference-data', 'seed-synthetic')) {
@@ -673,7 +675,7 @@ function Invoke-Status {
   $target = Resolve-PostgresTarget
   $storageUrl = Get-ObjectStorageUrl
 
-  Write-Host "$($script:CBold)HyFib Tailor360 — local environment status$($script:CReset)"
+  Write-Host "$($script:CBold)HyFib Tailor360 - local environment status$($script:CReset)"
   Write-Host (Get-Date -Format 'yyyy-MM-dd HH:mm:ss K')
   Write-Host ''
   Write-Host ("{0} {1} {2} {3}" -f 'COMPONENT'.PadRight(16), 'ENDPOINT'.PadRight(44), 'STATE'.PadRight(8), 'DETAIL')
@@ -768,7 +770,7 @@ function Get-PlaywrightBrowsersPath {
 }
 
 function Invoke-Doctor {
-  Write-Host "$($script:CBold)HyFib Tailor360 — environment report$($script:CReset)"
+  Write-Host "$($script:CBold)HyFib Tailor360 - environment report$($script:CReset)"
   Write-Host ''
   Write-Host ("{0} {1} {2}" -f 'TOOL'.PadRight(28), 'STATE'.PadRight(12), 'DETAIL')
   Write-Host ("{0} {1} {2}" -f ('-' * 28), ('-' * 12), ('-' * 34))
@@ -788,7 +790,7 @@ function Invoke-Doctor {
       Write-DoctorRow $tool.Label 'FOUND' (Get-ToolVersion $tool.Tool $tool.Args)
     } elseif ($tool.Required) {
       $missingRequired++
-      Write-DoctorRow $tool.Label 'MISSING' 'required — see docs/dev/setup.md'
+      Write-DoctorRow $tool.Label 'MISSING' 'required - see docs/dev/setup.md'
     } else {
       Write-DoctorRow $tool.Label 'MISSING' 'optional'
     }
@@ -802,10 +804,10 @@ function Invoke-Doctor {
       if ([string]::IsNullOrWhiteSpace($serverVersion)) { $serverVersion = 'reachable' }
       Write-DoctorRow 'Docker daemon' 'AVAILABLE' $serverVersion
     } else {
-      Write-DoctorRow 'Docker daemon' 'UNAVAILABLE' 'CLI present, no daemon — Testcontainers cannot run'
+      Write-DoctorRow 'Docker daemon' 'UNAVAILABLE' 'CLI present, no daemon - Testcontainers cannot run'
     }
   } else {
-    Write-DoctorRow 'Docker daemon' 'MISSING' 'optional — see docs/dev/troubleshooting.md'
+    Write-DoctorRow 'Docker daemon' 'MISSING' 'optional - see docs/dev/troubleshooting.md'
   }
 
   $databaseUrlSet = -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('TAILOR360_TEST_DATABASE_URL'))
@@ -870,7 +872,7 @@ function Invoke-Doctor {
   }
   if (-not $browsers) {
     Write-Info 'Install the E2E browsers with: pnpm --dir clients/pwa exec playwright install chromium'
-    Write-Info '(the Playwright CDN must be reachable — see infra/dev-environment/README.md).'
+    Write-Info '(the Playwright CDN must be reachable - see infra/dev-environment/README.md).'
   }
 
   if ($missingRequired -gt 0) {
