@@ -23,9 +23,11 @@ import { RoleDetailRoute } from '../routes/admin/RoleDetailRoute'
 import { RoleListRoute } from '../routes/admin/RoleListRoute'
 import { StaffDetailRoute } from '../routes/admin/StaffDetailRoute'
 import { StaffListRoute } from '../routes/admin/StaffListRoute'
+import { CATALOG_PERMISSIONS } from '../catalog/catalogPermissions'
 import { CatalogDesignRoute } from '../routes/catalog/CatalogDesignRoute'
 import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEditorRoute'
 import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
+import { DesignPickerRoute } from '../routes/catalog/DesignPickerRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
@@ -216,6 +218,25 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={MEASUREMENT_PERMISSIONS.readSheet}>
                 <MeasurementSheetRoute />
+              </RequirePermission>
+            ),
+          },
+          // The design picker (#142): starting a draft against a service type of the currently
+          // published catalogue, and resuming one already started. Two addresses rather than one
+          // optional parameter, so a fresh start never has to guess a route it should not match.
+          {
+            path: 'catalog/design/:serviceTypeId',
+            element: (
+              <RequirePermission permission={CATALOG_PERMISSIONS.designSelect}>
+                <DesignPickerRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'catalog/design/:serviceTypeId/:draftId',
+            element: (
+              <RequirePermission permission={CATALOG_PERMISSIONS.designSelect}>
+                <DesignPickerRoute />
               </RequirePermission>
             ),
           },

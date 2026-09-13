@@ -17,9 +17,15 @@ import type {
   CatalogVersion,
   CatalogVersionSummary,
   CategoryRequest,
+  DesignCheck,
+  DesignMigrationOutcome,
+  DesignPicker,
+  DesignSelectionDraft,
   OrderableCatalog,
   PresentationRequest,
+  SaveDesignSelectionsRequest,
   ServiceTypeRequest,
+  StartDesignSelectionDraftRequest,
 } from '../catalog/types'
 import type { CustomerCard, CustomerPage } from '../customers/types'
 import type {
@@ -333,6 +339,43 @@ export type ServiceTypeEditRequestConforms = Conforms<
 export type PresentationRequestConforms = Conforms<
   PresentationRequest,
   Immutable<RequestBody<'CorrectCatalogCategoryPresentation'>>
+>
+
+/*
+ * The design picker and the drafts Reception builds against it (#140, #142).
+ *
+ * `GarmentDesignSnapshot` is not pinned here: nothing publishes it on the wire yet, since it is
+ * #32a's (Orders) shape to populate once a garment is confirmed.
+ */
+
+export type DesignPickerConforms = Conforms<
+  DesignPicker,
+  Immutable<Response200<'GetCatalogDesignPicker'>>
+>
+
+export type StartDesignSelectionDraftRequestConforms = Conforms<
+  StartDesignSelectionDraftRequest,
+  Immutable<RequestBody<'StartCatalogDesignSelectionDraft'>>
+>
+
+export type DesignSelectionDraftConforms = Conforms<
+  DesignSelectionDraft,
+  Immutable<Response200<'GetCatalogDesignSelectionDraft'>>
+>
+
+export type SaveDesignSelectionsRequestConforms = Conforms<
+  SaveDesignSelectionsRequest,
+  Immutable<RequestBody<'SaveCatalogDesignSelectionDraft'>>
+>
+
+export type DesignCheckConforms = Conforms<
+  DesignCheck,
+  Immutable<Response200<'CheckCatalogDesignSelectionDraft'>>
+>
+
+export type DesignMigrationOutcomeConforms = Conforms<
+  DesignMigrationOutcome,
+  Immutable<Response200<'MigrateCatalogDesignSelectionDraft'>>
 >
 
 /* The customer search and the measurement capture (#26, #121, #123). ------------------------- */

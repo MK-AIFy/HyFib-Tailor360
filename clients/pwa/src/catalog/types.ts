@@ -343,3 +343,188 @@ export interface OrderableCatalog {
   readonly catalogVersionId: string | null
   readonly services: readonly OrderableService[]
 }
+
+/* The design picker and the drafts Reception builds against it (#140, #142). ------------------- */
+
+/** One option, as the picker offers it. Retired options are never sent here. */
+export interface DesignPickerOption {
+  readonly designOptionId: string
+  readonly code: string
+  readonly name: string
+  readonly nameTamil: string | null
+  readonly helpText: string
+  /** `sheet_key#group_code.OPTION_CODE`, or null until a drawing exists (#31). */
+  readonly illustrationKey: string | null
+  readonly illustrationAlt: string
+  readonly priceListItemCode: string | null
+  readonly timeImpactDays: number
+  readonly displayOrder: number
+}
+
+/** One design option group, as the picker offers it — options already narrowed to what is active. */
+export interface DesignPickerGroup {
+  readonly designOptionGroupId: string
+  readonly code: string
+  readonly name: string
+  readonly nameTamil: string | null
+  /** `SingleChoice` or `MultipleChoice`. */
+  readonly selectionMode: string
+  readonly required: boolean
+  readonly displayOrder: number
+  readonly options: readonly DesignPickerOption[]
+}
+
+/** One rule, in the client-evaluable form the picker reads it in — the same grammar the admin screens use. */
+export interface DesignPickerRule {
+  readonly identifier: string
+  /** `Requires`, `Excludes`, `RequiresAttachment` or `Note`. */
+  readonly type: string
+  readonly antecedent: CatalogDesignOperand
+  readonly consequent: CatalogDesignOperand | null
+  readonly note: string | null
+  /** Whether a violation of this rule stops a confirmation. A note's never does. */
+  readonly blocks: boolean
+}
+
+/** What a service type offers for its design, at the caller's branch, today. */
+export interface DesignPicker {
+  readonly catalogVersionId: string
+  readonly categoryId: string
+  readonly serviceTypeId: string
+  readonly groups: readonly DesignPickerGroup[]
+  readonly rules: readonly DesignPickerRule[]
+}
+
+/** Starts choosing a design for a service type of the currently published version. */
+export interface StartDesignSelectionDraftRequest {
+  readonly serviceTypeId: string
+}
+
+/** One group's answer, as a caller reads or writes a draft. */
+export interface DesignDraftSelection {
+  readonly groupCode: string
+  readonly optionCodes: readonly string[]
+}
+
+/** Replaces the whole selection set of a draft. */
+export interface SaveDesignSelectionsRequest {
+  readonly selections: readonly DesignDraftSelection[]
+  /** Free-text craft instructions, or null. Never priced. */
+  readonly instructions: string | null
+}
+
+/** One thing a republish changed, against a draft pinned to an earlier version. */
+export interface DesignMigrationChange {
+  /** A stable dotted code the client branches on — see `designMigration.ts`. */
+  readonly kind: string
+  readonly groupCode: string | null
+  readonly optionCode: string | null
+  readonly ruleIdentifier: string | null
+  /** What changed, in the shop's words. */
+  readonly message: string
+}
+
+/** What a republish left standing against a pinned draft. */
+export interface DesignMigrationPrompt {
+  /**
+   * False when the published catalogue no longer offers this service type at all — the draft may
+   * still be finished on the pinned version, but it can never be migrated.
+   */
+  readonly serviceTypeStillOffered: boolean
+  readonly changes: readonly DesignMigrationChange[]
+}
+
+/** A design selection draft, with the migration prompt a republish may have left standing. */
+export interface DesignSelectionDraft {
+  readonly designSelectionDraftId: string
+  readonly branchId: string
+  readonly catalogVersionId: string
+  readonly serviceTypeId: string
+  readonly startedAt: string
+  readonly updatedAt: string
+  readonly expiresAt: string
+  readonly consumedAt: string | null
+  readonly instructions: string | null
+  readonly selections: readonly DesignDraftSelection[]
+  readonly migrationPrompt: DesignMigrationPrompt | null
+}
+
+/** One thing wrong with a selection set. */
+export interface DesignViolation {
+  readonly code: string
+  readonly ruleIdentifier: string | null
+  readonly groupCode: string | null
+  readonly optionCodes: readonly string[]
+  readonly relatedGroupCode: string | null
+  readonly relatedOptionCodes: readonly string[]
+  readonly message: string
+  /** Whether this stops a confirmation. */
+  readonly blocks: boolean
+}
+
+/** An option a `requires` rule selected on the customer's behalf, because it was the only one that could satisfy it. */
+export interface DesignAutoSelection {
+  readonly ruleIdentifier: string
+  readonly groupCode: string
+  readonly optionCode: string
+}
+
+/** A standing instruction a selection attached. */
+export interface DesignNote {
+  readonly ruleIdentifier: string
+  readonly text: string
+}
+
+/** What stands between a draft and confirmation. Asking changes nothing. */
+export interface DesignCheck {
+  readonly designSelectionDraftId: string
+  /** Whether nothing blocking stands. A note never blocks. */
+  readonly confirmable: boolean
+  /** Every violation, blocking or not, in rule order. */
+  readonly violations: readonly DesignViolation[]
+  readonly autoSelections: readonly DesignAutoSelection[]
+  readonly notes: readonly DesignNote[]
+}
+
+/** What a migration command did, with the fresh evaluation of the version just migrated to. */
+export interface DesignMigrationOutcome {
+  readonly draft: DesignSelectionDraft
+  readonly appliedChanges: readonly DesignMigrationChange[]
+  readonly evaluation: DesignCheck
+}
+
+/**
+ * The design copy a confirmed garment carries forward (`docs/prd/design-options.md` section 7): a
+ * job card renders this without any catalogue lookup, for ever. Republishing the catalogue, retiring
+ * a group or renaming an option never changes a snapshot already taken — it is a copy, not a
+ * reference. Not yet published on the wire — #32a (Orders) is what will populate and expose one after
+ * a garment is confirmed; #142 introduces the shape and the component that renders it.
+ */
+export interface GarmentDesignSnapshot {
+  readonly catalogVersionId: string
+  readonly catalogVersionNumber: number
+  readonly categoryCode: string
+  readonly categoryLabel: string
+  readonly serviceTypeCode: string
+  readonly serviceTypeLabel: string
+  /** The choices, in the order the card renders them. */
+  readonly selections: readonly GarmentDesignSelectionSnapshot[]
+  /** The standing instructions the rules attached, in rule order. */
+  readonly conditionalNotes: readonly string[]
+  /** What Reception typed that is not any option, or null. Never priced. */
+  readonly instructions: string | null
+}
+
+/** One design choice inside a `GarmentDesignSnapshot`. */
+export interface GarmentDesignSelectionSnapshot {
+  readonly groupCode: string
+  readonly groupLabel: string
+  readonly groupDisplayOrder: number
+  readonly optionCode: string
+  readonly optionLabel: string
+  readonly optionDisplayOrder: number
+  readonly illustrationKey: string | null
+  readonly illustrationAlt: string
+  readonly priceListItemCode: string | null
+  readonly optionVersion: number
+}

@@ -277,6 +277,71 @@ export const catalogEn = {
   'catalog.design.order.down': 'Move {label} down',
   'catalog.design.order.atStart': 'Already first.',
   'catalog.design.order.atEnd': 'Already last.',
+
+  /* The job-card design component (#142). ---------------------------------------------------- */
+  'catalog.design.card.meta': '{category} · catalogue version {version}',
+  'catalog.design.card.notes': 'Standing instructions',
+  'catalog.design.card.instructions': 'Instructions:',
+  'catalog.design.card.print': 'Print',
+
+  /* The design picker (#142). ----------------------------------------------------------------- */
+  'catalog.design.picker.title': 'Choose the design',
+  'catalog.design.picker.loading': 'the design options',
+  'catalog.design.picker.offline.start': 'Starting a design',
+  'catalog.design.picker.offline.save': 'Saving a design choice',
+  'catalog.design.picker.offline.disabled': 'Needs a connection to change this.',
+  'catalog.design.picker.consumed.title': 'This design is already finished.',
+  'catalog.design.picker.consumed.body':
+    'It was confirmed onto an order and can no longer be changed here.',
+  'catalog.design.picker.empty.title': 'Nothing to choose from yet.',
+  'catalog.design.picker.empty.body':
+    'This service has no design options configured. Ask an administrator to add some before a customer can choose one.',
+  'catalog.design.picker.conflict.title': 'Someone else changed this design.',
+  'catalog.design.picker.conflict.body':
+    'Another device on this branch saved a change first. Read it again to see what changed.',
+  'catalog.design.picker.conflict.reload': 'Read it again',
+  'catalog.design.picker.group.count':
+    '{count, plural, =0 {Nothing chosen} one {1 chosen} other {# chosen}}',
+  'catalog.design.picker.zoom': 'View {option} full-screen',
+  'catalog.design.picker.reason.requires': 'Needed because {reason}.',
+  'catalog.design.picker.reason.excluded': 'Not available because {reason}.',
+  'catalog.design.picker.attachment.reason': 'A reference photo is needed because {reason}.',
+  'catalog.design.picker.attachment.confirm': 'A reference photo is attached to this garment.',
+  'catalog.design.picker.instructions': 'Anything else the customer asked for',
+  'catalog.design.picker.instructions.hint':
+    'Free text. Never priced, and never any option choice.',
+  'catalog.design.picker.operand.always': 'always',
+  'catalog.design.picker.operand.anySelection': 'a choice is made in {group}',
+  'catalog.design.picker.operand.equals': '{group} is {options}',
+  'catalog.design.picker.operand.notEquals': '{group} is not {options}',
+  'catalog.design.picker.operand.in': '{group} is one of {options}',
+  'catalog.design.picker.operand.includes': '{group} includes {options}',
+  'catalog.design.picker.operand.excludes': '{group} does not include {options}',
+
+  /* The migration prompt (#142). --------------------------------------------------------------- */
+  'catalog.design.migration.title': 'The catalogue changed since this was started',
+  'catalog.design.migration.description':
+    'What moved, and the choice between updating to the current version or finishing on this one.',
+  'catalog.design.migration.keep': 'Finish on this version',
+  'catalog.design.migration.migrate': 'Update to the current version',
+  'catalog.design.migration.finished.title': 'Finishing on the version already chosen.',
+  'catalog.design.migration.finished.body':
+    'The choices already made are kept as they are. Updating to the current version is still available whenever it is wanted.',
+
+  /* The selection summary (#142). -------------------------------------------------------------- */
+  'catalog.design.summary.title': 'Summary',
+  'catalog.design.summary.checking': 'Checking with the catalogue…',
+  'catalog.design.summary.unchecked': 'Not checked yet.',
+  'catalog.design.summary.clean': 'Nothing is standing in the way of confirming this.',
+  'catalog.design.summary.blocked': 'This cannot be confirmed yet — see below.',
+  'catalog.design.summary.notChosen': 'Not chosen',
+  'catalog.design.summary.requiredUnset': 'Needs a choice',
+  'catalog.design.summary.priceItems': 'Price list items: {items}',
+  'catalog.design.summary.priceItems.none': 'none',
+  'catalog.design.summary.days':
+    '{count, plural, =0 {No extra days} one {1 extra day} other {# extra days}}',
+  'catalog.design.summary.notes': 'Standing instructions',
+  'catalog.design.summary.violations': 'What is blocking confirmation',
 } as const
 
 /*
@@ -752,4 +817,114 @@ export const catalogTa: Record<keyof typeof catalogEn, string> = {
   'catalog.design.order.atStart': 'Already first.',
   // not translated — awaiting native-speaker review
   'catalog.design.order.atEnd': 'Already last.',
+
+  // not translated — awaiting native-speaker review
+  'catalog.design.card.meta': '{category} · catalogue version {version}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.card.notes': 'Standing instructions',
+  // not translated — awaiting native-speaker review
+  'catalog.design.card.instructions': 'Instructions:',
+  // not translated — awaiting native-speaker review
+  'catalog.design.card.print': 'Print',
+
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.title': 'Choose the design',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.loading': 'the design options',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.offline.start': 'Starting a design',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.offline.save': 'Saving a design choice',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.offline.disabled': 'Needs a connection to change this.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.consumed.title': 'This design is already finished.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.consumed.body':
+    'It was confirmed onto an order and can no longer be changed here.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.empty.title': 'Nothing to choose from yet.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.empty.body':
+    'This service has no design options configured. Ask an administrator to add some before a customer can choose one.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.conflict.title': 'Someone else changed this design.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.conflict.body':
+    'Another device on this branch saved a change first. Read it again to see what changed.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.conflict.reload': 'Read it again',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.group.count':
+    '{count, plural, =0 {Nothing chosen} one {1 chosen} other {# chosen}}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.zoom': 'View {option} full-screen',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.reason.requires': 'Needed because {reason}.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.reason.excluded': 'Not available because {reason}.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.attachment.reason': 'A reference photo is needed because {reason}.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.attachment.confirm': 'A reference photo is attached to this garment.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.instructions': 'Anything else the customer asked for',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.instructions.hint':
+    'Free text. Never priced, and never any option choice.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.always': 'always',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.anySelection': 'a choice is made in {group}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.equals': '{group} is {options}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.notEquals': '{group} is not {options}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.in': '{group} is one of {options}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.includes': '{group} includes {options}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.picker.operand.excludes': '{group} does not include {options}',
+
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.title': 'The catalogue changed since this was started',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.description':
+    'What moved, and the choice between updating to the current version or finishing on this one.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.keep': 'Finish on this version',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.migrate': 'Update to the current version',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.finished.title': 'Finishing on the version already chosen.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.migration.finished.body':
+    'The choices already made are kept as they are. Updating to the current version is still available whenever it is wanted.',
+
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.title': 'Summary',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.checking': 'Checking with the catalogue…',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.unchecked': 'Not checked yet.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.clean': 'Nothing is standing in the way of confirming this.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.blocked': 'This cannot be confirmed yet — see below.',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.notChosen': 'Not chosen',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.requiredUnset': 'Needs a choice',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.priceItems': 'Price list items: {items}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.priceItems.none': 'none',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.days':
+    '{count, plural, =0 {No extra days} one {1 extra day} other {# extra days}}',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.notes': 'Standing instructions',
+  // not translated — awaiting native-speaker review
+  'catalog.design.summary.violations': 'What is blocking confirmation',
 }
