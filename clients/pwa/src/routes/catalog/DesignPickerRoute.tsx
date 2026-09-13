@@ -159,9 +159,18 @@ export function DesignPickerRoute() {
     readonly draftId: string
     readonly reloadGeneration: number
     readonly response: VersionedResponse<DesignSelectionDraft>
-    readonly hasReferenceImage: boolean
   } | null>(null)
-  // Leaving the draft either override was captured for discards both outright, rather than merely
+  // What to seed the next `DesignPickerBody` mount's reference-image checkbox with. Tracked apart
+  // from `resolvedDraft`, and deliberately outliving it: `resolvedDraft` steps aside as soon as the
+  // draft itself catches up, which can land before the picker read (re-keyed to the migrated
+  // service type) does — and until that read lands, `DesignPickerBody` has not mounted yet to
+  // consume this value at all. Retiring it on the same schedule as `resolvedDraft` would drop it in
+  // that gap; it only needs to survive until the mount that actually reads it.
+  const [carriedHasReferenceImage, setCarriedHasReferenceImage] = useState<{
+    readonly draftId: string
+    readonly value: boolean
+  } | null>(null)
+  // Leaving the draft any override was captured for discards them all outright, rather than merely
   // hiding them while elsewhere: returning to that same draft later re-reads it fresh (the read
   // above is keyed by `draftId`), and a still-held override would otherwise outrank that fresh
   // answer — including a `null` one, if another client had since resolved or migrated it.
@@ -170,6 +179,7 @@ export function DesignPickerRoute() {
     setOverridesDraftId(draftId)
     setForcedMigration(null)
     setResolvedDraft(null)
+    setCarriedHasReferenceImage(null)
   }
   const activeResolvedDraft =
     resolvedDraft !== null &&
@@ -178,6 +188,10 @@ export function DesignPickerRoute() {
       ? resolvedDraft
       : null
   const effectiveDraft = activeResolvedDraft?.response ?? draft.value
+  const carriedHasReferenceImageForDraft =
+    carriedHasReferenceImage !== null && carriedHasReferenceImage.draftId === draftId
+      ? carriedHasReferenceImage.value
+      : false
   const forcedMigrationForDraft =
     forcedMigration !== null && forcedMigration.draftId === draftId ? forcedMigration : null
   const migrationPrompt =
@@ -238,11 +252,10 @@ export function DesignPickerRoute() {
           hasReferenceImage={forcedMigrationForDraft?.hasReferenceImage ?? false}
           migrationPrompt={migrationPrompt}
           onMigrated={(migrated) => {
-            setResolvedDraft({
+            setResolvedDraft({ draftId, reloadGeneration: reloads + 1, response: migrated })
+            setCarriedHasReferenceImage({
               draftId,
-              reloadGeneration: reloads + 1,
-              response: migrated,
-              hasReferenceImage: forcedMigrationForDraft?.hasReferenceImage ?? false,
+              value: forcedMigrationForDraft?.hasReferenceImage ?? false,
             })
             setForcedMigration(null)
             setReloads((count) => count + 1)
@@ -252,8 +265,10 @@ export function DesignPickerRoute() {
       ) : (
         <>
           <AuthProblemAlert failure={picker.failure} />
-          {picker.loading || pickerForDraft === null ? (
-            <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
+          {pickerForDraft === null ? (
+            picker.failure === null ? (
+              <LoadingState what={intl.formatMessage({ id: 'catalog.design.picker.loading' })} />
+            ) : null
           ) : pickerForDraft.groups.length === 0 ? (
             <EmptyState
               iconName="alert-circle"
@@ -270,7 +285,7 @@ export function DesignPickerRoute() {
               // uses for its wizard.
               key={effectiveDraft.version ?? 'untagged'}
               initial={effectiveDraft}
-              initialHasReferenceImage={activeResolvedDraft?.hasReferenceImage ?? false}
+              initialHasReferenceImage={carriedHasReferenceImageForDraft}
               picker={pickerForDraft}
               onMigrationDetected={(migration) => {
                 setForcedMigration({ draftId, ...migration })
