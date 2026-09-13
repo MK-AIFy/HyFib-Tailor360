@@ -165,9 +165,15 @@ export function DesignPickerRoute() {
   // draft itself catches up, which can land before the picker read (re-keyed to the migrated
   // service type) does — and until that read lands, `DesignPickerBody` has not mounted yet to
   // consume this value at all. Retiring it on the same schedule as `resolvedDraft` would drop it in
-  // that gap; it only needs to survive until the mount that actually reads it.
+  // that gap; it needs to survive until the mount that actually reads it, but no longer than that —
+  // `DesignPickerBody` only reads its `initialHasReferenceImage` prop once, at mount, so a later
+  // remount (a conflict's own "read it again", or a further migration) must not still be handed this
+  // answer instead of the version it is actually enclosing. `version` is the migrated draft's own
+  // version, which is also `effectiveDraft.version` for as long as no such later remount has
+  // happened — the moment one does, the comparison below stops matching on its own.
   const [carriedHasReferenceImage, setCarriedHasReferenceImage] = useState<{
     readonly draftId: string
+    readonly version: string | undefined
     readonly value: boolean
   } | null>(null)
   // Leaving the draft any override was captured for discards them all outright, rather than merely
@@ -189,7 +195,9 @@ export function DesignPickerRoute() {
       : null
   const effectiveDraft = activeResolvedDraft?.response ?? draft.value
   const carriedHasReferenceImageForDraft =
-    carriedHasReferenceImage !== null && carriedHasReferenceImage.draftId === draftId
+    carriedHasReferenceImage !== null &&
+    carriedHasReferenceImage.draftId === draftId &&
+    carriedHasReferenceImage.version === effectiveDraft?.version
       ? carriedHasReferenceImage.value
       : false
   const forcedMigrationForDraft =
@@ -255,6 +263,7 @@ export function DesignPickerRoute() {
             setResolvedDraft({ draftId, reloadGeneration: reloads + 1, response: migrated })
             setCarriedHasReferenceImage({
               draftId,
+              version: migrated.version,
               value: forcedMigrationForDraft?.hasReferenceImage ?? false,
             })
             setForcedMigration(null)
