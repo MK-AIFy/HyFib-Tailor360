@@ -30,6 +30,8 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     private static readonly string[] OptionStyleB = ["STYLE_B"];
     private static readonly string[] PipingOnly = ["PIPING"];
     private static readonly string[] BoundOnly = ["BOUND"];
+    private static readonly string[] TriggerOnly = ["TRIGGER"];
+    private static readonly string[] ExtraOnly = ["EXTRA"];
 
     [Fact]
     public async Task APickerReadADraftAndACheckAgreeAndTheQuerySnapshotIsDeterministic()
@@ -499,6 +501,97 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     }
 
     [Fact]
+    public async Task AChainThroughAnUnofferedGroupNeitherAddsAnUnreachableOptionNorBlocksNorInstructsOnItsSayAlone()
+    {
+        // Codex review, PR #221, round three: fresh evidence beyond the two-hop auto-selection leak
+        // already closed. A multi-choice group holding one option this service's picker offered
+        // alongside another only an unoffered chain added is not "reachable" just because the group
+        // itself is; and the same chain's later requires-attachment and note rules must fall exactly
+        // as its requires rule does — none of the three is this service's business either.
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var owner = await OwnerAsync("sel-deep-o", "203.0.113.263");
+        var fixtureData = await BuildDeepChainCatalogueAsync(owner, "sel-deep");
+
+        using var counter = await CounterAsync("sel-deep-c", "203.0.113.264");
+
+        // Service X never links "trigger" — only cut, trim and edging — so the whole chain trigger
+        // enables must stay foreign to it, even though trim and edging are both offered here.
+        var draftX = await StartDraftAsync(counter, fixtureData.ServiceXId);
+        (await counter.PutAsync(
+                $"/api/v1/catalog/design-drafts/{draftX}",
+                SaveBody([("cut", ["STYLE_B"]), ("trim", ["BASE"])], null),
+                await DraftKeyAsync(counter, draftX)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var query = scope.ServiceProvider.GetRequiredService<IDesignSelectionQuery>();
+
+            // Without a reference image: confirmable, because edging=BOUND was never legitimately
+            // reached, so DR-4's requires-attachment demand on it is not this draft's to meet.
+            var withoutImage = await query.GetAsync(
+                draftX, SessionTestData.OrganisationId, hasReferenceImage: false, Token);
+            withoutImage.IsSuccess.ShouldBeTrue();
+            withoutImage.Value.IsConfirmable.ShouldBeTrue(
+                "DR-4's attachment demand follows from a chain this service's picker never showed");
+            withoutImage.Value.Violations.ShouldBeEmpty();
+            withoutImage.Value.Snapshot.Selections.Select(selection => (selection.GroupCode, selection.OptionCode))
+                .ShouldBe([("cut", "STYLE_B"), ("trim", "BASE")], ignoreOrder: true,
+                    "trim holds only the option this draft's own picker offered — EXTRA never freezes on "
+                    + "just because trim itself is an offered group");
+        }
+
+        using var checkX = JsonDocument.Parse(
+            await (await counter.GetAsync($"/api/v1/catalog/design-drafts/{draftX}/check"))
+                .Content.ReadAsStringAsync(Token));
+        checkX.RootElement.GetProperty("confirmable").GetBoolean().ShouldBeTrue();
+        checkX.RootElement.GetProperty("notes").EnumerateArray()
+            .ShouldBeEmpty("DR-5's note follows edging=BOUND the same way DR-4's attachment demand does, "
+                + "and neither is reachable here");
+
+        // The chain is real, not disabled outright: service Y links trigger, trim and edging together,
+        // and the same three rules fire on its own draft exactly as documented.
+        var draftY = await StartDraftAsync(counter, fixtureData.ServiceYId);
+        (await counter.PutAsync(
+                $"/api/v1/catalog/design-drafts/{draftY}",
+                SaveBody([("cut", ["STYLE_B"]), ("trim", ["BASE"])], null),
+                await DraftKeyAsync(counter, draftY)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var query = scope.ServiceProvider.GetRequiredService<IDesignSelectionQuery>();
+
+            var withoutImage = await query.GetAsync(
+                draftY, SessionTestData.OrganisationId, hasReferenceImage: false, Token);
+            withoutImage.IsSuccess.ShouldBeTrue();
+            withoutImage.Value.IsConfirmable.ShouldBeFalse(
+                "the chain is fully in scope here, so DR-4's attachment demand on edging=BOUND is real");
+            withoutImage.Value.Violations.Select(violation => violation.Code)
+                .ShouldContain("design.reference-image-required");
+
+            var withImage = await query.GetAsync(
+                draftY, SessionTestData.OrganisationId, hasReferenceImage: true, Token);
+            withImage.IsSuccess.ShouldBeTrue();
+            withImage.Value.IsConfirmable.ShouldBeTrue();
+            withImage.Value.Snapshot.Selections.Select(selection => (selection.GroupCode, selection.OptionCode))
+                .ShouldBe(
+                    [("cut", "STYLE_B"), ("trigger", "TRIGGER"), ("trim", "BASE"), ("trim", "EXTRA"), ("edging", "BOUND")],
+                    ignoreOrder: true,
+                    "every hop settles, and trim carries both the explicit option and the one the chain added");
+        }
+
+        using var checkY = JsonDocument.Parse(
+            await (await counter.GetAsync($"/api/v1/catalog/design-drafts/{draftY}/check?hasReferenceImage=true"))
+                .Content.ReadAsStringAsync(Token));
+        checkY.RootElement.GetProperty("confirmable").GetBoolean().ShouldBeTrue();
+        checkY.RootElement.GetProperty("notes").EnumerateArray()
+            .Select(note => note.GetProperty("text").GetString())
+            .ShouldContain("Bind and finish the raw edge.");
+    }
+
+    [Fact]
     public async Task SavingInstructionsOverTheColumnLimitIsRefusedAsACleanValidationErrorRatherThanA500()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
@@ -719,13 +812,13 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
         return body.RootElement.GetProperty("categoryId").GetGuid();
     }
 
-    private static object GroupBody(string code, bool required = true, int displayOrder = 0)
+    private static object GroupBody(string code, bool required = true, int displayOrder = 0, string selectionMode = "SingleChoice")
         => new
         {
             code,
             name = code.Replace('_', ' '),
             nameTamil = (string?)null,
-            selectionMode = "SingleChoice",
+            selectionMode,
             required,
             displayOrder,
             activeFrom = (DateOnly?)null,
@@ -740,11 +833,12 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
         Guid categoryId,
         string code,
         bool required = true,
-        int displayOrder = 0)
+        int displayOrder = 0,
+        string selectionMode = "SingleChoice")
     {
         var response = await client.PostAsync(
             $"/api/v1/catalog/versions/{version}/categories/{categoryId}/design-groups",
-            GroupBody(code, required, displayOrder),
+            GroupBody(code, required, displayOrder, selectionMode),
             await VersionKeyAsync(client, version));
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
@@ -1039,4 +1133,118 @@ public sealed class CatalogDesignSelectionEndpointTests(WebApplicationFixture fi
     }
 
     private sealed record ChainedRuleFixture(Guid VersionId, Guid CategoryId, Guid ServiceXId, Guid ServiceYId);
+
+    /// <summary>
+    /// Builds and publishes a catalogue with a three-hop chain that ends in a requires-attachment rule
+    /// and a note, over four groups of one category (#140, the round-three finding): cut requires
+    /// trigger (unoffered by service X), trigger requires trim to include EXTRA (trim is multi-choice
+    /// and offered by both services), trim including EXTRA requires edging = BOUND, and edging = BOUND
+    /// both demands a reference image and attaches a standing note. Service X links only cut, trim and
+    /// edging; service Y links all four.
+    /// </summary>
+    private async Task<DeepChainFixture> BuildDeepChainCatalogueAsync(
+        AdministrationHarness.AdministratorClient owner, string prefix)
+    {
+        var measurementTemplateId = await PublishedTemplateAsync(prefix);
+        var version = await DraftAsync(owner, $"{prefix} catalogue");
+        var category = await AddCategoryAsync(
+            owner, version, Code($"{prefix.Replace('-', '_').ToUpperInvariant()}_CAT"));
+        var cut = await AddGroupAsync(owner, version, category, "cut", required: false);
+        var trigger = await AddGroupAsync(owner, version, category, "trigger", required: false, displayOrder: 1);
+        var trim = await AddGroupAsync(
+            owner, version, category, "trim", required: false, displayOrder: 2, selectionMode: "MultipleChoice");
+        var edging = await AddGroupAsync(owner, version, category, "edging", required: false, displayOrder: 3);
+        await AddOptionAsync(owner, version, cut, "STYLE_A");
+        await AddOptionAsync(owner, version, cut, "STYLE_B", displayOrder: 1);
+        await AddOptionAsync(owner, version, trigger, "TRIGGER");
+        await AddOptionAsync(owner, version, trim, "BASE");
+        await AddOptionAsync(owner, version, trim, "EXTRA", displayOrder: 1);
+        await AddOptionAsync(owner, version, edging, "BOUND");
+
+        var versionKey = await VersionKeyAsync(owner, version);
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Requires",
+                    antecedent = new { groupCode = "cut", form = "Equals", optionCodes = OptionStyleB },
+                    consequent = new { groupCode = "trigger", form = "Equals", optionCodes = TriggerOnly },
+                    note = (string?)null,
+                    why = "A style-B cut is always finished by a trade specialist.",
+                    reason = (string?)null,
+                },
+                versionKey))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Requires",
+                    antecedent = new { groupCode = "trigger", form = "Equals", optionCodes = TriggerOnly },
+                    consequent = new { groupCode = "trim", form = "Includes", optionCodes = ExtraOnly },
+                    note = (string?)null,
+                    why = "The specialist finish always adds the extra trim.",
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Requires",
+                    antecedent = new { groupCode = "trim", form = "Includes", optionCodes = ExtraOnly },
+                    consequent = new { groupCode = "edging", form = "Equals", optionCodes = BoundOnly },
+                    note = (string?)null,
+                    why = "The extra trim is always finished with a bound edge.",
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "RequiresAttachment",
+                    antecedent = new { groupCode = "edging", form = "Equals", optionCodes = BoundOnly },
+                    consequent = (object?)null,
+                    note = (string?)null,
+                    why = "A bound edge needs a photograph of the raw edge before it is bound.",
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/categories/{category}/design-rules",
+                new
+                {
+                    type = "Note",
+                    antecedent = new { groupCode = "edging", form = "Equals", optionCodes = BoundOnly },
+                    consequent = (object?)null,
+                    note = "Bind and finish the raw edge.",
+                    why = (string?)null,
+                    reason = (string?)null,
+                },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var serviceX = await AddServiceAsync(
+            owner, version, category, "STITCHING_DX", [cut, trim, edging], measurementTemplateId);
+        var serviceY = await AddServiceAsync(
+            owner, version, category, "STITCHING_DY", [cut, trigger, trim, edging], measurementTemplateId);
+
+        (await owner.PostAsync(
+                $"/api/v1/catalog/versions/{version}/publish",
+                new { reason = "Approved for the deep-chain tests." },
+                await VersionKeyAsync(owner, version)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        return new DeepChainFixture(version, category, serviceX, serviceY);
+    }
+
+    private sealed record DeepChainFixture(Guid VersionId, Guid CategoryId, Guid ServiceXId, Guid ServiceYId);
 }
