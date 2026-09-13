@@ -4,6 +4,7 @@ import { CLIENT_VERSION, CLIENT_VERSION_HEADER } from '../app/clientVersion'
 import {
   ApiError,
   apiRequest,
+  apiRequestBlob,
   setSessionChallengeHandler,
   STEP_UP_REQUIRED_CODE,
   UPGRADE_REQUIRED_CODE,
@@ -494,4 +495,74 @@ describe('what a failure carries back to the screen', () => {
     // A client that retried would spin against a server that will never change its answer.
     expect(transport.callsTo('GET /api/v1/me')).toHaveLength(1)
   })
+})
+
+describe('apiRequestBlob, the binary read path (#336)', () => {
+  const DOCUMENT = '/api/v1/billing/invoices/inv-1/document'
+
+  it('sends application/pdf as the Accept header, not application/json', async () => {
+    transport.route(`GET ${DOCUMENT}`, () => pdfResponse())
+
+    await apiRequestBlob(DOCUMENT)
+
+    const call = transport.callsTo(`GET ${DOCUMENT}`)[0]
+    expect(call?.headers.get('Accept')).toBe('application/pdf')
+  })
+
+  it('leaves every other call sending application/json, the unchanged default', async () => {
+    transport.route('GET /api/v1/me', () => jsonResponse({ ok: true }))
+
+    await apiRequest('/api/v1/me')
+
+    const call = transport.callsTo('GET /api/v1/me')[0]
+    expect(call?.headers.get('Accept')).toBe('application/json')
+  })
+
+  it('returns the bytes and the content type', async () => {
+    transport.route(`GET ${DOCUMENT}`, () => pdfResponse())
+
+    const download = await apiRequestBlob(DOCUMENT)
+
+    expect(download.contentType).toBe('application/pdf')
+    expect(download.blob.size).toBeGreaterThan(0)
+  })
+
+  it('reads the file name from Content-Disposition when the server sent one', async () => {
+    transport.route(`GET ${DOCUMENT}`, () =>
+      pdfResponse('attachment; filename="INV-CBE01-2627-000731.pdf"'),
+    )
+
+    const download = await apiRequestBlob(DOCUMENT, { fallbackFileName: 'fallback.pdf' })
+
+    expect(download.fileName).toBe('INV-CBE01-2627-000731.pdf')
+  })
+
+  it('falls back to the caller-supplied name when the server sent no disposition', async () => {
+    transport.route(`GET ${DOCUMENT}`, () => pdfResponse(null))
+
+    const download = await apiRequestBlob(DOCUMENT, { fallbackFileName: 'fallback.pdf' })
+
+    expect(download.fileName).toBe('fallback.pdf')
+  })
+
+  it('still surfaces a problem-details refusal as ApiError with its code', async () => {
+    transport.route(`GET ${DOCUMENT}`, () => problemResponse(409, 'billing.document-not-available'))
+
+    const failure = (await apiRequestBlob(DOCUMENT).catch((cause: unknown) => cause)) as ApiError
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect(failure.status).toBe(409)
+    expect(failure.code).toBe('billing.document-not-available')
+  })
+
+  function pdfResponse(disposition: string | null = 'attachment; filename="doc.pdf"'): Response {
+    const headers = new Headers({ 'Content-Type': 'application/pdf' })
+    if (disposition !== null) {
+      headers.set('Content-Disposition', disposition)
+    }
+    return new Response(new Blob(['%PDF-1.4 synthetic'], { type: 'application/pdf' }), {
+      status: 200,
+      headers,
+    })
+  }
 })

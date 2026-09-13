@@ -4148,7 +4148,9 @@ export interface components {
             priceListVersionId: string;
             reference: string;
             scheme: string;
+            supplierLegalName: string;
             supplierStateCode: string;
+            supplierTradeName: null | string;
             /** Format: uuid */
             taxConfigurationVersionId: string;
             taxInclusive: boolean;

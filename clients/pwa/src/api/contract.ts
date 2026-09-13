@@ -79,6 +79,7 @@ import type {
   InvoiceTaxComponent,
   InvoiceTotals,
   OpenCashierSessionRequest,
+  PrintInvoiceRequest,
   OrderBalance,
   Payment,
   PrintJob,
@@ -594,4 +595,9 @@ export type PrintJobConforms = Conforms<
 export type PrintReceiptRequestConforms = Conforms<
   PrintReceiptRequest,
   Immutable<RequestBody<'PrintReceipt'>>
+>
+
+export type PrintInvoiceRequestConforms = Conforms<
+  PrintInvoiceRequest,
+  Immutable<RequestBody<'PrintInvoice'>>
 >

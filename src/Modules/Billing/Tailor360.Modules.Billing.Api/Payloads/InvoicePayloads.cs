@@ -49,7 +49,8 @@ public sealed record InvoicePayload(
             new InvoiceCalculationPayload(
                 invoice.Calculation.Reference, invoice.Calculation.PriceListVersionId, invoice.Calculation.TaxConfigurationVersionId,
                 invoice.Calculation.GstRegistrationId, invoice.Calculation.Gstin, invoice.Calculation.SupplierStateCode,
-                invoice.Calculation.PlaceOfSupplyStateCode, invoice.Calculation.Scheme, invoice.Calculation.TaxInclusive),
+                invoice.Calculation.PlaceOfSupplyStateCode, invoice.Calculation.Scheme, invoice.Calculation.TaxInclusive,
+                invoice.Calculation.SupplierLegalName, invoice.Calculation.SupplierTradeName),
             invoice.Totals.GrandTotal.Currency,
             [.. invoice.Lines.OrderBy(line => line.LineNumber).Select(InvoiceLinePayload.From)],
             InvoiceTotalsPayload.From(invoice.Totals),
@@ -129,6 +130,11 @@ public sealed record AdjustmentNoteLinePayload(
 public sealed record InvoiceCustomerPayload(string CustomerNumber, string DisplayName, string? AddressLine, string? Locality, string? Postcode);
 
 /// <summary>The configuration the lines were calculated on.</summary>
+/// <param name="SupplierLegalName">
+/// The seller's registered legal name, frozen on the invoice with the GSTIN — never today's
+/// registration (#336). Projected so the client's document view can name the seller.
+/// </param>
+/// <param name="SupplierTradeName">The seller's trade name where it differs from the legal name, or null.</param>
 public sealed record InvoiceCalculationPayload(
     string Reference,
     Guid PriceListVersionId,
@@ -138,7 +144,9 @@ public sealed record InvoiceCalculationPayload(
     string SupplierStateCode,
     string PlaceOfSupplyStateCode,
     string Scheme,
-    bool TaxInclusive);
+    bool TaxInclusive,
+    string SupplierLegalName,
+    string? SupplierTradeName);
 
 /// <summary>One line.</summary>
 public sealed record InvoiceLinePayload(

@@ -29,6 +29,10 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   // itself rather than here, because that code is shared with unrelated validation failures
   // elsewhere in Billing and is not safe to map to one sentence for every screen.
   'billing.document-not-found': 'billing.problem.barcodeNotFound',
+  // The worker has not rendered the artefact yet (INV-INV-08): an operational alert, never a reason
+  // to post again. The same code names both an invoice's own document and a note's.
+  'billing.document-not-available': 'billing.problem.documentNotAvailable',
+  'billing.copies-out-of-range': 'billing.problem.copiesOutOfRange',
   'billing.cashier-session-not-yours': 'billing.problem.sessionNotYours',
   'billing.cashier-session-already-closed': 'billing.problem.sessionAlreadyClosed',
   'billing.cashier-session-already-open': 'billing.problem.sessionAlreadyOpen',

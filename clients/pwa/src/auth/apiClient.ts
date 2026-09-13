@@ -175,6 +175,12 @@ export interface ApiRequestOptions {
    * looking at has changed" rather than "try again".
    */
   readonly ifMatch?: string
+  /**
+   * The `Accept` header to send. Defaults to `application/json`, which is what every existing caller
+   * sends today and continues to send unless it opts into something else — `apiRequestBlob` is the
+   * one caller that asks for `application/pdf`.
+   */
+  readonly accept?: string
 }
 
 /**
@@ -276,7 +282,7 @@ async function send(
   body: string | undefined,
 ): Promise<Response> {
   const method = options.method ?? 'GET'
-  const headers = new Headers({ Accept: 'application/json' })
+  const headers = new Headers({ Accept: options.accept ?? 'application/json' })
 
   const correlationId = newCorrelationId()
   if (correlationId !== undefined) {
@@ -359,6 +365,61 @@ export async function apiRequestVersioned<T>(
   return {
     value: await readBody<T>(response),
     version: response.headers.get(ETAG_HEADER) ?? undefined,
+  }
+}
+
+/** What a binary download resolves to. */
+export interface BlobDownload {
+  readonly blob: Blob
+  readonly contentType: string
+  /**
+   * The name to save the file under.
+   *
+   * Read from the server's `Content-Disposition` when it sent one — every route in this application
+   * that streams a file does, through `Results.File`'s own `fileDownloadName` — and otherwise taken
+   * from `fallbackFileName`, so a caller is never left with nothing to save a file as.
+   */
+  readonly fileName: string | undefined
+}
+
+const DISPOSITION_FILENAME = /filename\*?=(?:UTF-8''|")?([^";]+)"?/i
+
+function fileNameFromDisposition(header: string | null): string | undefined {
+  if (header === null) {
+    return undefined
+  }
+  const match = DISPOSITION_FILENAME.exec(header)
+  if (match?.[1] === undefined) {
+    return undefined
+  }
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
+/**
+ * Sends a request and returns the bytes, for a PDF or another binary artefact.
+ *
+ * The same interceptor as every other call — `exchange()` is unchanged, so the correlation header,
+ * the anti-forgery pair, the replay on a stale token, the in-place re-authentication and the step-up
+ * retry all apply identically. A refusal (a `404`, a `409`, a not-yet-rendered document) is parsed as
+ * the same `ApiError` a JSON call throws, because the server answers those in `application/problem+json`
+ * regardless of what a success would have been.
+ */
+export async function apiRequestBlob(
+  path: string,
+  options: ApiRequestOptions & { readonly fallbackFileName?: string } = {},
+): Promise<BlobDownload> {
+  const response = await exchange(path, { ...options, accept: options.accept ?? 'application/pdf' })
+
+  return {
+    blob: await response.blob(),
+    contentType: response.headers.get('Content-Type') ?? 'application/octet-stream',
+    fileName:
+      fileNameFromDisposition(response.headers.get('Content-Disposition')) ??
+      options.fallbackFileName,
   }
 }
 

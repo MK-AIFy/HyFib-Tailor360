@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
+import { apiRequest, apiRequestBlob, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 import type {
   AllocateAdvanceRequest,
@@ -9,12 +9,14 @@ import type {
   CloseCashierSessionRequest,
   CreateDispatchExceptionRequest,
   DispatchException,
+  DocumentDownload,
   Invoice,
   InvoicePage,
   OpenCashierSessionRequest,
   OrderBalance,
   OutstandingBalanceRow,
   Payment,
+  PrintInvoiceRequest,
   PrintJob,
   PrintReceiptRequest,
   ReconciliationBatch,
@@ -234,6 +236,55 @@ export async function resolveInvoiceBarcode(
 ): Promise<BarcodeResolution> {
   return await apiRequest<BarcodeResolution>(`${BILLING}/barcodes/${encodeURIComponent(payload)}`, {
     ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/* The invoice document: download and the print-station hand-off. -------------------------------- */
+
+/**
+ * Streams the stored invoice PDF. The file name comes from the server's `Content-Disposition`; the
+ * invoice number is the fallback, for the one response shape the transport cannot read a name from.
+ */
+export async function downloadInvoiceDocument(
+  invoiceId: string,
+  fallbackFileName: string,
+  signal?: AbortSignal,
+): Promise<DocumentDownload> {
+  return await apiRequestBlob(`${BILLING}/invoices/${invoiceId}/document`, {
+    fallbackFileName,
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/** Streams the stored PDF of a credit or debit note posted against an invoice. */
+export async function downloadNoteDocument(input: {
+  readonly invoiceId: string
+  readonly noteId: string
+  readonly fallbackFileName: string
+  readonly signal?: AbortSignal
+}): Promise<DocumentDownload> {
+  return await apiRequestBlob(
+    `${BILLING}/invoices/${input.invoiceId}/notes/${input.noteId}/document`,
+    {
+      fallbackFileName: input.fallbackFileName,
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
+    },
+  )
+}
+
+/**
+ * Sends the rendered invoice to the branch's print queue. Acknowledged only: the interim adapter
+ * (ADR-0014) logs the job, and no printer is reached until #205's bridge replaces it.
+ */
+export async function printInvoice(input: {
+  readonly invoiceId: string
+  readonly body: PrintInvoiceRequest
+  readonly idempotencyKey: string
+}): Promise<PrintJob> {
+  return await apiRequest<PrintJob>(`${BILLING}/invoices/${input.invoiceId}/print`, {
+    method: 'POST',
+    body: input.body,
+    idempotencyKey: input.idempotencyKey,
   })
 }
 

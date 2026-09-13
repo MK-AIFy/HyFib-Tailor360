@@ -4394,8 +4394,17 @@
           "scheme": {
             "type": "string"
           },
+          "supplierLegalName": {
+            "type": "string"
+          },
           "supplierStateCode": {
             "type": "string"
+          },
+          "supplierTradeName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "taxConfigurationVersionId": {
             "format": "uuid",
@@ -4414,7 +4423,9 @@
           "supplierStateCode",
           "placeOfSupplyStateCode",
           "scheme",
-          "taxInclusive"
+          "taxInclusive",
+          "supplierLegalName",
+          "supplierTradeName"
         ],
         "type": "object"
       },
