@@ -13,13 +13,28 @@ name: CI
 # more than the whole budget on their own. `docs/process/workflow-demo.md` section 7 is where the
 # per-job durations belong.
 #
-# What one measured run says about the shape of the pipeline, from run 201 (2026-09-12, a
-# successful pull request): 8:58 of wall clock, of which `.NET build and tests` was 8:54 and every
-# other job had finished by 3:06. The critical path is that one job and nothing else, so only work
-# taken out of it makes the pipeline shorter — which is why the format check is now its own job
-# (it was 1:26 of serial time there) and why nothing else is worth splitting until the integration
-# tier, 4:59 of the remainder, is measured from the inside. The ordering here is not evidence that
-# the budget is met; the Median column of that section 7 table is.
+# What one measured run says about the shape of the pipeline, from run 34767820984 (2026-09-13, a
+# successful pull request): 10:36 of wall clock, of which `.NET build and tests` was 9:32 and every
+# other job had finished by 3:30. The critical path is that one job and nothing else, so only work
+# taken out of it makes the pipeline shorter — which is why the format check is its own job (it was
+# 1:26 of serial time there), and why the integration tier, 6:53 of the remainder, is now three
+# jobs. The ordering here is not evidence that the budget is met; the Median column of that
+# section 7 table is.
+#
+# THE INTEGRATION TIER, MEASURED FROM THE INSIDE. Until #495 this paragraph said that nothing else
+# was worth splitting until that measurement existed, and it was right to wait: the measurement
+# changed the answer. 58 of the 70 `[Collection(…)]` attributions in the tier name one collection,
+# `WebApplicationCollection`, and xUnit does not parallelise tests within a collection — so the
+# tier was very nearly serial by construction. A full local run against PostgreSQL 16 puts 1096
+# seconds of test time into 755 seconds of wall clock, about 1.45x, spread very unevenly: Billing
+# alone is 362 s at 3.49 s a case, against Security's 0.09.
+#
+# That rules out the obvious change rather than supporting it. Moving the tier into a job of its
+# own — the plain reading of "take it off the critical path" — leaves serial work serial and buys
+# almost nothing but a second build; what it buys is feedback latency, not wall clock. Sharding the
+# tier across jobs is what shortens it, because a shard is a separate process with its own database
+# and is not bound by the collection the tests share. Three shards, because `CodeQL (csharp)` at
+# 3:30 is the floor a fourth could not beat.
 #
 # `pull_request` (never `pull_request_target`): `pull_request_target` runs with the base
 # repository's secrets and a write-scoped token, so checking out the pull-request head under it
@@ -96,32 +111,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    services:
-      # PostgreSQL 16, the version the application targets. Pinned by digest as well as tag so the
-      # database the Integration tier runs against cannot change under a rerun of an old commit.
-      postgres:
-        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
-        env:
-          # `trust` keeps a password — even a throwaway one — out of the repository entirely, and
-          # matches how the development instance is configured. The container is reachable only
-          # from this job's network for the life of the job.
-          POSTGRES_HOST_AUTH_METHOD: trust
-          POSTGRES_USER: postgres
-          POSTGRES_DB: tailor360_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d tailor360_test"
-          --health-interval 2s
-          --health-timeout 5s
-          --health-retries 50
-
-    env:
-      # The Integration tier skips when no database is reachable, which would be a green build over
-      # unverified code. `CI=true` turns that skip into a failure (see
-      # tests/Tailor360.IntegrationTests/DatabaseAvailability.cs). GitHub sets CI=true already;
-      # it is repeated here because the guarantee is deliberate, not incidental.
-      CI: "true"
+    # No service container, because none of the three tiers this job now runs needs one. The Unit
+    # tier is domain rules with time and identifiers injected; the Architecture tier reads the
+    # project graph and the source text; and the Contract tier builds the host in process to
+    # enumerate its route table but never opens a connection — `WebHostFixture.cs` says so in as
+    # many words and treats `TAILOR360_TEST_DATABASE_URL` as optional for exactly that reason.
+    #
+    # The database went to `test-integration` along with the tier that needs it, and so did the
+    # `CI=true` declaration: it exists to turn a skipped Integration tier into a failure, which is
+    # a guarantee about that tier and belongs beside it rather than here.
 
     steps:
       - name: Check out the repository
@@ -199,68 +197,16 @@ jobs:
           --results-directory artifacts/test-results
           --report-xunit-trx --report-xunit-trx-filename contract.trx
 
-      - name: Integration tests
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        env:
-          # The service container above. Supplying this variable is what makes the tier run instead
-          # of falling back to Testcontainers; with CI=true an unreachable database fails the job.
-          # TAILOR360_TEST_S3_ENDPOINT is deliberately absent until the Media module needs MinIO.
-          TAILOR360_TEST_DATABASE_URL: "Host=localhost;Port=5432;Database=tailor360_test;Username=postgres"
-        run: >-
-          scripts/coverage-collect-with-retry.sh
-          dotnet-coverage collect
-          --output-format cobertura
-          --output artifacts/coverage/integration.cobertura.xml
-          --
-          dotnet test --project tests/Tailor360.IntegrationTests
-          --configuration Release --no-build
-          --results-directory artifacts/test-results
-          --report-xunit-trx --report-xunit-trx-filename integration.trx
+      # The Integration tier is not here. It is `test-integration` below, sharded three ways, and
+      # the header of this file records the measurement that justified moving it.
 
       - name: Summarise the test tiers
+        # Extracted to a script because three jobs now need it — this one, each integration shard,
+        # and `coverage-floor`, which assembles the single combined table a reader actually wants.
+        # Forty-five lines of shell maintained in three places would have drifted apart by the
+        # second edit.
         if: ${{ !cancelled() }}
-        run: |
-          # The TRX counters are the run's own record, so the summary cannot disagree with it.
-          # `notExecuted` is how TRX records a skipped test.
-          {
-            echo "## .NET test tiers"
-            echo
-            echo "| Tier | Total | Passed | Failed | Skipped |"
-            echo "| --- | ---: | ---: | ---: | ---: |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          shopt -s nullglob
-          reports=(artifacts/test-results/*.trx)
-          if [ ${#reports[@]} -eq 0 ]; then
-            echo "| _no test report was produced_ | - | - | - | - |" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          for report in "${reports[@]}"; do
-            tier=$(basename "$report" .trx)
-            counters=$(grep -o '<Counters[^>]*>' "$report" | head -n 1 || true)
-            value() { printf '%s' "$counters" | sed -n "s/.*$1=\"\([0-9]*\)\".*/\1/p"; }
-            printf '| %s | %s | %s | %s | %s |\n' \
-              "$tier" "$(value total)" "$(value passed)" "$(value failed)" "$(value notExecuted)" \
-              >> "$GITHUB_STEP_SUMMARY"
-          done
-
-          # Failing test names save a trip into the raw log. Printed to the job's own console output
-          # as well as the step summary: the summary is not reachable from the API a reviewing agent
-          # has, so a name that exists only there is, in practice, unrecoverable.
-          failures=$(grep -ho 'testName="[^"]*" outcome="Failed"' "${reports[@]}" \
-            | sed 's/testName="//; s/" outcome="Failed"//' | sort -u || true)
-          if [ -n "$failures" ]; then
-            {
-              echo
-              echo "### Failed tests"
-              echo
-              printf '%s\n' "$failures" | sed 's/^/- `/; s/$/`/'
-            } >> "$GITHUB_STEP_SUMMARY"
-
-            echo "Failed tests:"
-            printf '%s\n' "$failures" | sed 's/^/  - /'
-          fi
+        run: scripts/summarise-test-tiers.sh artifacts/test-results ".NET test tiers"
 
       - name: Upload test results
         if: ${{ !cancelled() }}
@@ -272,6 +218,10 @@ jobs:
           retention-days: 14
 
       - name: Upload coverage
+        # `coverage-floor` downloads this and every shard's counterpart, and enforces the floor once
+        # over the union. It is not enforced here: this job now holds three of the four tiers, and
+        # the floors in .github/coverage-floors.json are calibrated on all four unioned, so checking
+        # them here would fail every project whose lines are reached mainly by the Integration tier.
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -280,29 +230,182 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Prove the coverage checker still detects a shortfall
-        # Same reasoning as the documentation link checker: a gate that has quietly stopped
-        # detecting is indistinguishable from code that meets it. The self-test runs the checker
-        # over a report it knows the answer to before the real report is trusted.
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 scripts/coverage-floor.py --self-test
+  test-integration:
+    name: .NET integration tests (shard ${{ matrix.shard.id }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
-      - name: Enforce the per-project coverage floor
-        # Runs after the uploads so that a failure here still leaves the reports downloadable.
-        #
-        # The floors are in .github/coverage-floors.json, each one measured on this repository
-        # rather than chosen: the file records what the project achieved and puts the floor two to
-        # three points under it. They ratchet upward — the checker prints a notice naming any
-        # project that has outgrown its floor.
-        #
-        # These numbers are the measured baseline DOD-OD-02 in docs/process/definition-of-done.md
-        # was waiting for; the decision itself stays "proposed, to be confirmed" until its owner
-        # confirms it. Lowering a floor is a change under /.github/, which CODEOWNERS would route
-        # to a reviewer — but CODEOWNERS applies none of its rules on this repository today (see
-        # docs/process/branch-protection.md section 5.2, BP-OD-03), so that routing is a convention
-        # until BP-OD-03 is answered, not an enforced control.
+    # The Integration tier, split three ways. Issue #495 has the measurement; the short version is
+    # that the tier was 6.88 minutes of a 10.6-minute pipeline, and 58 of the 70 `[Collection(…)]`
+    # attributions in it name one collection, `WebApplicationCollection`. xUnit does not parallelise
+    # tests *within* a collection, so the tier was very nearly serial by construction — which is why
+    # simply moving it to a job of its own, the obvious reading of "take it off the critical path",
+    # would have bought almost nothing. Serial work is still serial in a different job.
+    #
+    # Sharding is what shortens it, and it is safe here for a reason that does not hold for the
+    # other option #166 weighed. Each shard is a separate job, a separate process and a separate
+    # PostgreSQL container, so no two shards share a database and the order-dependent failures of
+    # #125 — the risk #166 raised against running the tier's tests concurrently against one shared
+    # database — cannot arise between them.
+    #
+    # THREE SHARDS, NOT MORE. `CodeQL (csharp)` is 3.5 minutes from the start of the pipeline and
+    # nothing shortens it here, so it is the floor. A fourth shard would divide work that is already
+    # below that floor and buy nothing but another runner and another container.
+    #
+    # EACH SHARD REBUILDS. The build is 1.43 minutes and all three run concurrently, so rebuilding
+    # costs wall clock once and billable minutes three times. Passing the Release output between
+    # jobs as an artefact was the alternative and was not obviously cheaper — the output of 66
+    # projects has to be uploaded once and downloaded three times. `sbom` already builds the
+    # solution a second time for the same reason, so this is the established trade here rather than
+    # a new one. Worth revisiting with numbers, not before.
+    strategy:
+      # One shard failing must not hide another shard's failures — the same reasoning as the
+      # CodeQL matrix, and the same reasoning the test tiers are separate steps for.
+      fail-fast: false
+      matrix:
+        shard:
+          # THE THIRD SHARD IS DEFINED BY EXCLUSION, and that is the whole safety property. It takes
+          # everything the first two do not name, so the three shards cover the tier exactly: no
+          # test is in two shards, none is in none of them, and a namespace added to the tier later
+          # lands in shard 3 and runs, rather than being silently dropped by a filter nobody
+          # remembered to update. The alternative — three enumerations — is one forgotten line away
+          # from a green pipeline over tests that never ran.
+          #
+          # The split is balanced on MEASURED TIME, not on how many tests each namespace holds. The
+          # two are not the same thing and the difference is not small: balancing on case count
+          # gives 210/240/224 cases, which is even, and 182/580/334 seconds, which is not — a
+          # slowest shard three times the fastest, and no gain over two shards.
+          #
+          # Per-namespace seconds, summed from the TRX of a full local run of the tier against
+          # PostgreSQL 16 (674 cases, 0 skipped, 1096 s of test time in 755 s of wall clock, so
+          # about 1.45x effective parallelism):
+          #
+          #   Billing 362.5 · Identity 217.9 · Customers 176.4 · Catalog 137.4 · Orders 69.3
+          #   Platform 64.5 · Authorization 62.4 · Security 5.5 · root 0.1   —   1096.0 s
+          #
+          # Billing alone is 3.49 s a case, against Security's 0.09, and is almost exactly one third
+          # of the tier by itself — which is what fixes the shape of the split below:
+          #
+          #   shard 1  Billing                                          362.5 s
+          #   shard 2  Identity + Catalog                               355.3 s
+          #   shard 3  Customers, Orders, Platform, Authorization,      378.2 s
+          #            Security and the root namespace
+          #
+          # Those are within 3% of one another. The absolute numbers do not transfer to a runner —
+          # they were taken on a developer machine with a different core count — but the proportions
+          # do, and the proportions are what a split needs. The first run of this job reports the
+          # real per-shard durations on CI; issue #495 carries rebalancing on those as expected work
+          # rather than as a defect.
+          - id: 1
+            filter: --filter-namespace Tailor360.IntegrationTests.Billing
+          - id: 2
+            filter: >-
+              --filter-namespace Tailor360.IntegrationTests.Identity
+              --filter-namespace Tailor360.IntegrationTests.Catalog
+          - id: 3
+            filter: >-
+              --filter-not-namespace Tailor360.IntegrationTests.Billing
+              --filter-not-namespace Tailor360.IntegrationTests.Identity
+              --filter-not-namespace Tailor360.IntegrationTests.Catalog
+
+    services:
+      # PostgreSQL 16, the version the application targets. Pinned by digest as well as tag so the
+      # database this tier runs against cannot change under a rerun of an old commit. One container
+      # per shard, which is what keeps the shards independent of one another.
+      postgres:
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          # `trust` keeps a password — even a throwaway one — out of the repository entirely, and
+          # matches how the development instance is configured. The container is reachable only
+          # from this job's network for the life of the job.
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: postgres
+          POSTGRES_DB: tailor360_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tailor360_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 50
+
+    env:
+      # The Integration tier skips when no database is reachable, which would be a green build over
+      # unverified code. `CI=true` turns that skip into a failure (see
+      # tests/Tailor360.IntegrationTests/DatabaseAvailability.cs). GitHub sets CI=true already;
+      # it is repeated here because the guarantee is deliberate, not incidental — and it matters
+      # more now than it did, because a shard that skips everything and a shard whose filter matches
+      # nothing look identical from outside. `coverage-floor` checks the second case.
+      CI: "true"
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore HyFib.Tailor360.slnx
+
+      - name: Build
+        id: build
+        run: dotnet build HyFib.Tailor360.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Install the coverage collector
+        run: |
+          dotnet tool install --global dotnet-coverage --version "$DOTNET_COVERAGE_VERSION"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Integration tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 scripts/coverage-floor.py artifacts/coverage
+        env:
+          # The service container above. Supplying this variable is what makes the tier run instead
+          # of falling back to Testcontainers; with CI=true an unreachable database fails the job.
+          # TAILOR360_TEST_S3_ENDPOINT is deliberately absent until the Media module needs MinIO.
+          TAILOR360_TEST_DATABASE_URL: "Host=localhost;Port=5432;Database=tailor360_test;Username=postgres"
+        run: >-
+          scripts/coverage-collect-with-retry.sh
+          dotnet-coverage collect
+          --output-format cobertura
+          --output artifacts/coverage/integration-shard-${{ matrix.shard.id }}.cobertura.xml
+          --
+          dotnet test --project tests/Tailor360.IntegrationTests
+          --configuration Release --no-build
+          --results-directory artifacts/test-results
+          --report-xunit-trx
+          --report-xunit-trx-filename integration-shard-${{ matrix.shard.id }}.trx
+          ${{ matrix.shard.filter }}
+
+      - name: Summarise this shard
+        if: ${{ !cancelled() }}
+        run: >-
+          scripts/summarise-test-tiers.sh artifacts/test-results
+          ".NET integration tests (shard ${{ matrix.shard.id }})"
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # One artefact per shard: an artefact name has to be unique within a run, and
+          # `coverage-floor` collects them all again with a wildcard.
+          name: dotnet-test-results-integration-shard-${{ matrix.shard.id }}
+          path: artifacts/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dotnet-coverage-integration-shard-${{ matrix.shard.id }}
+          path: artifacts/coverage/
+          if-no-files-found: warn
+          retention-days: 14
 
   format-dotnet:
     name: .NET formatting
@@ -355,7 +458,7 @@ jobs:
 
       # pnpm is installed before Node so that setup-node's pnpm cache can find the store.
       - name: Set up pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           # No `version:` input on purpose: clients/pwa/package.json pins pnpm through its
           # `packageManager` field, and passing both makes this action fail with a conflict.
@@ -854,7 +957,7 @@ jobs:
         run: mkdir -p artifacts/security/codeql
 
       - name: Initialise CodeQL
-        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           languages: ${{ matrix.language }}
           # No build. C# analysis without a build is supported and is much the cheaper of the two
@@ -866,7 +969,7 @@ jobs:
           build-mode: none
 
       - name: Analyse
-        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           category: "/language:${{ matrix.language }}"
           # The SARIF is always written to disk, whether or not it can be published, because the
@@ -994,7 +1097,7 @@ jobs:
 
       - name: Publish the Trivy findings to code scanning
         if: ${{ !cancelled() && vars.CODE_SCANNING_ENABLED == 'true' }}
-        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           sarif_file: artifacts/security/trivy
           category: trivy
@@ -1186,3 +1289,199 @@ jobs:
           path: artifacts/sbom/
           if-no-files-found: error
           retention-days: 14
+
+  coverage-floor:
+    name: Coverage floor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # The per-project floor is enforced here, once, over the union of every tier — and this job
+    # exists because that union is now produced by four jobs instead of one.
+    #
+    # `.github/coverage-floors.json` records what each project achieved with all four tiers unioned
+    # and puts the floor two to three points under it. Enforcing it over any subset is therefore a
+    # false failure: a project whose lines are reached mainly by the Integration tier would fail
+    # against a floor measured with that tier included. That is the trap issue #166 named when it
+    # said splitting the tier "splits the per-project coverage floor across two jobs, whose floors
+    # are calibrated on the four tiers unioned", and this job is the answer to it.
+    #
+    # It runs only when every test job succeeded. A failed tier has already reported itself, and
+    # adding a second red check saying "the floor could not be enforced" would bury the real cause
+    # under a consequence — the same reasoning as the `pwa-dist` upload above. What it does NOT do
+    # is pass quietly on a partial union: the completeness assertion below fails when any expected
+    # report is missing, so a shard that lost its artefact is red rather than ignored.
+    needs:
+      - build-test-dotnet
+      - test-integration
+    if: >-
+      ${{ !cancelled()
+      && needs.build-test-dotnet.result == 'success'
+      && needs.test-integration.result == 'success' }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # actions/download-artifact is pinned at v7.0.0 rather than v7.0.1. The two artefact actions
+      # live in separate repositories on separate version lines, and download-artifact has no v7.0.1
+      # tag at all — a reviewer comparing the two pins will notice the asymmetry, so it is written
+      # down here rather than left to be rediscovered. Resolved with the command this file's ACTION
+      # PINNING POLICY documents.
+      - name: Take the coverage from every tier and shard
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: dotnet-coverage*
+          merge-multiple: true
+          path: artifacts/coverage
+
+      - name: Take the test results from every tier and shard
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: dotnet-test-results*
+          merge-multiple: true
+          path: artifacts/test-results
+
+      - name: Check that every tier and shard reported
+        # The failure this catches is silent in every other direction: a shard whose namespace
+        # filter matches nothing runs zero tests, exits zero, and uploads an empty report, so the
+        # pipeline would be green over a slice of the suite that never ran. Naming the six reports
+        # that must exist turns a mistyped filter into a red build.
+        run: |
+          missing=""
+          for report in unit architecture contract \
+                        integration-shard-1 integration-shard-2 integration-shard-3; do
+            if [ ! -s "artifacts/coverage/${report}.cobertura.xml" ]; then
+              missing="${missing} ${report}.cobertura.xml"
+            fi
+          done
+
+          if [ -n "$missing" ]; then
+            echo "::error title=A tier or shard produced no coverage::Missing:${missing}. The per-project floor is calibrated on every tier unioned, so it is not enforced over a partial one. A shard whose --filter-namespace matches nothing looks exactly like this."
+            exit 1
+          fi
+
+          echo "All six coverage reports are present."
+
+      - name: Summarise every test tier and shard
+        if: ${{ !cancelled() }}
+        run: scripts/summarise-test-tiers.sh artifacts/test-results ".NET test tiers and shards"
+
+      - name: Prove the coverage checker still detects a shortfall
+        # Same reasoning as the documentation link checker: a gate that has quietly stopped
+        # detecting is indistinguishable from code that meets it. The self-test runs the checker
+        # over a report it knows the answer to before the real report is trusted.
+        run: python3 scripts/coverage-floor.py --self-test
+
+      - name: Enforce the per-project coverage floor
+        # The floors ratchet upward — the checker prints a notice naming any project that has
+        # outgrown its floor.
+        #
+        # These numbers are the measured baseline DOD-OD-02 in docs/process/definition-of-done.md
+        # was waiting for; the decision itself stays "proposed, to be confirmed" until its owner
+        # confirms it. Lowering a floor is a change under /.github/, which CODEOWNERS would route
+        # to a reviewer — but CODEOWNERS applies none of its rules on this repository today (see
+        # docs/process/branch-protection.md section 5.2, BP-OD-03), so that routing is a convention
+        # until BP-OD-03 is answered, not an enforced control.
+        run: python3 scripts/coverage-floor.py artifacts/coverage
+
+  ci-gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # One check that always reports and fails closed.
+    #
+    # It is deliberately ADDITIVE. Every check name that reported before this job existed still
+    # reports, and section 3 of docs/process/branch-protection.md keeps requiring them. This job
+    # does not replace them, and requiring it is not a substitute for requiring them — whether the
+    # required set should collapse to this one name is a governance question belonging with
+    # BP-OD-02 and BP-OD-03, both open, and with the fact that `main` carries no protection today.
+    #
+    # What it adds is a single place where a conclusion nobody thought about is a red build. The
+    # pass set is closed — `success` and `skipped`, nothing else — so `cancelled`, `failure` and any
+    # conclusion a future GitHub introduces all fail here rather than being read as approval. That
+    # matters more than it looks: this repository's characteristic incident is the silent one, where
+    # `main` was red for two days while every pull request was green.
+    #
+    # `skipped` passes because `coverage-floor` skips by design when a test job has already failed,
+    # and reporting that as a second failure would bury the real cause. No job in this workflow is
+    # conditional on a path or a variable, so a skip can only follow a failure that is itself caught
+    # here.
+    #
+    # ONE THING IT DOES NOT DO: it cannot notice a job added to this file and never added to
+    # `needs:` below. That is failure mode 2 of branch-protection.md section 3.1, and the control
+    # for it remains the rule in that section — the same control as before this job existed, since
+    # every per-job check name still reports.
+    if: ${{ always() }}
+
+    needs:
+      - build-test-dotnet
+      - test-integration
+      - coverage-floor
+      - format-dotnet
+      - build-test-pwa
+      - documentation
+      - api-contract
+      - security
+      - migration-check
+      - codeql
+      - infrastructure-scan
+      - sbom
+
+    steps:
+      - name: Decide the pipeline's verdict
+        env:
+          # `toJSON(needs)` is the runner's own record of how each dependency ended, so the verdict
+          # cannot disagree with the run it is judging.
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - << 'PY'
+          import json
+          import os
+          import sys
+
+          # A closed set, on purpose. Listing what passes and failing everything else means a
+          # conclusion this script has never heard of is red, which is the safe direction. Listing
+          # what fails would mean the opposite.
+          PASSING = {"success", "skipped"}
+
+          needs = json.loads(os.environ["NEEDS"])
+
+          if not needs:
+              print("::error title=The gate judged nothing::`needs` was empty, so this job proved "
+                    "nothing at all about the pipeline.")
+              sys.exit(1)
+
+          summary = []
+          failed = []
+
+          for job, outcome in sorted(needs.items()):
+              result = (outcome or {}).get("result") or "(no result)"
+              passed = result in PASSING
+              summary.append((job, result, "pass" if passed else "FAIL"))
+              if not passed:
+                  failed.append(f"{job} ({result})")
+
+          width = max(len(job) for job, _, _ in summary)
+          for job, result, verdict in summary:
+              print(f"  {job.ljust(width)}  {result:<12} {verdict}")
+
+          lines = ["## CI gate", "", "| Job | Result | Verdict |", "| --- | --- | --- |"]
+          lines += [f"| `{job}` | {result} | {verdict} |" for job, result, verdict in summary]
+
+          if failed:
+              lines += ["", f"**Failed:** {', '.join(failed)}"]
+
+          path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if path:
+              with open(path, "a", encoding="utf-8") as handle:
+                  handle.write("\n".join(lines) + "\n")
+
+          if failed:
+              print(f"::error title=The pipeline did not pass::{', '.join(failed)}")
+              sys.exit(1)
+
+          print(f"All {len(summary)} dependencies passed or were skipped by design.")
+          PY
