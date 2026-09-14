@@ -96,4 +96,52 @@ MinIO adapter's round trip against the compose stack when `TAILOR360_TEST_S3_END
 continuous-integration workflow deliberately does not set (`.github/workflows/ci.yml`), so that round trip is run
 by a developer against `./scripts/dev up` and is not a merge gate; by the architecture tier: ARCH-009 for the
 packages; by the integration tier: the worker's pass, a renderer that throws, the bounded retry, the download's
-authorisation and audit, the barcode lookup's negative cases, the checksum after a cancellation.
+authorisation and audit, the barcode lookup's negative cases, the checksum after a cancellation. Since #512, the
+tagged-PDF structure tree (section 6) is held the same way: the contract tier's `DocumentAdapterTests` asserts the
+structure tree, the table-header role and the Tamil language span, over the same golden-master and Tamil fixtures
+section 1 already reads.
+
+## 6. Update — 2026-09-14 (#512): the accessibility tagging gap is closed, not waived
+
+Section 4 recorded, when this decision was made, that "accessibility tagging of the PDF is not delivered by this
+library today" and that "a waiver records the gap and its expiry". Neither half of that sentence held up: no
+waiver was ever written — `docs/process/waivers.md` carries no row for it, and the gap was instead recorded as a
+**Fail with the gap named** against A11Y-DP-02, A11Y-DP-04 and A11Y-DP-05 in
+[`../billing/accountant-document-review.md`](../billing/accountant-document-review.md) section 5, each naming
+#512 as the issue that would close it — and the library turns out to deliver tagging after all.
+
+**QuestPDF 2026.8.0 — the exact version section 2 already pins — carries a PDF/UA-1 conformance mode
+(`DocumentSettings.PDFUA_Conformance`) and a semantic-tagging fluent API (`SemanticTable`,
+`SemanticHorizontalHeader`, `SemanticLanguage`, and more this adapter does not yet use) that nothing in
+`QuestPdfRenderer` or `BillingDocumentTemplate` had ever called.** The gap section 3 weighed as a reason to accept
+QuestPDF's licence trade-off anyway was a gap in this adapter's usage of the library, not in the library itself.
+No version bump and no renderer change were needed — the "against" note in section 3's options table
+("no PDF/UA tagging today") is corrected by this section rather than rewritten there, per the status rule in
+[`0000-template.md`](0000-template.md) section 2 that a record is appended to rather than edited to say something
+different.
+
+What #512 changed, concretely:
+
+- `QuestPdfRenderer` turns on `DocumentSettings.PDFUA_Conformance = PDFUA_Conformance.PDFUA_1` for every template.
+  QuestPDF then emits the document's own structure tree with no further code — the `Document`, `Header`,
+  `Content` and `Footer` landmarks — closing the gap section 4 named: reading order inferred by the reader
+  rather than declared by the document.
+- `BillingDocumentTemplate` tags the invoice-family line table with `SemanticTable()` and its heading cells with
+  `SemanticHorizontalHeader()`, and wraps the customer's display name and address lines in `SemanticLanguage("ta-IN")`
+  when — and only when — they carry Tamil script, so a document with no Tamil customer text carries no language
+  span at all.
+- **Turning on PDF/UA-1 cost this record's own determinism guarantee (section 2 point 1) a new random value**:
+  QuestPDF writes a fresh file identifier — the trailer's `/ID` pair and the matching
+  `xmpMM:DocumentID`/`InstanceID` in the XMP packet it now embeds — on every call, unrelated to the model.
+  `QuestPdfRenderer.StabiliseFileIdentifier` replaces those bytes, after generation, with sixteen bytes derived
+  from the template key, the document number and `renderedAt` — the same fields the rest of this record already
+  treats as what a rendering is deterministic *for* — so two renderings of one model are byte-for-byte identical
+  again. Every replacement is the same length as what it replaces, so no other offset in the file moves.
+- The receipt template gets the same `PDFUA_1` conformance and the same structure landmarks for free; it carries
+  no table and no customer name, so it needed no `Semantic…` call of its own and section 4's "not applicable to
+  the artefact" reasoning for the receipt's own accessibility records (E09-F02-10) is unaffected.
+
+This closes A11Y-DP-02, A11Y-DP-04 and A11Y-DP-05 as **Pass** in
+[`../billing/accountant-document-review.md`](../billing/accountant-document-review.md) section 5. It does not
+close the font-embedding gap the same section's test comments record — QuestPDF still draws every glyph as a
+Type3 procedure rather than embedding the Noto faces — which is a different limitation and not #512's scope.

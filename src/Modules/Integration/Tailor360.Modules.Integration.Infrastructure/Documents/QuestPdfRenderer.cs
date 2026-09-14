@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -13,7 +16,7 @@ namespace Tailor360.Modules.Integration.Infrastructure.Documents;
 /// model's <c>renderedAt</c>, so two renderings of one posted document are byte-for-byte the same and a
 /// checksum is worth keeping.
 /// </summary>
-public sealed class QuestPdfRenderer : IPdfRenderer
+public sealed partial class QuestPdfRenderer : IPdfRenderer
 {
     /// <summary>The invoice template.</summary>
     public const string InvoiceTemplate = "billing.invoice";
@@ -73,11 +76,20 @@ public sealed class QuestPdfRenderer : IPdfRenderer
             Language = "en-IN",
             CreationDate = renderedAt,
             ModifiedDate = renderedAt,
-        });
+        })
+        // ADR-0014 section 5 / #512: PDF/UA-1 turns on the structure tree QuestPDF otherwise omits — the
+        // document and page landmarks (Document, Header, Content, Footer) are then emitted for every
+        // template with no further code, which is what closes A11Y-DP-04 (declared reading order).
+        // BillingDocumentTemplate adds the table-header roles and the Tamil language span this conformance
+        // level requires of it (A11Y-DP-02, A11Y-DP-05); the receipt carries no such element and needs none.
+        .WithSettings(new DocumentSettings { PDFUA_Conformance = PDFUA_Conformance.PDFUA_1 });
 
+        byte[] rendered;
         try
         {
-            document.GeneratePdf(destination);
+            using var buffer = new MemoryStream();
+            document.GeneratePdf(buffer);
+            rendered = buffer.ToArray();
         }
         catch (Exception exception) when (exception is QuestPDF.Drawing.Exceptions.DocumentLayoutException or QuestPDF.Drawing.Exceptions.DocumentComposeException or QuestPDF.Drawing.Exceptions.DocumentDrawingException)
         {
@@ -85,6 +97,57 @@ public sealed class QuestPdfRenderer : IPdfRenderer
             return Task.FromResult(Result.Failure(Error.Unavailable("integration.render-failed", exception.GetType().Name)));
         }
 
+        rendered = StabiliseFileIdentifier(rendered, $"{templateKey}|{values.Text("number")}|{values.Text("renderedAt")}");
+        destination.Write(rendered, 0, rendered.Length);
+
         return Task.FromResult(Result.Success());
     }
+
+    /// <summary>
+    /// PDF/UA-1 (#512) has QuestPDF write a random file identifier — the trailer's <c>/ID</c> pair and the
+    /// matching <c>xmpMM:DocumentID</c>/<c>InstanceID</c> in the embedded XMP packet — freshly on every
+    /// call, which breaks the determinism ADR-0014 promises and this renderer is tested on. Both forms
+    /// encode the same sixteen bytes, so replacing them with sixteen bytes derived from the model keeps the
+    /// file's own internal consistency and makes two renderings of one model byte-for-byte identical again.
+    /// Every replacement is the same length as what it replaces, so no offset in the file moves.
+    /// </summary>
+    private static byte[] StabiliseFileIdentifier(byte[] pdf, string seed)
+    {
+        var text = Encoding.Latin1.GetString(pdf);
+        if (!TrailerFileIdentifier().IsMatch(text))
+        {
+            // Nothing QuestPDF wrote randomly this time; leave the bytes exactly as generated.
+            return pdf;
+        }
+
+        var stableId = SHA256.HashData(Encoding.UTF8.GetBytes(seed))[..16];
+        var hex = Convert.ToHexString(stableId);
+        var uuid = string.Create(36, hex, static (span, source) =>
+        {
+            source.AsSpan(0, 8).CopyTo(span);
+            span[8] = '-';
+            source.AsSpan(8, 4).CopyTo(span[9..]);
+            span[13] = '-';
+            source.AsSpan(12, 4).CopyTo(span[14..]);
+            span[18] = '-';
+            source.AsSpan(16, 4).CopyTo(span[19..]);
+            span[23] = '-';
+            source.AsSpan(20, 12).CopyTo(span[24..]);
+        }).ToLowerInvariant();
+
+        text = TrailerFileIdentifier().Replace(text, $"/ID [<{hex}> <{hex}>]");
+        text = XmpDocumentId().Replace(text, uuid);
+        text = XmpInstanceId().Replace(text, uuid);
+
+        return Encoding.Latin1.GetBytes(text);
+    }
+
+    [GeneratedRegex(@"/ID\s*\[\s*<[0-9A-Fa-f]{32}>\s*<[0-9A-Fa-f]{32}>\s*\]")]
+    private static partial Regex TrailerFileIdentifier();
+
+    [GeneratedRegex(@"(?<=<xmpMM:DocumentID>uuid:)[0-9a-fA-F-]{36}(?=</xmpMM:DocumentID>)")]
+    private static partial Regex XmpDocumentId();
+
+    [GeneratedRegex(@"(?<=<xmpMM:InstanceID>uuid:)[0-9a-fA-F-]{36}(?=</xmpMM:InstanceID>)")]
+    private static partial Regex XmpInstanceId();
 }

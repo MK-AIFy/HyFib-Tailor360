@@ -15,6 +15,12 @@ internal static class BillingDocumentTemplate
     private const string Muted = "#555555";
     private const string Rule = "#BBBBBB";
 
+    /// <summary>The customer's own words may be in Tamil (#512); everything the template writes itself is English.</summary>
+    private static bool IsTamil(string text) => text.Any(character => character is >= '஀' and <= '௿');
+
+    /// <summary>The container tagged <c>ta-IN</c> when the text it is about to carry is Tamil, itself otherwise.</summary>
+    private static IContainer LanguageOf(IContainer container, string text) => IsTamil(text) ? container.SemanticLanguage("ta-IN") : container;
+
     public static string TitleOf(string templateKey) => templateKey switch
     {
         QuestPdfRenderer.CreditNoteTemplate => "Credit note",
@@ -73,12 +79,13 @@ internal static class BillingDocumentTemplate
             {
                 row.RelativeItem().Column(left =>
                 {
+                    var displayName = customer.Text("displayName");
                     left.Item().Text("Billed to").FontColor(Muted).FontSize(8);
-                    left.Item().Text(customer.Text("displayName")).SemiBold();
+                    left.Item().Element(item => LanguageOf(item, displayName)).Text(displayName).SemiBold();
                     left.Item().Text($"Customer {customer.Text("customerNumber")}").FontColor(Muted);
                     foreach (var line in new[] { customer.Text("addressLine"), customer.Text("locality"), customer.Text("postcode") }.Where(line => line.Length > 0))
                     {
-                        left.Item().Text(line);
+                        left.Item().Element(item => LanguageOf(item, line)).Text(line);
                     }
                 });
                 row.RelativeItem().Column(right =>
@@ -93,7 +100,7 @@ internal static class BillingDocumentTemplate
                 });
             });
 
-            column.Item().Table(table =>
+            column.Item().SemanticTable().Table(table =>
             {
                 table.ColumnsDefinition(columns =>
                 {
@@ -110,7 +117,7 @@ internal static class BillingDocumentTemplate
                 {
                     foreach (var (title, right) in new[] { ("#", false), ("Description", false), ("Qty", true), ("Rate", true), ("Taxable", true), ("Tax", true), ("Total", true) })
                     {
-                        var cell = header.Cell().BorderBottom(0.75f).BorderColor(Rule).PaddingVertical(3);
+                        var cell = header.Cell().SemanticHorizontalHeader().BorderBottom(0.75f).BorderColor(Rule).PaddingVertical(3);
                         (right ? cell.AlignRight() : cell).Text(title).SemiBold().FontSize(8);
                     }
                 });
