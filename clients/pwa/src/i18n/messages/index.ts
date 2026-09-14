@@ -24,6 +24,7 @@ import { installEn, installTa } from './install'
 import { layoutEn, layoutTa } from './layout'
 import { measurementsEn, measurementsTa } from './measurements'
 import { navigationEn, navigationTa } from './navigation'
+import { pricingEn, pricingTa } from './pricing'
 import { primitivesEn, primitivesTa } from './primitives'
 import { shellEn, shellTa } from './shell'
 import { statesEn, statesTa } from './states'
@@ -44,6 +45,7 @@ export const messagesEn = {
   ...catalogEn,
   ...measurementsEn,
   ...billingEn,
+  ...pricingEn,
 } as const
 
 export const messagesTa = {
@@ -61,4 +63,5 @@ export const messagesTa = {
   ...catalogTa,
   ...measurementsTa,
   ...billingTa,
+  ...pricingTa,
 }

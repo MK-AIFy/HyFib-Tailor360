@@ -31,6 +31,8 @@ import { CatalogDesignRoute } from '../routes/catalog/CatalogDesignRoute'
 import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEditorRoute'
 import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
 import { DesignPickerRoute } from '../routes/catalog/DesignPickerRoute'
+import { GstRegistrationsRoute } from '../routes/pricing/GstRegistrationsRoute'
+import { TaxConfigurationListRoute } from '../routes/pricing/TaxConfigurationListRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
@@ -441,6 +443,27 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={ADMIN_PERMISSIONS.catalogEdit}>
                     <CatalogDesignRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // The pricing administration foundation (#237): the GST registration register and
+                // the tax configuration version register, the read-and-record surface the other seven
+                // client slices of #41 hang off. Both on the drafting key — there is no narrower
+                // invoice-read-shaped key for pricing, and publishing is a separate permission
+                // (`BILLING_PERMISSIONS.publishPriceList`) that no screen here checks yet.
+                path: 'gst-registrations',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <GstRegistrationsRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: 'tax-configuration',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <TaxConfigurationListRoute />
                   </RequirePermission>
                 ),
               },

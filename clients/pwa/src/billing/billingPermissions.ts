@@ -41,4 +41,16 @@ export const BILLING_PERMISSIONS = {
   postInvoice: 'billing.post_invoice',
   /** Printing and downloading a receipt. */
   printReceipt: 'billing.print_receipt',
+  /**
+   * Drafting a GST registration, a tax configuration version or a price list — the drafting key for
+   * the whole pricing administration surface (#237). Organisation scope. No screen in this issue
+   * checks `billing.override_price`: the engine consults it server-side, and a key here that nothing
+   * checks would read as a client-side decision, which it is not.
+   */
+  managePriceLists: 'billing.manage_price_lists',
+  /**
+   * Publishing a price list or a tax configuration version. Named here, by the first mover on this
+   * file, so no later sibling has to touch it — E09-F01-5b and E09-F01-7b are its first consumers.
+   */
+  publishPriceList: 'billing.publish_price_list',
 } as const
