@@ -140,6 +140,24 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   // already mapped are new here.
   'billing.discount-bounds-not-ordered': 'pricing.problem.discountBoundsNotOrdered',
   'billing.discount-rule-not-found': 'pricing.problem.discountRuleNotFound',
+  // The pricing preview (E09-F01-8b). `billing.configuration-missing`, `billing.discount-rule-not-found`,
+  // `billing.item-not-found` and `billing.value-required` are already mapped above and reused unchanged
+  // — a missing configuration, an unknown rule and a missing value read the same sentence whichever
+  // route answers them. `billing.approval-required` and `billing.discount-above-maximum` are read
+  // against their own field (`lines[<lineKey>].override.rate` or `.discount.value`) by
+  // `PricingPreviewRoute.tsx` itself, via `billingProblemField` below, the way every field-level refusal
+  // in this family already is; the sentence is still looked up here, once, so both places agree.
+  'billing.approval-required': 'pricing.problem.approvalRequired',
+  'billing.discount-above-maximum': 'pricing.problem.discountAboveMaximum',
+  'billing.discount-exceeds-line': 'pricing.problem.discountExceedsLine',
+  'billing.discount-rule-not-in-force': 'pricing.problem.discountRuleNotInForce',
+  'billing.item-not-a-surcharge': 'pricing.problem.itemNotASurcharge',
+  'billing.surcharge-taxed-differently': 'pricing.problem.surchargeTaxedDifferently',
+  'billing.item-not-priced': 'pricing.problem.itemNotPriced',
+  'billing.quantity-not-positive': 'pricing.problem.quantityNotPositive',
+  'billing.line-key-duplicated': 'pricing.problem.lineKeyDuplicated',
+  'billing.lines-required': 'pricing.problem.linesRequired',
+  'billing.override-rate-not-well-formed': 'pricing.problem.overrideRateNotWellFormed',
 }
 
 /** The code of a failure, when the server sent one. */

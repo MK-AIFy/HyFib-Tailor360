@@ -36,6 +36,7 @@ import { GstRegistrationsRoute } from '../routes/pricing/GstRegistrationsRoute'
 import { PriceListsRoute } from '../routes/pricing/PriceListsRoute'
 import { PriceListVersionEditorRoute } from '../routes/pricing/PriceListVersionEditorRoute'
 import { PriceListVersionsRoute } from '../routes/pricing/PriceListVersionsRoute'
+import { PricingPreviewRoute } from '../routes/pricing/PricingPreviewRoute'
 import { TaxConfigurationEditorRoute } from '../routes/pricing/TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from '../routes/pricing/TaxConfigurationListRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
@@ -523,6 +524,18 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
                     <TaxConfigurationEditorRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // The pricing preview and the accountant's test-case shapes before publish
+                // (E09-F01-8b): the authoring surface for #147's own preview endpoint, and #41's
+                // acceptance criterion that an unauthorised discount or override is rejected.
+                // `?versionId=` carries a pre-selection from the version editor's own link.
+                path: 'pricing/preview',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <PricingPreviewRoute />
                   </RequirePermission>
                 ),
               },

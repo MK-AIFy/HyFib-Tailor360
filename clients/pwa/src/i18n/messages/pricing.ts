@@ -464,6 +464,167 @@ export const pricingEn = {
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
   'pricing.problem.branchPublishConflict':
     'Another price list’s version already prices one of this version’s branches, published at the same moment. A branch is priced by one published version at a time; read what is published now before deciding whether this draft is still wanted.',
+
+  /* The pricing preview and the accountant's test-case shapes before publish (E09-F01-8b). ------ */
+  'pricing.nav.preview': 'Pricing preview',
+  'pricing.priceList.editor.preview': 'See the effect before publishing',
+
+  'pricing.preview.heading': 'Pricing preview',
+  'pricing.preview.loading': 'the pricing preview',
+  'pricing.preview.retry': 'Try again',
+
+  'pricing.preview.form.title': 'What to price',
+  'pricing.preview.form.priceListId': 'Price list',
+  'pricing.preview.form.priceListVersionId': 'Version',
+  'pricing.preview.form.priceListVersionId.option': 'v{number} — {name} ({status})',
+  'pricing.preview.form.taxConfigurationVersionId': 'Tax configuration version',
+  'pricing.preview.form.taxConfigurationVersionId.hint':
+    'Leave this as the published one unless you are trying a draft tax configuration.',
+  'pricing.preview.form.taxConfigurationVersionId.publishedOption': 'The published one',
+  'pricing.preview.form.taxConfigurationVersionId.option': 'v{number} — {name} ({status})',
+  'pricing.preview.form.branchId': 'Branch',
+  'pricing.preview.form.on': 'Date',
+  'pricing.preview.form.placeOfSupplyStateCode': 'Place of supply state code',
+  'pricing.preview.form.placeOfSupplyStateCode.hint':
+    'The two-digit GST state code of where the work is supplied. The same code as the branch’s own registration prices intra-state; a different one prices inter-state.',
+
+  'pricing.preview.lines.title': 'Lines',
+  'pricing.preview.lines.loading': 'this version’s items and discount rules',
+  'pricing.preview.lines.empty.title': 'No lines yet',
+  'pricing.preview.lines.empty':
+    'Add a line, or press one of the accountant’s cases below — pressing a case adds one for you, built from this version’s own items.',
+  'pricing.preview.lines.caption': 'The lines to price',
+  'pricing.preview.line.column.itemCode': 'Item',
+  'pricing.preview.line.column.quantity': 'Quantity',
+  'pricing.preview.line.column.surcharges': 'Surcharges',
+  'pricing.preview.line.column.discount': 'Discount',
+  'pricing.preview.line.column.override': 'Override',
+  'pricing.preview.line.edit': 'Edit {itemCode}',
+  'pricing.preview.line.remove': 'Remove {itemCode}',
+  'pricing.preview.line.add': 'Add a line',
+  'pricing.preview.line.add.offlineAction': 'Adding a line',
+  'pricing.preview.line.edit.offlineAction': 'Editing a line',
+
+  'pricing.preview.line.form.addTitle': 'Add a line',
+  'pricing.preview.line.form.editTitle': 'Edit a line',
+  'pricing.preview.line.form.itemCode': 'Item',
+  'pricing.preview.line.form.quantity': 'Quantity',
+  'pricing.preview.line.form.surcharges': 'Surcharges',
+  'pricing.preview.line.form.discountRuleCode': 'Discount',
+  'pricing.preview.line.form.discountRuleCode.hint': 'One of this version’s own discount rules.',
+  'pricing.preview.line.form.discountRuleCode.none': 'No discount',
+  'pricing.preview.line.form.discountValue': 'Discount value',
+  'pricing.preview.line.form.discountReason': 'Reason (optional)',
+  'pricing.preview.line.form.override': 'Price this line at a different rate',
+  'pricing.preview.line.form.overrideRate': 'Override rate',
+  'pricing.preview.line.form.overrideRate.hint':
+    'In place of the item’s catalogue rate. Within the version’s own threshold, this needs a reason; beyond it, it needs the “Override a price” permission on a recently verified session.',
+  'pricing.preview.line.form.overrideReason': 'Reason',
+  'pricing.preview.line.form.override.note':
+    'An override beyond the version’s threshold, or a discount beyond its rule’s counter maximum, is refused unless the session holds “Override a price” and was recently re-verified.',
+  'pricing.preview.line.form.save': 'Save this line',
+
+  'pricing.preview.cases.title': 'Try one of the accountant’s cases',
+  'pricing.preview.cases.hint':
+    'Each one fills the form with a shape the accountant already knows — it names no expected figure of its own; the figures come from this version’s own rates once the preview runs.',
+  'pricing.preview.case.intraStateExclusive': 'Intra-state, exclusive of tax',
+  'pricing.preview.case.intraStateExclusive.hint':
+    'One line, priced at the catalogue rate, supplied within the same state as the branch’s registration.',
+  'pricing.preview.case.interState': 'Inter-state',
+  'pricing.preview.case.interState.hint':
+    'The same line, supplied to a different state — a single integrated-tax component in place of the pair.',
+  'pricing.preview.case.inclusive': 'Tax-inclusive version',
+  'pricing.preview.case.inclusive.hint':
+    'The same line, to run against a version whose price is quoted inclusive of tax — the taxable value is backed out of the quoted amount.',
+  'pricing.preview.case.percentageDiscount': 'A percentage discount',
+  'pricing.preview.case.percentageDiscount.hint':
+    'Names one of this version’s percentage discount rules, at the most a counter may give on its own authority.',
+  'pricing.preview.case.amountDiscount': 'An amount discount',
+  'pricing.preview.case.amountDiscount.hint':
+    'Names one of this version’s fixed-amount discount rules, at the most a counter may give on its own authority.',
+  'pricing.preview.case.surcharge': 'A surcharge',
+  'pricing.preview.case.surcharge.hint':
+    'Adds one of this version’s own surcharge items to the line.',
+  'pricing.preview.case.quantityAboveOne': 'A quantity above one',
+  'pricing.preview.case.quantityAboveOne.hint': 'The same line, priced twice over.',
+  'pricing.preview.case.overrideWithinThreshold': 'An override within the threshold',
+  'pricing.preview.case.overrideWithinThreshold.hint':
+    'A rate below this version’s override threshold — priced with a reason, needing no permission.',
+  'pricing.preview.case.overrideBeyondThreshold': 'An override beyond the threshold',
+  'pricing.preview.case.overrideBeyondThreshold.hint':
+    'A rate beyond this version’s override threshold — refused without “Override a price” on a recently verified session.',
+  'pricing.preview.case.nilRated': 'A nil-rated item',
+  'pricing.preview.case.nilRated.hint':
+    'Choose an item whose tax code carries no rate to see a line with no tax component at all.',
+  'pricing.preview.case.roundOffTwoLines': 'Round-off, over two lines',
+  'pricing.preview.case.roundOffTwoLines.hint':
+    'Two lines, each rounded on its own before the document totals them — the reconciliation the round-off line makes visible.',
+  'pricing.preview.case.override.reason':
+    'Filled by a case shape — review before running the preview.',
+
+  'pricing.preview.run': 'Run the preview',
+  'pricing.preview.run.offlineAction': 'Running a pricing preview',
+  'pricing.preview.configurationMissing.gstLink': 'Check the branch’s GST registrations',
+  'pricing.preview.configurationMissing.versionLink': 'Check this version’s branches',
+
+  'pricing.preview.result.heading': 'What the engine priced',
+  'pricing.preview.result.case': 'Case shown: {case}.',
+  'pricing.preview.result.none': 'None',
+  'pricing.preview.result.scheme': 'Scheme',
+  'pricing.preview.result.scheme.IntraState': 'Intra-state',
+  'pricing.preview.result.scheme.InterState': 'Inter-state',
+  'pricing.preview.result.taxInclusive': 'Tax treatment',
+  'pricing.preview.result.priceListVersionId': 'Price-list version',
+  'pricing.preview.result.taxConfigurationVersionId': 'Tax configuration version',
+  'pricing.preview.result.gstRegistrationId': 'GST registration',
+  'pricing.preview.result.calculatedAt': 'Calculated at',
+  'pricing.preview.result.lines.caption': 'What was priced',
+  'pricing.preview.result.column.itemCode': 'Item',
+  'pricing.preview.result.column.quantity': 'Quantity',
+  'pricing.preview.result.column.catalogueRate': 'Catalogue rate',
+  'pricing.preview.result.column.appliedRate': 'Applied rate',
+  'pricing.preview.result.column.base': 'Base',
+  'pricing.preview.result.column.surcharges': 'Surcharges',
+  'pricing.preview.result.column.discount': 'Discount',
+  'pricing.preview.result.column.gross': 'Gross',
+  'pricing.preview.result.column.taxableValue': 'Taxable value',
+  'pricing.preview.result.column.taxCode': 'Tax code',
+  'pricing.preview.result.column.taxes': 'Tax components',
+  'pricing.preview.result.column.taxTotal': 'Tax total',
+  'pricing.preview.result.column.lineTotal': 'Line total',
+  'pricing.preview.result.column.variance': 'Variance',
+  'pricing.preview.result.column.approvalExercised': 'Approval',
+  'pricing.preview.result.approvalExercised.yes': 'Approval used',
+  'pricing.preview.result.approvalExercised.no': 'Within authority',
+  'pricing.preview.result.totalsTitle': 'Document totals',
+  'pricing.preview.result.totals.subtotal': 'Subtotal',
+  'pricing.preview.result.totals.discountTotal': 'Discount',
+  'pricing.preview.result.totals.taxableValue': 'Taxable value',
+  'pricing.preview.result.totals.centralTax': 'Central tax',
+  'pricing.preview.result.totals.stateTax': 'State tax',
+  'pricing.preview.result.totals.integratedTax': 'Integrated tax',
+  'pricing.preview.result.totals.cess': 'Cess',
+  'pricing.preview.result.totals.roundOff': 'Round-off',
+  'pricing.preview.result.totals.grandTotal': 'Grand total',
+
+  'pricing.problem.approvalRequired':
+    'This is beyond what a counter may give on its own authority. Ask the Owner or a Branch Manager — the two roles who may override a price — to run this from a recently verified session, or to grant the permission.',
+  'pricing.problem.discountAboveMaximum':
+    'This discount is beyond the rule’s own maximum. No approval can raise it — choose a smaller value or a different rule.',
+  'pricing.problem.discountExceedsLine': 'This discount is more than the line itself is worth.',
+  'pricing.problem.discountRuleNotInForce':
+    'This discount rule has been retired from this version. Choose one still active on it.',
+  'pricing.problem.itemNotASurcharge':
+    'This item is not a surcharge, so it cannot be added as one.',
+  'pricing.problem.surchargeTaxedDifferently':
+    'This surcharge is taxed differently from the line it was added to, so it cannot be combined with it.',
+  'pricing.problem.itemNotPriced': 'This item has no price in the chosen version.',
+  'pricing.problem.quantityNotPositive': 'A quantity is a positive number.',
+  'pricing.problem.lineKeyDuplicated':
+    'Two lines shared the same key. Remove one and add it again.',
+  'pricing.problem.linesRequired': 'At least one line is needed to price anything.',
+  'pricing.problem.overrideRateNotWellFormed':
+    'An override rate is a non-negative value in rupees with at most two decimal places.',
 } as const
 
 /*
@@ -1270,4 +1431,292 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   // not translated — awaiting native-speaker review
   'pricing.problem.branchPublishConflict':
     'Another price list’s version already prices one of this version’s branches, published at the same moment. A branch is priced by one published version at a time; read what is published now before deciding whether this draft is still wanted.',
+
+  /* The pricing preview and the accountant's test-case shapes before publish (E09-F01-8b). ------ */
+  // not translated — awaiting native-speaker review
+  'pricing.nav.preview': 'Pricing preview',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.preview': 'See the effect before publishing',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.heading': 'Pricing preview',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.loading': 'the pricing preview',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.retry': 'Try again',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.title': 'What to price',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.priceListId': 'Price list',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.priceListVersionId': 'Version',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.priceListVersionId.option': 'v{number} — {name} ({status})',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.taxConfigurationVersionId': 'Tax configuration version',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.taxConfigurationVersionId.hint':
+    'Leave this as the published one unless you are trying a draft tax configuration.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.taxConfigurationVersionId.publishedOption': 'The published one',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.taxConfigurationVersionId.option': 'v{number} — {name} ({status})',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.branchId': 'Branch',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.on': 'Date',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.placeOfSupplyStateCode': 'Place of supply state code',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.form.placeOfSupplyStateCode.hint':
+    'The two-digit GST state code of where the work is supplied. The same code as the branch’s own registration prices intra-state; a different one prices inter-state.',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.lines.title': 'Lines',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.lines.loading': 'this version’s items and discount rules',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.lines.empty.title': 'No lines yet',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.lines.empty':
+    'Add a line, or press one of the accountant’s cases below — pressing a case adds one for you, built from this version’s own items.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.lines.caption': 'The lines to price',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.column.itemCode': 'Item',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.column.quantity': 'Quantity',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.column.surcharges': 'Surcharges',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.column.discount': 'Discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.column.override': 'Override',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.edit': 'Edit {itemCode}',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.remove': 'Remove {itemCode}',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.add': 'Add a line',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.add.offlineAction': 'Adding a line',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.edit.offlineAction': 'Editing a line',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.addTitle': 'Add a line',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.editTitle': 'Edit a line',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.itemCode': 'Item',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.quantity': 'Quantity',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.surcharges': 'Surcharges',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.discountRuleCode': 'Discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.discountRuleCode.hint': 'One of this version’s own discount rules.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.discountRuleCode.none': 'No discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.discountValue': 'Discount value',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.discountReason': 'Reason (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.override': 'Price this line at a different rate',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.overrideRate': 'Override rate',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.overrideRate.hint':
+    'In place of the item’s catalogue rate. Within the version’s own threshold, this needs a reason; beyond it, it needs the “Override a price” permission on a recently verified session.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.overrideReason': 'Reason',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.override.note':
+    'An override beyond the version’s threshold, or a discount beyond its rule’s counter maximum, is refused unless the session holds “Override a price” and was recently re-verified.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.line.form.save': 'Save this line',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.cases.title': 'Try one of the accountant’s cases',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.cases.hint':
+    'Each one fills the form with a shape the accountant already knows — it names no expected figure of its own; the figures come from this version’s own rates once the preview runs.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.intraStateExclusive': 'Intra-state, exclusive of tax',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.intraStateExclusive.hint':
+    'One line, priced at the catalogue rate, supplied within the same state as the branch’s registration.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.interState': 'Inter-state',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.interState.hint':
+    'The same line, supplied to a different state — a single integrated-tax component in place of the pair.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.inclusive': 'Tax-inclusive version',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.inclusive.hint':
+    'The same line, to run against a version whose price is quoted inclusive of tax — the taxable value is backed out of the quoted amount.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.percentageDiscount': 'A percentage discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.percentageDiscount.hint':
+    'Names one of this version’s percentage discount rules, at the most a counter may give on its own authority.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.amountDiscount': 'An amount discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.amountDiscount.hint':
+    'Names one of this version’s fixed-amount discount rules, at the most a counter may give on its own authority.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.surcharge': 'A surcharge',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.surcharge.hint':
+    'Adds one of this version’s own surcharge items to the line.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.quantityAboveOne': 'A quantity above one',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.quantityAboveOne.hint': 'The same line, priced twice over.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.overrideWithinThreshold': 'An override within the threshold',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.overrideWithinThreshold.hint':
+    'A rate below this version’s override threshold — priced with a reason, needing no permission.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.overrideBeyondThreshold': 'An override beyond the threshold',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.overrideBeyondThreshold.hint':
+    'A rate beyond this version’s override threshold — refused without “Override a price” on a recently verified session.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.nilRated': 'A nil-rated item',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.nilRated.hint':
+    'Choose an item whose tax code carries no rate to see a line with no tax component at all.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.roundOffTwoLines': 'Round-off, over two lines',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.roundOffTwoLines.hint':
+    'Two lines, each rounded on its own before the document totals them — the reconciliation the round-off line makes visible.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.case.override.reason':
+    'Filled by a case shape — review before running the preview.',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.run': 'Run the preview',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.run.offlineAction': 'Running a pricing preview',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.configurationMissing.gstLink': 'Check the branch’s GST registrations',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.configurationMissing.versionLink': 'Check this version’s branches',
+
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.heading': 'What the engine priced',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.case': 'Case shown: {case}.',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.none': 'None',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.scheme': 'Scheme',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.scheme.IntraState': 'Intra-state',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.scheme.InterState': 'Inter-state',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.taxInclusive': 'Tax treatment',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.priceListVersionId': 'Price-list version',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.taxConfigurationVersionId': 'Tax configuration version',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.gstRegistrationId': 'GST registration',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.calculatedAt': 'Calculated at',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.lines.caption': 'What was priced',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.itemCode': 'Item',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.quantity': 'Quantity',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.catalogueRate': 'Catalogue rate',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.appliedRate': 'Applied rate',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.base': 'Base',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.surcharges': 'Surcharges',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.discount': 'Discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.gross': 'Gross',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.taxableValue': 'Taxable value',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.taxCode': 'Tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.taxes': 'Tax components',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.taxTotal': 'Tax total',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.lineTotal': 'Line total',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.variance': 'Variance',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.column.approvalExercised': 'Approval',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.approvalExercised.yes': 'Approval used',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.approvalExercised.no': 'Within authority',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totalsTitle': 'Document totals',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.subtotal': 'Subtotal',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.discountTotal': 'Discount',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.taxableValue': 'Taxable value',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.centralTax': 'Central tax',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.stateTax': 'State tax',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.integratedTax': 'Integrated tax',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.cess': 'Cess',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.roundOff': 'Round-off',
+  // not translated — awaiting native-speaker review
+  'pricing.preview.result.totals.grandTotal': 'Grand total',
+
+  // not translated — awaiting native-speaker review
+  'pricing.problem.approvalRequired':
+    'This is beyond what a counter may give on its own authority. Ask the Owner or a Branch Manager — the two roles who may override a price — to run this from a recently verified session, or to grant the permission.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.discountAboveMaximum':
+    'This discount is beyond the rule’s own maximum. No approval can raise it — choose a smaller value or a different rule.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.discountExceedsLine': 'This discount is more than the line itself is worth.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.discountRuleNotInForce':
+    'This discount rule has been retired from this version. Choose one still active on it.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.itemNotASurcharge':
+    'This item is not a surcharge, so it cannot be added as one.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.surchargeTaxedDifferently':
+    'This surcharge is taxed differently from the line it was added to, so it cannot be combined with it.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.itemNotPriced': 'This item has no price in the chosen version.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.quantityNotPositive': 'A quantity is a positive number.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.lineKeyDuplicated':
+    'Two lines shared the same key. Remove one and add it again.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.linesRequired': 'At least one line is needed to price anything.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.overrideRateNotWellFormed':
+    'An override rate is a non-negative value in rupees with at most two decimal places.',
 }
