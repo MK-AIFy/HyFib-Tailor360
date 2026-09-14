@@ -160,18 +160,12 @@ export async function listInvoices(input: {
  *
  * There is no `ListInvoices`-style aggregate for this — `GetOrderBalance` answers one order at a
  * time — so this reads every page of the branch's posted invoices, following `nextCursor` until the
- * server answers null, and asks each invoice's order for its balance (concurrently within a page, via
- * `Promise.all`), keeping only the invoice's own line where it still shows an outstanding amount.
- * Stopping at the first page (as this once did) silently dropped every older outstanding invoice past
- * the first fifty — a branch could even read as fully settled while an older invoice still owed
- * money.
- *
- * **Decision (#216), recorded rather than fixed silently**: defer a true server-side aggregate
- * endpoint. A branch runs a bounded number of posted, unsettled invoices at once, so the fan-out is
- * at most one page's worth of concurrent reads (≤ 50), not a serial N+1 — a cost this screen's own
- * loading state already accounts for. A branch that grows past a handful of pages of outstanding
- * invoices, or a fan-out that becomes visible in practice (a slow read, a rate-limit warning), is the
- * trigger to revisit this and add a single aggregate endpoint alongside `GetOrderBalance` instead.
+ * server answers null, and asks each invoice's order for its balance, keeping only the invoice's
+ * own line where it still shows an outstanding amount. Stopping at the first page (as this once did)
+ * silently dropped every older outstanding invoice past the first fifty — a branch could even read
+ * as fully settled while an older invoice still owed money. A branch runs a bounded number of open
+ * invoices at once, so the fan-out per page is small; a true aggregate read is a reasonable
+ * follow-up once this list needs to grow past a few pages.
  */
 export async function listOutstandingBalances(
   signal?: AbortSignal,
