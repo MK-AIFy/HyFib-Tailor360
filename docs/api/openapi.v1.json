@@ -6203,6 +6203,78 @@
         ],
         "type": "object"
       },
+      "OutstandingBalancePagePayload": {
+        "properties": {
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/OutstandingBalancePayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "OutstandingBalancePayload": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "customerDisplayName": {
+            "type": "string"
+          },
+          "grandTotal": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "invoiceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "orderNumber": {
+            "type": "string"
+          },
+          "outstanding": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "invoiceId",
+          "invoiceNumber",
+          "orderId",
+          "orderNumber",
+          "customerDisplayName",
+          "grandTotal",
+          "outstanding",
+          "currency"
+        ],
+        "type": "object"
+      },
       "PasskeyAssertionRequest": {
         "properties": {
           "ceremonyId": {
@@ -16447,6 +16519,75 @@
           "Billing"
         ],
         "x-tailor360-authorisation": "permission:billing.approve_dispatch_exception",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/billing/outstanding-balances": {
+      "get": {
+        "description": "Filled a page at a time from the rows ListInvoices and GetOrderBalance already read (INV-PAY-06): a source page of posted invoices that are all settled yields no rows on its own, so the read loops whole source pages until it has enough rows or the branch's posted invoices are exhausted. `nextCursor` is non-null whenever the scan stopped without exhausting the branch's posted invoices, so the screen keeps its Show more control rather than showing the empty state on a page that simply found nothing yet; it is null only once nothing posted and unpaid is left to find.",
+        "operationId": "ListOutstandingBalances",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutstandingBalancePagePayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The branch's posted invoices with money still owed, by cursor.",
+        "tags": [
+          "Billing"
+        ],
+        "x-tailor360-authorisation": "permission:billing.create_invoice",
         "x-tailor360-rate-limit": "default-user"
       }
     },

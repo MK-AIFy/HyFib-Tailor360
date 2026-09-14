@@ -1172,6 +1172,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/outstanding-balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branch's posted invoices with money still owed, by cursor.
+         * @description Filled a page at a time from the rows ListInvoices and GetOrderBalance already read (INV-PAY-06): a source page of posted invoices that are all settled yields no rows on its own, so the read loops whole source pages until it has enough rows or the branch's posted invoices are exhausted. `nextCursor` is non-null whenever the scan stopped without exhausting the branch's posted invoices, so the screen keeps its Show more control rather than showing the empty state on a page that simply found nothing yet; it is null only once nothing posted and unpaid is left to find.
+         */
+        get: operations["ListOutstandingBalances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/payment-modes": {
         parameters: {
             query?: never;
@@ -4585,6 +4605,24 @@ export interface components {
             serviceTypeId: string;
             /** Format: uuid */
             workflowDefinitionId: null | string;
+        };
+        OutstandingBalancePagePayload: {
+            nextCursor: null | string;
+            rows: components["schemas"]["OutstandingBalancePayload"][];
+        };
+        OutstandingBalancePayload: {
+            currency: string;
+            customerDisplayName: string;
+            /** Format: double */
+            grandTotal: number | string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: string;
+            /** Format: uuid */
+            orderId: string;
+            orderNumber: string;
+            /** Format: double */
+            outstanding: number | string;
         };
         PasskeyAssertionRequest: {
             ceremonyId: null | string;
@@ -9316,6 +9354,35 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListOutstandingBalances: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutstandingBalancePagePayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

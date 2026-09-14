@@ -13,6 +13,13 @@ public interface IInvoiceStore
     /// <summary>A branch's invoices, newest first, without their lines.</summary>
     Task<InvoicePage> ListAsync(InvoiceListQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// As <see cref="ListAsync"/>, but with each invoice's notes and cancellation loaded rather than
+    /// summarised — for a read that needs <c>InvoiceBalance.Of</c>'s full picture, credit and debit
+    /// notes included, across a whole page rather than one order.
+    /// </summary>
+    Task<InvoicePage> ListPostedWithNotesAsync(InvoiceListQuery query, CancellationToken cancellationToken = default);
+
     /// <summary>Which of the given garment jobs are already charged on a draft or a posted invoice.</summary>
     Task<IReadOnlySet<Guid>> AlreadyInvoicedAsync(Guid organisationId, IReadOnlyCollection<Guid> garmentJobIds, CancellationToken cancellationToken = default);
 

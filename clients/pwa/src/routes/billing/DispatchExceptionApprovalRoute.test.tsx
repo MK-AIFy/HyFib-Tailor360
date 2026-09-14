@@ -4,11 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AppIntlProvider } from '../../i18n/IntlProvider'
 import { getFormatters } from '../../i18n/formatters'
+import { expectNoAccessibilityViolations } from '../../design-system/testing/axe'
 import { forgetAntiforgeryToken } from '../../auth/antiforgery'
 import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { RequireSession } from '../../auth/RequireSession'
 import { SessionProvider } from '../../auth/SessionProvider'
-import { aCurrentUser, jsonResponse, stubFetch } from '../../auth/testing/fixtures'
+import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { ShellStatusProvider } from '../../components/layout/ShellStatusProvider'
@@ -174,5 +175,68 @@ describe('changing the order reference clears order-A-specific state', () => {
     expect(await screen.findByText('Exception approved')).toBeInTheDocument()
     const [request] = transport.callsTo(`POST ${DISPATCH}`)
     expect(request?.body).toMatchObject({ orderId: OTHER_ORDER_ID, maxOutstandingAmount: 20 })
+  })
+})
+
+describe('accessibility', () => {
+  it('has no violations with an order named and its balance shown', async () => {
+    transport.route(`GET ${balanceUrl(ORDER_ID)}`, () =>
+      jsonResponse(anOrderBalance({ orderId: ORDER_ID })),
+    )
+    const { container } = renderAt(`/billing/dispatch-exceptions/new?orderId=${ORDER_ID}`)
+
+    await screen.findByText(`${formatters.formatMoney(309)} outstanding on this order`)
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no violations with no order named yet', async () => {
+    const { container } = renderAt('/billing/dispatch-exceptions/new')
+
+    await screen.findByLabelText('Order reference')
+    expect(
+      screen.queryByText('outstanding on this order', { exact: false }),
+    ).not.toBeInTheDocument()
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no violations when the balance fails to load', async () => {
+    transport.route(`GET ${balanceUrl(ORDER_ID)}`, () =>
+      problemResponse(503, 'platform.unavailable'),
+    )
+    const { container } = renderAt(`/billing/dispatch-exceptions/new?orderId=${ORDER_ID}`)
+
+    await screen.findByRole('alert')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no violations while offline, with every typed field kept', async () => {
+    transport.route(`GET ${balanceUrl(ORDER_ID)}`, () =>
+      jsonResponse(anOrderBalance({ orderId: ORDER_ID })),
+    )
+    const user = userEvent.setup()
+    const { container } = renderAt(`/billing/dispatch-exceptions/new?orderId=${ORDER_ID}`)
+
+    await screen.findByText(`${formatters.formatMoney(309)} outstanding on this order`)
+    await user.type(screen.getByLabelText('Garment jobs'), 'job-1')
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    expect(
+      await screen.findByText('Needs connection — this will not be queued'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Approve exception' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Garment jobs')).toHaveValue('job-1')
+    await expectNoAccessibilityViolations(container)
+
+    vi.restoreAllMocks()
+    window.dispatchEvent(new Event('online'))
+  })
+
+  it('has no violations when forbidden', async () => {
+    transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser({ permissions: [] })))
+    const { container } = renderAt('/billing/dispatch-exceptions/new')
+
+    await screen.findByText('You do not have access to this')
+    await expectNoAccessibilityViolations(container)
   })
 })
