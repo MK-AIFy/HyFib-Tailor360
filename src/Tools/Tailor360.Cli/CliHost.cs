@@ -6,10 +6,11 @@ using Tailor360.Modules.Billing.Infrastructure;
 using Tailor360.Modules.Catalog.Infrastructure;
 using Tailor360.Modules.Customers.Infrastructure;
 using Tailor360.Modules.Identity.Infrastructure;
+using Tailor360.Modules.Integration.Infrastructure;
 using Tailor360.Modules.Media.Infrastructure;
 using Tailor360.Modules.Orders.Infrastructure;
 using Tailor360.Platform.Persistence;
-using Tailor360.Platform.Security;
+using Tailor360.Platform.Security.Background;
 
 namespace Tailor360.Cli;
 
@@ -57,11 +58,14 @@ public static class CliHost
 
         builder.Services.AddTailor360Platform();
 
-        // The catalogue and nothing else of the security stack: the tool seeds the roles that grant
-        // permissions and validates every grant against it, and it has no request pipeline to
-        // authenticate or authorise. Registering the whole of AddTailor360Security here would add a
-        // cookie scheme and an anti-forgery service to a process that never serves a request.
-        builder.Services.AddTailor360PermissionCatalogue();
+        // The worker's slice of the security stack, not the whole of it: the tool seeds the roles that
+        // grant permissions and validates every grant against the catalogue, and Billing's PricingService
+        // resolves ICurrentUser even for a command that never overrides a price. Registering the whole of
+        // AddTailor360Security here would add a cookie scheme and an anti-forgery service to a process
+        // that never serves a request. AddTailor360WorkerScopes gives every scope the anonymous caller —
+        // the same fail-closed default the worker runs with outside a declared job — which is the honest
+        // answer for a command line that acts as nobody in particular.
+        builder.Services.AddTailor360WorkerScopes();
 
         // The command line applies every module's migrations, so each module that owns a schema is
         // registered here as well as in the web host. A module missing from this list would have a
@@ -86,6 +90,14 @@ public static class CliHost
 
         // Billing owns the `billing` schema from #145 on; the same reasoning as Orders.
         builder.Services.AddBillingModule(builder.Configuration);
+
+        // Integration owns no schema of its own that a command migrates, but it owns IPdfRenderer, and
+        // Billing's DocumentArtifactHandler and its outbox artifact handlers resolve it whether or not the
+        // command in hand ever renders a document. Composing this is what the web host and the worker
+        // already do, and omitting it here is exactly the gap #214 reported: every command's container
+        // build failed in Development, where the host validates the whole graph rather than only the
+        // services a given command happens to resolve.
+        builder.Services.AddIntegrationModule(builder.Configuration);
 
         return builder.Build();
     }
