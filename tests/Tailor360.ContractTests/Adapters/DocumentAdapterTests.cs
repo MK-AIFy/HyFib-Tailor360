@@ -269,17 +269,13 @@ public sealed class DocumentAdapterTests
         ["terms"] = "Goods once tailored are not returned.",
     };
 
-    // What this renderer cannot close, recorded here rather than quietly marked Not applicable.
-    // QuestPDF 2026.8.0 writes no tagged-PDF structure: no marked content, no /StructTreeRoot, no
-    // table-header role, and no language span around a Tamil name — so A11Y-DP-02, and with it the
-    // per-span language that would let a screen reader change voice mid-line, cannot be satisfied by
-    // this adapter at all. It also draws every glyph as a Type3 procedure rather than embedding the
-    // face, which is why the assertions below read the font descriptors and why any future check of a
-    // glyph's identity must too. What the renderer does do is what these tests pin: real extractable
-    // text in reading order rather than a picture of a page, a document title and a document-wide /Lang
-    // of en-IN, headings printed once above their rows, and every amount on its own label's text line.
-    // The blueprint's wording is "tagged PDF where the renderer supports it"; it does not, and
-    // E09-F02-10 is where those records are written up as Fail with an owner rather than hidden here.
+    // What E09-F02-9 could not close, and what #512 closed: QuestPDF 2026.8.0 turns out to write tagged-PDF
+    // structure after all — a PDF/UA-1 structure tree, a table-header role, a per-span language — but only
+    // once QuestPdfRenderer and BillingDocumentTemplate ask it to (RenderedInvoiceCarriesATaggedPdfStructureTree…
+    // below), which nothing in this adapter did before #512. A11Y-DP-02, A11Y-DP-04 and A11Y-DP-05 are Pass in
+    // docs/billing/accountant-document-review.md as of #512. What remains open is the font: QuestPDF still
+    // draws every glyph as a Type3 procedure rather than embedding the face, which is why the assertions below
+    // read the font descriptors and why any future check of a glyph's identity must too.
 
     /// <summary>The seventeen accountant-agreed cases by name, so a failing run names the case it failed on.</summary>
     public static TheoryData<string> GoldenMasterCaseNames => [.. GoldenMaster.Shared.Cases.Select(@case => @case.Name)];
@@ -408,6 +404,43 @@ public sealed class DocumentAdapterTests
                 .Any(word => !PdfText.IsAmount(word))
                 .ShouldBeTrue($"'{line}' prints an amount with nothing on its text line to name it");
         }
+    }
+
+    [Fact]
+    public async Task RenderedInvoiceCarriesATaggedPdfStructureTreeWithHeaderRolesAndATamilLanguageSpan()
+    {
+        // #512, closing A11Y-DP-02, A11Y-DP-04 and A11Y-DP-05 as Pass in docs/billing/accountant-document-review.md:
+        // PDF/UA-1 (QuestPdfRenderer's DocumentSettings) gives every template a declared structure tree, and
+        // BillingDocumentTemplate's own semantic tagging names the line table's headings and the customer's
+        // Tamil name within it. Read as raw bytes rather than through PdfText, which reads the text layer, not
+        // the structure tree beside it.
+        var pdf = await RenderAsync(new QuestPdfRenderer(), QuestPdfRenderer.InvoiceTemplate, SampleModel("INV-MAIN-2627-000001"));
+        var text = System.Text.Encoding.Latin1.GetString(pdf);
+
+        text.ShouldContain("/StructTreeRoot", Case.Sensitive, "the document declares a structure tree rather than leaving reading order to be inferred");
+        text.ShouldContain("/MarkInfo", Case.Sensitive);
+        text.ShouldContain("/Marked true", Case.Sensitive, "the catalogue's MarkInfo says the document is tagged");
+        text.ShouldContain("/S /Table", Case.Sensitive, "the line table is tagged as a table");
+        text.ShouldContain("/S /TH", Case.Sensitive, "the line table's headings carry a header role a reader can announce");
+        text.ShouldContain("/Lang (ta-IN)", Case.Sensitive, "the fixture's Tamil customer name is spanned with its own language");
+    }
+
+    [Fact]
+    public async Task ADocumentWithNoTamilTextCarriesNoStrayLanguageSpan()
+    {
+        // The negative half of #512's acceptance criteria: the language span is drawn from the customer's own
+        // text, not stamped on every document regardless of what it says.
+        var model = SampleModel("INV-MAIN-2627-000001");
+        var customer = (Dictionary<string, object?>)model["customer"]!;
+        customer["displayName"] = "Synthetic customer Meena";
+        customer["addressLine"] = "12 Second Street";
+        customer["locality"] = "Example Nagar";
+
+        var pdf = await RenderAsync(new QuestPdfRenderer(), QuestPdfRenderer.InvoiceTemplate, model);
+        var text = System.Text.Encoding.Latin1.GetString(pdf);
+
+        text.ShouldContain("/StructTreeRoot", Case.Sensitive, "the structure tree does not depend on the customer's language");
+        text.ShouldNotContain("ta-IN", Case.Sensitive, "nothing on this page is Tamil, so no language span should name it");
     }
 
     /// <summary>
