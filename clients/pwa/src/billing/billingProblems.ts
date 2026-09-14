@@ -85,6 +85,24 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.registration-overlaps': 'pricing.problem.registrationOverlaps',
   'billing.registration-changed': 'pricing.problem.registrationChanged',
   'billing.registration-not-found': 'pricing.problem.registrationNotFound',
+  // Drafting and editing a tax configuration version and its tax codes (E09-F01-5). The field-level
+  // ones — code, classification, rate, component — are read against their own control or component
+  // row by `TaxConfigurationEditorRoute` and `TaxCodeForm`, via `billingProblemField` below; the
+  // sentence is still looked up here, once, so both places and the page-level fallback agree.
+  'billing.version-not-editable': 'pricing.problem.versionNotEditable',
+  'billing.version-changed': 'pricing.problem.versionChanged',
+  'billing.version-not-found': 'pricing.problem.versionNotFound',
+  'billing.code-not-unique': 'pricing.problem.codeNotUnique',
+  'billing.code-not-well-formed': 'pricing.problem.codeNotWellFormed',
+  'billing.classification-not-well-formed': 'pricing.problem.classificationNotWellFormed',
+  'billing.rate-out-of-range': 'pricing.problem.rateOutOfRange',
+  'billing.rate-not-well-formed': 'pricing.problem.rateNotWellFormed',
+  'billing.component-duplicated': 'pricing.problem.componentDuplicated',
+  'billing.component-not-well-formed': 'pricing.problem.componentNotWellFormed',
+  'billing.value-required': 'pricing.problem.valueRequired',
+  'billing.value-too-long': 'pricing.problem.valueTooLong',
+  // 'billing.reason-not-well-formed' is already mapped above, to the shared sentence every module
+  // uses for the same code.
 }
 
 /** The code of a failure, when the server sent one. */
@@ -96,4 +114,19 @@ export function billingProblemCode(failure: unknown): string | undefined {
 export function billingProblemMessage(failure: unknown): MessageKey | undefined {
   const code = billingProblemCode(failure)
   return code === undefined ? undefined : CODE_MESSAGES[code]
+}
+
+/**
+ * The field a validation failure named, when the server sent one.
+ *
+ * Read from the RFC 9457 `errors` map's one key — every domain check in this module fails on the
+ * first thing wrong, so there is never more than one. This is distinct from `billingProblemCode`:
+ * the code says *which sentence* to show (`billing.rate-out-of-range` reads the same whichever
+ * component it is about), and the field says *where* — `code`, `classification`, or an indexed
+ * `rates[2].ratePercent` a screen matches back to the component row it sent at that position.
+ */
+export function billingProblemField(failure: unknown): string | undefined {
+  const errors = failure instanceof ApiError ? failure.problem?.errors : undefined
+  const [field] = Object.keys(errors ?? {})
+  return field
 }

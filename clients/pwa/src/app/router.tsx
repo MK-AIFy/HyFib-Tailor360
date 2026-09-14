@@ -33,6 +33,7 @@ import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEdito
 import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
 import { DesignPickerRoute } from '../routes/catalog/DesignPickerRoute'
 import { GstRegistrationsRoute } from '../routes/pricing/GstRegistrationsRoute'
+import { TaxConfigurationEditorRoute } from '../routes/pricing/TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from '../routes/pricing/TaxConfigurationListRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
@@ -475,6 +476,17 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
                     <TaxConfigurationListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // The draft editor (E09-F01-5), on an address of its own: a version is worked in
+                // here over several minutes, so it survives a reload and can be shared with a
+                // colleague — the same reasoning the catalogue and template version editors get one.
+                path: 'tax-configuration/:versionId',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <TaxConfigurationEditorRoute />
                   </RequirePermission>
                 ),
               },

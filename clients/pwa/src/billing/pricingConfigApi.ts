@@ -1,8 +1,13 @@
 import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 import type {
+  CreateTaxConfigurationDraftRequest,
+  DescribeTaxConfigurationRequest,
   GstRegistration,
   GstRegistrationRequest,
+  TaxCode,
+  TaxCodeRequest,
+  TaxConfiguration,
   TaxConfigurationSummary,
 } from './pricingAdminTypes'
 
@@ -14,6 +19,12 @@ import type {
  * This is the first of eight client slices against #41's pricing surface. It reads two endpoint
  * groups only — `gst-registrations` and `tax-configuration/versions` — and adds no server call of
  * its own: every route it calls is already published and unchanged by this issue.
+ *
+ * E09-F01-5 appends the six tax configuration routes a draft is edited through: starting one,
+ * reading one version, describing it and adding, editing and removing a tax code. Every write against
+ * an existing version carries `If-Match`, and every sub-resource write's `VersionedResponse` carries
+ * the version's *own* tag, moved by the child write — never the child's own concurrency token, because
+ * a tax code has none of its own.
  */
 
 const BILLING = '/api/v1/billing'
@@ -77,12 +88,125 @@ export async function amendGstRegistration(input: {
   )
 }
 
-/** Every tax configuration version, newest first. Drafting, editing and publishing are E09-F01-5/-5b. */
+/** Every tax configuration version, newest first. Publishing a version is E09-F01-5b. */
 export async function listTaxConfigurationVersions(
   signal?: AbortSignal,
 ): Promise<readonly TaxConfigurationSummary[]> {
   return await apiRequest<readonly TaxConfigurationSummary[]>(
     `${BILLING}/tax-configuration/versions`,
     { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/**
+ * Starts a draft tax configuration version, empty or cloned from an existing one.
+ *
+ * Cloning the published version is the ordinary way to change what is in force: a published version
+ * is immutable, so a rate change is a clone, an edit here and a publication in E09-F01-5b.
+ */
+export async function createTaxConfigurationDraft(input: {
+  readonly body: CreateTaxConfigurationDraftRequest
+  readonly idempotencyKey: string
+}): Promise<TaxConfiguration> {
+  return await apiRequest<TaxConfiguration>(`${BILLING}/tax-configuration/versions`, {
+    method: 'POST',
+    body: input.body,
+    idempotencyKey: input.idempotencyKey,
+  })
+}
+
+/** Reads one tax configuration version and its codes, with the tag the next write must present. */
+export async function readTaxConfigurationVersion(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<VersionedResponse<TaxConfiguration>> {
+  return await apiRequestVersioned<TaxConfiguration>(
+    `${BILLING}/tax-configuration/versions/${versionId}`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/** Changes a draft's name, notes and effective date. Refused on a published or retired version. */
+export async function describeTaxConfigurationVersion(input: {
+  readonly versionId: string
+  readonly body: DescribeTaxConfigurationRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<TaxConfiguration>> {
+  return await apiRequestVersioned<TaxConfiguration>(
+    `${BILLING}/tax-configuration/versions/${input.versionId}`,
+    {
+      method: 'PUT',
+      body: input.body,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Adds a tax code to a draft.
+ *
+ * The version's row moved with its child: the tag the caller sent is stale, and the one on this
+ * response is what the next write against the version — including the next tax code write — must
+ * present.
+ */
+export async function addTaxCode(input: {
+  readonly versionId: string
+  readonly code: TaxCodeRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<TaxCode>> {
+  return await apiRequestVersioned<TaxCode>(
+    `${BILLING}/tax-configuration/versions/${input.versionId}/tax-codes`,
+    {
+      method: 'POST',
+      body: input.code,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Replaces what a draft says about a tax code. Whole-value: an omitted rate list is nil-rated. */
+export async function editTaxCode(input: {
+  readonly versionId: string
+  readonly taxCodeId: string
+  readonly code: TaxCodeRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<TaxCode>> {
+  return await apiRequestVersioned<TaxCode>(
+    `${BILLING}/tax-configuration/versions/${input.versionId}/tax-codes/${input.taxCodeId}`,
+    {
+      method: 'PUT',
+      body: input.code,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Removes a tax code from a draft, with the reason the trail records.
+ *
+ * Answers `204`, and the version's moved tag still comes back on it — a caller that discarded the
+ * tag on an empty body would hold a precondition that is no longer current for its very next write.
+ */
+export async function removeTaxCode(input: {
+  readonly versionId: string
+  readonly taxCodeId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<void>> {
+  return await apiRequestVersioned<void>(
+    `${BILLING}/tax-configuration/versions/${input.versionId}/tax-codes/${input.taxCodeId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
   )
 }

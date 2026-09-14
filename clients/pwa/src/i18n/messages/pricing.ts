@@ -70,11 +70,11 @@ export const pricingEn = {
   /* The tax configuration version register. ---------------------------------------------------- */
   'pricing.tax.title': 'Tax configuration',
   'pricing.tax.body':
-    'Every tax configuration version, newest first. Drafting, checking and publishing a version are not in this screen yet.',
+    'Every tax configuration version, newest first. Checking and publishing a version are not in this screen yet.',
   'pricing.tax.loading': 'the tax configuration versions',
   'pricing.tax.caption': 'Every tax configuration version, newest first',
   'pricing.tax.empty.title': 'No tax configuration version yet',
-  'pricing.tax.empty': 'No version has been drafted yet. Drafting one is not in this screen yet.',
+  'pricing.tax.empty': 'Start the first draft below.',
   'pricing.tax.column.version': 'Version',
   'pricing.tax.column.name': 'Name',
   'pricing.tax.column.status': 'State',
@@ -85,6 +85,92 @@ export const pricingEn = {
   'pricing.tax.status.Retired': 'Retired',
   'pricing.tax.status.unknown': 'Unknown',
   'pricing.tax.notPublishedYet': 'Not yet published',
+  'pricing.tax.open': 'Open version {number}',
+  'pricing.tax.clone': 'Clone',
+  'pricing.tax.clone.label': 'Clone version {number}',
+
+  /* Starting a draft (E09-F01-5). ------------------------------------------------------------------ */
+  'pricing.tax.start.action': 'Start a draft',
+  'pricing.tax.start.offlineAction': 'Starting a tax configuration draft',
+  'pricing.tax.start.title': 'Start a draft',
+  'pricing.tax.start.body':
+    'Empty, or a copy of an existing version carrying its codes — the ordinary way to change what is in force. Change its details and codes after it is started.',
+  'pricing.tax.start.name': 'Name',
+  'pricing.tax.start.notes': 'Notes (optional)',
+  'pricing.tax.start.effectiveFrom': 'First day',
+  'pricing.tax.start.cloneFrom': 'Clone from',
+  'pricing.tax.start.cloneFrom.empty': 'Start empty',
+  'pricing.tax.start.save': 'Start draft',
+  'pricing.tax.started': 'Started the draft.',
+
+  /* The tax configuration editor (E09-F01-5). ------------------------------------------------------ */
+  'pricing.tax.editor.loading': 'the tax configuration version',
+  'pricing.tax.editor.readOnly':
+    'This version is published. Every invoice since was calculated on it — clone it to a new draft to change what it says.',
+  'pricing.tax.editor.retired':
+    'This version is retired. It is the record of what an invoice was once calculated on.',
+  'pricing.tax.editor.publishComingSoon':
+    'Checking this version and publishing it are not in this screen yet.',
+  'pricing.tax.editor.heading': 'Tax configuration version {number}',
+  'pricing.tax.editor.detailsTitle': 'Version details',
+  'pricing.tax.editor.edit': 'Change the version’s details',
+  'pricing.tax.editor.form.name': 'Name',
+  'pricing.tax.editor.form.notes': 'Notes (optional)',
+  'pricing.tax.editor.form.effectiveFrom': 'First day',
+  'pricing.tax.editor.form.reason': 'Note (optional)',
+  'pricing.tax.editor.form.save': 'Save',
+  'pricing.tax.editor.form.offlineAction': 'Changing the version’s details',
+  'pricing.tax.editor.saved': 'Saved the version’s details.',
+  'pricing.tax.editor.reread': 'Read it again',
+  'pricing.tax.editor.caption': 'Every tax code in this version',
+  'pricing.tax.editor.empty': 'No tax code yet. Add the first one below.',
+  'pricing.tax.editor.column.code': 'Code',
+  'pricing.tax.editor.column.description': 'Description',
+  'pricing.tax.editor.column.classification': 'HSN/SAC',
+  'pricing.tax.editor.column.kind': 'Kind',
+  'pricing.tax.editor.column.active': 'Status',
+  'pricing.tax.editor.column.rates': 'Rates',
+  'pricing.tax.editor.kind.Goods': 'Goods',
+  'pricing.tax.editor.kind.Services': 'Services',
+  'pricing.tax.editor.active.yes': 'Active',
+  'pricing.tax.editor.active.no': 'Inactive',
+  'pricing.tax.editor.rates.none': 'Nil-rated',
+
+  /* Adding, editing and removing a tax code. -------------------------------------------------------- */
+  'pricing.tax.code.add': 'Add a tax code',
+  'pricing.tax.code.add.offlineAction': 'Adding a tax code',
+  'pricing.tax.code.edit': 'Edit {code}',
+  'pricing.tax.code.edit.offlineAction': 'Editing a tax code',
+  'pricing.tax.code.remove': 'Remove {code}',
+  'pricing.tax.code.remove.offlineAction': 'Removing a tax code',
+  'pricing.tax.code.remove.title': 'Remove a tax code',
+  'pricing.tax.code.remove.body':
+    'This removes the tax code from the draft. It can be added again, as a fresh row.',
+  'pricing.tax.code.saved': 'Saved the tax code {code}.',
+  'pricing.tax.code.removed': 'Removed the tax code {code}.',
+  'pricing.taxCode.form.addTitle': 'Add a tax code',
+  'pricing.taxCode.form.editTitle': 'Edit the tax code {code}',
+  'pricing.taxCode.form.code': 'Code',
+  'pricing.taxCode.form.code.hint':
+    'Upper snake case — capital letters, digits and underscores, beginning with a letter.',
+  'pricing.taxCode.form.description': 'Description',
+  'pricing.taxCode.form.classification': 'HSN or SAC classification',
+  'pricing.taxCode.form.classification.hint': 'Digits only, four to eight of them.',
+  'pricing.taxCode.form.kind': 'Kind',
+  'pricing.taxCode.form.kind.Goods': 'Goods',
+  'pricing.taxCode.form.kind.Services': 'Services',
+  'pricing.taxCode.form.active': 'Status',
+  'pricing.taxCode.form.active.true': 'Active',
+  'pricing.taxCode.form.active.false': 'Inactive',
+  'pricing.taxCode.form.rates.title': 'Component rates',
+  'pricing.taxCode.form.rates.hint':
+    'Leave a component blank when this code does not carry it. Enter a rate as a percentage — no rate is suggested; it is the accountant’s to enter.',
+  'pricing.taxCode.form.rate.Cgst': 'CGST',
+  'pricing.taxCode.form.rate.Sgst': 'SGST',
+  'pricing.taxCode.form.rate.Igst': 'IGST',
+  'pricing.taxCode.form.rate.Cess': 'Cess',
+  'pricing.taxCode.form.reason': 'Note (optional)',
+  'pricing.taxCode.form.save': 'Save',
 
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
   'pricing.problem.gstinNotWellFormed':
@@ -98,6 +184,25 @@ export const pricingEn = {
   'pricing.problem.registrationChanged':
     'Someone else changed this registration while it was open here. Read it again to see what changed.',
   'pricing.problem.registrationNotFound': 'No registration matches that address.',
+  'pricing.problem.versionNotEditable':
+    'Only a draft can be changed. Clone this version to a new draft to make the change there.',
+  'pricing.problem.versionChanged':
+    'Someone else changed this version while it was open here. Read it again to see what changed.',
+  'pricing.problem.versionNotFound': 'No tax configuration version matches that address.',
+  'pricing.problem.codeNotUnique':
+    'That code is already used in this version. Choose a different one.',
+  'pricing.problem.codeNotWellFormed':
+    'A code is upper snake case — capital letters, digits and underscores, beginning with a letter.',
+  'pricing.problem.classificationNotWellFormed': 'An HSN or SAC code is four to eight digits.',
+  'pricing.problem.rateOutOfRange':
+    'A rate is a percentage between 0 and 100, to at most three decimal places.',
+  'pricing.problem.rateNotWellFormed':
+    'That does not look like a rate. Enter a percentage, such as 2.5.',
+  'pricing.problem.componentDuplicated':
+    'A tax code carries each component — CGST, SGST, IGST, cess — at most once.',
+  'pricing.problem.componentNotWellFormed': 'That is not a component this product knows.',
+  'pricing.problem.valueRequired': 'This is required.',
+  'pricing.problem.valueTooLong': 'That is longer than this field allows.',
 } as const
 
 /*
@@ -204,7 +309,7 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.tax.title': 'Tax configuration',
   // not translated — awaiting native-speaker review
   'pricing.tax.body':
-    'Every tax configuration version, newest first. Drafting, checking and publishing a version are not in this screen yet.',
+    'Every tax configuration version, newest first. Checking and publishing a version are not in this screen yet.',
   // not translated — awaiting native-speaker review
   'pricing.tax.loading': 'the tax configuration versions',
   // not translated — awaiting native-speaker review
@@ -212,7 +317,7 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   // not translated — awaiting native-speaker review
   'pricing.tax.empty.title': 'No tax configuration version yet',
   // not translated — awaiting native-speaker review
-  'pricing.tax.empty': 'No version has been drafted yet. Drafting one is not in this screen yet.',
+  'pricing.tax.empty': 'Start the first draft below.',
   // not translated — awaiting native-speaker review
   'pricing.tax.column.version': 'Version',
   // not translated — awaiting native-speaker review
@@ -233,6 +338,165 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.tax.status.unknown': 'Unknown',
   // not translated — awaiting native-speaker review
   'pricing.tax.notPublishedYet': 'Not yet published',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.open': 'Open version {number}',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.clone': 'Clone',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.clone.label': 'Clone version {number}',
+
+  /* Starting a draft (E09-F01-5). ------------------------------------------------------------------ */
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.action': 'Start a draft',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.offlineAction': 'Starting a tax configuration draft',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.title': 'Start a draft',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.body':
+    'Empty, or a copy of an existing version carrying its codes — the ordinary way to change what is in force. Change its details and codes after it is started.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.notes': 'Notes (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.effectiveFrom': 'First day',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.cloneFrom': 'Clone from',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.cloneFrom.empty': 'Start empty',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.start.save': 'Start draft',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.started': 'Started the draft.',
+
+  /* The tax configuration editor (E09-F01-5). ------------------------------------------------------ */
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.loading': 'the tax configuration version',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.readOnly':
+    'This version is published. Every invoice since was calculated on it — clone it to a new draft to change what it says.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.retired':
+    'This version is retired. It is the record of what an invoice was once calculated on.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publishComingSoon':
+    'Checking this version and publishing it are not in this screen yet.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.heading': 'Tax configuration version {number}',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.detailsTitle': 'Version details',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.edit': 'Change the version’s details',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.form.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.form.notes': 'Notes (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.form.effectiveFrom': 'First day',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.form.reason': 'Note (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.form.save': 'Save',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.form.offlineAction': 'Changing the version’s details',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.saved': 'Saved the version’s details.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.reread': 'Read it again',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.caption': 'Every tax code in this version',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.empty': 'No tax code yet. Add the first one below.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.column.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.column.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.column.classification': 'HSN/SAC',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.column.kind': 'Kind',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.column.active': 'Status',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.column.rates': 'Rates',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.kind.Goods': 'Goods',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.kind.Services': 'Services',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.active.yes': 'Active',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.active.no': 'Inactive',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.rates.none': 'Nil-rated',
+
+  /* Adding, editing and removing a tax code. -------------------------------------------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.add': 'Add a tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.add.offlineAction': 'Adding a tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.edit': 'Edit {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.edit.offlineAction': 'Editing a tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.remove': 'Remove {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.remove.offlineAction': 'Removing a tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.remove.title': 'Remove a tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.remove.body':
+    'This removes the tax code from the draft. It can be added again, as a fresh row.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.saved': 'Saved the tax code {code}.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.code.removed': 'Removed the tax code {code}.',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.addTitle': 'Add a tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.editTitle': 'Edit the tax code {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.code.hint':
+    'Upper snake case — capital letters, digits and underscores, beginning with a letter.',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.classification': 'HSN or SAC classification',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.classification.hint': 'Digits only, four to eight of them.',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.kind': 'Kind',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.kind.Goods': 'Goods',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.kind.Services': 'Services',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.active': 'Status',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.active.true': 'Active',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.active.false': 'Inactive',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.rates.title': 'Component rates',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.rates.hint':
+    'Leave a component blank when this code does not carry it. Enter a rate as a percentage — no rate is suggested; it is the accountant’s to enter.',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.rate.Cgst': 'CGST',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.rate.Sgst': 'SGST',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.rate.Igst': 'IGST',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.rate.Cess': 'Cess',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.reason': 'Note (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.taxCode.form.save': 'Save',
 
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
   // not translated — awaiting native-speaker review
@@ -253,4 +517,35 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
     'Someone else changed this registration while it was open here. Read it again to see what changed.',
   // not translated — awaiting native-speaker review
   'pricing.problem.registrationNotFound': 'No registration matches that address.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.versionNotEditable':
+    'Only a draft can be changed. Clone this version to a new draft to make the change there.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.versionChanged':
+    'Someone else changed this version while it was open here. Read it again to see what changed.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.versionNotFound': 'No tax configuration version matches that address.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.codeNotUnique':
+    'That code is already used in this version. Choose a different one.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.codeNotWellFormed':
+    'A code is upper snake case — capital letters, digits and underscores, beginning with a letter.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.classificationNotWellFormed': 'An HSN or SAC code is four to eight digits.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.rateOutOfRange':
+    'A rate is a percentage between 0 and 100, to at most three decimal places.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.rateNotWellFormed':
+    'That does not look like a rate. Enter a percentage, such as 2.5.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.componentDuplicated':
+    'A tax code carries each component — CGST, SGST, IGST, cess — at most once.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.componentNotWellFormed': 'That is not a component this product knows.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.valueRequired': 'This is required.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.valueTooLong': 'That is longer than this field allows.',
 }
