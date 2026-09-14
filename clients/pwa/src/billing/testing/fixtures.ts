@@ -11,6 +11,8 @@ import type {
   InvoiceSummary,
   InvoiceTotals,
   OrderBalance,
+  OutstandingBalancePage,
+  OutstandingBalanceRow,
   Payment,
   ReconciliationBatch,
 } from '../types'
@@ -115,6 +117,32 @@ export function anInvoiceSummary(overrides: Partial<InvoiceSummary> = {}): Invoi
 export function anInvoicePage(overrides: Partial<InvoicePage> = {}): InvoicePage {
   return {
     invoices: [anInvoiceSummary()],
+    nextCursor: null,
+    ...overrides,
+  }
+}
+
+export function anOutstandingBalanceRow(
+  overrides: Partial<OutstandingBalanceRow> = {},
+): OutstandingBalanceRow {
+  return {
+    invoiceId: INVOICE_ID,
+    invoiceNumber: 'I-CBE01-2627-000731',
+    orderId: ORDER_ID,
+    orderNumber: 'O-CBE01-2627-000512',
+    customerDisplayName: 'Kavitha (counter)',
+    grandTotal: 609,
+    outstanding: 309,
+    currency: 'INR',
+    ...overrides,
+  }
+}
+
+export function anOutstandingBalancePage(
+  overrides: Partial<OutstandingBalancePage> = {},
+): OutstandingBalancePage {
+  return {
+    rows: [anOutstandingBalanceRow()],
     nextCursor: null,
     ...overrides,
   }

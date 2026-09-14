@@ -109,16 +109,28 @@ public sealed class InvoiceStore(BillingDbContext context, ITransactionalSequenc
             .SingleOrDefaultAsync(invoice => invoice.Id == invoiceId && invoice.OrganisationId == organisationId, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<InvoicePage> ListAsync(InvoiceListQuery query, CancellationToken cancellationToken = default)
+    public Task<InvoicePage> ListAsync(InvoiceListQuery query, CancellationToken cancellationToken = default)
+        => ListPageAsync(query, summaryOnly: true, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<InvoicePage> ListPostedWithNotesAsync(InvoiceListQuery query, CancellationToken cancellationToken = default)
+        => ListPageAsync(query, summaryOnly: false, cancellationToken);
+
+    /// <summary>
+    /// The cursor-paged read both <see cref="ListAsync"/> and <see cref="ListPostedWithNotesAsync"/> share.
+    /// <paramref name="summaryOnly"/> chooses between them: <c>ListInvoices</c> shows only header
+    /// fields, so its rows skip the auto-included lines and notes entirely; a caller composing
+    /// <c>InvoiceBalance.Of</c> across a page needs the notes loaded, because that is where a credit
+    /// or debit note lives.
+    /// </summary>
+    private async Task<InvoicePage> ListPageAsync(InvoiceListQuery query, bool summaryOnly, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         var limit = Math.Clamp(query.Limit, 1, InvoiceListQuery.MaximumLimit);
-        var rows = context.Invoices
-            .AsNoTracking()
-            .IgnoreAutoIncludes()
-            .Include(invoice => invoice.Cancellation)
-            .Where(invoice => invoice.OrganisationId == query.OrganisationId && invoice.BranchId == query.BranchId);
+        var rows = context.Invoices.AsNoTracking();
+        rows = summaryOnly ? rows.IgnoreAutoIncludes().Include(invoice => invoice.Cancellation) : rows;
+        rows = rows.Where(invoice => invoice.OrganisationId == query.OrganisationId && invoice.BranchId == query.BranchId);
         if (query.Status is { } status)
         {
             rows = rows.Where(invoice => invoice.Status == status);

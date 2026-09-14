@@ -103,6 +103,8 @@ export const billingEn = {
   'billing.outstanding.empty.title': 'Nothing outstanding',
   'billing.outstanding.empty': 'Every posted invoice at this branch is paid in full.',
   'billing.outstanding.caption': 'Posted invoices with an outstanding balance',
+  'billing.outstanding.count':
+    '{count, plural, one {# invoice outstanding} other {# invoices outstanding}}',
   'billing.outstanding.column.order': 'Order',
   'billing.outstanding.column.customer': 'Customer',
   'billing.outstanding.column.invoice': 'Invoice',
@@ -603,6 +605,9 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
   'billing.outstanding.empty': 'Every posted invoice at this branch is paid in full.',
   // not translated — awaiting native-speaker review
   'billing.outstanding.caption': 'Posted invoices with an outstanding balance',
+  // not translated — awaiting native-speaker review
+  'billing.outstanding.count':
+    '{count, plural, one {# invoice outstanding} other {# invoices outstanding}}',
   // not translated — awaiting native-speaker review
   'billing.outstanding.column.order': 'Order',
   // not translated — awaiting native-speaker review

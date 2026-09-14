@@ -38,6 +38,7 @@ public static class BillingEndpoints
             .MapPaymentModeEndpoints()
             .MapCashierSessionEndpoints()
             .MapPaymentEndpoints()
+            .MapOutstandingBalanceEndpoints()
             .MapReceiptEndpoints()
             .MapRefundEndpoints()
             .MapReconciliationEndpoints()
