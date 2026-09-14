@@ -43,6 +43,25 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.dispatch-exception-balance-exceeded': 'billing.problem.dispatchBalanceExceeded',
   'billing.dispatch-exception-job-not-of-order': 'billing.problem.dispatchJobNotOfOrder',
   'billing.dispatch-exception-amount-not-positive': 'billing.problem.dispatchAmountNotPositive',
+  // Drafting, discarding and posting an invoice (#345).
+  'billing.calculation-not-found': 'billing.problem.calculationNotFound',
+  'billing.customer-not-found': 'billing.problem.customerNotFound',
+  'billing.order-revised-since-draft': 'billing.problem.orderRevisedSinceDraft',
+  'billing.job-already-invoiced': 'billing.problem.jobAlreadyInvoiced',
+  // Sends the person to re-price rather than implying the invoice — or the price list — is broken.
+  'billing.snapshot-mismatch': 'billing.problem.snapshotMismatch',
+  'billing.totals-mismatch': 'billing.problem.totalsMismatch',
+  'billing.calculation-for-another-branch': 'billing.problem.calculationForAnotherBranch',
+  'billing.branch-not-known': 'billing.problem.branchNotKnown',
+  'billing.invoice-not-editable': 'billing.problem.invoiceNotEditable',
+  // The precondition failure a stale ETag answers with — refetch and say so, never retry blindly.
+  'billing.invoice-changed': 'billing.problem.invoiceChanged',
+  'billing.job-cancelled': 'billing.problem.jobCancelled',
+  'billing.job-repeated': 'billing.problem.jobRepeated',
+  'billing.line-not-a-garment-job': 'billing.problem.lineNotAGarmentJob',
+  'billing.configuration-missing': 'billing.problem.configurationMissing',
+  'billing.reason-required': 'billing.problem.reasonRequired',
+  'billing.reason-not-well-formed': 'billing.problem.reasonNotWellFormed',
 }
 
 /** The code of a failure, when the server sent one. */

@@ -5,9 +5,11 @@ import type {
   ApproveReconciliationRequest,
   AvailablePaymentMode,
   BarcodeResolution,
+  BillingReasonRequest,
   CashierSession,
   CloseCashierSessionRequest,
   CreateDispatchExceptionRequest,
+  CreateInvoiceDraftRequest,
   DispatchException,
   DocumentDownload,
   Invoice,
@@ -236,6 +238,63 @@ export async function resolveInvoiceBarcode(
 ): Promise<BarcodeResolution> {
   return await apiRequest<BarcodeResolution>(`${BILLING}/barcodes/${encodeURIComponent(payload)}`, {
     ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/* Drafting, discarding and posting an invoice (#345). -------------------------------------------- */
+
+/**
+ * Drafts an invoice from an order's stored calculation. Nothing is re-priced: the lines are the
+ * calculation's, exactly as the server returns them.
+ */
+export async function createInvoiceDraft(input: {
+  readonly body: CreateInvoiceDraftRequest
+  readonly idempotencyKey: string
+  readonly signal?: AbortSignal
+}): Promise<VersionedResponse<Invoice>> {
+  return await apiRequestVersioned<Invoice>(`${BILLING}/invoices`, {
+    method: 'POST',
+    body: input.body,
+    idempotencyKey: input.idempotencyKey,
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
+  })
+}
+
+/**
+ * Abandons a draft, freeing its garment jobs for another invoice. `SQ-06`: this is a status, not a
+ * deletion — the draft is left readable, discarded.
+ */
+export async function discardInvoiceDraft(input: {
+  readonly invoiceId: string
+  readonly reason: string
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<Invoice>> {
+  const body: BillingReasonRequest = { reason: input.reason }
+  return await apiRequestVersioned<Invoice>(`${BILLING}/invoices/${input.invoiceId}/discard`, {
+    method: 'POST',
+    body,
+    idempotencyKey: input.idempotencyKey,
+    ifMatch: input.version,
+  })
+}
+
+/**
+ * Posts a draft: draws its invoice number under the branch/financial-year sequence and makes it
+ * immutable. The reason is optional — posting is the ordinary path, not a correction.
+ */
+export async function postInvoice(input: {
+  readonly invoiceId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<Invoice>> {
+  const body: BillingReasonRequest = { reason: input.reason }
+  return await apiRequestVersioned<Invoice>(`${BILLING}/invoices/${input.invoiceId}/post`, {
+    method: 'POST',
+    body,
+    idempotencyKey: input.idempotencyKey,
+    ifMatch: input.version,
   })
 }
 

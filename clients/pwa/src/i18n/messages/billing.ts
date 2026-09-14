@@ -217,6 +217,53 @@ export const billingEn = {
   'billing.problem.documentNotAvailable':
     'This document has not finished rendering yet. You can still print this page — try downloading again shortly.',
   'billing.problem.copiesOutOfRange': 'Choose between 1 and 5 copies.',
+  'billing.problem.calculationNotFound': 'No calculation is stored under that reference.',
+  'billing.problem.customerNotFound': 'The order’s customer could not be read.',
+  'billing.problem.orderRevisedSinceDraft':
+    'The order changed since this draft was made. Re-price it against the order as it now stands before posting.',
+  'billing.problem.jobAlreadyInvoiced': 'One of these garment jobs is already on another invoice.',
+  'billing.problem.snapshotMismatch':
+    'The stored price no longer adds up. Re-price the order rather than posting this draft.',
+  'billing.problem.totalsMismatch':
+    'This draft’s totals no longer match its calculation. Re-price it before posting.',
+  'billing.problem.calculationForAnotherBranch': 'That calculation was priced for another branch.',
+  'billing.problem.branchNotKnown': 'This branch is not set up to draw invoice numbers yet.',
+  'billing.problem.invoiceNotEditable':
+    'Only a draft invoice changes. A posted invoice is corrected by a credit or debit note.',
+  'billing.problem.invoiceChanged': 'Somebody changed this invoice. Here it is again.',
+  'billing.problem.jobCancelled':
+    'One of these garment jobs was cancelled, so it cannot be invoiced.',
+  'billing.problem.jobRepeated': 'Two lines name the same garment job.',
+  'billing.problem.lineNotAGarmentJob': 'That line does not name one of the order’s garment jobs.',
+  'billing.problem.configurationMissing':
+    'Something needed to price this order is not configured yet.',
+  'billing.problem.reasonRequired': 'Say why.',
+  'billing.problem.reasonNotWellFormed': 'A reason is plain text.',
+  'billing.invoice.draft.title': 'Raise an invoice',
+  'billing.invoice.draft.creating': 'the invoice',
+  'billing.invoice.draft.missingParams.title': 'This screen is opened from an order',
+  'billing.invoice.draft.missingParams':
+    'There is nothing to draft without an order and a stored calculation. Reach this screen from the order it is for.',
+  'billing.invoice.draft.review': 'Review this draft',
+  'billing.invoice.draft.open': 'Open this invoice',
+  'billing.invoice.draft.offlineAction': 'Drafting this invoice',
+  'billing.invoice.post.action': 'Post',
+  'billing.invoice.post.posting': 'Posting…',
+  'billing.invoice.post.confirm.title': 'Post this invoice?',
+  'billing.invoice.post.confirm.body':
+    '{amount}. Once posted, this invoice cannot be edited — a correction becomes a credit or debit note.',
+  'billing.invoice.post.confirm.typedPhrase': 'POST {orderNumber}',
+  'billing.invoice.post.posted': 'Posted as {invoiceNumber}.',
+  'billing.invoice.post.offlineAction': 'Posting this invoice',
+  'billing.invoice.discard.action': 'Discard',
+  'billing.invoice.discard.discarding': 'Discarding…',
+  'billing.invoice.discard.confirm.title': 'Discard this draft?',
+  'billing.invoice.discard.confirm.body':
+    'This draft is abandoned, not deleted, and its garment jobs become free to invoice again.',
+  'billing.invoice.discard.discarded': 'This draft is discarded.',
+  'billing.invoice.discard.offlineAction': 'Discarding this draft',
+  'billing.invoice.conflict.title': 'This invoice changed',
+  'billing.invoice.conflict.body': 'Somebody changed this invoice. Here it is again.',
   'billing.cashier.title': 'Cashier session',
   'billing.cashier.loading': 'your cashier session',
   'billing.cashier.open.title': 'Open a session',
@@ -742,6 +789,91 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
     'This document has not finished rendering yet. You can still print this page — try downloading again shortly.',
   // not translated — awaiting native-speaker review
   'billing.problem.copiesOutOfRange': 'Choose between 1 and 5 copies.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.calculationNotFound': 'No calculation is stored under that reference.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.customerNotFound': 'The order’s customer could not be read.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.orderRevisedSinceDraft':
+    'The order changed since this draft was made. Re-price it against the order as it now stands before posting.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.jobAlreadyInvoiced': 'One of these garment jobs is already on another invoice.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.snapshotMismatch':
+    'The stored price no longer adds up. Re-price the order rather than posting this draft.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.totalsMismatch':
+    'This draft’s totals no longer match its calculation. Re-price it before posting.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.calculationForAnotherBranch': 'That calculation was priced for another branch.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.branchNotKnown': 'This branch is not set up to draw invoice numbers yet.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.invoiceNotEditable':
+    'Only a draft invoice changes. A posted invoice is corrected by a credit or debit note.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.invoiceChanged': 'Somebody changed this invoice. Here it is again.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.jobCancelled':
+    'One of these garment jobs was cancelled, so it cannot be invoiced.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.jobRepeated': 'Two lines name the same garment job.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.lineNotAGarmentJob': 'That line does not name one of the order’s garment jobs.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.configurationMissing':
+    'Something needed to price this order is not configured yet.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.reasonRequired': 'Say why.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.reasonNotWellFormed': 'A reason is plain text.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.title': 'Raise an invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.creating': 'the invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.missingParams.title': 'This screen is opened from an order',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.missingParams':
+    'There is nothing to draft without an order and a stored calculation. Reach this screen from the order it is for.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.review': 'Review this draft',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.open': 'Open this invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.draft.offlineAction': 'Drafting this invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.action': 'Post',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.posting': 'Posting…',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.confirm.title': 'Post this invoice?',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.confirm.body':
+    '{amount}. Once posted, this invoice cannot be edited — a correction becomes a credit or debit note.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.confirm.typedPhrase': 'POST {orderNumber}',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.posted': 'Posted as {invoiceNumber}.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.post.offlineAction': 'Posting this invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.discard.action': 'Discard',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.discard.discarding': 'Discarding…',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.discard.confirm.title': 'Discard this draft?',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.discard.confirm.body':
+    'This draft is abandoned, not deleted, and its garment jobs become free to invoice again.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.discard.discarded': 'This draft is discarded.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.discard.offlineAction': 'Discarding this draft',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.conflict.title': 'This invoice changed',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.conflict.body': 'Somebody changed this invoice. Here it is again.',
   // not translated — awaiting native-speaker review
   'billing.cashier.title': 'Cashier session',
   // not translated — awaiting native-speaker review

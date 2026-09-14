@@ -63,9 +63,11 @@ import type {
   ApproveReconciliationRequest,
   AvailablePaymentMode,
   BarcodeResolution,
+  BillingReasonRequest,
   CashierSession,
   CloseCashierSessionRequest,
   CreateDispatchExceptionRequest,
+  CreateInvoiceDraftRequest,
   DispatchException,
   Invoice,
   InvoiceBalance,
@@ -600,4 +602,22 @@ export type PrintReceiptRequestConforms = Conforms<
 export type PrintInvoiceRequestConforms = Conforms<
   PrintInvoiceRequest,
   Immutable<RequestBody<'PrintInvoice'>>
+>
+
+/* Drafting, discarding and posting an invoice (#345). -------------------------------------------- */
+
+export type CreateInvoiceDraftRequestConforms = Conforms<
+  CreateInvoiceDraftRequest,
+  Immutable<RequestBody<'CreateInvoiceDraft'>>
+>
+
+/** The same body on two routes, asserted separately so a divergence between them is caught. */
+export type DiscardInvoiceDraftRequestConforms = Conforms<
+  BillingReasonRequest,
+  Immutable<RequestBody<'DiscardInvoiceDraft'>>
+>
+
+export type PostInvoiceRequestConforms = Conforms<
+  BillingReasonRequest,
+  Immutable<RequestBody<'PostInvoice'>>
 >

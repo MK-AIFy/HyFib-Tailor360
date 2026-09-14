@@ -228,6 +228,25 @@ export interface PrintInvoiceRequest {
 }
 
 /**
+ * What is sent to draft an invoice from an order's stored calculation (#345).
+ *
+ * `garmentJobIds` is null for whatever the calculation priced — OD-22's default — and a subset only
+ * when the order fact names more jobs than the calculation did; today's client always sends null,
+ * since the job-card screen that would offer a subset (#204) does not exist yet.
+ */
+export interface CreateInvoiceDraftRequest {
+  readonly orderId: string
+  readonly calculationReference: string
+  readonly garmentJobIds: readonly string[] | null
+  readonly reason: string | null
+}
+
+/** What is sent to discard a draft or post it. Null asks for no reason to be recorded. */
+export interface BillingReasonRequest {
+  readonly reason: string | null
+}
+
+/**
  * A downloaded document: the bytes, their type, and the name to save them under.
  *
  * Not pinned against `schema.d.ts` — there is nothing to pin against. `Content-Disposition` is an

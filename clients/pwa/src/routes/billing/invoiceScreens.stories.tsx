@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import {
+  ORDER_ID,
   aCancelledInvoice,
+  aDraftInvoice,
   anInvoice,
   anInvoicePage,
   anInvoiceSummary,
@@ -14,6 +16,7 @@ import {
   withBillingApi,
 } from '../../billing/testing/storyTransport'
 import { InvoiceDetailRoute } from './InvoiceDetailRoute'
+import { InvoiceDraftRoute } from './InvoiceDraftRoute'
 import { InvoiceRegisterRoute } from './InvoiceRegisterRoute'
 import './billing.css'
 
@@ -127,6 +130,25 @@ export const InvoiceDetail: Story = {
     ),
 }
 
+/** A draft: Post and Discard (#345), offered because the story's caller holds both keys. */
+export const InvoiceDetailDraft: Story = {
+  render: () =>
+    withBillingApi(
+      <InvoiceDetailRoute />,
+      {
+        [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: () => storyJson(aDraftInvoice(), 'W/"1"'),
+      },
+      {
+        ...DETAIL_OPTIONS,
+        permissions: [
+          BILLING_PERMISSIONS.createInvoice,
+          BILLING_PERMISSIONS.postInvoice,
+          BILLING_PERMISSIONS.updateInvoice,
+        ],
+      },
+    ),
+}
+
 /** Cancelled by its compensating record: the number and totals stand, and the banner says so. */
 export const InvoiceDetailCancelled: Story = {
   render: () =>
@@ -158,6 +180,56 @@ export const InvoiceDetailForbidden: Story = {
       </RequirePermission>,
       { 'GET /api/v1/me': () => storyJson(withNoPermissions()) },
       DETAIL_OPTIONS,
+    ),
+}
+
+/* Raising an invoice (#345). ------------------------------------------------------------------- */
+
+const DRAFT_OPTIONS = {
+  path: '/billing/invoices/new',
+  at: `/billing/invoices/new?orderId=${ORDER_ID}&calculation=${encodeURIComponent(`order:${ORDER_ID}:1`)}`,
+}
+
+export const InvoiceDraftLoading: Story = {
+  render: () =>
+    withBillingApi(
+      <InvoiceDraftRoute />,
+      { 'POST /api/v1/billing/invoices': storyPending },
+      DRAFT_OPTIONS,
+    ),
+}
+
+/** The draft posted with the two query parameters, reviewed before it is opened. */
+export const InvoiceDraft: Story = {
+  render: () =>
+    withBillingApi(
+      <InvoiceDraftRoute />,
+      {
+        'POST /api/v1/billing/invoices': () => storyJson(aDraftInvoice(), 'W/"1"'),
+      },
+      DRAFT_OPTIONS,
+    ),
+}
+
+/** Reached with neither query parameter — the honest "opened from an order" message, not a form. */
+export const InvoiceDraftMissingParams: Story = {
+  render: () =>
+    withBillingApi(
+      <InvoiceDraftRoute />,
+      {},
+      { path: DRAFT_OPTIONS.path, at: '/billing/invoices/new' },
+    ),
+}
+
+/** The order's calculation no longer reproduces: re-price it, never implying the invoice is wrong. */
+export const InvoiceDraftSnapshotMismatch: Story = {
+  render: () =>
+    withBillingApi(
+      <InvoiceDraftRoute />,
+      {
+        'POST /api/v1/billing/invoices': () => storyProblem(409, 'billing.snapshot-mismatch'),
+      },
+      DRAFT_OPTIONS,
     ),
 }
 
