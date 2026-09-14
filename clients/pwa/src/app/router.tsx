@@ -34,6 +34,7 @@ import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRou
 import { DesignPickerRoute } from '../routes/catalog/DesignPickerRoute'
 import { GstRegistrationsRoute } from '../routes/pricing/GstRegistrationsRoute'
 import { PriceListsRoute } from '../routes/pricing/PriceListsRoute'
+import { PriceListVersionEditorRoute } from '../routes/pricing/PriceListVersionEditorRoute'
 import { PriceListVersionsRoute } from '../routes/pricing/PriceListVersionsRoute'
 import { TaxConfigurationEditorRoute } from '../routes/pricing/TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from '../routes/pricing/TaxConfigurationListRoute'
@@ -492,11 +493,25 @@ export const router = createBrowserRouter([
               },
               {
                 // One list's versions, and the act that starts a draft — empty, or cloned from a
-                // row. Items, discount rules and publication are E09-F01-7 and E09-F01-7b.
+                // row. The validation report and publication are E09-F01-7b's; discount rules are
+                // E09-F01-8's.
                 path: 'price-lists/:priceListId',
                 element: (
                   <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
                     <PriceListVersionsRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // The version editor (E09-F01-7), on an address of its own: a version's conventions
+                // and items are worked on here over several minutes, so it survives a reload and can
+                // be shared with a colleague — the same reasoning the catalogue, template and tax
+                // configuration version editors each get one. Reached from a row on the versions
+                // screen above, never from the navigation.
+                path: 'price-lists/versions/:versionId',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <PriceListVersionEditorRoute />
                   </RequirePermission>
                 ),
               },

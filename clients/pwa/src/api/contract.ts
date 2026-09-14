@@ -103,7 +103,11 @@ import type {
 } from '../billing/pricingAdminTypes'
 import type {
   CreatePriceListRequest,
+  DiscountRule,
   PriceList,
+  PriceListItem,
+  PriceListItemRequest,
+  PriceListVersion,
   PriceListVersionRequest,
   PriceListVersionSummary,
   RenamePriceListRequest,
@@ -723,6 +727,39 @@ export type PriceListVersionSummaryConforms = Conforms<
 export type CreatePriceListDraftRequestConforms = Conforms<
   PriceListVersionRequest,
   Immutable<RequestBody<'CreatePriceListDraft'>>
+>
+
+/* The version editor: its own conventions, its items and its discount rules (E09-F01-7, #268). --- */
+
+export type PriceListVersionConforms = Conforms<
+  PriceListVersion,
+  Immutable<components['schemas']['PriceListVersionPayload']>
+>
+
+export type DescribePriceListVersionRequestConforms = Conforms<
+  PriceListVersionRequest,
+  Immutable<RequestBody<'DescribePriceListVersion'>>
+>
+
+export type PriceListItemConforms = Conforms<
+  PriceListItem,
+  Immutable<components['schemas']['PriceListItemPayload']>
+>
+
+export type DiscountRuleConforms = Conforms<
+  DiscountRule,
+  Immutable<components['schemas']['DiscountRulePayload']>
+>
+
+/** The same body on both routes, asserted separately so a divergence between them is caught. */
+export type AddPriceListItemRequestConforms = Conforms<
+  PriceListItemRequest,
+  Immutable<RequestBody<'AddPriceListItem'>>
+>
+
+export type EditPriceListItemRequestConforms = Conforms<
+  PriceListItemRequest,
+  Immutable<RequestBody<'EditPriceListItem'>>
 >
 
 /* Drafting and editing a tax configuration version and its tax codes (E09-F01-5). ---------------- */

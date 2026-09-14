@@ -64,3 +64,18 @@ export function priceListVersionDraftFromSummary(
     reason: '',
   }
 }
+
+/**
+ * A draft pre-filled from the version being edited, for the whole-value `DescribePriceListVersion`
+ * write E09-F01-7's editor makes.
+ *
+ * Identical to {@link priceListVersionDraftFromSummary} except `cloneFromVersionId` is `null`: this
+ * draft changes the version it was read from rather than starting a new one, so there is nothing to
+ * clone from. Every convention already has a real answer here — `taxInclusive` is never `''` — because
+ * the version being edited was drafted or last saved with one.
+ */
+export function priceListVersionDraftForEditing(
+  version: PriceListVersionSummary,
+): PriceListVersionDraft {
+  return { ...priceListVersionDraftFromSummary(version), cloneFromVersionId: null }
+}

@@ -11,8 +11,9 @@ import type { PriceListVersionDraft } from './priceListVersionDraft'
 
 /**
  * The version-conventions form: name, first day, tax treatment, round-off rule, override threshold
- * and the branches it prices. Used here to start a draft; E09-F01-7 reuses it to change one, which is
- * why `mode` is its own prop rather than the create call being hard-wired in.
+ * and the branches it prices. Used here to start a draft (`mode: 'start'`); the version editor
+ * (E09-F01-7) reuses it in `mode: 'edit'` for the whole-value `DescribePriceListVersion` write, which
+ * is why `mode` is its own prop rather than the create call being hard-wired in.
  *
  * ## Why the tax-treatment and round-off choices start with nothing selected
  *
@@ -32,9 +33,14 @@ import type { PriceListVersionDraft } from './priceListVersionDraft'
  */
 export interface PriceListVersionFormProps {
   readonly draft: PriceListVersionDraft
-  readonly mode: 'start'
-  /** The version number this draft was cloned from, for the informational note. Null for an empty start. */
+  readonly mode: 'start' | 'edit'
+  /**
+   * The version number this draft was cloned from, for the informational note. Null for an empty
+   * start, and always null in `mode: 'edit'` — editing a version is not cloning it.
+   */
   readonly cloneFromVersionNumber: number | string | null
+  /** The version being edited, for the title. Required in `mode: 'edit'`; ignored in `mode: 'start'`. */
+  readonly versionNumber?: number | string
   readonly branchOptions: readonly { readonly value: string; readonly label: string }[]
   readonly branchNamesAvailable: boolean
   readonly busy: boolean
@@ -52,7 +58,9 @@ export interface PriceListVersionFormProps {
 
 export function PriceListVersionForm({
   draft,
+  mode,
   cloneFromVersionNumber,
+  versionNumber,
   branchOptions,
   branchNamesAvailable,
   busy,
@@ -89,12 +97,17 @@ export function PriceListVersionForm({
   }
 
   const title =
-    cloneFromVersionNumber === null
-      ? intl.formatMessage({ id: 'pricing.priceList.version.form.startTitle' })
-      : intl.formatMessage(
-          { id: 'pricing.priceList.version.form.cloneTitle' },
-          { versionNumber: cloneFromVersionNumber },
+    mode === 'edit'
+      ? intl.formatMessage(
+          { id: 'pricing.priceList.version.form.editTitle' },
+          { versionNumber: versionNumber ?? '' },
         )
+      : cloneFromVersionNumber === null
+        ? intl.formatMessage({ id: 'pricing.priceList.version.form.startTitle' })
+        : intl.formatMessage(
+            { id: 'pricing.priceList.version.form.cloneTitle' },
+            { versionNumber: cloneFromVersionNumber },
+          )
 
   return (
     <form
@@ -258,7 +271,12 @@ export function PriceListVersionForm({
       />
 
       <Button busy={busy} type="submit" variant="primary">
-        {intl.formatMessage({ id: 'pricing.priceList.version.form.save' })}
+        {intl.formatMessage({
+          id:
+            mode === 'edit'
+              ? 'pricing.priceList.version.form.saveChanges'
+              : 'pricing.priceList.version.form.save',
+        })}
       </Button>
       <Button onClick={onCancel} type="button" variant="secondary">
         {intl.formatMessage({ id: 'admin.cancel' })}
