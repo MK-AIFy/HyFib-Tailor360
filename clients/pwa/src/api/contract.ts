@@ -99,6 +99,7 @@ import type {
   TaxCode,
   TaxCodeRequest,
   TaxConfiguration,
+  TaxConfigurationPublication,
   TaxConfigurationSummary,
 } from '../billing/pricingAdminTypes'
 import type {
@@ -774,4 +775,11 @@ export type TaxCodeConforms = Conforms<TaxCode, Immutable<components['schemas'][
 export type AddTaxCodeRequestConforms = Conforms<
   TaxCodeRequest,
   Immutable<RequestBody<'AddTaxCode'>>
+>
+
+/* Validating and publishing a tax configuration version (E09-F01-5b). ---------------------------- */
+
+export type TaxConfigurationPublicationConforms = Conforms<
+  TaxConfigurationPublication,
+  Immutable<components['schemas']['TaxConfigurationPublicationPayload']>
 >

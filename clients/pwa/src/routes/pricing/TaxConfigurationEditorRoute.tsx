@@ -1,22 +1,33 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../auth/apiClient'
 import type { VersionedResponse } from '../../auth/apiClient'
+import { useCurrentUser } from '../../auth/useSession'
+import { BillingFindingsList } from '../../billing/BillingFindingsList'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
+import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import {
   billingProblemCode,
   billingProblemField,
   billingProblemMessage,
+  findingsOf,
 } from '../../billing/billingProblems'
 import {
   addTaxCode,
   describeTaxConfigurationVersion,
   editTaxCode,
+  publishTaxConfigurationVersion,
   readTaxConfigurationVersion,
   removeTaxCode,
+  validateTaxConfigurationVersion,
 } from '../../billing/pricingConfigApi'
-import type { DescribeTaxConfigurationRequest, TaxCode } from '../../billing/pricingAdminTypes'
+import type {
+  BillingValidationReport,
+  DescribeTaxConfigurationRequest,
+  TaxCode,
+  TaxConfigurationPublication,
+} from '../../billing/pricingAdminTypes'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import type { ConfirmOutcome } from '../../components/dialogs/ConfirmDialog'
@@ -25,6 +36,7 @@ import { Button } from '../../components/primitives/Button'
 import { DataTable } from '../../components/primitives/DataTable'
 import { Icon } from '../../components/primitives/Icon'
 import { EmptyState } from '../../components/states/EmptyState'
+import { Forbidden } from '../../components/states/Forbidden'
 import { LoadingState } from '../../components/states/LoadingState'
 import { NetworkStatusBanner } from '../../components/states/NetworkStatusBanner'
 import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
@@ -70,14 +82,16 @@ interface VersionDraft {
 }
 
 /**
- * One tax configuration version: its own details, and the tax codes it carries (E09-F01-5).
+ * One tax configuration version: its own details, the tax codes it carries (E09-F01-5), and checking
+ * and publishing it (E09-F01-5b).
  *
- * ## Why there is no validate control and no publish control here
+ * ## Why publishing goes through its own function rather than the shared `send()`
  *
- * Checking a version and publishing it are E09-F01-5b, which also owns the shared findings list. A
- * half-built findings list this issue would have to render and that one would then rewrite is worse
- * than none, so the screen says in one sentence that both arrive next rather than leaving their
- * absence looking like an oversight.
+ * Every other write here only needs the version's moved tag, so `send()` discards the rest of the
+ * body and lets `data.reload()` fetch the current state. A publish answers with more than that — the
+ * version it superseded and every finding, warnings included — and a reload afterwards would lose
+ * both, so `publish()` below reads the response itself and keeps it in `published` for the screen to
+ * show.
  *
  * ## Why a published or retired version offers no editing control at all
  *
@@ -90,7 +104,11 @@ export function TaxConfigurationEditorRoute() {
   const intl = useIntl()
   const formatters = getFormatters()
   const { versionId } = useParams()
+  const navigate = useNavigate()
   const network = useNetworkState()
+  const { permissions } = useCurrentUser()
+
+  const canPublish = permissions.includes(BILLING_PERMISSIONS.publishPriceList)
 
   const data = useAdminResource(`tax-configuration-version:${versionId ?? ''}`, (signal) =>
     readTaxConfigurationVersion(versionId ?? '', signal),
@@ -103,6 +121,11 @@ export function TaxConfigurationEditorRoute() {
     readonly draft: TaxCodeDraft
   } | null>(null)
   const [removingCode, setRemovingCode] = useState<TaxCode | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [validation, setValidation] = useState<BillingValidationReport | null>(null)
+  const [staleReport, setStaleReport] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState<TaxConfigurationPublication | null>(null)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -149,6 +172,8 @@ export function TaxConfigurationEditorRoute() {
       setEditingVersion(null)
       setEditingCode(null)
       setRemovingCode(null)
+      // Every write moves the version past whatever the last check saw.
+      setStaleReport(validation !== null)
       setNotice(done)
       data.reload()
     } catch (cause: unknown) {
@@ -162,6 +187,80 @@ export function TaxConfigurationEditorRoute() {
     setFailure(null)
     setHeld(undefined)
     data.reload()
+  }
+
+  const check = async (): Promise<void> => {
+    if (versionId === undefined) {
+      return
+    }
+
+    setChecking(true)
+    setFailure(null)
+
+    try {
+      setValidation(await validateTaxConfigurationVersion(versionId))
+      setStaleReport(false)
+    } catch (cause: unknown) {
+      setFailure(cause)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const openPublish = (): void => {
+    setFailure(null)
+    setEditingVersion(null)
+    setEditingCode(null)
+    setRemovingCode(null)
+    setPublished(null)
+    setPublishing(true)
+  }
+
+  /**
+   * Publishes the draft, with the reason the trail records.
+   *
+   * Kept apart from `send()`: the response carries the version this publish superseded and every
+   * finding it still warned about, neither of which a plain reload would recover, so this reads the
+   * body itself and keeps it in `published` for the screen to show alongside the version's new state.
+   * A lost race (`billing.publish-conflict`) still re-reads the version — the current status is shown
+   * once the dialog is dismissed, rather than leaving a stale `Draft` on screen.
+   */
+  const publish = async (outcome: ConfirmOutcome): Promise<void> => {
+    if (versionId === undefined) {
+      return
+    }
+    if (precondition === undefined) {
+      setFailure(new ApiError('The version must be read again.', { status: 409 }))
+      return
+    }
+    const reason = outcome.reason?.trim() ?? ''
+
+    setBusy(true)
+    setFailure(null)
+    setNotice(null)
+
+    try {
+      const result = await publishTaxConfigurationVersion({
+        versionId,
+        reason: reason === '' ? null : reason,
+        version: precondition,
+        idempotencyKey: keyFor('publish'),
+      })
+      forget('publish')
+      setHeld(result.version)
+      setPublishing(false)
+      setPublished(result.value)
+      setStaleReport(validation !== null)
+      data.reload()
+    } catch (cause: unknown) {
+      setFailure(cause)
+      if (billingProblemCode(cause) === 'billing.publish-conflict') {
+        setHeld(undefined)
+        data.reload()
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   const openDescribe = (): void => {
@@ -301,6 +400,9 @@ export function TaxConfigurationEditorRoute() {
   const kindError = fieldSentence(editingCode !== null, 'kind')
   const activeError = fieldSentence(editingCode !== null, 'active')
   const codeReasonError = fieldSentence(editingCode !== null, 'reason')
+
+  const publishReasonError = fieldSentence(publishing, 'reason')
+  const publishFindings = publishing ? findingsOf(failure) : []
 
   const rateErrors: RateFieldErrors = (() => {
     if (editingCode === null) {
@@ -595,9 +697,66 @@ export function TaxConfigurationEditorRoute() {
         )
       ) : null}
 
-      <Alert live="off" tone="info">
-        <FormattedMessage id="pricing.tax.editor.publishComingSoon" />
-      </Alert>
+      {network.online ? (
+        <Button
+          busy={checking}
+          onClick={() => {
+            void check()
+          }}
+          variant="secondary"
+        >
+          <FormattedMessage id="pricing.tax.editor.validate" />
+        </Button>
+      ) : (
+        <OfflineBlockedAction
+          action={intl.formatMessage({ id: 'pricing.tax.editor.validate.offlineAction' })}
+        />
+      )}
+
+      {validation === null ? null : (
+        <section>
+          {staleReport ? (
+            <Alert live="polite" tone="info">
+              <FormattedMessage id="pricing.tax.editor.check.stale" />
+            </Alert>
+          ) : null}
+          <BillingFindingsList findings={validation.findings} />
+        </section>
+      )}
+
+      {isDraft ? (
+        canPublish ? (
+          network.online ? (
+            <Button busy={busy && publishing} onClick={openPublish} variant="primary">
+              <FormattedMessage id="pricing.tax.editor.publish" />
+            </Button>
+          ) : (
+            <OfflineBlockedAction
+              action={intl.formatMessage({ id: 'pricing.tax.editor.publish.offlineAction' })}
+            />
+          )
+        ) : (
+          <Forbidden
+            action={intl.formatMessage({ id: 'pricing.tax.editor.publish.forbiddenAction' })}
+            allowedRoles={['Owner']}
+            onBack={() => {
+              void navigate('/admin/tax-configuration')
+            }}
+          />
+        )
+      ) : null}
+
+      {published === null ? null : (
+        <section>
+          <Alert live="polite" tone="success">
+            <p>{intl.formatMessage({ id: 'pricing.tax.editor.publish.done' })}</p>
+            {published.supersededVersionId === null ? null : (
+              <p>{intl.formatMessage({ id: 'pricing.tax.editor.publish.superseded' })}</p>
+            )}
+          </Alert>
+          <BillingFindingsList findings={published.findings} />
+        </section>
+      )}
 
       {editingCode === null ? null : !network.online ? (
         <OfflineBlockedAction
@@ -669,6 +828,36 @@ export function TaxConfigurationEditorRoute() {
           {intl.formatMessage({ id: 'pricing.tax.code.remove.body' })}
         </ConfirmDialog>
       )}
+
+      {publishing ? (
+        <ConfirmDialog
+          action={intl.formatMessage({ id: 'pricing.tax.editor.publish' })}
+          busy={busy}
+          cancelLabel={intl.formatMessage({ id: 'admin.cancel' })}
+          confirmLabel={intl.formatMessage({ id: 'pricing.tax.editor.publish' })}
+          irreversible
+          onCancel={() => {
+            setPublishing(false)
+            setFailure(null)
+          }}
+          onConfirm={(outcome) => {
+            void publish(outcome)
+          }}
+          open
+          problem={
+            publishReasonError !== undefined ? null : publishFindings.length > 0 ? (
+              <BillingFindingsList findings={publishFindings} />
+            ) : (
+              <BillingProblemAlert failure={failure} />
+            )
+          }
+          {...(publishReasonError === undefined ? {} : { reasonError: publishReasonError })}
+          tier="reason"
+          title={intl.formatMessage({ id: 'pricing.tax.editor.publish.title' })}
+        >
+          {intl.formatMessage({ id: 'pricing.tax.editor.publish.body' })}
+        </ConfirmDialog>
+      ) : null}
     </section>
   )
 }

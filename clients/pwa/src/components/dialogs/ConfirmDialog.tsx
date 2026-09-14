@@ -66,6 +66,12 @@ export interface ConfirmDialogProps {
    * typed and the retry key the next attempt must reuse.
    */
   readonly problem?: ReactNode
+  /**
+   * A refusal against the reason itself — `billing.reason-required`, `billing.reason-not-well-formed`
+   * — shown as that field's own error rather than folded into `problem`. The typed reason is kept:
+   * this dialog never clears `reason` on a refusal, so a retry starts from what was already there.
+   */
+  readonly reasonError?: string
   /** Overrides the detected shell — a story, a test, or a layout that already knows. */
   readonly shellKind?: ShellKind
 }
@@ -108,6 +114,7 @@ export function ConfirmDialog({
   typedPhrase,
   busy = false,
   problem,
+  reasonError: externalReasonError,
   shellKind,
 }: ConfirmDialogProps) {
   const intl = useIntl()
@@ -118,6 +125,7 @@ export function ConfirmDialog({
   const [reason, setReason] = useState('')
   const [typed, setTyped] = useState('')
   const [reasonError, setReasonError] = useState<string | undefined>(undefined)
+  const shownReasonError = reasonError ?? externalReasonError
   const [typedError, setTypedError] = useState<string | undefined>(undefined)
   const [armed, setArmed] = useState(false)
 
@@ -193,7 +201,7 @@ export function ConfirmDialog({
           }}
           required
           value={reason}
-          {...(reasonError === undefined ? {} : { error: reasonError })}
+          {...(shownReasonError === undefined ? {} : { error: shownReasonError })}
         />
       ) : null}
 

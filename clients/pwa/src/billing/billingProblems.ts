@@ -1,5 +1,6 @@
 import { ApiError } from '../auth/apiClient'
 import type { MessageKey } from '../i18n/en-IN'
+import type { BillingFinding } from './pricingAdminTypes'
 
 /**
  * The refusals the billing routes answer with, in the shop's words.
@@ -112,6 +113,12 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.value-too-long': 'pricing.problem.valueTooLong',
   // 'billing.reason-not-well-formed' is already mapped above, to the shared sentence every module
   // uses for the same code.
+  // Validating and publishing a tax configuration version (E09-F01-5b). A refused publish's own
+  // findings are read through `findingsOf` below and rendered by `BillingFindingsList`, each in its
+  // own sentence — these three are the *page-level* refusals, for when there is no finding to show.
+  'billing.version-not-publishable': 'pricing.problem.versionNotPublishable',
+  'billing.publish-validation-failed': 'pricing.problem.publishValidationFailed',
+  'billing.publish-conflict': 'pricing.problem.publishConflict',
   // The price-list version editor's own items (E09-F01-7). `billing.code-not-unique`,
   // `billing.value-required` and `billing.version-changed`/`-not-editable`/`-not-found` are already
   // mapped above and shared with the sibling screens; only the item-specific codes are new here.
@@ -144,4 +151,32 @@ export function billingProblemField(failure: unknown): string | undefined {
   const errors = failure instanceof ApiError ? failure.problem?.errors : undefined
   const [field] = Object.keys(errors ?? {})
   return field
+}
+
+function isBillingFinding(value: unknown): value is BillingFinding {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.severity === 'string' &&
+    typeof candidate.code === 'string' &&
+    typeof candidate.message === 'string' &&
+    (typeof candidate.target === 'string' || candidate.target === null)
+  )
+}
+
+/**
+ * The findings a refused publish carried, or the findings a successful one still warned about.
+ *
+ * `ApiProblem` does not declare a `findings` member — `Problems.FromFindings` is the one Billing
+ * refusal that adds it, so it is read here through a narrow, typed reader rather than trusted, and
+ * anything that is not an array of well-shaped findings answers empty rather than throwing.
+ */
+export function findingsOf(failure: unknown): readonly BillingFinding[] {
+  if (!(failure instanceof ApiError)) {
+    return []
+  }
+  const raw = (failure.problem as Readonly<Record<string, unknown>> | undefined)?.findings
+  return Array.isArray(raw) ? raw.filter(isBillingFinding) : []
 }

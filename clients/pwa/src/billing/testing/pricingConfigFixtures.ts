@@ -1,9 +1,11 @@
+import { problemResponse } from '../../auth/testing/fixtures'
 import { BRANCH_ID } from './fixtures'
 import type {
   BillingFinding,
   GstRegistration,
   TaxCode,
   TaxConfiguration,
+  TaxConfigurationPublication,
   TaxConfigurationSummary,
   TaxRate,
 } from '../pricingAdminTypes'
@@ -88,7 +90,7 @@ export function aTaxConfiguration(overrides: Partial<TaxConfiguration> = {}): Ta
   }
 }
 
-/** One finding a publish validation reported. Declared for two later siblings; unused by this issue. */
+/** One finding a publish validation reported, or a publish itself still warned about. */
 export function aBillingFinding(overrides: Partial<BillingFinding> = {}): BillingFinding {
   return {
     severity: 'Error',
@@ -97,4 +99,40 @@ export function aBillingFinding(overrides: Partial<BillingFinding> = {}): Billin
     target: 'taxCodes[GST5]',
     ...overrides,
   }
+}
+
+/** A successful publish's own answer: the version now published, what it superseded, its findings. */
+export function aTaxConfigurationPublication(
+  overrides: Partial<TaxConfigurationPublication> = {},
+): TaxConfigurationPublication {
+  return {
+    published: aTaxConfiguration({
+      version: aTaxConfigurationSummary({
+        status: 'Published',
+        publishedAt: '2026-04-01T05:00:00.000Z',
+      }),
+    }),
+    supersededVersionId: null,
+    findings: [],
+    ...overrides,
+  }
+}
+
+/**
+ * An RFC 9457 body shaped exactly as `Problems.FromFindings` answers a refused publish: `errors`
+ * keyed by each finding's own target, and every finding — warnings included — carried whole in the
+ * `findings` extension. The screen reads that extension through `findingsOf` rather than `errors`,
+ * which is here only to keep the fixture honest about the shape the server actually sends.
+ */
+export function findingsProblem(
+  findings: readonly BillingFinding[],
+  code = 'billing.publish-validation-failed',
+  status = 400,
+): Response {
+  const errors: Record<string, string[]> = {}
+  for (const finding of findings) {
+    const key = finding.target ?? 'version'
+    errors[key] = [...(errors[key] ?? []), finding.message]
+  }
+  return problemResponse(status, code, { errors, findings })
 }

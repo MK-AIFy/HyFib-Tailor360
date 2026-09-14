@@ -432,6 +432,15 @@ export const billingEn = {
   'billing.allocate.allocated.body':
     '{amount} applied to invoice {invoiceNumber}. {remaining} remains held.',
   'billing.allocate.offlineAction': 'Allocating an advance',
+
+  /* The shared billing findings list (E09-F01-5b) — a publish validation's errors and warnings. --- */
+  'billing.findings.empty': 'Every check passed. There is nothing to fix or note.',
+  'billing.findings.errors.title':
+    '{count, plural, one {# problem must be fixed before this can publish} other {# problems must be fixed before this can publish}}',
+  'billing.findings.warnings.title':
+    '{count, plural, one {# warning} other {# warnings}} — none of these refuse the publication.',
+  'billing.findings.severity.error': 'Error',
+  'billing.findings.severity.warning': 'Warning',
 } as const
 
 export const billingTa: Record<keyof typeof billingEn, string> = {
@@ -1226,4 +1235,18 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
     '{amount} applied to invoice {invoiceNumber}. {remaining} remains held.',
   // not translated — awaiting native-speaker review
   'billing.allocate.offlineAction': 'Allocating an advance',
+
+  /* The shared billing findings list (E09-F01-5b) — a publish validation's errors and warnings. --- */
+  // not translated — awaiting native-speaker review
+  'billing.findings.empty': 'Every check passed. There is nothing to fix or note.',
+  // not translated — awaiting native-speaker review
+  'billing.findings.errors.title':
+    '{count, plural, one {# problem must be fixed before this can publish} other {# problems must be fixed before this can publish}}',
+  // not translated — awaiting native-speaker review
+  'billing.findings.warnings.title':
+    '{count, plural, one {# warning} other {# warnings}} — none of these refuse the publication.',
+  // not translated — awaiting native-speaker review
+  'billing.findings.severity.error': 'Error',
+  // not translated — awaiting native-speaker review
+  'billing.findings.severity.warning': 'Warning',
 }

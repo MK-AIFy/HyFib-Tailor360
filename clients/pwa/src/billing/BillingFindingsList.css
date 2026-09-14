@@ -1,0 +1,48 @@
+/*
+ * The shared billing findings list (E09-F01-5b): a publish validation's errors and warnings, each
+ * with its own severity, target and sentence.
+ */
+@layer components {
+  .billing-findings-list__scroll {
+    max-block-size: 20rem;
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+
+  .billing-findings-list__list {
+    margin: 0;
+    padding-inline-start: 0;
+    list-style: none;
+  }
+
+  .billing-findings-list__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding-block: var(--space-2);
+    border-block-start: 1px solid var(--colour-border);
+  }
+
+  .billing-findings-list__row:first-child {
+    border-block-start: none;
+  }
+
+  .billing-findings-list__icon {
+    align-self: center;
+  }
+
+  .billing-findings-list__severity {
+    font-weight: var(--font-weight-bold);
+  }
+
+  .billing-findings-list__target {
+    font-weight: var(--font-weight-medium);
+    overflow-wrap: anywhere;
+  }
+
+  .billing-findings-list__message {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+}

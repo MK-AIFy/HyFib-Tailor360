@@ -11,6 +11,7 @@ import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import { BRANCH_ID } from '../../billing/testing/fixtures'
 import {
   TAX_CONFIGURATION_VERSION_ID,
+  aBillingFinding,
   aGstRegistration,
   aTaxConfiguration,
   aTaxConfigurationSummary,
@@ -462,6 +463,53 @@ export const TaxConfigurationEditorPseudoLocale: Story = {
     withAdminApi(
       <TaxConfigurationEditorRoute />,
       { [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"') },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+/* Validating and publishing a version (E09-F01-5b). ------------------------------------------------- */
+
+/** "Check this version" run against a draft with one blocking problem and one warning. */
+export const TaxConfigurationEditorValidated: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      {
+        [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"'),
+        [`GET ${TAX_VERSION}/validation`]: () =>
+          storyJson({
+            versionId: TAX_CONFIGURATION_VERSION_ID,
+            canPublish: false,
+            findings: [
+              aBillingFinding({
+                severity: 'Error',
+                code: 'billing.intra-state-pair-incomplete',
+                message: 'The tax code STITCHING_5 carries a CGST without its matching SGST.',
+                target: 'taxCodes[STITCHING_5]',
+              }),
+              aBillingFinding({
+                severity: 'Warning',
+                code: 'billing.nil-rated-code',
+                message: 'The tax code ALTER_0 carries no rate at all.',
+                target: 'taxCodes[ALTER_0]',
+              }),
+            ],
+          }),
+      },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+/** A holder of the drafting key but not the publishing one: the control is a `Forbidden` region. */
+export const TaxConfigurationEditorPublishForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      {
+        'GET /api/v1/me': () =>
+          storyJson({ ...STORY_USER, permissions: [BILLING_PERMISSIONS.managePriceLists] }),
+        [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"'),
+      },
       TAX_EDITOR_ROUTE,
     ),
 }
