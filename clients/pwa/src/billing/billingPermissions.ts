@@ -39,6 +39,17 @@ export const BILLING_PERMISSIONS = {
   updateInvoice: 'billing.update_invoice',
   /** Posting a draft: drawing its number and making it immutable (#345). */
   postInvoice: 'billing.post_invoice',
+  /**
+   * Cancelling a posted invoice by its compensating credit note (matrix line 141). Multi-factor and
+   * step-up, both — the one write in Billing that carries both (#354).
+   */
+  cancelInvoice: 'billing.cancel_invoice',
+  /**
+   * Posting a credit or debit note against a posted invoice — the ordinary way to correct one
+   * (matrix line 145, section 5 rows 374 and 375: the same key governs both kinds). Multi-factor,
+   * no step-up (#354).
+   */
+  postAdjustmentNote: 'billing.post_credit_note',
   /** Printing and downloading a receipt. */
   printReceipt: 'billing.print_receipt',
 } as const
