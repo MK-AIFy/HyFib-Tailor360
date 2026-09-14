@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -13,7 +13,13 @@ import type { FetchStub } from '../../auth/testing/fixtures'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { ShellStatusProvider } from '../../components/layout/ShellStatusProvider'
 import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
-import { INVOICE_ID, aCancelledInvoice, anInvoice } from '../../billing/testing/fixtures'
+import {
+  INVOICE_ID,
+  aCancelledInvoice,
+  aDraftInvoice,
+  anInvoice,
+  versionedResponse,
+} from '../../billing/testing/fixtures'
 import { InvoiceDetailRoute } from './InvoiceDetailRoute'
 
 let transport: FetchStub
@@ -346,5 +352,226 @@ describe('the print and download controls (#336)', () => {
     expect(transport.calls.length).toBe(callsBefore)
 
     window.dispatchEvent(new Event('online'))
+  })
+})
+
+describe('the draft lifecycle: post and discard (#345)', () => {
+  const postUrl = `${invoiceUrl}/post`
+  const discardUrl = `${invoiceUrl}/discard`
+  const ALL_PERMISSIONS = [
+    BILLING_PERMISSIONS.createInvoice,
+    BILLING_PERMISSIONS.postInvoice,
+    BILLING_PERMISSIONS.updateInvoice,
+  ]
+
+  it('offers Post and Discard on a draft, and neither on a posted invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+
+    renderAt(ALL_PERMISSIONS)
+
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+    expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeInTheDocument()
+  })
+
+  it('offers neither control on a posted invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(anInvoice(), 'W/"1"'))
+
+    renderAt(ALL_PERMISSIONS)
+
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+    expect(screen.queryByRole('button', { name: 'Post' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
+  })
+
+  it('shows no Post control without billing.post_invoice, and no Discard control without billing.update_invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+
+    renderAt([BILLING_PERMISSIONS.createInvoice])
+
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+    expect(screen.queryByRole('button', { name: 'Post' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
+  })
+
+  it('posts the invoice behind a confirmation that names the amount and the immutability, then announces the allocated number and refreshes the invoice', async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    transport.route(`GET ${invoiceUrl}`, () => {
+      reads += 1
+      return versionedResponse(reads === 1 ? aDraftInvoice() : anInvoice(), `W/"${String(reads)}"`)
+    })
+    transport.route(`POST ${postUrl}`, () => versionedResponse(anInvoice(), 'W/"2"'))
+
+    renderAt(ALL_PERMISSIONS)
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getByText(
+        '₹720.00. Once posted, this invoice cannot be edited — a correction becomes a credit or debit note.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('Cannot be undone — a supervisor correction is needed'),
+    ).toBeInTheDocument()
+
+    // jsdom answers no media query, so the typed tier's phone substitute applies here exactly as
+    // it would on a real phone (confirmTiers.ts, checklist item A11Y-BI-13): a mandatory reason
+    // plus a second explicit press, not a typed phrase.
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Reason' }),
+      'Reviewed at the counter.',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Post' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm again' }))
+
+    expect(await screen.findByText('Posted as INV-CBE01-2627-000731.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    const [sent] = transport.callsTo(`POST ${postUrl}`)
+    expect(sent?.body).toEqual({ reason: null })
+    expect(sent?.headers.get('If-Match')).toBe('W/"1"')
+
+    // The invoice is refetched so the new ETag, number, barcode payload and financial year are in
+    // hand — the heading now reads the allocated number rather than "Draft".
+    expect(
+      await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' }),
+    ).toBeInTheDocument()
+    expect(transport.callsTo(`GET ${invoiceUrl}`)).toHaveLength(2)
+  })
+
+  it('renders a 403 refusing the post as a sentence, never a code', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+    transport.route(`POST ${postUrl}`, () => problemResponse(403, 'billing.post-forbidden'))
+
+    renderAt(ALL_PERMISSIONS)
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Reason' }), 'Reviewed.')
+    await user.click(within(dialog).getByRole('button', { name: 'Post' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm again' }))
+
+    expect(
+      await within(dialog).findByText('This did not go through, and the reason is not clear.'),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByText('billing.post-forbidden')).not.toBeInTheDocument()
+  })
+
+  it('reuses the same Idempotency-Key across a retry after a failure', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+    let attempt = 0
+    transport.route(`POST ${postUrl}`, () => {
+      attempt += 1
+      return attempt === 1
+        ? problemResponse(503, 'platform.unavailable')
+        : versionedResponse(anInvoice(), 'W/"2"')
+    })
+
+    renderAt(ALL_PERMISSIONS)
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Reason' }), 'Reviewed.')
+    await user.click(within(dialog).getByRole('button', { name: 'Post' })) // arms the second press
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm again' })) // attempt 1, fails
+
+    await within(dialog).findByText(
+      'The shop system could not finish this. It is not something you did wrong.',
+    )
+
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm again' })) // attempt 2, same key
+    await screen.findByText('Posted as INV-CBE01-2627-000731.')
+
+    const keys = transport
+      .callsTo(`POST ${postUrl}`)
+      .map((call) => call.headers.get('Idempotency-Key'))
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).not.toBeNull()
+    expect(keys[0]).toBe(keys[1])
+  })
+
+  it('discards the draft with its typed reason; a stale ETag refetches the invoice, shows the sentence, does not discard, and keeps the reason', async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    transport.route(`GET ${invoiceUrl}`, () => {
+      reads += 1
+      return versionedResponse(aDraftInvoice(), `W/"${String(reads)}"`)
+    })
+    let attempt = 0
+    transport.route(`POST ${discardUrl}`, () => {
+      attempt += 1
+      return attempt === 1
+        ? problemResponse(412, 'billing.invoice-changed')
+        : versionedResponse(aDraftInvoice({ discardedAt: '2026-09-14T05:00:00.000Z' }), 'W/"2"')
+    })
+
+    renderAt(ALL_PERMISSIONS)
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }))
+    const dialog = await screen.findByRole('dialog')
+    const reason = within(dialog).getByRole('textbox', { name: 'Reason' })
+    await user.type(reason, 'Drafted against the wrong order.')
+    await user.click(within(dialog).getByRole('button', { name: 'Discard' }))
+
+    expect(
+      await within(dialog).findByText('Somebody changed this invoice. Here it is again.'),
+    ).toBeInTheDocument()
+    // The dialog stays open — closing it here would lose what was typed — and the invoice was
+    // refetched in the background so the next press carries a fresh precondition.
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(reason).toHaveValue('Drafted against the wrong order.')
+    await waitFor(() => {
+      expect(transport.callsTo(`GET ${invoiceUrl}`)).toHaveLength(2)
+    })
+
+    await user.click(within(dialog).getByRole('button', { name: 'Discard' }))
+    expect(await screen.findByText('This draft is discarded.')).toBeInTheDocument()
+
+    const [first, second] = transport.callsTo(`POST ${discardUrl}`)
+    expect(first?.body).toEqual({ reason: 'Drafted against the wrong order.' })
+    expect(first?.headers.get('If-Match')).toBe('W/"1"')
+    expect(second?.headers.get('If-Match')).toBe('W/"2"')
+  })
+
+  it('offline, blocks Post and Discard and sends neither request', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+
+    renderAt(ALL_PERMISSIONS)
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+
+    window.dispatchEvent(new Event('offline'))
+
+    expect(
+      await screen.findByText(
+        'Posting this invoice needs a connection. It has not been sent, and it will not be sent later.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Discarding this draft needs a connection. It has not been sent, and it will not be sent later.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Post' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
+    expect(transport.callsTo(`POST ${postUrl}`)).toHaveLength(0)
+    expect(transport.callsTo(`POST ${discardUrl}`)).toHaveLength(0)
+
+    window.dispatchEvent(new Event('online'))
+  })
+
+  it('has no accessibility violations on a draft invoice with Post and Discard available', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+
+    const { container } = renderAt(ALL_PERMISSIONS)
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+    await expectNoAccessibilityViolations(container)
   })
 })

@@ -35,6 +35,10 @@ export const BILLING_PERMISSIONS = {
    * read permission exists for it.
    */
   createInvoice: 'billing.create_invoice',
+  /** Discarding a draft. A posted invoice is corrected by a note, never by this key (#345). */
+  updateInvoice: 'billing.update_invoice',
+  /** Posting a draft: drawing its number and making it immutable (#345). */
+  postInvoice: 'billing.post_invoice',
   /** Printing and downloading a receipt. */
   printReceipt: 'billing.print_receipt',
 } as const

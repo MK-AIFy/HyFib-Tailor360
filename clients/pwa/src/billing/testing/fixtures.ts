@@ -20,6 +20,14 @@ import type {
  * amount that resembles a real transaction appears here or in any story or test built on them.
  */
 
+/** A response carrying the `ETag` a versioned billing read or write has to return. */
+export function versionedResponse(body: unknown, version: string, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ETag: version },
+  })
+}
+
 export const BRANCH_ID = '0199dd00-0000-7000-8000-0000000000b1'
 export const CASHIER_ID = '0199dd00-0000-7000-8000-0000000000c1'
 export const ORDER_ID = '0199dd00-0000-7000-8000-0000000000d1'
@@ -244,6 +252,19 @@ export function anInvoice(overrides: Partial<Invoice> = {}): Invoice {
     notes: [],
     ...overrides,
   }
+}
+
+/** A freshly drafted invoice: no number, no barcode, no posting date — nothing drawn yet (#345). */
+export function aDraftInvoice(overrides: Partial<Invoice> = {}): Invoice {
+  return anInvoice({
+    status: 'Draft',
+    invoiceNumber: null,
+    barcodePayload: null,
+    financialYear: null,
+    postedOn: null,
+    postedAt: null,
+    ...overrides,
+  })
 }
 
 /** A credit note relieving the lining surcharge line, posted with its own reason. */

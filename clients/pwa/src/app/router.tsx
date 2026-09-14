@@ -11,6 +11,7 @@ import { AllocateAdvanceRoute } from '../routes/billing/AllocateAdvanceRoute'
 import { CashierSessionRoute } from '../routes/billing/CashierSessionRoute'
 import { DispatchExceptionApprovalRoute } from '../routes/billing/DispatchExceptionApprovalRoute'
 import { InvoiceDetailRoute } from '../routes/billing/InvoiceDetailRoute'
+import { InvoiceDraftRoute } from '../routes/billing/InvoiceDraftRoute'
 import { InvoiceRegisterRoute } from '../routes/billing/InvoiceRegisterRoute'
 import { OutstandingBalancesRoute } from '../routes/billing/OutstandingBalancesRoute'
 import { PaymentDetailRoute } from '../routes/billing/PaymentDetailRoute'
@@ -262,6 +263,17 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
                 <InvoiceRegisterRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // Draft an invoice for an order (#345). A static segment ranks ahead of the dynamic
+            // `:invoiceId` below regardless of declaration order, but it sits beside the route it
+            // extends here for a reader's sake.
+            path: 'billing/invoices/new',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
+                <InvoiceDraftRoute />
               </RequirePermission>
             ),
           },
