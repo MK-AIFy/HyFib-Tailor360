@@ -75,6 +75,16 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.note-line-not-on-invoice': 'billing.problem.noteLineNotOnInvoice',
   'billing.note-exceeds-line': 'billing.problem.noteExceedsLine',
   'billing.note-value-not-well-formed': 'billing.problem.noteValueNotWellFormed',
+  // The pricing administration foundation (#237). The GSTIN and state-code refusals are rendered as
+  // field errors beside their own control rather than through this map's generic alert — see
+  // `GstRegistrationsRoute.tsx` — but the sentence is still looked up here, once, so both places agree.
+  'billing.gstin-not-well-formed': 'pricing.problem.gstinNotWellFormed',
+  'billing.gstin-state-mismatch': 'pricing.problem.gstinStateMismatch',
+  'billing.state-code-not-well-formed': 'pricing.problem.stateCodeNotWellFormed',
+  'billing.dates-not-ordered': 'pricing.problem.datesNotOrdered',
+  'billing.registration-overlaps': 'pricing.problem.registrationOverlaps',
+  'billing.registration-changed': 'pricing.problem.registrationChanged',
+  'billing.registration-not-found': 'pricing.problem.registrationNotFound',
 }
 
 /** The code of a failure, when the server sent one. */

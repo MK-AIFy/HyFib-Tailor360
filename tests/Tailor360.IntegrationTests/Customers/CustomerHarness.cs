@@ -282,10 +282,21 @@ internal static class CustomerHarness
         return client;
     }
 
+    /// <summary>A customer of a branch, registered straight into Customers' own store.</summary>
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="owningBranchId">The branch the customer belongs to.</param>
+    /// <param name="language">The customer's language.</param>
+    /// <param name="displayName">
+    /// The name a document prints. Defaults to the synthetic English name every existing caller
+    /// already got, so none of them moves. #326 passes a Tamil one, because the accountant's sample
+    /// pack has to show a Tamil name rendering in the embedded face rather than as missing glyphs —
+    /// the native name below never reaches a document, since the template prints the display name.
+    /// </param>
     public static async Task<Guid> CustomerAsync(
         WebApplicationFixture fixture,
         Guid owningBranchId,
-        string language = "en-IN")
+        string language = "en-IN",
+        string? displayName = null)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -297,7 +308,7 @@ internal static class CustomerHarness
         var token = AdministrationHarness.UniqueToken(6);
 
         var details = CustomerDetails.Create(
-            $"Contract subject {token}",
+            displayName ?? $"Contract subject {token}",
             "\u0BAE\u0BC0\u0BA9\u0BBE",
             UniquePhone(),
             null,

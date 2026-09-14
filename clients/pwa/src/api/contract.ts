@@ -92,6 +92,12 @@ import type {
   ReconciliationBatch,
   RecordPaymentRequest,
 } from '../billing/types'
+import type {
+  BillingValidationReport,
+  GstRegistration,
+  GstRegistrationRequest,
+  TaxConfigurationSummary,
+} from '../billing/pricingAdminTypes'
 
 /**
  * The published API contract, in TypeScript.
@@ -651,4 +657,33 @@ export type PostCreditNoteRequestConforms = Conforms<
 export type PostDebitNoteRequestConforms = Conforms<
   PostAdjustmentNoteRequest,
   Immutable<RequestBody<'PostDebitNote'>>
+>
+
+/* The pricing administration foundation (#237). -------------------------------------------------- */
+
+export type GstRegistrationConforms = Conforms<
+  GstRegistration,
+  Immutable<components['schemas']['GstRegistrationPayload']>
+>
+
+/** The same body on both routes, asserted separately so a divergence between them is caught. */
+export type AddGstRegistrationRequestConforms = Conforms<
+  GstRegistrationRequest,
+  Immutable<RequestBody<'AddGstRegistration'>>
+>
+
+export type AmendGstRegistrationRequestConforms = Conforms<
+  GstRegistrationRequest,
+  Immutable<RequestBody<'AmendGstRegistration'>>
+>
+
+export type TaxConfigurationSummaryConforms = Conforms<
+  TaxConfigurationSummary,
+  Immutable<components['schemas']['TaxConfigurationSummaryPayload']>
+>
+
+/** Declared for two later siblings (E09-F01-5b, E09-F01-7b); nothing in this issue renders one. */
+export type BillingValidationReportConforms = Conforms<
+  BillingValidationReport,
+  Immutable<components['schemas']['BillingValidationReportPayload']>
 >

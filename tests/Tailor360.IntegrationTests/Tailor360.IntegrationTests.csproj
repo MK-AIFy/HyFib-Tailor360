@@ -7,6 +7,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Npgsql" />
+    <!-- Reads a rendered PDF back as text, so PdfSnapshotAgreementTests asserts against the page
+         rather than the model the renderer was handed. The package is "PdfPig"; the namespace is
+         UglyToad.PdfPig. Its version is central, in Directory.Packages.props. -->
+    <PackageReference Include="PdfPig" />
     <PackageReference Include="Respawn" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Testcontainers.PostgreSql" />

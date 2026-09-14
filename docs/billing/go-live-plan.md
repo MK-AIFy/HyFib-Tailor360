@@ -148,6 +148,7 @@ sheet.
 | Gate | Evidence |
 | --- | --- |
 | Golden master signed off | The accountant's cases in `tests/fixtures/billing/pricing-golden-master.json` pass, and the accountant has initialled the fixture file (OD-05) |
+| Rendered documents approved by the accountant | [`accountant-document-review.md`](accountant-document-review.md) completed and signed — a tax invoice, a credit note and a debit note examined and confirmed fit to issue and to enter in the books. RG-14 admits no waiver, so this row is met by signature or not at all; #42 stays open until it is |
 | Tax configuration published | A version with the shop's codes and rates, entered by the accountant; no rate in a seed |
 | Price list published per branch | Every service the catalogue offers resolves to an item; the catalogue publish check passes; the preview against the version shows the walkthrough figures |
 | Registrations in force | One per branch on the go-live date |
