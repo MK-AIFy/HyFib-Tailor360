@@ -217,7 +217,7 @@ flowchart LR
 | **NFR-LO-02** | English (India) at launch; the Tamil interface ships when its catalogue is at least 95% translated | Evidence: the catalogue coverage report at the release train | RG-14 | Owner | Proposed, to be confirmed — see **RR-16** |
 | **NFR-LO-03** | Layouts tolerate about 40% text growth | Test: pseudo-locale story plus the overflow helper | RG-06 | Technical reviewer | Proof scheduled (#50) |
 | **NFR-LO-04** | Indian rupee grouping, `dd-MM-yyyy` dates and 12-hour times come from one formatters module | Test: unit tests over the formatters; lint rule against direct formatting | RG-02 | Technical reviewer | Proof scheduled (#50) |
-| **NFR-LO-05** | Documents and labels render Tamil correctly: a Tamil-capable font is embedded in every generated PDF | Test: snapshot test of a Tamil document; Evidence: a printed sample | RG-03, RG-14 | Technical reviewer | Proof scheduled (#32a, #35) |
+| **NFR-LO-05** | Documents and labels render Tamil correctly: a Tamil-capable font is embedded in every generated PDF | Test: snapshot test of a Tamil document; Evidence: a printed sample | RG-03, RG-14 | Technical reviewer | Test proven (#317): the contract tier asserts the embedded Tamil face and every Tamil code point in the text layer. Printed sample scheduled (#32a, #35) |
 | **NFR-LO-06** | Customer-facing pages follow the customer's language, not the operator's | Test: integration test over the link-rendering path | RG-03 | Owner | Proof scheduled (#47, #49) |
 
 ## 15. Compatibility and device support

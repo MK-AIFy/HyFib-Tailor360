@@ -90,6 +90,15 @@
       Test projects only — nothing that ships parses YAML.
     -->
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
+    <!--
+      UglyToad's PdfPig — the package is "PdfPig", the namespace UglyToad.PdfPig — reads a rendered PDF
+      back as text, so an assertion can read the page rather than the model it was built from: the
+      golden-master figures, the Tamil code points in the text layer, the embedded font descriptors and
+      the reading order the rendered-document accessibility records ask for. Apache 2.0, checked the way
+      the QuestPDF and ZXing.Net entries above record theirs. Test projects only — the contract tier
+      alone today (ARCH-009); nothing under src/ reads a PDF.
+    -->
+    <PackageVersion Include="PdfPig" Version="0.1.16" />
   </ItemGroup>
 
 </Project>
