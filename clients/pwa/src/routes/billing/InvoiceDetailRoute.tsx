@@ -511,6 +511,7 @@ function CancelControl({
   onNotice: (message: string) => void
 }) {
   const intl = useIntl()
+  const formatters = getFormatters()
   const { permissions } = useCurrentUser()
   const canCancel = permissions.includes(BILLING_PERMISSIONS.cancelInvoice)
 
@@ -591,7 +592,10 @@ function CancelControl({
           tier="reason"
           title={intl.formatMessage({ id: 'billing.invoice.cancel.confirm.title' })}
         >
-          {intl.formatMessage({ id: 'billing.invoice.cancel.confirm.body' })}
+          {intl.formatMessage(
+            { id: 'billing.invoice.cancel.confirm.body' },
+            { amount: formatters.formatMoney(invoice.totals.grandTotal) },
+          )}
         </ConfirmDialog>
       )}
     </section>
