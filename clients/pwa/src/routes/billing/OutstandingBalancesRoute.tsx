@@ -46,12 +46,17 @@ export function OutstandingBalancesRoute() {
   const cursor = cursors.at(-1)
 
   const page = useAdminResource(cursor ?? '', (signal) =>
-    listOutstandingBalances({ limit: PAGE_SIZE, ...(cursor === undefined ? {} : { cursor }), signal }),
+    listOutstandingBalances({
+      limit: PAGE_SIZE,
+      ...(cursor === undefined ? {} : { cursor }),
+      signal,
+    }),
   )
 
   // Concatenated as they arrive, as every other cursor-paged screen here does: Show more must not
   // lose the rows already on screen.
-  const rows = cursor === undefined ? (page.value?.rows ?? []) : [...seen, ...(page.value?.rows ?? [])]
+  const rows =
+    cursor === undefined ? (page.value?.rows ?? []) : [...seen, ...(page.value?.rows ?? [])]
   const exhausted = page.value !== null && page.value.nextCursor === null
 
   return (
