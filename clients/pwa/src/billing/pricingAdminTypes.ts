@@ -72,3 +72,69 @@ export interface BillingValidationReport {
   readonly canPublish: boolean
   readonly findings: readonly BillingFinding[]
 }
+
+/**
+ * One tax component's rate, as a percentage — never a fraction (conventions section 1.1).
+ *
+ * `kind` is one of `Cgst`, `Sgst`, `Igst`, `Cess`; it stays a bare `string` rather than a narrowed
+ * union because it is rendered through the message catalogue, never branched on.
+ */
+export interface TaxRate {
+  readonly kind: string
+  readonly ratePercent: number | string
+}
+
+/** One tax code of a tax configuration version. */
+export interface TaxCode {
+  readonly taxCodeId: string
+  /** The concept a code stands for, stable across the code's own edits and across versions. */
+  readonly taxCodeKey: string
+  readonly code: string
+  readonly description: string
+  /** The HSN (goods) or SAC (services) classification, digits only. */
+  readonly classification: string
+  /** `Goods` or `Services`. */
+  readonly kind: string
+  /** Whether the code may be given to a price-list item. A retired code stays readable. */
+  readonly active: boolean
+  readonly rates: readonly TaxRate[]
+}
+
+/** One tax configuration version and every tax code in it. */
+export interface TaxConfiguration {
+  readonly version: TaxConfigurationSummary
+  readonly taxCodes: readonly TaxCode[]
+}
+
+/** One component's rate, as sent. */
+export interface TaxRateRequest {
+  readonly kind: string | null
+  readonly ratePercent: number | string | null
+}
+
+/** Add or replace a tax code. Whole-value: an omitted rate list means nil-rated, not unchanged. */
+export interface TaxCodeRequest {
+  readonly code: string | null
+  readonly description: string | null
+  readonly classification: string | null
+  readonly kind: string | null
+  readonly active: boolean
+  readonly rates: readonly TaxRateRequest[] | null
+  readonly reason: string | null
+}
+
+/** Start a tax configuration draft, empty or as a copy of an existing version. */
+export interface CreateTaxConfigurationDraftRequest {
+  readonly name: string | null
+  readonly notes: string | null
+  readonly effectiveFrom: string | null
+  readonly cloneFromVersionId: string | null
+}
+
+/** Change a draft's own name, notes and first day. */
+export interface DescribeTaxConfigurationRequest {
+  readonly name: string | null
+  readonly notes: string | null
+  readonly effectiveFrom: string | null
+  readonly reason: string | null
+}

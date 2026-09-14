@@ -178,9 +178,7 @@ describe('the price-list register', () => {
     await user.click(form.getByRole('button', { name: 'Save' }))
 
     expect(
-      await screen.findByText(
-        'This code is already used by another price list. Choose a different one.',
-      ),
+      await screen.findByText('That code is already used. Choose a different one.'),
     ).toBeInTheDocument()
     expect(screen.queryByText('billing.code-not-unique')).not.toBeInTheDocument()
 
@@ -201,7 +199,7 @@ describe('the price-list register', () => {
     await user.type(form.getByLabelText('Code'), 'PL_CBE01')
     await user.type(form.getByLabelText('Name'), 'Coimbatore price list')
     await user.click(form.getByRole('button', { name: 'Save' }))
-    await screen.findByText(/already used by another price list/)
+    await screen.findByText(/already used/)
 
     await user.click(form.getByRole('button', { name: 'Save' }))
     await waitFor(() => {
@@ -486,7 +484,7 @@ describe("a price list's versions", () => {
     await user.click(form.getByRole('button', { name: 'Start the draft' }))
 
     expect(
-      await screen.findByText('This has to be answered before the draft can be saved.'),
+      await screen.findByText('This is required.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -513,7 +511,7 @@ describe("a price list's versions", () => {
     await user.click(form.getByRole('button', { name: 'Start the draft' }))
 
     expect(
-      await screen.findByText('This has to be answered before the draft can be saved.'),
+      await screen.findByText('This is required.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -542,7 +540,7 @@ describe("a price list's versions", () => {
     await user.click(form.getByRole('button', { name: 'Start the draft' }))
 
     expect(
-      await screen.findByText('This has to be answered before the draft can be saved.'),
+      await screen.findByText('This is required.'),
     ).toBeInTheDocument()
 
     const sent = transport.callsTo(`POST ${PRICE_LIST_VERSIONS}`)[0]

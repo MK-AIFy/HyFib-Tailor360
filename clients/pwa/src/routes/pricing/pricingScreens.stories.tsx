@@ -10,13 +10,16 @@ import {
 import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import { BRANCH_ID } from '../../billing/testing/fixtures'
 import {
+  TAX_CONFIGURATION_VERSION_ID,
   aGstRegistration,
+  aTaxConfiguration,
   aTaxConfigurationSummary,
 } from '../../billing/testing/pricingConfigFixtures'
 import { aPriceList, aPriceListVersionSummary } from '../../billing/testing/priceListFixtures'
 import { GstRegistrationsRoute } from './GstRegistrationsRoute'
 import { PriceListsRoute } from './PriceListsRoute'
 import { PriceListVersionsRoute } from './PriceListVersionsRoute'
+import { TaxConfigurationEditorRoute } from './TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from './TaxConfigurationListRoute'
 import '../admin/admin.css'
 
@@ -52,6 +55,7 @@ const TAX_VERSIONS = '/api/v1/billing/tax-configuration/versions'
 const PRICE_LISTS = '/api/v1/billing/price-lists'
 const PRICE_LIST = aPriceList()
 const PRICE_LIST_VERSIONS = `${PRICE_LISTS}/${PRICE_LIST.priceListId}/versions`
+const TAX_VERSION = `${TAX_VERSIONS}/${TAX_CONFIGURATION_VERSION_ID}`
 
 const BRANCH_ROWS = [
   {
@@ -366,5 +370,91 @@ export const PriceListVersionsPseudoLocale: Story = {
         [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
       },
       { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
+    ),
+}
+
+/* The tax configuration editor (E09-F01-5). --------------------------------------------------------- */
+
+const TAX_EDITOR_ROUTE = {
+  path: '/admin/tax-configuration/:versionId',
+  at: `/admin/tax-configuration/${TAX_CONFIGURATION_VERSION_ID}`,
+}
+
+export const TaxConfigurationEditorWorking: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      { [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"') },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+export const TaxConfigurationEditorLoading: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      { [`GET ${TAX_VERSION}`]: storyPending },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+/** A freshly started draft, with no tax code yet, and the add control beside the fact. */
+export const TaxConfigurationEditorEmpty: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      {
+        [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration({ taxCodes: [] }), 'W/"1"'),
+      },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+export const TaxConfigurationEditorError: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      { [`GET ${TAX_VERSION}`]: () => storyProblem(503, 'platform.unavailable') },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+export const TaxConfigurationEditorForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+        <TaxConfigurationEditorRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }),
+        [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"'),
+      },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+/** A published version: no editing control, only the sentence that sends the reader to the clone. */
+export const TaxConfigurationEditorPublished: Story = {
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      {
+        [`GET ${TAX_VERSION}`]: () =>
+          storyJson(
+            aTaxConfiguration({ version: aTaxConfigurationSummary({ status: 'Published' }) }),
+            'W/"1"',
+          ),
+      },
+      TAX_EDITOR_ROUTE,
+    ),
+}
+
+export const TaxConfigurationEditorPseudoLocale: Story = {
+  globals: { locale: 'en-XA' },
+  render: () =>
+    withAdminApi(
+      <TaxConfigurationEditorRoute />,
+      { [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"') },
+      TAX_EDITOR_ROUTE,
     ),
 }

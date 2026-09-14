@@ -96,6 +96,9 @@ import type {
   BillingValidationReport,
   GstRegistration,
   GstRegistrationRequest,
+  TaxCode,
+  TaxCodeRequest,
+  TaxConfiguration,
   TaxConfigurationSummary,
 } from '../billing/pricingAdminTypes'
 import type {
@@ -720,4 +723,18 @@ export type PriceListVersionSummaryConforms = Conforms<
 export type CreatePriceListDraftRequestConforms = Conforms<
   PriceListVersionRequest,
   Immutable<RequestBody<'CreatePriceListDraft'>>
+>
+
+/* Drafting and editing a tax configuration version and its tax codes (E09-F01-5). ---------------- */
+
+export type TaxConfigurationConforms = Conforms<
+  TaxConfiguration,
+  Immutable<components['schemas']['TaxConfigurationPayload']>
+>
+
+export type TaxCodeConforms = Conforms<TaxCode, Immutable<components['schemas']['TaxCodePayload']>>
+
+export type AddTaxCodeRequestConforms = Conforms<
+  TaxCodeRequest,
+  Immutable<RequestBody<'AddTaxCode'>>
 >

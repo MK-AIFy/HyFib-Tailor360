@@ -1,5 +1,12 @@
 import { BRANCH_ID } from './fixtures'
-import type { BillingFinding, GstRegistration, TaxConfigurationSummary } from '../pricingAdminTypes'
+import type {
+  BillingFinding,
+  GstRegistration,
+  TaxCode,
+  TaxConfiguration,
+  TaxConfigurationSummary,
+  TaxRate,
+} from '../pricingAdminTypes'
 
 /**
  * Synthetic fixtures for the pricing administration screens (#237). No real GSTIN, legal name or
@@ -41,6 +48,42 @@ export function aTaxConfigurationSummary(
     createdAt: '2026-03-20T05:00:00.000Z',
     publishedAt: '2026-03-25T05:00:00.000Z',
     retiredAt: null,
+    ...overrides,
+  }
+}
+
+export const TAX_CODE_ID = '0199dd00-0000-7000-8000-000000006003'
+export const TAX_CODE_KEY = '0199dd00-0000-7000-8000-000000006004'
+
+/** One component's rate, as a percentage. */
+export function aTaxRate(overrides: Partial<TaxRate> = {}): TaxRate {
+  return {
+    kind: 'Cgst',
+    ratePercent: '2.5',
+    ...overrides,
+  }
+}
+
+/** One tax code, active, with a CGST + SGST pair — the ordinary case for an intra-state supply. */
+export function aTaxCode(overrides: Partial<TaxCode> = {}): TaxCode {
+  return {
+    taxCodeId: TAX_CODE_ID,
+    taxCodeKey: TAX_CODE_KEY,
+    code: 'STITCHING_5',
+    description: 'Tailoring services',
+    classification: '998822',
+    kind: 'Services',
+    active: true,
+    rates: [aTaxRate({ kind: 'Cgst' }), aTaxRate({ kind: 'Sgst' })],
+    ...overrides,
+  }
+}
+
+/** One tax configuration version, drafted and carrying one tax code. */
+export function aTaxConfiguration(overrides: Partial<TaxConfiguration> = {}): TaxConfiguration {
+  return {
+    version: aTaxConfigurationSummary({ status: 'Draft' }),
+    taxCodes: [aTaxCode()],
     ...overrides,
   }
 }
