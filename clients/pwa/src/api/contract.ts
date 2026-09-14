@@ -96,6 +96,13 @@ import type {
   GstRegistrationRequest,
   TaxConfigurationSummary,
 } from '../billing/pricingAdminTypes'
+import type {
+  CreatePriceListRequest,
+  PriceList,
+  PriceListVersionRequest,
+  PriceListVersionSummary,
+  RenamePriceListRequest,
+} from '../billing/priceListTypes'
 
 /**
  * The published API contract, in TypeScript.
@@ -674,4 +681,31 @@ export type TaxConfigurationSummaryConforms = Conforms<
 export type BillingValidationReportConforms = Conforms<
   BillingValidationReport,
   Immutable<components['schemas']['BillingValidationReportPayload']>
+>
+
+/* The price-list register (#252). --------------------------------------------------------------- */
+
+export type PriceListConforms = Conforms<
+  PriceList,
+  Immutable<components['schemas']['PriceListPayload']>
+>
+
+export type CreatePriceListRequestConforms = Conforms<
+  CreatePriceListRequest,
+  Immutable<RequestBody<'CreatePriceList'>>
+>
+
+export type RenamePriceListRequestConforms = Conforms<
+  RenamePriceListRequest,
+  Immutable<RequestBody<'RenamePriceList'>>
+>
+
+export type PriceListVersionSummaryConforms = Conforms<
+  PriceListVersionSummary,
+  Immutable<components['schemas']['PriceListVersionSummaryPayload']>
+>
+
+export type CreatePriceListDraftRequestConforms = Conforms<
+  PriceListVersionRequest,
+  Immutable<RequestBody<'CreatePriceListDraft'>>
 >

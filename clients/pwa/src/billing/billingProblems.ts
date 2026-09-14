@@ -85,6 +85,16 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.registration-overlaps': 'pricing.problem.registrationOverlaps',
   'billing.registration-changed': 'pricing.problem.registrationChanged',
   'billing.registration-not-found': 'pricing.problem.registrationNotFound',
+  // The price-list register (#252). `billing.value-required` names one of several fields through the
+  // problem's own `errors` map — the register reads that map itself to say which control is missing,
+  // and this sentence is what it attaches there, so the code is not repeated per field.
+  'billing.code-not-unique': 'pricing.problem.codeNotUnique',
+  'billing.code-not-well-formed': 'pricing.problem.codeNotWellFormed',
+  'billing.branch-not-found': 'pricing.problem.branchNotFound',
+  'billing.value-required': 'pricing.problem.valueRequired',
+  'billing.price-list-not-found': 'pricing.problem.priceListNotFound',
+  'billing.price-list-changed': 'pricing.problem.priceListChanged',
+  'billing.draft-number-conflict': 'pricing.problem.draftNumberConflict',
 }
 
 /** The code of a failure, when the server sent one. */

@@ -17,6 +17,7 @@ export const pricingEn = {
   /* Navigation. ----------------------------------------------------------------------------- */
   'pricing.nav.gstRegistrations': 'GST registrations',
   'pricing.nav.taxConfiguration': 'Tax configuration',
+  'pricing.nav.priceLists': 'Price lists',
 
   /* The GST registration register. ----------------------------------------------------------- */
   'pricing.gst.title': 'GST registrations',
@@ -98,6 +99,111 @@ export const pricingEn = {
   'pricing.problem.registrationChanged':
     'Someone else changed this registration while it was open here. Read it again to see what changed.',
   'pricing.problem.registrationNotFound': 'No registration matches that address.',
+
+  /* The price-list register (#252). ------------------------------------------------------------- */
+  'pricing.priceList.title': 'Price lists',
+  'pricing.priceList.body':
+    'Every price list this organisation has, by its code. A list is never deleted — start a version to change what it prices.',
+  'pricing.priceList.loading': 'the organisation’s price lists',
+  'pricing.priceList.caption': 'Every price list, by code',
+  'pricing.priceList.empty.title': 'No price list yet',
+  'pricing.priceList.empty': 'Create the first price list below.',
+  'pricing.priceList.column.code': 'Code',
+  'pricing.priceList.column.name': 'Name',
+  'pricing.priceList.open': 'Open',
+  'pricing.priceList.open.label': 'Open the price list {code}',
+  'pricing.priceList.rename': 'Rename',
+  'pricing.priceList.rename.label': 'Rename the price list {code}',
+  'pricing.priceList.create.action': 'Create a price list',
+  'pricing.priceList.create.offlineAction': 'Creating a price list',
+  'pricing.priceList.rename.offlineAction': 'Renaming a price list',
+  'pricing.priceList.created': 'Created the price list.',
+  'pricing.priceList.renamed': 'Renamed the price list.',
+  'pricing.priceList.form.reread': 'Read it again',
+
+  /* The create and rename form. ------------------------------------------------------------------ */
+  'pricing.priceList.form.addTitle': 'Create a price list',
+  'pricing.priceList.form.editTitle': 'Rename {code}',
+  'pricing.priceList.form.code': 'Code',
+  'pricing.priceList.form.code.hint':
+    'Letters, numbers and underscores. Used on seeds and exports once this list exists, and cannot be changed afterwards.',
+  'pricing.priceList.form.code.fixedHint':
+    'The code cannot change once a list exists — seeds and exports refer to it.',
+  'pricing.priceList.form.name': 'Name',
+  'pricing.priceList.form.reason': 'Note (optional)',
+  'pricing.priceList.form.save': 'Save',
+
+  /* A list's versions. ----------------------------------------------------------------------- */
+  'pricing.priceList.version.title': 'Versions of {code}',
+  'pricing.priceList.version.body':
+    'Every version of this price list, newest first. A version is never deleted — a change is a clone of it into a new draft.',
+  'pricing.priceList.version.loading': 'the price list’s versions',
+  'pricing.priceList.version.caption': 'Every version, newest first',
+  'pricing.priceList.version.empty.title': 'No version yet',
+  'pricing.priceList.version.empty': 'Start the first version below.',
+  'pricing.priceList.version.column.version': 'Version',
+  'pricing.priceList.version.column.status': 'State',
+  'pricing.priceList.version.column.name': 'Name',
+  'pricing.priceList.version.column.effectiveFrom': 'First day',
+  'pricing.priceList.version.column.tax': 'Tax',
+  'pricing.priceList.version.column.roundOff': 'Round-off',
+  'pricing.priceList.version.column.threshold': 'Override threshold',
+  'pricing.priceList.version.column.branches': 'Branches',
+  'pricing.priceList.version.column.clonedFrom': 'Cloned from',
+  'pricing.priceList.version.clonedFrom.none': '—',
+  'pricing.priceList.version.clonedFrom.value': 'Version {versionNumber}',
+  'pricing.priceList.version.branches.none': '—',
+  'pricing.priceList.version.tax.inclusive': 'Inclusive',
+  'pricing.priceList.version.tax.exclusive': 'Exclusive',
+  'pricing.priceList.version.status.Draft': 'Draft',
+  'pricing.priceList.version.status.Published': 'Published',
+  'pricing.priceList.version.status.Retired': 'Retired',
+  'pricing.priceList.version.status.unknown': 'Unknown',
+  'pricing.priceList.version.start.action': 'Start a draft',
+  'pricing.priceList.version.start.offlineAction': 'Starting a price-list draft',
+  'pricing.priceList.version.clone.action': 'Clone into a new draft',
+  'pricing.priceList.version.clone.label': 'Clone version {versionNumber} into a new draft',
+  'pricing.priceList.version.started': 'Started the draft.',
+  'pricing.priceList.roundOff.none': 'No rounding',
+  'pricing.priceList.roundOff.nearestRupee': 'Nearest rupee',
+
+  /* The version-conventions form, reused by E09-F01-7 to change one. -------------------------- */
+  'pricing.priceList.version.form.startTitle': 'Start a draft',
+  'pricing.priceList.version.form.cloneTitle': 'Clone version {versionNumber} into a new draft',
+  'pricing.priceList.version.form.clonedFrom':
+    'Cloned from version {versionNumber}. Every convention below starts from that version and can be changed before saving.',
+  'pricing.priceList.version.form.name': 'Name',
+  'pricing.priceList.version.form.notes': 'Notes (optional)',
+  'pricing.priceList.version.form.effectiveFrom': 'First day',
+  'pricing.priceList.version.form.tax': 'Tax treatment',
+  'pricing.priceList.version.form.tax.inclusive': 'Tax inclusive',
+  'pricing.priceList.version.form.tax.exclusive': 'Tax exclusive',
+  'pricing.priceList.version.form.roundOff': 'Round-off rule',
+  'pricing.priceList.version.form.roundOff.none': 'No rounding',
+  'pricing.priceList.version.form.roundOff.nearestRupee': 'Nearest rupee',
+  'pricing.priceList.version.form.threshold': 'Override threshold',
+  'pricing.priceList.version.form.threshold.hint':
+    'The variance above which a line needs the override permission, as a percentage.',
+  'pricing.priceList.version.form.branches': 'Branches this version prices',
+  'pricing.priceList.version.form.branches.hint':
+    'Choose every branch this version prices. Publication refuses a version pricing no branch.',
+  'pricing.priceList.version.form.branches.forbiddenAction':
+    'choosing which branches this version prices',
+  'pricing.priceList.version.form.reason': 'Note (optional)',
+  'pricing.priceList.version.form.save': 'Start the draft',
+
+  /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
+  'pricing.problem.codeNotUnique':
+    'This code is already used by another price list. Choose a different one.',
+  'pricing.problem.codeNotWellFormed':
+    'Use letters, numbers and underscores only, starting with a letter.',
+  'pricing.problem.branchNotFound': 'No branch matches that identifier.',
+  'pricing.problem.valueRequired': 'This has to be answered before the draft can be saved.',
+  'pricing.problem.priceListNotFound': 'No price list matches that address.',
+  'pricing.problem.priceListChanged':
+    'Someone else changed this price list while it was open here. Read it again to see what changed.',
+  'pricing.problem.draftNumberConflict':
+    'Another draft was started for this list at the same moment. Read the versions again and try once more.',
 } as const
 
 /*
@@ -110,6 +216,8 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.nav.gstRegistrations': 'GST registrations',
   // not translated — awaiting native-speaker review
   'pricing.nav.taxConfiguration': 'Tax configuration',
+  // not translated — awaiting native-speaker review
+  'pricing.nav.priceLists': 'Price lists',
 
   /* The GST registration register. ----------------------------------------------------------- */
   // not translated — awaiting native-speaker review
@@ -253,4 +361,191 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
     'Someone else changed this registration while it was open here. Read it again to see what changed.',
   // not translated — awaiting native-speaker review
   'pricing.problem.registrationNotFound': 'No registration matches that address.',
+  /* The price-list register (#252). ------------------------------------------------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.title': 'Price lists',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.body':
+    'Every price list this organisation has, by its code. A list is never deleted — start a version to change what it prices.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.loading': 'the organisation’s price lists',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.caption': 'Every price list, by code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.empty.title': 'No price list yet',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.empty': 'Create the first price list below.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.column.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.column.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.open': 'Open',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.open.label': 'Open the price list {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.rename': 'Rename',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.rename.label': 'Rename the price list {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.create.action': 'Create a price list',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.create.offlineAction': 'Creating a price list',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.rename.offlineAction': 'Renaming a price list',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.created': 'Created the price list.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.renamed': 'Renamed the price list.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.reread': 'Read it again',
+
+  /* The create and rename form. ------------------------------------------------------------------ */
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.addTitle': 'Create a price list',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.editTitle': 'Rename {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.code.hint':
+    'Letters, numbers and underscores. Used on seeds and exports once this list exists, and cannot be changed afterwards.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.code.fixedHint':
+    'The code cannot change once a list exists — seeds and exports refer to it.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.reason': 'Note (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.form.save': 'Save',
+
+  /* A list's versions. ----------------------------------------------------------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.title': 'Versions of {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.body':
+    'Every version of this price list, newest first. A version is never deleted — a change is a clone of it into a new draft.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.loading': 'the price list’s versions',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.caption': 'Every version, newest first',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.empty.title': 'No version yet',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.empty': 'Start the first version below.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.version': 'Version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.status': 'State',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.effectiveFrom': 'First day',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.tax': 'Tax',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.roundOff': 'Round-off',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.threshold': 'Override threshold',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.branches': 'Branches',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.column.clonedFrom': 'Cloned from',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.clonedFrom.none': '—',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.clonedFrom.value': 'Version {versionNumber}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.branches.none': '—',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.tax.inclusive': 'Inclusive',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.tax.exclusive': 'Exclusive',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.status.Draft': 'Draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.status.Published': 'Published',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.status.Retired': 'Retired',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.status.unknown': 'Unknown',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.start.action': 'Start a draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.start.offlineAction': 'Starting a price-list draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.clone.action': 'Clone into a new draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.clone.label': 'Clone version {versionNumber} into a new draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.started': 'Started the draft.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.roundOff.none': 'No rounding',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.roundOff.nearestRupee': 'Nearest rupee',
+
+  /* The version-conventions form, reused by E09-F01-7 to change one. -------------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.startTitle': 'Start a draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.cloneTitle': 'Clone version {versionNumber} into a new draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.clonedFrom':
+    'Cloned from version {versionNumber}. Every convention below starts from that version and can be changed before saving.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.name': 'Name',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.notes': 'Notes (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.effectiveFrom': 'First day',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.tax': 'Tax treatment',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.tax.inclusive': 'Tax inclusive',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.tax.exclusive': 'Tax exclusive',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.roundOff': 'Round-off rule',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.roundOff.none': 'No rounding',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.roundOff.nearestRupee': 'Nearest rupee',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.threshold': 'Override threshold',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.threshold.hint':
+    'The variance above which a line needs the override permission, as a percentage.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.branches': 'Branches this version prices',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.branches.hint':
+    'Choose every branch this version prices. Publication refuses a version pricing no branch.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.branches.forbiddenAction':
+    'choosing which branches this version prices',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.reason': 'Note (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.save': 'Start the draft',
+
+  /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.problem.codeNotUnique':
+    'This code is already used by another price list. Choose a different one.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.codeNotWellFormed':
+    'Use letters, numbers and underscores only, starting with a letter.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.branchNotFound': 'No branch matches that identifier.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.valueRequired': 'This has to be answered before the draft can be saved.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.priceListNotFound': 'No price list matches that address.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.priceListChanged':
+    'Someone else changed this price list while it was open here. Read it again to see what changed.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.draftNumberConflict':
+    'Another draft was started for this list at the same moment. Read the versions again and try once more.',
 }
