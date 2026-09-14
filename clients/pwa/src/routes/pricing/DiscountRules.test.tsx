@@ -526,6 +526,72 @@ describe('the price-list version editor’s discount rules', () => {
     })
   })
 
+  it('does not retry against the stale tag while the re-read it triggered is still in flight', async () => {
+    const user = userEvent.setup()
+    const existing = aDiscountRule()
+    const draft = aPriceListVersion({
+      version: aPriceListVersionSummary({
+        priceListVersionId: DRAFT_ID,
+        status: 'Draft',
+        overrideThresholdPercent: 7,
+      }),
+      items: [],
+      discountRules: [existing],
+    })
+    let getCount = 0
+    // A plain `let` closed over inside the responder below defeats TypeScript's narrowing (it
+    // proves the variable can never be reassigned before its later, optional call, which is wrong
+    // at runtime); a mutable holder object sidesteps that.
+    const secondGet: { resolve: ((response: Response) => void) | null } = { resolve: null }
+    // `useAdminResource.reload()` keeps the stale version on screen until this resolves — the
+    // point of this test is that a retry in that window must not fire against it.
+    transport.route(`GET ${PRICE_LIST_VERSION_BASE}/${DRAFT_ID}`, () => {
+      getCount += 1
+      if (getCount === 1) {
+        return versionedJson(draft, 'W/"1"')
+      }
+      return new Promise<Response>((resolve) => {
+        secondGet.resolve = resolve
+      })
+    })
+    transport.route(
+      `PUT ${PRICE_LIST_VERSION_BASE}/${DRAFT_ID}/discount-rules/${existing.discountRuleId}`,
+      () => problemResponse(412, 'billing.version-changed'),
+    )
+
+    renderEditorAt(DRAFT_ID)
+    await user.click(await screen.findByRole('button', { name: `Edit ${existing.code}` }))
+    const form = within(
+      await screen.findByRole('form', { name: `Edit the discount rule ${existing.code}` }),
+    )
+    await user.click(form.getByRole('button', { name: 'Save' }))
+
+    await screen.findByText(
+      'Someone else changed this version while it was open here. Read it again to see what changed.',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Read it again' }))
+    await waitFor(() => {
+      expect(transport.callsTo(`GET ${PRICE_LIST_VERSION_BASE}/${DRAFT_ID}`)).toHaveLength(2)
+    })
+
+    // The re-read has not landed yet: retrying now must be refused locally, not sent.
+    await user.click(form.getByRole('button', { name: 'Save' }))
+
+    expect(
+      await screen.findByText(
+        'Somebody else changed this while you were working on it. Look at it again before you try.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      transport.callsTo(
+        `PUT ${PRICE_LIST_VERSION_BASE}/${DRAFT_ID}/discount-rules/${existing.discountRuleId}`,
+      ),
+    ).toHaveLength(1)
+
+    secondGet.resolve?.(versionedJson(draft, 'W/"2"'))
+  })
+
   it('carries the tag from a 204 removal into the next write', async () => {
     const user = userEvent.setup()
     const first = aDiscountRule()
@@ -771,6 +837,9 @@ describe('the price-list version editor’s discount rules', () => {
       await screen.findAllByText('Needs connection — this will not be queued'),
     ).not.toHaveLength(0)
     expect(screen.queryByRole('button', { name: 'Add a discount rule' })).not.toBeInTheDocument()
+    // A row's own Edit/Remove must not stay clickable only to be refused once the form opens.
+    expect(screen.queryByRole('button', { name: 'Edit FESTIVE10' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove FESTIVE10' })).not.toBeInTheDocument()
 
     vi.restoreAllMocks()
     window.dispatchEvent(new Event('online'))

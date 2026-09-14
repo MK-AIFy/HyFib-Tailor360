@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useNavigate, useParams } from 'react-router'
 import { listBranches } from '../../admin/adminApi'
@@ -183,6 +183,11 @@ export function PriceListVersionEditorRoute() {
   )
 
   const [held, setHeld] = useState<string | undefined>(undefined)
+  // The resource's value at the moment "Read it again" was clicked, so the precondition below can
+  // tell a re-read still in flight from one that has landed: `data.value` keeps its stale value
+  // until `reload()` resolves (`useAdminResource`'s own documented behaviour), and falling back to
+  // it in that window would let a retry fire against the very tag that was just refused.
+  const staleValueRef = useRef(data.value)
   const [editingVersion, setEditingVersion] = useState<PriceListVersionDraft | null>(null)
   const [editingItem, setEditingItem] = useState<{
     readonly existing: PriceListItem | null
@@ -206,6 +211,15 @@ export function PriceListVersionEditorRoute() {
 
   const value = data.value?.value ?? null
   const precondition = held ?? data.value?.version
+
+  /**
+   * Whether the re-read "Read it again" triggered has not yet landed: `data.value` keeps its stale
+   * value until `reload()` resolves (`useAdminResource`'s own documented behaviour), so `precondition`
+   * above is not enough on its own — it would still resolve to the very tag that was just refused.
+   * Read only from `send()`/`publish()`, both invoked from an event handler, never from render.
+   */
+  const isRereadPending = (): boolean =>
+    staleValueRef.current !== null && data.value === staleValueRef.current
 
   const branchNamesAvailable = branches.failure === null
   const branchOptions = (branches.value ?? []).map((branch) => ({
@@ -237,9 +251,10 @@ export function PriceListVersionEditorRoute() {
     }) => Promise<VersionedResponse<unknown>>,
     done: string,
   ): Promise<void> => {
-    if (precondition === undefined) {
-      // Fail closed: the read behind this screen always carries a tag, so a missing one means the
-      // screen is not showing a state worth acting on.
+    if (precondition === undefined || isRereadPending()) {
+      // Fail closed: the read behind this screen always carries a tag, so a missing one — or one
+      // still mid-refresh after a stale write — means the screen is not showing a state worth
+      // acting on.
       setFailure(new ApiError('The version must be read again.', { status: 409 }))
       return
     }
@@ -273,6 +288,7 @@ export function PriceListVersionEditorRoute() {
   const reread = (): void => {
     setFailure(null)
     setHeld(undefined)
+    staleValueRef.current = data.value
     data.reload()
   }
 
@@ -319,7 +335,7 @@ export function PriceListVersionEditorRoute() {
     if (versionId === undefined) {
       return
     }
-    if (precondition === undefined) {
+    if (precondition === undefined || isRereadPending()) {
       setFailure(new ApiError('The version must be read again.', { status: 409 }))
       return
     }
@@ -951,8 +967,10 @@ export function PriceListVersionEditorRoute() {
                 ),
               },
             ]}
+            // Offline as well as draft: a row's Edit/Remove must not be clickable only to be
+            // refused once the form or dialog opens — the row itself carries no connection either.
             rowActions={(row: DiscountRule) =>
-              isDraft ? (
+              isDraft && network.online ? (
                 <>
                   <Button
                     onClick={() => {
