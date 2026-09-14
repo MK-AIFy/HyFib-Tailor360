@@ -3,6 +3,8 @@ import type { VersionedResponse } from '../auth/apiClient'
 import type { BillingValidationReport } from './pricingAdminTypes'
 import type {
   CreatePriceListRequest,
+  DiscountRule,
+  DiscountRuleRequest,
   PriceList,
   PriceListItem,
   PriceListItemRequest,
@@ -14,15 +16,14 @@ import type {
 } from './priceListTypes'
 
 /**
- * The price-list register (#252) and its version editor (E09-F01-7): every price list the
+ * The price-list register (#252) and its version editor (E09-F01-7, E09-F01-8): every price list the
  * organisation has, a create and a rename, one list's versions, the act that starts a version's
- * draft, and the five routes the editor reads and writes — the version itself, whole-value, and its
- * items. Every write is on `BILLING_PERMISSIONS.managePriceLists`, organisation scope, and carries an
- * `Idempotency-Key` the caller mints and holds across a retry.
+ * draft, and the eight routes the editor reads and writes — the version itself, whole-value, its
+ * items and its discount rules. Every write is on `BILLING_PERMISSIONS.managePriceLists`,
+ * organisation scope, and carries an `Idempotency-Key` the caller mints and holds across a retry.
  *
  * The validation report and publication (`validatePriceListVersion`, `publishPriceListVersion`,
- * E09-F01-7b, on `BILLING_PERMISSIONS.publishPriceList`) are appended at the end of this file. The
- * three discount-rule routes are E09-F01-8's; nothing here calls them.
+ * E09-F01-7b, on `BILLING_PERMISSIONS.publishPriceList`) are appended at the end of this file.
  */
 
 const BILLING = '/api/v1/billing'
@@ -207,6 +208,75 @@ export async function removePriceListItem(input: {
 }): Promise<VersionedResponse<void>> {
   return await apiRequestVersioned<void>(
     `${BILLING}/price-lists/versions/${input.versionId}/items/${input.itemId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/* The version editor: its discount rules (E09-F01-8). --------------------------------------------- */
+
+/**
+ * Adds a discount rule to a draft — what kind, how much a counter may give on its own authority, how
+ * much anybody may give with approval.
+ *
+ * The version's row moved with its child, exactly as an item write does: the tag this response
+ * carries is what the next write against the version must present.
+ */
+export async function addDiscountRule(input: {
+  readonly versionId: string
+  readonly rule: DiscountRuleRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<DiscountRule>> {
+  return await apiRequestVersioned<DiscountRule>(
+    `${BILLING}/price-lists/versions/${input.versionId}/discount-rules`,
+    {
+      method: 'POST',
+      body: input.rule,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/** Replaces what a draft says about a discount rule, whole-value. */
+export async function editDiscountRule(input: {
+  readonly versionId: string
+  readonly ruleId: string
+  readonly rule: DiscountRuleRequest
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<DiscountRule>> {
+  return await apiRequestVersioned<DiscountRule>(
+    `${BILLING}/price-lists/versions/${input.versionId}/discount-rules/${input.ruleId}`,
+    {
+      method: 'PUT',
+      body: input.rule,
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Removes a discount rule from a draft, with the reason the trail records.
+ *
+ * Answers `204`, and the version's moved tag still comes back on it — the same reason
+ * `removePriceListItem` reads it from an empty body rather than discarding it.
+ */
+export async function removeDiscountRule(input: {
+  readonly versionId: string
+  readonly ruleId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<void>> {
+  return await apiRequestVersioned<void>(
+    `${BILLING}/price-lists/versions/${input.versionId}/discount-rules/${input.ruleId}/delete`,
     {
       method: 'POST',
       body: { reason: input.reason },
