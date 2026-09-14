@@ -483,9 +483,7 @@ describe("a price list's versions", () => {
     await user.click(form.getByLabelText('Coimbatore counter (CBE01)'))
     await user.click(form.getByRole('button', { name: 'Start the draft' }))
 
-    expect(
-      await screen.findByText('This is required.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('This is required.')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -510,9 +508,7 @@ describe("a price list's versions", () => {
     await user.click(form.getByLabelText('Coimbatore counter (CBE01)'))
     await user.click(form.getByRole('button', { name: 'Start the draft' }))
 
-    expect(
-      await screen.findByText('This is required.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('This is required.')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -539,9 +535,7 @@ describe("a price list's versions", () => {
     await user.type(form.getByLabelText('Override threshold'), '10')
     await user.click(form.getByRole('button', { name: 'Start the draft' }))
 
-    expect(
-      await screen.findByText('This is required.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('This is required.')).toBeInTheDocument()
 
     const sent = transport.callsTo(`POST ${PRICE_LIST_VERSIONS}`)[0]
     const body = sent?.body as { branchIds: unknown; saysBranchIds: unknown }
