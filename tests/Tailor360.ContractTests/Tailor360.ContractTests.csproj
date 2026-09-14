@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- Test-only: reads a rendered PDF back as text, so an assertion reads the page. ARCH-009. -->
+    <PackageReference Include="PdfPig" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
