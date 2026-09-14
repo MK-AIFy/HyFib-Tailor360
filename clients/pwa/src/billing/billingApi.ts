@@ -17,7 +17,7 @@ import type {
   InvoicePage,
   OpenCashierSessionRequest,
   OrderBalance,
-  OutstandingBalanceRow,
+  OutstandingBalancePage,
   Payment,
   PostAdjustmentNoteRequest,
   PrintInvoiceRequest,
@@ -156,58 +156,32 @@ export async function listInvoices(input: {
 }
 
 /**
- * The branch's posted invoices with money still owed against them.
+ * A page of the branch's posted invoices with money still owed against them (#421).
  *
- * There is no `ListInvoices`-style aggregate for this — `GetOrderBalance` answers one order at a
- * time — so this reads every page of the branch's posted invoices, following `nextCursor` until the
- * server answers null, and asks each invoice's order for its balance, keeping only the invoice's
- * own line where it still shows an outstanding amount. Stopping at the first page (as this once did)
- * silently dropped every older outstanding invoice past the first fifty — a branch could even read
- * as fully settled while an older invoice still owed money. A branch runs a bounded number of open
- * invoices at once, so the fan-out per page is small; a true aggregate read is a reasonable
- * follow-up once this list needs to grow past a few pages.
+ * The server-side aggregate over the same rows `ListInvoices` and `GetOrderBalance` read — one
+ * request per page, replacing the fan-out this used to run: a request per page of `ListInvoices`
+ * plus a `GetOrderBalance` per invoice on it. `limit` bounds how many rows the page tries to fill
+ * before answering, not a hard cap: the server fills whole source pages of posted invoices before
+ * checking, so a settled invoice never orphans a truncated read the way it would if a partial page
+ * were held back client-side.
  */
-export async function listOutstandingBalances(
-  signal?: AbortSignal,
-): Promise<readonly OutstandingBalanceRow[]> {
-  const rows: OutstandingBalanceRow[] = []
-  let cursor: string | undefined
-
-  for (;;) {
-    const page = await listInvoices({
-      status: 'Posted',
-      limit: 50,
-      ...(cursor === undefined ? {} : { cursor }),
-      ...(signal === undefined ? {} : { signal }),
-    })
-
-    const pageRows = await Promise.all(
-      page.invoices.map(async (invoice): Promise<OutstandingBalanceRow | null> => {
-        const order = await getOrderBalance(invoice.orderId, signal)
-        const line = order.invoices.find((candidate) => candidate.invoiceId === invoice.invoiceId)
-        if (line === undefined || Number(line.outstanding) <= 0) {
-          return null
-        }
-        return {
-          invoiceId: invoice.invoiceId,
-          invoiceNumber: invoice.invoiceNumber,
-          orderId: invoice.orderId,
-          orderNumber: invoice.orderNumber,
-          customerDisplayName: invoice.customerDisplayName,
-          grandTotal: invoice.grandTotal,
-          outstanding: line.outstanding,
-          currency: line.currency,
-        }
-      }),
-    )
-
-    rows.push(...pageRows.filter((row): row is OutstandingBalanceRow => row !== null))
-
-    if (page.nextCursor === null) {
-      return rows
-    }
-    cursor = page.nextCursor
+export async function listOutstandingBalances(input: {
+  readonly cursor?: string
+  readonly limit?: number
+  readonly signal?: AbortSignal
+}): Promise<OutstandingBalancePage> {
+  const query = new URLSearchParams()
+  if (input.cursor !== undefined) {
+    query.set('cursor', input.cursor)
   }
+  if (input.limit !== undefined) {
+    query.set('limit', String(input.limit))
+  }
+  const suffix = query.size === 0 ? '' : `?${query.toString()}`
+
+  return await apiRequest<OutstandingBalancePage>(`${BILLING}/outstanding-balances${suffix}`, {
+    ...(input.signal === undefined ? {} : { signal: input.signal }),
+  })
 }
 
 /* Reading one invoice, and finding one from its barcode. ---------------------------------------- */

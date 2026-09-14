@@ -1,3 +1,4 @@
+using Tailor360.Modules.Billing.Application.Payments;
 using Tailor360.Modules.Billing.Contracts.Payments;
 using Tailor360.Modules.Billing.Domain.Payments;
 
@@ -401,6 +402,50 @@ public sealed record InvoiceBalancePayload(
 
         return new InvoiceBalancePayload(
             summary.InvoiceId, summary.InvoiceNumber, summary.Charges, summary.Credits, summary.Debits, summary.Allocated, summary.Refunds, summary.Outstanding, summary.Currency, summary.Status);
+    }
+}
+
+/// <summary>One posted invoice with money still owed against it, as the counter's outstanding-balances screen reads it.</summary>
+/// <param name="InvoiceId">The invoice.</param>
+/// <param name="InvoiceNumber">Its display number.</param>
+/// <param name="OrderId">The order it was drafted from.</param>
+/// <param name="OrderNumber">The order's display number.</param>
+/// <param name="CustomerDisplayName">The name frozen on the invoice at drafting.</param>
+/// <param name="GrandTotal">The invoice's grand total as posted.</param>
+/// <param name="Outstanding">What it still owes; never below zero.</param>
+/// <param name="Currency">The currency of both figures.</param>
+public sealed record OutstandingBalancePayload(
+    Guid InvoiceId,
+    string InvoiceNumber,
+    Guid OrderId,
+    string OrderNumber,
+    string CustomerDisplayName,
+    decimal GrandTotal,
+    decimal Outstanding,
+    string Currency)
+{
+    /// <summary>Projects a row.</summary>
+    public static OutstandingBalancePayload From(OutstandingBalanceRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        return new OutstandingBalancePayload(
+            row.Invoice.Id, row.Invoice.InvoiceNumber ?? string.Empty, row.Invoice.OrderId, row.Invoice.OrderNumber,
+            row.Invoice.Customer.DisplayName, row.Balance.Charges.Amount, row.Balance.Outstanding.Amount, row.Balance.Outstanding.Currency);
+    }
+}
+
+/// <summary>One page of the branch's outstanding balances.</summary>
+/// <param name="Rows">The posted invoices found with money still owed.</param>
+/// <param name="NextCursor">Where the next request should resume, or null once the branch's posted invoices are exhausted.</param>
+public sealed record OutstandingBalancePagePayload(IReadOnlyList<OutstandingBalancePayload> Rows, string? NextCursor)
+{
+    /// <summary>Projects a page.</summary>
+    public static OutstandingBalancePagePayload From(OutstandingBalancePage page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        return new OutstandingBalancePagePayload(page.Rows.Select(OutstandingBalancePayload.From).ToList(), page.NextCursor);
     }
 }
 

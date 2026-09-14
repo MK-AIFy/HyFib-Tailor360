@@ -81,6 +81,8 @@ import type {
   InvoiceTaxComponent,
   InvoiceTotals,
   OpenCashierSessionRequest,
+  OutstandingBalancePage,
+  OutstandingBalanceRow,
   PostAdjustmentNoteRequest,
   PrintInvoiceRequest,
   OrderBalance,
@@ -489,6 +491,16 @@ export type InvoiceSummaryConforms = Conforms<
 export type InvoicePageConforms = Conforms<
   InvoicePage,
   Immutable<components['schemas']['InvoicePagePayload']>
+>
+
+export type OutstandingBalanceRowConforms = Conforms<
+  OutstandingBalanceRow,
+  Immutable<components['schemas']['OutstandingBalancePayload']>
+>
+
+export type OutstandingBalancePageConforms = Conforms<
+  OutstandingBalancePage,
+  Immutable<components['schemas']['OutstandingBalancePagePayload']>
 >
 
 export type InvoiceConforms = Conforms<Invoice, Immutable<components['schemas']['InvoicePayload']>>

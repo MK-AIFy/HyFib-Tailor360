@@ -92,6 +92,9 @@ public static class BillingModuleServiceCollectionExtensions
         services.TryAddScoped<PaymentHandler>();
         services.TryAddScoped<IFinancialTotalsQuery, FinancialTotalsQuery>();
 
+        // E09-F03-5b: the branch-wide read the client used to fan out for (#421).
+        services.TryAddScoped<OutstandingBalanceQuery>();
+
         // E09-F03-3: the compensating records — a reversal, a refund.
         services.TryAddScoped<RefundHandler>();
 
