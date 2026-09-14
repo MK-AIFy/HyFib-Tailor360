@@ -310,7 +310,11 @@ services:
     secrets:
       - postgres_password
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # Single mount at the parent directory, not `/data`: the 18+ image stores the cluster itself
+      # under a major-version-specific subdirectory ($PGDATA=/var/lib/postgresql/18/docker) for
+      # pg_ctlcluster compatibility, and refuses to start against a volume mounted at the old path
+      # (issue #519) — even one that has never held any data.
+      - postgres-data:/var/lib/postgresql
     # No ports: the database is reachable only from the backend network. Administrative access is
     # over the WireGuard tunnel plus `docker compose exec`, which leaves an SSH audit trail.
     healthcheck:
