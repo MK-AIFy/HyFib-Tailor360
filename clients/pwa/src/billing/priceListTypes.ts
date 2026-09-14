@@ -1,3 +1,5 @@
+import type { BillingFinding } from './pricingAdminTypes'
+
 /**
  * The price-list register payloads (#252) and the version editor's own payloads (E09-F01-7): a price
  * list, its versions' conventions, and one version's items and discount rules — pinned against the
@@ -8,8 +10,9 @@
  * `maximumWithoutApproval` and `maximum` are the ones here. No arithmetic is ever done on one; amounts,
  * rates and dates are rendered through `getFormatters()`.
  *
- * The validation report and publication are E09-F01-7b's; `DiscountRule` is typed here because
- * `PriceListVersion` carries it, but its editor is E09-F01-8's — this issue renders it read-only.
+ * The validation report (`BillingValidationReport`, declared in `pricingAdminTypes.ts`) and
+ * `PriceListPublication` below are E09-F01-7b's. `DiscountRule` is typed here because `PriceListVersion`
+ * carries it, but its editor is E09-F01-8's — this issue renders it read-only.
  */
 
 /** A price list, as the register lists it — a code and a name, never deleted. */
@@ -138,4 +141,18 @@ export interface PriceListVersion {
   readonly version: PriceListVersionSummary
   readonly items: readonly PriceListItem[]
   readonly discountRules: readonly DiscountRule[]
+}
+
+/* Validating and publishing a version (E09-F01-7b). ----------------------------------------------- */
+
+/**
+ * What a publish answered with: the version now published, the one it superseded (null the first time
+ * a list's branches are ever priced), and every finding the publication returned — warnings included.
+ * A successful publish can still carry a warning (OD-19's default for an unpriced branch), which is
+ * why this is not just `PriceListVersion`.
+ */
+export interface PriceListPublication {
+  readonly published: PriceListVersion
+  readonly supersededVersionId: string | null
+  readonly findings: readonly BillingFinding[]
 }

@@ -125,6 +125,14 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.item-not-found': 'pricing.problem.itemNotFound',
   'billing.unit-not-well-formed': 'pricing.problem.unitNotWellFormed',
   'billing.amount-not-well-formed': 'pricing.problem.amountNotWellFormed',
+  // Validating and publishing a price-list version (E09-F01-7b). `billing.version-not-publishable`,
+  // `billing.publish-validation-failed`, `billing.publish-conflict` and `billing.reason-required` are
+  // already mapped above from the tax configuration's own publish (E09-F01-5b) and are reused
+  // unchanged — a draft is a draft and a reason is a reason whichever module asks. Only the branch race
+  // is new here: `PriceListStore.SavePublicationAsync`'s own comment says both conflicts arrive bare
+  // from the commit, because the exclusion constraint is deferred, so this is a second sentence, not a
+  // second reading of the first one's code.
+  'billing.branch-publish-conflict': 'pricing.problem.branchPublishConflict',
 }
 
 /** The code of a failure, when the server sent one. */

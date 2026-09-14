@@ -3,6 +3,7 @@ import type {
   DiscountRule,
   PriceList,
   PriceListItem,
+  PriceListPublication,
   PriceListVersion,
   PriceListVersionSummary,
 } from '../priceListTypes'
@@ -92,6 +93,27 @@ export function aPriceListVersion(overrides: Partial<PriceListVersion> = {}): Pr
     version: aPriceListVersionSummary({ status: 'Draft', publishedAt: null }),
     items: [aPriceListItem()],
     discountRules: [],
+    ...overrides,
+  }
+}
+
+/**
+ * A successful publish's own answer (E09-F01-7b): the version now published, what it superseded, its
+ * findings. `aBillingFinding` and `findingsProblem` are reused unchanged from `pricingConfigFixtures.ts`
+ * rather than forked here — a finding is the same shape whichever module's publish returned it.
+ */
+export function aPriceListPublication(
+  overrides: Partial<PriceListPublication> = {},
+): PriceListPublication {
+  return {
+    published: aPriceListVersion({
+      version: aPriceListVersionSummary({
+        status: 'Published',
+        publishedAt: '2026-04-01T05:00:00.000Z',
+      }),
+    }),
+    supersededVersionId: null,
+    findings: [],
     ...overrides,
   }
 }

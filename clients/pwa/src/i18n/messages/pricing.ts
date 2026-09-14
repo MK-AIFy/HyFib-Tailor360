@@ -412,6 +412,26 @@ export const pricingEn = {
     'A unit is a short lower-case word such as each, metre or hour.',
   'pricing.problem.amountNotWellFormed':
     'An amount is a non-negative value in rupees with at most two decimal places.',
+
+  /* Validating and publishing a price-list version (E09-F01-7b). -------------------------------- */
+  'pricing.priceList.editor.checksTitle': 'Checks and publishing',
+  'pricing.priceList.editor.validate': 'Check this version',
+  'pricing.priceList.editor.validate.offlineAction': 'Checking a price-list version',
+  'pricing.priceList.editor.check.stale':
+    'This version has changed since the last check. Check it again before publishing.',
+  'pricing.priceList.editor.publish': 'Publish this version',
+  'pricing.priceList.editor.publish.offlineAction': 'Publishing a price-list version',
+  'pricing.priceList.editor.publish.title': 'Publish this price-list version?',
+  'pricing.priceList.editor.publish.body':
+    'Every invoice from the moment you publish is calculated on this version for the branches it prices, and whatever previously priced those branches is superseded. Invoices already posted keep the version they were calculated on.',
+  'pricing.priceList.editor.publish.done': 'Published.',
+  'pricing.priceList.editor.publish.superseded':
+    'It supersedes the version that was published before it.',
+  'pricing.priceList.editor.publish.forbiddenAction': 'publishing a price-list version',
+
+  /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
+  'pricing.problem.branchPublishConflict':
+    'Another price list’s version already prices one of this version’s branches, published at the same moment. A branch is priced by one published version at a time; read what is published now before deciding whether this draft is still wanted.',
 } as const
 
 /*
@@ -1126,4 +1146,36 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   // not translated — awaiting native-speaker review
   'pricing.problem.amountNotWellFormed':
     'An amount is a non-negative value in rupees with at most two decimal places.',
+
+  /* Validating and publishing a price-list version (E09-F01-7b). -------------------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.checksTitle': 'Checks and publishing',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.validate': 'Check this version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.validate.offlineAction': 'Checking a price-list version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.check.stale':
+    'This version has changed since the last check. Check it again before publishing.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish': 'Publish this version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish.offlineAction': 'Publishing a price-list version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish.title': 'Publish this price-list version?',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish.body':
+    'Every invoice from the moment you publish is calculated on this version for the branches it prices, and whatever previously priced those branches is superseded. Invoices already posted keep the version they were calculated on.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish.done': 'Published.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish.superseded':
+    'It supersedes the version that was published before it.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.publish.forbiddenAction': 'publishing a price-list version',
+
+  /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.problem.branchPublishConflict':
+    'Another price list’s version already prices one of this version’s branches, published at the same moment. A branch is priced by one published version at a time; read what is published now before deciding whether this draft is still wanted.',
 }

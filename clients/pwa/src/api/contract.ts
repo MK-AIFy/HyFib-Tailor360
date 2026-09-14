@@ -108,6 +108,7 @@ import type {
   PriceList,
   PriceListItem,
   PriceListItemRequest,
+  PriceListPublication,
   PriceListVersion,
   PriceListVersionRequest,
   PriceListVersionSummary,
@@ -761,6 +762,13 @@ export type AddPriceListItemRequestConforms = Conforms<
 export type EditPriceListItemRequestConforms = Conforms<
   PriceListItemRequest,
   Immutable<RequestBody<'EditPriceListItem'>>
+>
+
+/* Validating and publishing a price-list version (E09-F01-7b). ----------------------------------- */
+
+export type PriceListPublicationConforms = Conforms<
+  PriceListPublication,
+  Immutable<components['schemas']['PriceListPublicationPayload']>
 >
 
 /* Drafting and editing a tax configuration version and its tax codes (E09-F01-5). ---------------- */
