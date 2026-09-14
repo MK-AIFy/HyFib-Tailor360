@@ -8,7 +8,7 @@ import { forgetAntiforgeryToken } from '../../auth/antiforgery'
 import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { RequireSession } from '../../auth/RequireSession'
 import { SessionProvider } from '../../auth/SessionProvider'
-import { aCurrentUser, jsonResponse, stubFetch } from '../../auth/testing/fixtures'
+import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { ShellStatusProvider } from '../../components/layout/ShellStatusProvider'
@@ -142,6 +142,21 @@ describe('the outstanding balances screen', () => {
     )
     const { container } = renderAt()
     await screen.findByText('Nothing outstanding')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no accessibility violations when the read fails', async () => {
+    transport.route(`GET ${OUTSTANDING}?limit=20`, () =>
+      problemResponse(503, 'platform.unavailable'),
+    )
+    const { container } = renderAt()
+    await screen.findByRole('alert')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no accessibility violations when forbidden', async () => {
+    const { container } = renderAt([])
+    await screen.findByText('You do not have access to this')
     await expectNoAccessibilityViolations(container)
   })
 })

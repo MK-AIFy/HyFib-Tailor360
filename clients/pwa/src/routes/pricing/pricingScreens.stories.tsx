@@ -16,9 +16,16 @@ import {
   aTaxConfiguration,
   aTaxConfigurationSummary,
 } from '../../billing/testing/pricingConfigFixtures'
-import { aPriceList, aPriceListVersionSummary } from '../../billing/testing/priceListFixtures'
+import {
+  PRICE_LIST_VERSION_ID,
+  aDiscountRule,
+  aPriceList,
+  aPriceListVersion,
+  aPriceListVersionSummary,
+} from '../../billing/testing/priceListFixtures'
 import { GstRegistrationsRoute } from './GstRegistrationsRoute'
 import { PriceListsRoute } from './PriceListsRoute'
+import { PriceListVersionEditorRoute } from './PriceListVersionEditorRoute'
 import { PriceListVersionsRoute } from './PriceListVersionsRoute'
 import { TaxConfigurationEditorRoute } from './TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from './TaxConfigurationListRoute'
@@ -504,5 +511,118 @@ export const TaxConfigurationEditorPublishForbidden: Story = {
         [`GET ${TAX_VERSION}`]: () => storyJson(aTaxConfiguration(), 'W/"1"'),
       },
       TAX_EDITOR_ROUTE,
+    ),
+}
+
+/* The price-list version editor: conventions, items and the tax-code picker (E09-F01-7, #268). --- */
+
+const PRICE_LIST_VERSION_BASE = `${PRICE_LISTS}/versions`
+const PRICE_LIST_VERSION = `${PRICE_LIST_VERSION_BASE}/${PRICE_LIST_VERSION_ID}`
+const PRICE_LIST_VERSION_EDITOR_ROUTE = {
+  path: '/admin/price-lists/versions/:versionId',
+  at: PRICE_LIST_VERSION,
+}
+
+export const PriceListVersionEditorWorking: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorLoading: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: storyPending,
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+/** A freshly started draft, with no item yet, and the add control beside the fact. */
+export const PriceListVersionEditorEmpty: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion({ items: [] }), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorError: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyProblem(503, 'platform.unavailable'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+        <PriceListVersionEditorRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }),
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+/** A published version: no item or conventions control, but its discount rules still visible. */
+export const PriceListVersionEditorPublished: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () =>
+          storyJson(
+            aPriceListVersion({
+              version: aPriceListVersionSummary({ status: 'Published' }),
+              discountRules: [aDiscountRule()],
+            }),
+            'W/"1"',
+          ),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorPseudoLocale: Story = {
+  globals: { locale: 'en-XA' },
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
     ),
 }

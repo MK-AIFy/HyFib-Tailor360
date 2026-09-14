@@ -294,6 +294,10 @@ export const pricingEn = {
     'choosing which branches this version prices',
   'pricing.priceList.version.form.reason': 'Note (optional)',
   'pricing.priceList.version.form.save': 'Start the draft',
+  'pricing.priceList.version.form.editTitle': 'Version {versionNumber} conventions',
+  'pricing.priceList.version.form.saveChanges': 'Save',
+  'pricing.priceList.version.open': 'Open',
+  'pricing.priceList.version.open.label': 'Open version {versionNumber}',
 
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
   'pricing.problem.branchNotFound': 'No branch matches that identifier.',
@@ -317,12 +321,97 @@ export const pricingEn = {
   'pricing.problem.rateOutOfRange':
     'A rate is a percentage between 0 and 100, to at most three decimal places.',
   'pricing.problem.rateNotWellFormed':
-    'That does not look like a rate. Enter a percentage, such as 2.5.',
+    'A rate is a non-negative amount with at most four decimal places.',
   'pricing.problem.componentDuplicated':
     'A tax code carries each component — CGST, SGST, IGST, cess — at most once.',
   'pricing.problem.componentNotWellFormed': 'That is not a component this product knows.',
   'pricing.problem.valueRequired': 'This is required.',
   'pricing.problem.valueTooLong': 'That is longer than this field allows.',
+
+  /* The price-list version editor: conventions, items and the tax-code picker (E09-F01-7, #268). --- */
+  'pricing.priceList.editor.loading': 'the price-list version',
+  'pricing.priceList.editor.heading': 'Price-list version {number}',
+  'pricing.priceList.editor.readOnly':
+    'This version is published. Every invoice since was calculated on it — clone it to a new draft to change what it says.',
+  'pricing.priceList.editor.retired':
+    'This version is retired. It is the record of what an invoice was once calculated on.',
+  'pricing.priceList.editor.conventionsTitle': 'Conventions',
+  'pricing.priceList.editor.editConventions': 'Change the version’s conventions',
+  'pricing.priceList.editor.conventions.offlineAction': 'Changing the version’s conventions',
+  'pricing.priceList.editor.saved': 'Saved the version’s conventions.',
+  'pricing.priceList.editor.reread': 'Read it again',
+  'pricing.priceList.editor.itemsTitle': 'Items',
+  'pricing.priceList.editor.items.empty': 'No item yet. Add the first one below.',
+  'pricing.priceList.editor.items.caption': 'Every item in this version',
+  'pricing.priceList.editor.discountRulesTitle': 'Discount rules',
+  'pricing.priceList.editor.discountRulesComingSoon':
+    'Adding, editing and removing a discount rule are not in this screen yet.',
+  'pricing.priceList.editor.discountRules.empty': 'No discount rule yet.',
+  'pricing.priceList.editor.discountRules.caption':
+    'Every discount rule in this version, read-only',
+
+  'pricing.priceListItem.column.code': 'Code',
+  'pricing.priceListItem.column.description': 'Description',
+  'pricing.priceListItem.column.kind': 'Kind',
+  'pricing.priceListItem.column.baseRate': 'Base rate',
+  'pricing.priceListItem.column.unit': 'Unit',
+  'pricing.priceListItem.column.taxCode': 'Tax code',
+  'pricing.priceListItem.column.active': 'Status',
+  'pricing.priceListItem.active.yes': 'Active',
+  'pricing.priceListItem.active.no': 'Inactive',
+  'pricing.priceListItem.add': 'Add an item',
+  'pricing.priceListItem.add.offlineAction': 'Adding an item',
+  'pricing.priceListItem.edit': 'Edit {code}',
+  'pricing.priceListItem.edit.offlineAction': 'Editing an item',
+  'pricing.priceListItem.remove': 'Remove {code}',
+  'pricing.priceListItem.remove.offlineAction': 'Removing an item',
+  'pricing.priceListItem.remove.title': 'Remove an item',
+  'pricing.priceListItem.remove.body':
+    'This removes the item from the draft. It can be added again, as a fresh row.',
+  'pricing.priceListItem.saved': 'Saved the item {code}.',
+  'pricing.priceListItem.removed': 'Removed the item {code}.',
+
+  'pricing.priceListItem.form.addTitle': 'Add an item',
+  'pricing.priceListItem.form.editTitle': 'Edit the item {code}',
+  'pricing.priceListItem.form.code': 'Code',
+  'pricing.priceListItem.form.code.hint':
+    'Upper snake case — capital letters, digits and underscores, beginning with a letter. What the catalogue’s price-list item code names.',
+  'pricing.priceListItem.form.description': 'Description',
+  'pricing.priceListItem.form.kind': 'What this prices',
+  'pricing.priceListItem.form.kind.Service': 'A service’s base charge',
+  'pricing.priceListItem.form.kind.Surcharge': 'A surcharge',
+  'pricing.priceListItem.form.kind.Material': 'A material',
+  'pricing.priceListItem.form.baseRate': 'Base rate',
+  'pricing.priceListItem.form.unit': 'Unit',
+  'pricing.priceListItem.form.unit.hint': 'A short lower-case word: each, metre, hour.',
+  'pricing.priceListItem.form.taxCode': 'Tax code',
+  'pricing.priceListItem.form.taxCode.hint':
+    'Choose one of the published tax configuration’s active codes, or type another.',
+  'pricing.priceListItem.form.taxCode.noneHint':
+    'No tax configuration is published yet, so no code can be suggested. The code is checked when this version is published, not now — the item still saves with a typed code.',
+  'pricing.priceListItem.form.taxCode.noneHint.link': 'Open the tax configuration',
+  'pricing.priceListItem.form.active': 'Status',
+  'pricing.priceListItem.form.active.true': 'Active',
+  'pricing.priceListItem.form.active.false': 'Inactive',
+  'pricing.priceListItem.form.reason': 'Note (optional)',
+  'pricing.priceListItem.form.save': 'Save',
+
+  'pricing.discountRule.column.code': 'Code',
+  'pricing.discountRule.column.description': 'Description',
+  'pricing.discountRule.column.kind': 'Kind',
+  'pricing.discountRule.column.maximumWithoutApproval': 'Maximum without approval',
+  'pricing.discountRule.column.maximum': 'Maximum',
+  'pricing.discountRule.column.active': 'Status',
+  'pricing.discountRule.kind.Percentage': 'Percentage',
+  'pricing.discountRule.kind.Amount': 'Fixed amount',
+  'pricing.discountRule.active.yes': 'Active',
+  'pricing.discountRule.active.no': 'Inactive',
+
+  'pricing.problem.itemNotFound': 'No price-list item matches that address.',
+  'pricing.problem.unitNotWellFormed':
+    'A unit is a short lower-case word such as each, metre or hour.',
+  'pricing.problem.amountNotWellFormed':
+    'An amount is a non-negative value in rupees with at most two decimal places.',
 } as const
 
 /*
@@ -833,6 +922,14 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.priceList.version.form.reason': 'Note (optional)',
   // not translated — awaiting native-speaker review
   'pricing.priceList.version.form.save': 'Start the draft',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.editTitle': 'Version {versionNumber} conventions',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.form.saveChanges': 'Save',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.open': 'Open',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.version.open.label': 'Open version {versionNumber}',
 
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
   // not translated — awaiting native-speaker review
@@ -865,7 +962,7 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
     'A rate is a percentage between 0 and 100, to at most three decimal places.',
   // not translated — awaiting native-speaker review
   'pricing.problem.rateNotWellFormed':
-    'That does not look like a rate. Enter a percentage, such as 2.5.',
+    'A rate is a non-negative amount with at most four decimal places.',
   // not translated — awaiting native-speaker review
   'pricing.problem.componentDuplicated':
     'A tax code carries each component — CGST, SGST, IGST, cess — at most once.',
@@ -875,4 +972,158 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.problem.valueRequired': 'This is required.',
   // not translated — awaiting native-speaker review
   'pricing.problem.valueTooLong': 'That is longer than this field allows.',
+
+  /* The price-list version editor: conventions, items and the tax-code picker (E09-F01-7, #268). --- */
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.loading': 'the price-list version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.heading': 'Price-list version {number}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.readOnly':
+    'This version is published. Every invoice since was calculated on it — clone it to a new draft to change what it says.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.retired':
+    'This version is retired. It is the record of what an invoice was once calculated on.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.conventionsTitle': 'Conventions',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.editConventions': 'Change the version’s conventions',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.conventions.offlineAction': 'Changing the version’s conventions',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.saved': 'Saved the version’s conventions.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.reread': 'Read it again',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.itemsTitle': 'Items',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.items.empty': 'No item yet. Add the first one below.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.items.caption': 'Every item in this version',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.discountRulesTitle': 'Discount rules',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.discountRulesComingSoon':
+    'Adding, editing and removing a discount rule are not in this screen yet.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.discountRules.empty': 'No discount rule yet.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceList.editor.discountRules.caption':
+    'Every discount rule in this version, read-only',
+
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.kind': 'Kind',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.baseRate': 'Base rate',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.unit': 'Unit',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.taxCode': 'Tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.column.active': 'Status',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.active.yes': 'Active',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.active.no': 'Inactive',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.add': 'Add an item',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.add.offlineAction': 'Adding an item',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.edit': 'Edit {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.edit.offlineAction': 'Editing an item',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.remove': 'Remove {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.remove.offlineAction': 'Removing an item',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.remove.title': 'Remove an item',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.remove.body':
+    'This removes the item from the draft. It can be added again, as a fresh row.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.saved': 'Saved the item {code}.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.removed': 'Removed the item {code}.',
+
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.addTitle': 'Add an item',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.editTitle': 'Edit the item {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.code.hint':
+    'Upper snake case — capital letters, digits and underscores, beginning with a letter. What the catalogue’s price-list item code names.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.kind': 'What this prices',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.kind.Service': 'A service’s base charge',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.kind.Surcharge': 'A surcharge',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.kind.Material': 'A material',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.baseRate': 'Base rate',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.unit': 'Unit',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.unit.hint': 'A short lower-case word: each, metre, hour.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.taxCode': 'Tax code',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.taxCode.hint':
+    'Choose one of the published tax configuration’s active codes, or type another.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.taxCode.noneHint':
+    'No tax configuration is published yet, so no code can be suggested. The code is checked when this version is published, not now — the item still saves with a typed code.',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.taxCode.noneHint.link': 'Open the tax configuration',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.active': 'Status',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.active.true': 'Active',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.active.false': 'Inactive',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.reason': 'Note (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.priceListItem.form.save': 'Save',
+
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.column.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.column.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.column.kind': 'Kind',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.column.maximumWithoutApproval': 'Maximum without approval',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.column.maximum': 'Maximum',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.column.active': 'Status',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.kind.Percentage': 'Percentage',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.kind.Amount': 'Fixed amount',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.active.yes': 'Active',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.active.no': 'Inactive',
+
+  // not translated — awaiting native-speaker review
+  'pricing.problem.itemNotFound': 'No price-list item matches that address.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.unitNotWellFormed':
+    'A unit is a short lower-case word such as each, metre or hour.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.amountNotWellFormed':
+    'An amount is a non-negative value in rupees with at most two decimal places.',
 }
