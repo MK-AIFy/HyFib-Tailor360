@@ -17,10 +17,11 @@ export interface AdminDestination {
  * wrong. The order is fixed rather than personalised: a person who finds Roles in the fourth place
  * today must find it in the fourth place tomorrow (3.2.3 Consistent Navigation).
  *
- * The two pricing destinations (#237) are inserted after `catalog`, which puts every configuration
- * destination together — catalogue, then pricing — before the operational ones. That insertion moved
- * `features`, `audit` and `outbox` down two places from where #24 first put them; a later pull
+ * The three pricing destinations (#237, #252) are inserted after `catalog`, which puts every
+ * configuration destination together — catalogue, then pricing — before the operational ones. That
+ * insertion moved `features`, `audit` and `outbox` down from where #24 first put them; a later pull
  * request that also touches this list should re-read this comment rather than appending blindly.
+ * #252 added `price-lists` as the third pricing destination, immediately after the two #237 added.
  */
 export const ADMIN_DESTINATIONS: readonly AdminDestination[] = [
   { path: 'users', messageId: 'admin.nav.users', permission: ADMIN_PERMISSIONS.users },
@@ -40,6 +41,11 @@ export const ADMIN_DESTINATIONS: readonly AdminDestination[] = [
   {
     path: 'tax-configuration',
     messageId: 'pricing.nav.taxConfiguration',
+    permission: BILLING_PERMISSIONS.managePriceLists,
+  },
+  {
+    path: 'price-lists',
+    messageId: 'pricing.nav.priceLists',
     permission: BILLING_PERMISSIONS.managePriceLists,
   },
   { path: 'features', messageId: 'admin.nav.features', permission: ADMIN_PERMISSIONS.featureFlags },

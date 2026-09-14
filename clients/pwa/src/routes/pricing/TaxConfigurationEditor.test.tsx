@@ -333,7 +333,7 @@ describe('the tax configuration editor', () => {
     await user.click(form.getByRole('button', { name: 'Save' }))
 
     expect(
-      await screen.findByText('That code is already used in this version. Choose a different one.'),
+      await screen.findByText('That code is already used. Choose a different one.'),
     ).toBeInTheDocument()
     expect(form.getByLabelText('Code')).toHaveValue('STITCHING_5')
 

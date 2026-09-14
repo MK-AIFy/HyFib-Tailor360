@@ -15,7 +15,10 @@ import {
   aTaxConfiguration,
   aTaxConfigurationSummary,
 } from '../../billing/testing/pricingConfigFixtures'
+import { aPriceList, aPriceListVersionSummary } from '../../billing/testing/priceListFixtures'
 import { GstRegistrationsRoute } from './GstRegistrationsRoute'
+import { PriceListsRoute } from './PriceListsRoute'
+import { PriceListVersionsRoute } from './PriceListVersionsRoute'
 import { TaxConfigurationEditorRoute } from './TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from './TaxConfigurationListRoute'
 import '../admin/admin.css'
@@ -49,6 +52,9 @@ type Story = StoryObj<typeof meta>
 const GST_REGISTRATIONS = '/api/v1/billing/gst-registrations'
 const BRANCHES = '/api/v1/admin/branches/'
 const TAX_VERSIONS = '/api/v1/billing/tax-configuration/versions'
+const PRICE_LISTS = '/api/v1/billing/price-lists'
+const PRICE_LIST = aPriceList()
+const PRICE_LIST_VERSIONS = `${PRICE_LISTS}/${PRICE_LIST.priceListId}/versions`
 const TAX_VERSION = `${TAX_VERSIONS}/${TAX_CONFIGURATION_VERSION_ID}`
 
 const BRANCH_ROWS = [
@@ -214,6 +220,156 @@ export const TaxConfigurationPseudoLocale: Story = {
       <TaxConfigurationListRoute />,
       { [`GET ${TAX_VERSIONS}`]: () => storyJson([aTaxConfigurationSummary()]) },
       { path: '/admin/tax-configuration', at: '/admin/tax-configuration' },
+    ),
+}
+
+/* The price-list register (#252). ------------------------------------------------------------------ */
+
+export const PriceListsWorking: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListsRoute />,
+      { [`GET ${PRICE_LISTS}`]: () => storyJson([PRICE_LIST]) },
+      { path: '/admin/price-lists', at: '/admin/price-lists' },
+    ),
+}
+
+export const PriceListsLoading: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListsRoute />,
+      { [`GET ${PRICE_LISTS}`]: storyPending },
+      { path: '/admin/price-lists', at: '/admin/price-lists' },
+    ),
+}
+
+/** A first install: no price list yet, with the create control beside the fact. */
+export const PriceListsEmpty: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListsRoute />,
+      { [`GET ${PRICE_LISTS}`]: () => storyJson([]) },
+      { path: '/admin/price-lists', at: '/admin/price-lists' },
+    ),
+}
+
+export const PriceListsError: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListsRoute />,
+      { [`GET ${PRICE_LISTS}`]: () => storyProblem(503, 'platform.unavailable') },
+      { path: '/admin/price-lists', at: '/admin/price-lists' },
+    ),
+}
+
+export const PriceListsForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+        <PriceListsRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }),
+        [`GET ${PRICE_LISTS}`]: () => storyJson([PRICE_LIST]),
+      },
+      { path: '/admin/price-lists', at: '/admin/price-lists' },
+    ),
+}
+
+export const PriceListsPseudoLocale: Story = {
+  globals: { locale: 'en-XA' },
+  render: () =>
+    withAdminApi(
+      <PriceListsRoute />,
+      { [`GET ${PRICE_LISTS}`]: () => storyJson([PRICE_LIST]) },
+      { path: '/admin/price-lists', at: '/admin/price-lists' },
+    ),
+}
+
+/* A price list's versions. --------------------------------------------------------------------- */
+
+const PRICE_LIST_AT = `/admin/price-lists/${PRICE_LIST.priceListId}`
+
+export const PriceListVersionsWorking: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionsRoute />,
+      {
+        [`GET ${PRICE_LISTS}/${PRICE_LIST.priceListId}`]: () => storyJson(PRICE_LIST, 'W/"1"'),
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyJson([aPriceListVersionSummary()]),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+      },
+      { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
+    ),
+}
+
+export const PriceListVersionsLoading: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionsRoute />,
+      {
+        [`GET ${PRICE_LISTS}/${PRICE_LIST.priceListId}`]: () => storyJson(PRICE_LIST, 'W/"1"'),
+        [`GET ${PRICE_LIST_VERSIONS}`]: storyPending,
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+      },
+      { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
+    ),
+}
+
+/** No version drafted yet — a fact, with the act that starts one named, not an error. */
+export const PriceListVersionsEmpty: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionsRoute />,
+      {
+        [`GET ${PRICE_LISTS}/${PRICE_LIST.priceListId}`]: () => storyJson(PRICE_LIST, 'W/"1"'),
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyJson([]),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+      },
+      { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
+    ),
+}
+
+export const PriceListVersionsError: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionsRoute />,
+      {
+        [`GET ${PRICE_LISTS}/${PRICE_LIST.priceListId}`]: () => storyJson(PRICE_LIST, 'W/"1"'),
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyProblem(503, 'platform.unavailable'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+      },
+      { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
+    ),
+}
+
+export const PriceListVersionsForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+        <PriceListVersionsRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }),
+        [`GET ${PRICE_LISTS}/${PRICE_LIST.priceListId}`]: () => storyJson(PRICE_LIST, 'W/"1"'),
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyJson([aPriceListVersionSummary()]),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+      },
+      { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
+    ),
+}
+
+export const PriceListVersionsPseudoLocale: Story = {
+  globals: { locale: 'en-XA' },
+  render: () =>
+    withAdminApi(
+      <PriceListVersionsRoute />,
+      {
+        [`GET ${PRICE_LISTS}/${PRICE_LIST.priceListId}`]: () => storyJson(PRICE_LIST, 'W/"1"'),
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyJson([aPriceListVersionSummary()]),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+      },
+      { path: '/admin/price-lists/:priceListId', at: PRICE_LIST_AT },
     ),
 }
 

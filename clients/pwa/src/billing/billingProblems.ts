@@ -85,10 +85,19 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.registration-overlaps': 'pricing.problem.registrationOverlaps',
   'billing.registration-changed': 'pricing.problem.registrationChanged',
   'billing.registration-not-found': 'pricing.problem.registrationNotFound',
+  // The price-list register (#252). `billing.value-required` names one of several fields through the
+  // problem's own `errors` map — the register reads that map itself to say which control is missing,
+  // and this sentence is what it attaches there, so the code is not repeated per field.
+  'billing.branch-not-found': 'pricing.problem.branchNotFound',
+  'billing.price-list-not-found': 'pricing.problem.priceListNotFound',
+  'billing.price-list-changed': 'pricing.problem.priceListChanged',
+  'billing.draft-number-conflict': 'pricing.problem.draftNumberConflict',
   // Drafting and editing a tax configuration version and its tax codes (E09-F01-5). The field-level
   // ones — code, classification, rate, component — are read against their own control or component
   // row by `TaxConfigurationEditorRoute` and `TaxCodeForm`, via `billingProblemField` below; the
   // sentence is still looked up here, once, so both places and the page-level fallback agree.
+  // `billing.code-not-unique`, `billing.code-not-well-formed` and `billing.value-required` are
+  // shared with the price-list register above and mapped once, here.
   'billing.version-not-editable': 'pricing.problem.versionNotEditable',
   'billing.version-changed': 'pricing.problem.versionChanged',
   'billing.version-not-found': 'pricing.problem.versionNotFound',

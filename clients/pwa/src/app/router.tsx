@@ -33,6 +33,8 @@ import { CatalogVersionEditorRoute } from '../routes/catalog/CatalogVersionEdito
 import { CatalogVersionListRoute } from '../routes/catalog/CatalogVersionListRoute'
 import { DesignPickerRoute } from '../routes/catalog/DesignPickerRoute'
 import { GstRegistrationsRoute } from '../routes/pricing/GstRegistrationsRoute'
+import { PriceListsRoute } from '../routes/pricing/PriceListsRoute'
+import { PriceListVersionsRoute } from '../routes/pricing/PriceListVersionsRoute'
 import { TaxConfigurationEditorRoute } from '../routes/pricing/TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from '../routes/pricing/TaxConfigurationListRoute'
 import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEditorRoute'
@@ -476,6 +478,25 @@ export const router = createBrowserRouter([
                 element: (
                   <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
                     <TaxConfigurationListRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // The price-list register (#252): the organisation's price lists, by code.
+                path: 'price-lists',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <PriceListsRoute />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // One list's versions, and the act that starts a draft — empty, or cloned from a
+                // row. Items, discount rules and publication are E09-F01-7 and E09-F01-7b.
+                path: 'price-lists/:priceListId',
+                element: (
+                  <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+                    <PriceListVersionsRoute />
                   </RequirePermission>
                 ),
               },
