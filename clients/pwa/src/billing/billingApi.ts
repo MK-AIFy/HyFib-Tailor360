@@ -1,6 +1,7 @@
 import { apiRequest, apiRequestBlob, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 import type {
+  AdjustmentNote,
   AllocateAdvanceRequest,
   ApproveReconciliationRequest,
   AvailablePaymentMode,
@@ -18,6 +19,7 @@ import type {
   OrderBalance,
   OutstandingBalanceRow,
   Payment,
+  PostAdjustmentNoteRequest,
   PrintInvoiceRequest,
   PrintJob,
   PrintReceiptRequest,
@@ -295,6 +297,62 @@ export async function postInvoice(input: {
     body,
     idempotencyKey: input.idempotencyKey,
     ifMatch: input.version,
+  })
+}
+
+/* Cancelling an invoice, and issuing credit and debit notes (#354). ------------------------------ */
+
+/**
+ * Cancels a posted invoice by its compensating credit note, in one transaction: the invoice keeps
+ * its number, its lines and its totals, and its garment jobs become free to invoice again.
+ *
+ * No `If-Match`: nothing on the invoice's row moves, so the server locks and re-reads the row inside
+ * the transaction instead of asking for a precondition. `challengeOnStepUp` asks `apiClient` to raise
+ * the re-authentication dialogue on `403 security.step-up-required` and replay this identical
+ * request — same key, same reason — once signed back in; a call site never answers that refusal
+ * itself.
+ */
+export async function cancelInvoice(input: {
+  readonly invoiceId: string
+  readonly reason: string
+  readonly idempotencyKey: string
+}): Promise<Invoice> {
+  const body: BillingReasonRequest = { reason: input.reason }
+  return await apiRequest<Invoice>(`${BILLING}/invoices/${input.invoiceId}/cancel`, {
+    method: 'POST',
+    body,
+    idempotencyKey: input.idempotencyKey,
+    challengeOnStepUp: true,
+  })
+}
+
+/**
+ * Posts a credit note against a posted invoice, relieving what its lines name. Each line is bounded
+ * server-side to what the invoice line still carries after the credit notes already posted —
+ * `billing.note-exceeds-line` if it is not, whatever `remainingTaxableValueOf` showed.
+ */
+export async function postCreditNote(input: {
+  readonly invoiceId: string
+  readonly body: PostAdjustmentNoteRequest
+  readonly idempotencyKey: string
+}): Promise<AdjustmentNote> {
+  return await apiRequest<AdjustmentNote>(`${BILLING}/invoices/${input.invoiceId}/credit-notes`, {
+    method: 'POST',
+    body: input.body,
+    idempotencyKey: input.idempotencyKey,
+  })
+}
+
+/** Posts a debit note against a posted invoice, adding to what the customer owes. No upper bound. */
+export async function postDebitNote(input: {
+  readonly invoiceId: string
+  readonly body: PostAdjustmentNoteRequest
+  readonly idempotencyKey: string
+}): Promise<AdjustmentNote> {
+  return await apiRequest<AdjustmentNote>(`${BILLING}/invoices/${input.invoiceId}/debit-notes`, {
+    method: 'POST',
+    body: input.body,
+    idempotencyKey: input.idempotencyKey,
   })
 }
 

@@ -108,11 +108,14 @@ export function GstRegistrationsRoute() {
     if (!network.online) {
       return
     }
+    // Holds the version only. The row already carries every field this read would answer, and
+    // overwriting `draft` when this resolves would discard whatever the person had already typed
+    // in the time it took the read to land — a race a slow connection makes easy to hit.
     void readGstRegistration(registration.gstRegistrationId)
-      .then(({ value, version }) => {
+      .then(({ version }) => {
         setEditing((current) =>
           current?.existing?.gstRegistrationId === registration.gstRegistrationId
-            ? { existing: value, draft: draftFromGstRegistration(value), version }
+            ? { ...current, version }
             : current,
         )
       })

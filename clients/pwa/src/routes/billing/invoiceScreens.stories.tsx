@@ -2,9 +2,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import {
+  JOB_ID,
   ORDER_ID,
   aCancelledInvoice,
   aDraftInvoice,
+  anAdjustmentNote,
   anInvoice,
   anInvoicePage,
   anInvoiceSummary,
@@ -15,6 +17,7 @@ import {
   storyProblem,
   withBillingApi,
 } from '../../billing/testing/storyTransport'
+import { AdjustmentNoteRoute } from './AdjustmentNoteRoute'
 import { InvoiceDetailRoute } from './InvoiceDetailRoute'
 import { InvoiceDraftRoute } from './InvoiceDraftRoute'
 import { InvoiceRegisterRoute } from './InvoiceRegisterRoute'
@@ -180,6 +183,111 @@ export const InvoiceDetailForbidden: Story = {
       </RequirePermission>,
       { 'GET /api/v1/me': () => storyJson(withNoPermissions()) },
       DETAIL_OPTIONS,
+    ),
+}
+
+/**
+ * A posted invoice for a caller who also holds `cancelInvoice` and `postAdjustmentNote`: Cancel and
+ * the link to issue a credit or debit note both appear (#354), beside Print and Download.
+ */
+export const InvoiceDetailPostedWithCancel: Story = {
+  render: () =>
+    withBillingApi(
+      <InvoiceDetailRoute />,
+      { [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: () => storyJson(anInvoice()) },
+      {
+        ...DETAIL_OPTIONS,
+        permissions: [
+          BILLING_PERMISSIONS.createInvoice,
+          BILLING_PERMISSIONS.cancelInvoice,
+          BILLING_PERMISSIONS.postAdjustmentNote,
+        ],
+      },
+    ),
+}
+
+/* Cancelling an invoice, and issuing credit and debit notes (#354). ---------------------------- */
+
+const NOTE_OPTIONS = {
+  path: '/billing/invoices/:invoiceId/notes/new',
+  at: `/billing/invoices/${anInvoice().invoiceId}/notes/new`,
+  permissions: [BILLING_PERMISSIONS.postAdjustmentNote],
+}
+
+export const AdjustmentNoteLoading: Story = {
+  render: () =>
+    withBillingApi(
+      <AdjustmentNoteRoute />,
+      { [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: storyPending },
+      NOTE_OPTIONS,
+    ),
+}
+
+/** A posted invoice's two lines, ready for a credit note: each shows what it still carries. */
+export const AdjustmentNote: Story = {
+  render: () =>
+    withBillingApi(
+      <AdjustmentNoteRoute />,
+      { [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: () => storyJson(anInvoice()) },
+      NOTE_OPTIONS,
+    ),
+}
+
+/** Every line already relieved by an earlier credit note — nothing left to credit here. */
+export const AdjustmentNoteEmpty: Story = {
+  render: () =>
+    withBillingApi(
+      <AdjustmentNoteRoute />,
+      {
+        [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: () =>
+          storyJson(
+            anInvoice({
+              notes: [
+                anAdjustmentNote({
+                  lines: [
+                    {
+                      lineNumber: 1,
+                      garmentJobId: JOB_ID,
+                      taxableValue: 505,
+                      taxes: [],
+                      taxTotal: 0,
+                      lineTotal: 505,
+                    },
+                    {
+                      lineNumber: 2,
+                      garmentJobId: '0199dd00-0000-7000-8000-000000005003',
+                      taxableValue: 180,
+                      taxes: [],
+                      taxTotal: 0,
+                      lineTotal: 180,
+                    },
+                  ],
+                }),
+              ],
+            }),
+          ),
+      },
+      NOTE_OPTIONS,
+    ),
+}
+
+/** A draft carries no number to correct yet — `billing.problem.invoiceNotPosted`, not a form. */
+export const AdjustmentNoteInvoiceNotPosted: Story = {
+  render: () =>
+    withBillingApi(
+      <AdjustmentNoteRoute />,
+      { [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: () => storyJson(aDraftInvoice()) },
+      NOTE_OPTIONS,
+    ),
+}
+
+/** Already cancelled — `billing.problem.invoiceAlreadyCancelled`, not a form. */
+export const AdjustmentNoteInvoiceCancelled: Story = {
+  render: () =>
+    withBillingApi(
+      <AdjustmentNoteRoute />,
+      { [`GET ${invoiceUrl(anInvoice().invoiceId)}`]: () => storyJson(aCancelledInvoice()) },
+      NOTE_OPTIONS,
     ),
 }
 

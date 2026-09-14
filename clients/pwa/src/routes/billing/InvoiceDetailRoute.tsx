@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { ApiError } from '../../auth/apiClient'
 import type { VersionedResponse } from '../../auth/apiClient'
@@ -8,6 +8,7 @@ import { useCurrentUser } from '../../auth/useSession'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
 import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import {
+  cancelInvoice,
   discardInvoiceDraft,
   downloadInvoiceDocument,
   downloadNoteDocument,
@@ -16,6 +17,7 @@ import {
   printInvoice,
 } from '../../billing/billingApi'
 import { InvoiceDocumentView } from '../../billing/InvoiceDocumentView'
+import { saveBlob } from '../../billing/saveBlob'
 import type { AdjustmentNote, Invoice } from '../../billing/types'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import type { ConfirmOutcome } from '../../components/dialogs/ConfirmDialog'
@@ -80,18 +82,6 @@ export function InvoiceDetailRoute() {
   )
 }
 
-function saveBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob)
-  try {
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    link.click()
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 function InvoiceDetail({
   invoice,
   version,
@@ -104,6 +94,7 @@ function InvoiceDetail({
   const intl = useIntl()
   const formatters = getFormatters()
   const network = useNetworkState()
+  const { permissions } = useCurrentUser()
   // Held here, not inside PostDiscardControls: a successful post or discard changes `invoice.status`
   // away from `Draft`, which unmounts that component on the very next render — along with any state
   // of its own — before the notice it just set could ever be seen.
@@ -174,7 +165,30 @@ function InvoiceDetail({
         version={version}
       />
 
+      <CancelControl
+        invoice={invoice}
+        network={network}
+        onChanged={onChanged}
+        onNotice={setLifecycleNotice}
+      />
+
       <PrintControls invoice={invoice} network={network} />
+
+      {invoice.status !== 'Posted' ||
+      invoice.cancelled ||
+      !permissions.includes(BILLING_PERMISSIONS.postAdjustmentNote) ? null : (
+        <p>
+          <Link
+            aria-label={intl.formatMessage(
+              { id: 'billing.invoice.notes.new.label' },
+              { invoiceNumber: invoice.invoiceNumber ?? invoice.orderNumber },
+            )}
+            to={`/billing/invoices/${invoice.invoiceId}/notes/new`}
+          >
+            <FormattedMessage id="billing.invoice.notes.new" />
+          </Link>
+        </p>
+      )}
 
       <InvoiceDocumentView invoice={invoice} />
 
@@ -452,6 +466,124 @@ function PostDiscardControls({
           title={intl.formatMessage({ id: 'billing.invoice.discard.confirm.title' })}
         >
           {intl.formatMessage({ id: 'billing.invoice.discard.confirm.body' })}
+        </ConfirmDialog>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Cancelling a posted invoice by its compensating credit note (#354, matrix line 141). Offered only
+ * on a posted, not-yet-cancelled invoice, to a caller holding `cancelInvoice` — the one billing write
+ * that carries both multi-factor and step-up, which `apiClient`'s existing `exchange()` retry handles
+ * without any special code here: the same `Idempotency-Key` and reason survive the replay.
+ *
+ * There is no `If-Match` on this route (unlike Post and Discard): nothing on the invoice's row moves
+ * before cancellation, so the row is locked and re-read inside the transaction instead.
+ */
+function CancelControl({
+  invoice,
+  network,
+  onChanged,
+  onNotice,
+}: {
+  invoice: Invoice
+  network: NetworkState
+  onChanged: () => void
+  /**
+   * Reports a success sentence to the parent rather than rendering one itself, matching
+   * `PostDiscardControls`: a successful cancellation changes `invoice.cancelled`, and while this
+   * component does not unmount on that change, keeping the notice in the shared parent state avoids
+   * two independent notice banners appearing for the same lifecycle event.
+   */
+  onNotice: (message: string) => void
+}) {
+  const intl = useIntl()
+  const formatters = getFormatters()
+  const { permissions } = useCurrentUser()
+  const canCancel = permissions.includes(BILLING_PERMISSIONS.cancelInvoice)
+
+  const [confirming, setConfirming] = useState(false)
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<unknown>(null)
+
+  if (invoice.status !== 'Posted' || invoice.cancelled || !canCancel) {
+    return null
+  }
+
+  const open = (): void => {
+    setFailure(null)
+    setIdempotencyKey(crypto.randomUUID())
+    setConfirming(true)
+  }
+
+  const cancel = (): void => {
+    setConfirming(false)
+    setFailure(null)
+  }
+
+  const run = (outcome: ConfirmOutcome): void => {
+    if (idempotencyKey === null) {
+      return
+    }
+    setBusy(true)
+    setFailure(null)
+
+    cancelInvoice({
+      invoiceId: invoice.invoiceId,
+      reason: outcome.reason ?? '',
+      idempotencyKey,
+    })
+      .then(() => {
+        setConfirming(false)
+        setIdempotencyKey(null)
+        onNotice(intl.formatMessage({ id: 'billing.invoice.cancel.cancelled' }))
+        onChanged()
+      })
+      .catch((cause: unknown) => {
+        setFailure(cause)
+      })
+      .finally(() => {
+        setBusy(false)
+      })
+  }
+
+  return (
+    <section aria-labelledby="invoice-cancel-heading" className="billing__actions">
+      <h2 id="invoice-cancel-heading">
+        <FormattedMessage id="billing.invoices.status.posted" />
+      </h2>
+
+      {network.online ? (
+        <ButtonGroup>
+          <Button iconName="x-circle" onClick={open} variant="secondary">
+            {intl.formatMessage({ id: 'billing.invoice.cancel.action' })}
+          </Button>
+        </ButtonGroup>
+      ) : (
+        <OfflineBlockedAction
+          action={intl.formatMessage({ id: 'billing.invoice.cancel.offlineAction' })}
+        />
+      )}
+
+      {!confirming ? null : (
+        <ConfirmDialog
+          action={intl.formatMessage({ id: 'billing.invoice.cancel.action' })}
+          busy={busy}
+          confirmLabel={intl.formatMessage({ id: 'billing.invoice.cancel.action' })}
+          irreversible
+          onCancel={cancel}
+          onConfirm={run}
+          open
+          problem={<BillingProblemAlert failure={failure} />}
+          tier="reason"
+          title={intl.formatMessage({ id: 'billing.invoice.cancel.confirm.title' })}
+        >
+          {intl.formatMessage(
+            { id: 'billing.invoice.cancel.confirm.body' },
+            { amount: formatters.formatMoney(invoice.totals.grandTotal) },
+          )}
         </ConfirmDialog>
       )}
     </section>

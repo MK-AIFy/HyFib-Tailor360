@@ -81,6 +81,7 @@ import type {
   InvoiceTaxComponent,
   InvoiceTotals,
   OpenCashierSessionRequest,
+  PostAdjustmentNoteRequest,
   PrintInvoiceRequest,
   OrderBalance,
   Payment,
@@ -626,6 +627,24 @@ export type DiscardInvoiceDraftRequestConforms = Conforms<
 export type PostInvoiceRequestConforms = Conforms<
   BillingReasonRequest,
   Immutable<RequestBody<'PostInvoice'>>
+>
+
+/* Cancelling an invoice, and issuing credit and debit notes (#354). ------------------------------ */
+
+export type CancelInvoiceRequestConforms = Conforms<
+  BillingReasonRequest,
+  Immutable<RequestBody<'CancelInvoice'>>
+>
+
+/** The same body on two routes, asserted separately so a divergence between them is caught. */
+export type PostCreditNoteRequestConforms = Conforms<
+  PostAdjustmentNoteRequest,
+  Immutable<RequestBody<'PostCreditNote'>>
+>
+
+export type PostDebitNoteRequestConforms = Conforms<
+  PostAdjustmentNoteRequest,
+  Immutable<RequestBody<'PostDebitNote'>>
 >
 
 /* The pricing administration foundation (#237). -------------------------------------------------- */

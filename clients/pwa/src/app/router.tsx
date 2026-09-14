@@ -7,6 +7,7 @@ import { ADMIN_PERMISSIONS } from '../admin/adminPermissions'
 import { RequirePermission } from '../admin/RequirePermission'
 import { BILLING_PERMISSIONS } from '../billing/billingPermissions'
 import { AboutRoute } from '../routes/AboutRoute'
+import { AdjustmentNoteRoute } from '../routes/billing/AdjustmentNoteRoute'
 import { AllocateAdvanceRoute } from '../routes/billing/AllocateAdvanceRoute'
 import { CashierSessionRoute } from '../routes/billing/CashierSessionRoute'
 import { DispatchExceptionApprovalRoute } from '../routes/billing/DispatchExceptionApprovalRoute'
@@ -284,6 +285,16 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
                 <InvoiceDetailRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            // Issuing a credit or debit note against a posted invoice (#354, matrix rows 374/375):
+            // the same key governs both kinds, and is narrower than `createInvoice`.
+            path: 'billing/invoices/:invoiceId/notes/new',
+            element: (
+              <RequirePermission permission={BILLING_PERMISSIONS.postAdjustmentNote}>
+                <AdjustmentNoteRoute />
               </RequirePermission>
             ),
           },

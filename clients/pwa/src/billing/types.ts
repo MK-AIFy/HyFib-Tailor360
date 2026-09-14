@@ -5,10 +5,12 @@
  * ## Money is never arithmetic on this side
  *
  * Every amount arrives as an unformatted decimal — a number or a string, per COD-01 — and this
- * module never adds, multiplies or rounds one. The one exception is the denomination count sheet
- * (`denominationCount.ts`), which totals what a cashier counted so the screen can show it before the
- * server is asked; the server recomputes the same total from the same rows and is the only version
- * that is ever stored.
+ * module never adds, multiplies or rounds one. Two named exceptions exist, both for the same reason:
+ * the denomination count sheet (`denominationCount.ts`), which totals what a cashier counted, and the
+ * credit/debit-note arithmetic (`adjustmentNote.ts`), which sums what a line still carries and what a
+ * note will move. Both let the screen show a figure before the server is asked; the server recomputes
+ * the same figure from the same rows and is the only version that is ever stored, and nothing either
+ * module computes is ever sent as a figure the server trusts — only the typed inputs are sent.
  */
 
 /** A payment mode the caller's branch may take money in — cash, card, UPI or a similar rail. */
@@ -243,6 +245,19 @@ export interface CreateInvoiceDraftRequest {
 
 /** What is sent to discard a draft or post it. Null asks for no reason to be recorded. */
 export interface BillingReasonRequest {
+  readonly reason: string | null
+}
+
+/** One line of a credit or debit note being posted: the garment job it moves, and by how much. */
+export interface AdjustmentNoteLineRequest {
+  readonly garmentJobId: string
+  /** The taxable value moved, positive, to the paisa. The server taxes it at the line's own rates. */
+  readonly taxableValue: number
+}
+
+/** What is sent to post a credit or debit note against a posted invoice (#354). */
+export interface PostAdjustmentNoteRequest {
+  readonly lines: readonly AdjustmentNoteLineRequest[]
   readonly reason: string | null
 }
 
