@@ -55,7 +55,7 @@
     -->
     <PackageVersion Include="QuestPDF" Version="2026.8.0" />
     <PackageVersion Include="ZXing.Net" Version="0.16.11" />
-    <PackageVersion Include="Minio" Version="6.0.5" />
+    <PackageVersion Include="Minio" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Validation and tooling">
