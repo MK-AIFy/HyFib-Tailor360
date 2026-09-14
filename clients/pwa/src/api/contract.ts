@@ -115,6 +115,12 @@ import type {
   PriceListVersionSummary,
   RenamePriceListRequest,
 } from '../billing/priceListTypes'
+import type {
+  PricedDocumentTotals,
+  PricedLine,
+  PricingPreviewRequest,
+  PricingResult,
+} from '../billing/pricingPreviewTypes'
 
 /**
  * The published API contract, in TypeScript.
@@ -797,4 +803,30 @@ export type AddTaxCodeRequestConforms = Conforms<
 export type TaxConfigurationPublicationConforms = Conforms<
   TaxConfigurationPublication,
   Immutable<components['schemas']['TaxConfigurationPublicationPayload']>
+>
+
+/* The pricing preview and the accountant's test-case shapes before publish (E09-F01-8b). --------- */
+
+/**
+ * The largest hand-written request body in the client — exactly the shape that rots quietly
+ * (`TemplateFieldRequest`'s own note above says so of itself; this one is bigger still).
+ */
+export type PreviewPricingRequestConforms = Conforms<
+  PricingPreviewRequest,
+  Immutable<RequestBody<'PreviewPricing'>>
+>
+
+export type PricingResultConforms = Conforms<
+  PricingResult,
+  Immutable<Response200<'PreviewPricing'>>
+>
+
+export type PricedLineConforms = Conforms<
+  PricedLine,
+  Immutable<components['schemas']['PricedLinePayload']>
+>
+
+export type PricedDocumentTotalsConforms = Conforms<
+  PricedDocumentTotals,
+  Immutable<components['schemas']['PricedDocumentTotalsPayload']>
 >

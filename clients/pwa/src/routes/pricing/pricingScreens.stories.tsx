@@ -27,6 +27,7 @@ import { GstRegistrationsRoute } from './GstRegistrationsRoute'
 import { PriceListsRoute } from './PriceListsRoute'
 import { PriceListVersionEditorRoute } from './PriceListVersionEditorRoute'
 import { PriceListVersionsRoute } from './PriceListVersionsRoute'
+import { PricingPreviewRoute } from './PricingPreviewRoute'
 import { TaxConfigurationEditorRoute } from './TaxConfigurationEditorRoute'
 import { TaxConfigurationListRoute } from './TaxConfigurationListRoute'
 import '../admin/admin.css'
@@ -767,5 +768,96 @@ export const PriceListVersionEditorPublishForbidden: Story = {
         [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
       },
       PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+/* The pricing preview and the accountant's test-case shapes before publish (E09-F01-8b). --------- */
+
+const PRICING_PREVIEW_ROUTE = { path: '/admin/pricing/preview', at: '/admin/pricing/preview' }
+
+/**
+ * A version pre-selected through `?versionId=`, the way the version editor's own link arrives —
+ * `PriceListVersionEditorRoute.tsx`'s "See the effect before publishing".
+ */
+const PRICING_PREVIEW_WITH_VERSION_ROUTE = {
+  path: '/admin/pricing/preview',
+  at: `/admin/pricing/preview?versionId=${PRICE_LIST_VERSION_ID}`,
+}
+
+const PRICING_PREVIEW_BASE_ROUTES = {
+  [`GET ${PRICE_LISTS}`]: () => storyJson([PRICE_LIST]),
+  [`GET ${TAX_VERSIONS}`]: () => storyJson([aTaxConfigurationSummary()]),
+  [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+}
+
+/** Nothing chosen yet: the three pickers are ready, and no version means no line can be added. */
+export const PricingPreviewWorking: Story = {
+  render: () =>
+    withAdminApi(<PricingPreviewRoute />, PRICING_PREVIEW_BASE_ROUTES, PRICING_PREVIEW_ROUTE),
+}
+
+export const PricingPreviewLoading: Story = {
+  render: () =>
+    withAdminApi(
+      <PricingPreviewRoute />,
+      { ...PRICING_PREVIEW_BASE_ROUTES, [`GET ${PRICE_LISTS}`]: storyPending },
+      PRICING_PREVIEW_ROUTE,
+    ),
+}
+
+/**
+ * A version already chosen — through the same `?versionId=` a real link arrives with — and no line
+ * added yet: the empty state that names the case shapes below it as the way to start.
+ */
+export const PricingPreviewEmpty: Story = {
+  render: () =>
+    withAdminApi(
+      <PricingPreviewRoute />,
+      {
+        ...PRICING_PREVIEW_BASE_ROUTES,
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyJson([aPriceListVersionSummary()]),
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+      },
+      PRICING_PREVIEW_WITH_VERSION_ROUTE,
+    ),
+}
+
+export const PricingPreviewError: Story = {
+  render: () =>
+    withAdminApi(
+      <PricingPreviewRoute />,
+      {
+        ...PRICING_PREVIEW_BASE_ROUTES,
+        [`GET ${PRICE_LISTS}`]: () => storyProblem(503, 'platform.unavailable'),
+      },
+      PRICING_PREVIEW_ROUTE,
+    ),
+}
+
+export const PricingPreviewForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+        <PricingPreviewRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }),
+        ...PRICING_PREVIEW_BASE_ROUTES,
+      },
+      PRICING_PREVIEW_ROUTE,
+    ),
+}
+
+export const PricingPreviewPseudoLocale: Story = {
+  globals: { locale: 'en-XA' },
+  render: () =>
+    withAdminApi(
+      <PricingPreviewRoute />,
+      {
+        ...PRICING_PREVIEW_BASE_ROUTES,
+        [`GET ${PRICE_LIST_VERSIONS}`]: () => storyJson([aPriceListVersionSummary()]),
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+      },
+      PRICING_PREVIEW_WITH_VERSION_ROUTE,
     ),
 }

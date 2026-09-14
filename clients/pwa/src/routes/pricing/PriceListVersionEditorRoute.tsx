@@ -676,6 +676,12 @@ export function PriceListVersionEditorRoute() {
         </Link>
       </p>
 
+      <p>
+        <Link to={`/admin/pricing/preview?versionId=${value.version.priceListVersionId}`}>
+          <FormattedMessage id="pricing.priceList.editor.preview" />
+        </Link>
+      </p>
+
       <h2>
         {intl.formatMessage(
           { id: 'pricing.priceList.editor.heading' },
