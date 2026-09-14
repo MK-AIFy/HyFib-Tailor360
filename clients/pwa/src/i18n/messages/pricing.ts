@@ -110,8 +110,6 @@ export const pricingEn = {
     'This version is published. Every invoice since was calculated on it — clone it to a new draft to change what it says.',
   'pricing.tax.editor.retired':
     'This version is retired. It is the record of what an invoice was once calculated on.',
-  'pricing.tax.editor.publishComingSoon':
-    'Checking this version and publishing it are not in this screen yet.',
   'pricing.tax.editor.heading': 'Tax configuration version {number}',
   'pricing.tax.editor.detailsTitle': 'Version details',
   'pricing.tax.editor.edit': 'Change the version’s details',
@@ -173,7 +171,26 @@ export const pricingEn = {
   'pricing.taxCode.form.reason': 'Note (optional)',
   'pricing.taxCode.form.save': 'Save',
 
+  /* Validating and publishing a version (E09-F01-5b). ------------------------------------------ */
+  'pricing.tax.editor.validate': 'Check this version',
+  'pricing.tax.editor.check.stale':
+    'This version has changed since the last check. Check it again before publishing.',
+  'pricing.tax.editor.publish': 'Publish this version',
+  'pricing.tax.editor.publish.title': 'Publish this tax configuration?',
+  'pricing.tax.editor.publish.body':
+    'Every invoice from the moment you publish is calculated on this version, and whatever is published now is superseded. Invoices already posted keep the version they were calculated on.',
+  'pricing.tax.editor.publish.done': 'Published.',
+  'pricing.tax.editor.publish.superseded':
+    'It supersedes the version that was published before it.',
+  'pricing.tax.editor.publish.forbiddenAction': 'publishing a tax configuration version',
+
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
+  'pricing.problem.versionNotPublishable':
+    'Only a draft can be published. Clone this version to a new draft to publish the change there.',
+  'pricing.problem.publishValidationFailed':
+    'This version cannot be published yet. Correct what the checks below report.',
+  'pricing.problem.publishConflict':
+    'Someone else published a version at the same moment. Here is where this version now stands.',
   'pricing.problem.gstinNotWellFormed':
     'This does not look like a GSTIN. It is fifteen characters, ending with a check character the server verifies.',
   'pricing.problem.gstinStateMismatch': 'This GSTIN’s state does not match the state code entered.',
@@ -485,9 +502,6 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.tax.editor.retired':
     'This version is retired. It is the record of what an invoice was once calculated on.',
   // not translated — awaiting native-speaker review
-  'pricing.tax.editor.publishComingSoon':
-    'Checking this version and publishing it are not in this screen yet.',
-  // not translated — awaiting native-speaker review
   'pricing.tax.editor.heading': 'Tax configuration version {number}',
   // not translated — awaiting native-speaker review
   'pricing.tax.editor.detailsTitle': 'Version details',
@@ -603,7 +617,37 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   // not translated — awaiting native-speaker review
   'pricing.taxCode.form.save': 'Save',
 
+  /* Validating and publishing a version (E09-F01-5b). ------------------------------------------ */
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.validate': 'Check this version',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.check.stale':
+    'This version has changed since the last check. Check it again before publishing.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publish': 'Publish this version',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publish.title': 'Publish this tax configuration?',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publish.body':
+    'Every invoice from the moment you publish is calculated on this version, and whatever is published now is superseded. Invoices already posted keep the version they were calculated on.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publish.done': 'Published.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publish.superseded':
+    'It supersedes the version that was published before it.',
+  // not translated — awaiting native-speaker review
+  'pricing.tax.editor.publish.forbiddenAction': 'publishing a tax configuration version',
+
   /* Refusals, in the shop's words — consumed through `billingProblems.ts`. ---------------------- */
+  // not translated — awaiting native-speaker review
+  'pricing.problem.versionNotPublishable':
+    'Only a draft can be published. Clone this version to a new draft to publish the change there.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.publishValidationFailed':
+    'This version cannot be published yet. Correct what the checks below report.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.publishConflict':
+    'Someone else published a version at the same moment. Here is where this version now stands.',
   // not translated — awaiting native-speaker review
   'pricing.problem.gstinNotWellFormed':
     'This does not look like a GSTIN. It is fifteen characters, ending with a check character the server verifies.',

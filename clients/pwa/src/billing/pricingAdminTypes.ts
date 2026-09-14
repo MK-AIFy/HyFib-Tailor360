@@ -138,3 +138,15 @@ export interface DescribeTaxConfigurationRequest {
   readonly effectiveFrom: string | null
   readonly reason: string | null
 }
+
+/**
+ * What a publish answered with (E09-F01-5b): the version now published, the one it superseded (null
+ * the first time a configuration is ever published), and every finding the publication returned —
+ * warnings included. A successful publish can still carry a warning, which is why this is not just
+ * `TaxConfiguration`.
+ */
+export interface TaxConfigurationPublication {
+  readonly published: TaxConfiguration
+  readonly supersededVersionId: string | null
+  readonly findings: readonly BillingFinding[]
+}

@@ -1,6 +1,7 @@
 import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 import type {
+  BillingValidationReport,
   CreateTaxConfigurationDraftRequest,
   DescribeTaxConfigurationRequest,
   GstRegistration,
@@ -8,6 +9,7 @@ import type {
   TaxCode,
   TaxCodeRequest,
   TaxConfiguration,
+  TaxConfigurationPublication,
   TaxConfigurationSummary,
 } from './pricingAdminTypes'
 
@@ -202,6 +204,42 @@ export async function removeTaxCode(input: {
 }): Promise<VersionedResponse<void>> {
   return await apiRequestVersioned<void>(
     `${BILLING}/tax-configuration/versions/${input.versionId}/tax-codes/${input.taxCodeId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/**
+ * Runs the publication checks against a version without publishing it (E09-F01-5b). Every check this
+ * module runs is an error today, but the report's shape carries a warning too, for the day one exists.
+ */
+export async function validateTaxConfigurationVersion(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<BillingValidationReport> {
+  return await apiRequest<BillingValidationReport>(
+    `${BILLING}/tax-configuration/versions/${versionId}/validation`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/**
+ * Publishes a draft: step-up, a mandatory reason, and the race two administrators lose
+ * (`billing.publish-conflict`). Refused with `billing.publish-validation-failed` and every finding,
+ * warnings included, when the publication checks are not satisfied.
+ */
+export async function publishTaxConfigurationVersion(input: {
+  readonly versionId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<TaxConfigurationPublication>> {
+  return await apiRequestVersioned<TaxConfigurationPublication>(
+    `${BILLING}/tax-configuration/versions/${input.versionId}/publish`,
     {
       method: 'POST',
       body: { reason: input.reason },

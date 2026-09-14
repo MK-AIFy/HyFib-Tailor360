@@ -121,6 +121,8 @@ export const STORY_USER = {
     'catalog.templates.publish',
     'catalog.edit',
     'catalog.publish',
+    'billing.manage_price_lists',
+    'billing.publish_price_list',
   ],
   security: {
     mfaEnrolment: 'Enrolled',
