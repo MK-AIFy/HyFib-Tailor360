@@ -17,6 +17,7 @@ import {
   printInvoice,
 } from '../../billing/billingApi'
 import { InvoiceDocumentView } from '../../billing/InvoiceDocumentView'
+import { saveBlob } from '../../billing/saveBlob'
 import type { AdjustmentNote, Invoice } from '../../billing/types'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import type { ConfirmOutcome } from '../../components/dialogs/ConfirmDialog'
@@ -79,19 +80,6 @@ export function InvoiceDetailRoute() {
       )}
     </section>
   )
-}
-
-/** Hands a downloaded blob to the browser's save dialogue. Shared with AdjustmentNoteRoute (#354). */
-export function saveBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob)
-  try {
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    link.click()
-  } finally {
-    URL.revokeObjectURL(url)
-  }
 }
 
 function InvoiceDetail({
