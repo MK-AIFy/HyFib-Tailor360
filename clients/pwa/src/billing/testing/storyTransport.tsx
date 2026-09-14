@@ -92,9 +92,18 @@ export function withBillingApi(
   )
 }
 
+/**
+ * The `userId` every billing story's signed-in user carries.
+ *
+ * Exported so a story that needs its fixture to belong to *this* signed-in user — a cashier session
+ * fixture's `cashierId`, say — can match it rather than guess it, the same trap
+ * `CashierSessionRoute` itself guards against by matching on `cashierId` rather than list position.
+ */
+export const STORY_USER_ID = '0199bb00-0000-7000-8000-0000000000f1'
+
 function storyUser(permissions: readonly string[] = ['billing.create_invoice']) {
   return {
-    userId: '0199bb00-0000-7000-8000-0000000000f1',
+    userId: STORY_USER_ID,
     userName: 'cashier.story',
     displayName: 'Anitha (counter)',
     email: 'cashier.story@example.invalid',

@@ -8,10 +8,11 @@ import { forgetAntiforgeryToken } from '../../auth/antiforgery'
 import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { RequireSession } from '../../auth/RequireSession'
 import { SessionProvider } from '../../auth/SessionProvider'
-import { aCurrentUser, jsonResponse, stubFetch } from '../../auth/testing/fixtures'
+import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { ShellStatusProvider } from '../../components/layout/ShellStatusProvider'
+import { expectNoAccessibilityViolations } from '../../design-system/testing/axe'
 import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import {
   BRANCH_ID,
@@ -147,5 +148,67 @@ describe('picking the signed-in cashier’s own open session', () => {
     expect(await screen.findByText('Session closed')).toBeInTheDocument()
     expect(transport.callsTo(`POST ${SESSIONS}/${ownSession.id}/close`)).toHaveLength(1)
     expect(transport.callsTo(`POST ${SESSIONS}/${COLLEAGUE_SESSION_ID}/close`)).toHaveLength(0)
+  })
+})
+
+describe('accessibility', () => {
+  it('has no violations with an open session — the close form and its count sheet', async () => {
+    transport.route(`GET ${SESSIONS}?status=Open`, () =>
+      jsonResponse([aCashierSession({ cashierId: CASHIER_ID })]),
+    )
+    const { container } = renderAt('/billing/cashier')
+
+    await screen.findByLabelText('₹10 notes')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no violations with no open session — the opening form', async () => {
+    transport.route(`GET ${SESSIONS}?status=Open`, () => jsonResponse([]))
+    const { container } = renderAt('/billing/cashier')
+
+    await screen.findByRole('heading', { name: 'Open a session' })
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no violations when the session list fails to load', async () => {
+    transport.route(`GET ${SESSIONS}?status=Open`, () =>
+      problemResponse(503, 'platform.unavailable'),
+    )
+    const { container } = renderAt('/billing/cashier')
+
+    await screen.findByRole('alert')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('blocks closing while offline and keeps the count already entered', async () => {
+    transport.route(`GET ${SESSIONS}?status=Open`, () =>
+      jsonResponse([aCashierSession({ cashierId: CASHIER_ID })]),
+    )
+    const user = userEvent.setup()
+    const { container } = renderAt('/billing/cashier')
+
+    const notes = await screen.findByLabelText('₹10 notes')
+    await user.clear(notes)
+    await user.type(notes, '5')
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    expect(
+      await screen.findByText('Needs connection — this will not be queued'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Close session' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('₹10 notes')).toHaveValue('5')
+    await expectNoAccessibilityViolations(container)
+
+    vi.restoreAllMocks()
+    window.dispatchEvent(new Event('online'))
+  })
+
+  it('has no violations when forbidden', async () => {
+    transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser({ permissions: [] })))
+    const { container } = renderAt('/billing/cashier')
+
+    await screen.findByText('You do not have access to this')
+    await expectNoAccessibilityViolations(container)
   })
 })

@@ -9,7 +9,7 @@ import { forgetAntiforgeryToken } from '../../auth/antiforgery'
 import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { RequireSession } from '../../auth/RequireSession'
 import { SessionProvider } from '../../auth/SessionProvider'
-import { aCurrentUser, jsonResponse, stubFetch } from '../../auth/testing/fixtures'
+import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { ShellStatusProvider } from '../../components/layout/ShellStatusProvider'
@@ -166,7 +166,7 @@ describe('taking a payment — form validation', () => {
 
   it('blocks recording while offline and keeps what was typed', async () => {
     const user = userEvent.setup()
-    renderAt(PATH)
+    const { container } = renderAt(PATH)
 
     await user.type(await screen.findByLabelText('Amount'), '250')
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
@@ -177,14 +177,35 @@ describe('taking a payment — form validation', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Record payment' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Amount')).toHaveValue('250')
+    await expectNoAccessibilityViolations(container)
 
     vi.restoreAllMocks()
     window.dispatchEvent(new Event('online'))
   })
 
-  it('has no accessibility violations', async () => {
+  it('has no accessibility violations when loaded', async () => {
     const { container } = renderAt(PATH)
     await screen.findByLabelText('Amount')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no accessibility violations with no order on the query string', async () => {
+    const { container } = renderAt('/billing/payments/new')
+    await screen.findByText('No order matches that reference.')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no accessibility violations when the balance fails to load', async () => {
+    transport.route(`GET ${BALANCE}`, () => problemResponse(503, 'platform.unavailable'))
+    const { container } = renderAt(PATH)
+    await screen.findByRole('alert')
+    await expectNoAccessibilityViolations(container)
+  })
+
+  it('has no accessibility violations when forbidden', async () => {
+    transport.route('GET /api/v1/me', () => jsonResponse(aCurrentUser({ permissions: [] })))
+    const { container } = renderAt(PATH)
+    await screen.findByText('You do not have access to this')
     await expectNoAccessibilityViolations(container)
   })
 
