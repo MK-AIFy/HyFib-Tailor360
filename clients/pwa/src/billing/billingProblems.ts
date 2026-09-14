@@ -62,6 +62,19 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.configuration-missing': 'billing.problem.configurationMissing',
   'billing.reason-required': 'billing.problem.reasonRequired',
   'billing.reason-not-well-formed': 'billing.problem.reasonNotWellFormed',
+  // Cancelling an invoice, and issuing credit and debit notes (#354).
+  'billing.invoice-not-posted': 'billing.problem.invoiceNotPosted',
+  'billing.invoice-already-cancelled': 'billing.problem.invoiceAlreadyCancelled',
+  // Points at the credit note as the remaining route — a credit note posts the same reversal
+  // whichever day it happens on (OD-23's recorded reasoning).
+  'billing.cancellation-window-closed': 'billing.problem.cancellationWindowClosed',
+  // `billing.note-line-not-on-invoice` and `billing.note-exceeds-line` are also read against the
+  // offending row's own field key (`lines[<garmentJobId>].taxableValue`) by AdjustmentNoteRoute
+  // itself, so the row that failed is obvious — the banner mapping here is the fallback for a
+  // refusal this screen did not expect on any particular row.
+  'billing.note-line-not-on-invoice': 'billing.problem.noteLineNotOnInvoice',
+  'billing.note-exceeds-line': 'billing.problem.noteExceedsLine',
+  'billing.note-value-not-well-formed': 'billing.problem.noteValueNotWellFormed',
 }
 
 /** The code of a failure, when the server sent one. */

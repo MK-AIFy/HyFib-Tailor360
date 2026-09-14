@@ -8,7 +8,13 @@ import { forgetAntiforgeryToken } from '../../auth/antiforgery'
 import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { RequireSession } from '../../auth/RequireSession'
 import { SessionProvider } from '../../auth/SessionProvider'
-import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
+import {
+  aCurrentUser,
+  aSignInResult,
+  jsonResponse,
+  problemResponse,
+  stubFetch,
+} from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
 import { RequirePermission } from '../../admin/RequirePermission'
 import { ShellStatusProvider } from '../../components/layout/ShellStatusProvider'
@@ -573,5 +579,248 @@ describe('the draft lifecycle: post and discard (#345)', () => {
     const { container } = renderAt(ALL_PERMISSIONS)
     await screen.findByRole('heading', { level: 1, name: 'Draft' })
     await expectNoAccessibilityViolations(container)
+  })
+})
+
+describe('the cancel lifecycle (#354)', () => {
+  const cancelUrl = `${invoiceUrl}/cancel`
+  const CAN_CANCEL = [BILLING_PERMISSIONS.createInvoice, BILLING_PERMISSIONS.cancelInvoice]
+
+  it('offers Cancel on a posted, not-cancelled invoice, for a caller holding billing.cancel_invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+
+    renderAt(CAN_CANCEL)
+
+    expect(await screen.findByRole('button', { name: 'Cancel invoice' })).toBeInTheDocument()
+  })
+
+  it('shows no Cancel control on a draft invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+
+    renderAt(CAN_CANCEL)
+
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument()
+  })
+
+  it('shows no Cancel control on an already-cancelled invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(aCancelledInvoice()))
+
+    renderAt(CAN_CANCEL)
+
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument()
+  })
+
+  it('shows no Cancel control without billing.cancel_invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+
+    renderAt([BILLING_PERMISSIONS.createInvoice])
+
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument()
+  })
+
+  it('cancels the invoice behind a confirmation with a reason, announces it, and refreshes the invoice', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+    transport.route(`POST ${cancelUrl}`, () =>
+      jsonResponse(
+        anInvoice({
+          cancelled: true,
+          cancellation: {
+            cancellationId: '0199dd00-0000-7000-8000-000000006001',
+            creditNoteId: '0199dd00-0000-7000-8000-000000006002',
+            reason: 'Issued to the wrong customer.',
+            cancelledAt: '2026-09-14T05:00:00.000Z',
+          },
+        }),
+      ),
+    )
+
+    renderAt(CAN_CANCEL)
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+
+    await user.click(screen.getByRole('button', { name: 'Cancel invoice' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Reason' }),
+      'Issued to the wrong customer.',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel invoice' }))
+
+    expect(await screen.findByText('This invoice is cancelled.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    const [sent] = transport.callsTo(`POST ${cancelUrl}`)
+    expect(sent?.body).toEqual({ reason: 'Issued to the wrong customer.' })
+    expect(transport.callsTo(`GET ${invoiceUrl}`)).toHaveLength(2)
+  })
+
+  it('replays the same Idempotency-Key and reason after a step-up challenge', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+    transport.route('POST /api/v1/auth/login', () => jsonResponse(aSignInResult()))
+    let attempt = 0
+    transport.route(`POST ${cancelUrl}`, () => {
+      attempt += 1
+      return attempt === 1
+        ? problemResponse(403, 'security.step-up-required')
+        : jsonResponse(anInvoice({ cancelled: true }))
+    })
+
+    renderAt(CAN_CANCEL)
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+
+    await user.click(screen.getByRole('button', { name: 'Cancel invoice' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Reason' }),
+      'Issued to the wrong customer.',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel invoice' }))
+
+    const identityDialog = await screen.findByRole('dialog', { name: 'Confirm it is you' })
+    await user.type(within(identityDialog).getByLabelText('Password'), 'synthetic-password')
+    await user.click(within(identityDialog).getByRole('button', { name: 'Confirm' }))
+
+    await waitFor(() => {
+      expect(transport.callsTo(`POST ${cancelUrl}`)).toHaveLength(2)
+    })
+    expect(await screen.findByText('This invoice is cancelled.')).toBeInTheDocument()
+
+    const [first, second] = transport.callsTo(`POST ${cancelUrl}`)
+    expect(first?.body).toEqual(second?.body)
+    expect(first?.headers.get('Idempotency-Key')).toBe(second?.headers.get('Idempotency-Key'))
+  })
+
+  it('renders billing.cancellation-window-closed as a sentence pointing at the credit note route, never a code', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+    transport.route(`POST ${cancelUrl}`, () =>
+      problemResponse(422, 'billing.cancellation-window-closed'),
+    )
+
+    renderAt(CAN_CANCEL)
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+
+    await user.click(screen.getByRole('button', { name: 'Cancel invoice' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Reason' }), 'Too late to cancel.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel invoice' }))
+
+    expect(
+      await within(dialog).findByText(
+        'This invoice was posted too long ago to cancel. Post a credit note against it instead.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByText('billing.cancellation-window-closed')).not.toBeInTheDocument()
+  })
+
+  it('renders a 403 refusing the cancellation as a sentence, never a code', async () => {
+    const user = userEvent.setup()
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+    transport.route(`POST ${cancelUrl}`, () => problemResponse(403, 'billing.cancel-forbidden'))
+
+    renderAt(CAN_CANCEL)
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+
+    await user.click(screen.getByRole('button', { name: 'Cancel invoice' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Reason' }),
+      'Issued to the wrong customer.',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel invoice' }))
+
+    expect(
+      await within(dialog).findByText('This did not go through, and the reason is not clear.'),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByText('billing.cancel-forbidden')).not.toBeInTheDocument()
+  })
+
+  it('offline, blocks Cancel and sends no request', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+
+    renderAt(CAN_CANCEL)
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+
+    window.dispatchEvent(new Event('offline'))
+
+    expect(
+      await screen.findByText(
+        'Cancelling this invoice needs a connection. It has not been sent, and it will not be sent later.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument()
+    expect(transport.callsTo(`POST ${cancelUrl}`)).toHaveLength(0)
+
+    window.dispatchEvent(new Event('online'))
+  })
+
+  it('has no accessibility violations on a posted invoice with Cancel available', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+
+    const { container } = renderAt(CAN_CANCEL)
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+    await expectNoAccessibilityViolations(container)
+  })
+})
+
+describe('the link to issue a credit or debit note (#354)', () => {
+  const CAN_ISSUE_NOTES = [
+    BILLING_PERMISSIONS.createInvoice,
+    BILLING_PERMISSIONS.postAdjustmentNote,
+  ]
+
+  it('offers the link on a posted, not-cancelled invoice, for a caller holding billing.post_credit_note', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+
+    renderAt(CAN_ISSUE_NOTES)
+
+    expect(
+      await screen.findByRole('link', {
+        name: 'Issue a credit or debit note against INV-CBE01-2627-000731',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('offers no link on a draft invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => versionedResponse(aDraftInvoice(), 'W/"1"'))
+
+    renderAt(CAN_ISSUE_NOTES)
+
+    await screen.findByRole('heading', { level: 1, name: 'Draft' })
+    expect(
+      screen.queryByRole('link', {
+        name: 'Issue a credit or debit note against INV-CBE01-2627-000731',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers no link on an already-cancelled invoice', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(aCancelledInvoice()))
+
+    renderAt(CAN_ISSUE_NOTES)
+
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+    expect(
+      screen.queryByRole('link', {
+        name: 'Issue a credit or debit note against INV-CBE01-2627-000731',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers no link without billing.post_credit_note', async () => {
+    transport.route(`GET ${invoiceUrl}`, () => jsonResponse(anInvoice()))
+
+    renderAt([BILLING_PERMISSIONS.createInvoice])
+
+    await screen.findByRole('heading', { name: 'INV-CBE01-2627-000731' })
+    expect(
+      screen.queryByRole('link', {
+        name: 'Issue a credit or debit note against INV-CBE01-2627-000731',
+      }),
+    ).not.toBeInTheDocument()
   })
 })

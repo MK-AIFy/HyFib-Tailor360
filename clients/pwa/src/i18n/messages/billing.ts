@@ -264,6 +264,44 @@ export const billingEn = {
   'billing.invoice.discard.offlineAction': 'Discarding this draft',
   'billing.invoice.conflict.title': 'This invoice changed',
   'billing.invoice.conflict.body': 'Somebody changed this invoice. Here it is again.',
+  'billing.problem.invoiceNotPosted': 'Only a posted invoice is cancelled or corrected by a note.',
+  'billing.problem.invoiceAlreadyCancelled': 'This invoice has already been cancelled.',
+  'billing.problem.cancellationWindowClosed':
+    'This invoice was posted too long ago to cancel. Post a credit note against it instead.',
+  'billing.problem.noteLineNotOnInvoice': 'That line does not belong to this invoice.',
+  'billing.problem.noteExceedsLine': 'That is more than this line still carries.',
+  'billing.problem.noteValueNotWellFormed': 'Enter a positive amount.',
+  'billing.invoice.cancel.action': 'Cancel invoice',
+  'billing.invoice.cancel.cancelling': 'Cancelling…',
+  'billing.invoice.cancel.confirm.title': 'Cancel this invoice?',
+  'billing.invoice.cancel.confirm.body':
+    'The invoice keeps its number and totals. A credit note for {amount} is posted with it, and its garment jobs become free to invoice again.',
+  'billing.invoice.cancel.cancelled': 'This invoice is cancelled.',
+  'billing.invoice.cancel.offlineAction': 'Cancelling this invoice',
+  'billing.invoice.notes.new': 'Issue a credit or debit note',
+  'billing.invoice.notes.new.label': 'Issue a credit or debit note against {invoiceNumber}',
+  'billing.note.title': 'Issue a credit or debit note',
+  'billing.note.loading': 'the invoice',
+  'billing.note.kind.label': 'Kind',
+  'billing.note.kind.credit': 'Credit note',
+  'billing.note.kind.debit': 'Debit note',
+  'billing.note.line.remaining': 'Still carries {amount}',
+  'billing.note.line.amount.label': '{description} — taxable value to move',
+  'billing.note.line.amount.hint': 'Positive, to the paisa.',
+  'billing.note.total': 'Total: {amount}',
+  'billing.note.empty.title': 'Every line is already relieved',
+  'billing.note.empty': 'There is nothing left to credit on this invoice.',
+  'billing.note.incomplete': 'Enter a taxable value against at least one line before posting.',
+  'billing.note.submit.credit': 'Post credit note',
+  'billing.note.submit.debit': 'Post debit note',
+  'billing.note.confirm.title.credit': 'Post this credit note?',
+  'billing.note.confirm.title.debit': 'Post this debit note?',
+  'billing.note.confirm.body': '{amount} against invoice {invoiceNumber}.',
+  'billing.note.posted.credit': 'Credit note {number} posted against {invoiceNumber} for {amount}.',
+  'billing.note.posted.debit': 'Debit note {number} posted against {invoiceNumber} for {amount}.',
+  'billing.note.posted.download': 'Download PDF',
+  'billing.note.posted.viewInvoice': 'Open the invoice',
+  'billing.note.offlineAction': 'Posting a note',
   'billing.cashier.title': 'Cashier session',
   'billing.cashier.loading': 'your cashier session',
   'billing.cashier.open.title': 'Open a session',
@@ -874,6 +912,80 @@ export const billingTa: Record<keyof typeof billingEn, string> = {
   'billing.invoice.conflict.title': 'This invoice changed',
   // not translated — awaiting native-speaker review
   'billing.invoice.conflict.body': 'Somebody changed this invoice. Here it is again.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.invoiceNotPosted': 'Only a posted invoice is cancelled or corrected by a note.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.invoiceAlreadyCancelled': 'This invoice has already been cancelled.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.cancellationWindowClosed':
+    'This invoice was posted too long ago to cancel. Post a credit note against it instead.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.noteLineNotOnInvoice': 'That line does not belong to this invoice.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.noteExceedsLine': 'That is more than this line still carries.',
+  // not translated — awaiting native-speaker review
+  'billing.problem.noteValueNotWellFormed': 'Enter a positive amount.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancel.action': 'Cancel invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancel.cancelling': 'Cancelling…',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancel.confirm.title': 'Cancel this invoice?',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancel.confirm.body':
+    'The invoice keeps its number and totals. A credit note for {amount} is posted with it, and its garment jobs become free to invoice again.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancel.cancelled': 'This invoice is cancelled.',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.cancel.offlineAction': 'Cancelling this invoice',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.new': 'Issue a credit or debit note',
+  // not translated — awaiting native-speaker review
+  'billing.invoice.notes.new.label': 'Issue a credit or debit note against {invoiceNumber}',
+  // not translated — awaiting native-speaker review
+  'billing.note.title': 'Issue a credit or debit note',
+  // not translated — awaiting native-speaker review
+  'billing.note.loading': 'the invoice',
+  // not translated — awaiting native-speaker review
+  'billing.note.kind.label': 'Kind',
+  // not translated — awaiting native-speaker review
+  'billing.note.kind.credit': 'Credit note',
+  // not translated — awaiting native-speaker review
+  'billing.note.kind.debit': 'Debit note',
+  // not translated — awaiting native-speaker review
+  'billing.note.line.remaining': 'Still carries {amount}',
+  // not translated — awaiting native-speaker review
+  'billing.note.line.amount.label': '{description} — taxable value to move',
+  // not translated — awaiting native-speaker review
+  'billing.note.line.amount.hint': 'Positive, to the paisa.',
+  // not translated — awaiting native-speaker review
+  'billing.note.total': 'Total: {amount}',
+  // not translated — awaiting native-speaker review
+  'billing.note.empty.title': 'Every line is already relieved',
+  // not translated — awaiting native-speaker review
+  'billing.note.empty': 'There is nothing left to credit on this invoice.',
+  // not translated — awaiting native-speaker review
+  'billing.note.incomplete': 'Enter a taxable value against at least one line before posting.',
+  // not translated — awaiting native-speaker review
+  'billing.note.submit.credit': 'Post credit note',
+  // not translated — awaiting native-speaker review
+  'billing.note.submit.debit': 'Post debit note',
+  // not translated — awaiting native-speaker review
+  'billing.note.confirm.title.credit': 'Post this credit note?',
+  // not translated — awaiting native-speaker review
+  'billing.note.confirm.title.debit': 'Post this debit note?',
+  // not translated — awaiting native-speaker review
+  'billing.note.confirm.body': '{amount} against invoice {invoiceNumber}.',
+  // not translated — awaiting native-speaker review
+  'billing.note.posted.credit': 'Credit note {number} posted against {invoiceNumber} for {amount}.',
+  // not translated — awaiting native-speaker review
+  'billing.note.posted.debit': 'Debit note {number} posted against {invoiceNumber} for {amount}.',
+  // not translated — awaiting native-speaker review
+  'billing.note.posted.download': 'Download PDF',
+  // not translated — awaiting native-speaker review
+  'billing.note.posted.viewInvoice': 'Open the invoice',
+  // not translated — awaiting native-speaker review
+  'billing.note.offlineAction': 'Posting a note',
   // not translated — awaiting native-speaker review
   'billing.cashier.title': 'Cashier session',
   // not translated — awaiting native-speaker review
