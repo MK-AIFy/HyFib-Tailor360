@@ -8,6 +8,8 @@ import {
   aCashierSession,
   aDispatchException,
   anOrderBalance,
+  anOutstandingBalancePage,
+  anOutstandingBalanceRow,
   aReconciliationBatch,
 } from '../../billing/testing/fixtures'
 import type { StoryRoutes } from '../../billing/testing/storyTransport'
@@ -18,51 +20,63 @@ import {
   withBillingApi,
 } from '../../billing/testing/storyTransport'
 import { DispatchExceptionApprovalRoute } from './DispatchExceptionApprovalRoute'
+import { OutstandingBalancesRoute } from './OutstandingBalancesRoute'
 import { ReconciliationApprovalRoute } from './ReconciliationApprovalRoute'
 import './billing.css'
 
 /**
- * Two of the three "office" screens #165 added — reconciliation approval and dispatch-exception
- * approval — driven against a stubbed API rather than a mock of one, in the shape
- * `counterScreens.stories.tsx` established for the other four.
+ * The three "office" screens #165 added — outstanding balances, reconciliation approval and
+ * dispatch-exception approval — driven against a stubbed API rather than a mock of one, in the shape
+ * `counterScreens.stories.tsx` established for the other four (#423).
  *
- * ## Outstanding balances is deliberately not in this file
- *
- * #423 covers all three office screens, but its own scope note is explicit: the outstanding-balances
- * story has to stub `GET /api/v1/billing/outstanding-balances`, the aggregate read #421 adds, and
- * #421 has not merged — `OutstandingBalanceEndpoints.cs` does not exist on `main` yet. Stubbing
- * today's client-side fan-out (`ListInvoices` + one `GetOrderBalance` per invoice) now would mean
- * rewriting this file's outstanding-balances stories the moment #421 lands, which is exactly the
- * churn #423 asks an implementer to avoid. That third screen's stories, and the rest of the
- * forced-state map below, follow once #421 is on `main`.
+ * Outstanding balances stubs `GET /api/v1/billing/outstanding-balances`, the aggregate read #421
+ * added; that issue merged first, so this file no longer carries the "not yet" note its own earlier
+ * revision did.
  *
  * ## Forcing the connection
  *
  * `useNetworkState` holds one snapshot for the whole document, so `link` below sets `navigator.onLine`
  * and dispatches the matching event — the Storybook-safe equivalent of the `vi.spyOn` the tests use.
  * Every story calls it, the offline ones with `false` and every other one with `true`, because the
- * state outlives the story that set it.
+ * state outlives the story that set it. Outstanding balances has no write, so it has no offline
+ * story — say so once, where its offline story would have been, rather than adding one that blocks
+ * nothing (the same reasoning `counterScreens.stories.tsx` records for payment detail).
  *
  * ## Why "Error" here means the read failing, not the approval
  *
- * Both screens' `AuthProblemAlert` (the read) and `BillingProblemAlert` (the approval) render from
- * `failure` state a person only reaches by first loading successfully and then submitting — a second
- * step no static story render can reach without a real interaction. `counterScreens.stories.tsx`'s own
- * `Error` stories are the same shape: the read failing, which is the one failure a story can show
- * without acting through the screen. The approval's own refusals are the component tests' job.
+ * The two approval screens' `AuthProblemAlert` (the read) and `BillingProblemAlert` (the approval)
+ * render from `failure` state a person only reaches by first loading successfully and then
+ * submitting — a second step no static story render can reach without a real interaction.
+ * `counterScreens.stories.tsx`'s own `Error` stories are the same shape: the read failing, which is
+ * the one failure a story can show without acting through the screen. The approvals' own refusals are
+ * the component tests' job. Outstanding balances only ever reads, so its `Error` story is simply that
+ * read failing — there is no second, write-side failure to distinguish it from.
  *
  * ## The forced-state map
  *
  * `docs/nfr/a11y-checklist.md` section 3.7 asks for the fixture and forced-state list a screen-reader
- * run needs before it starts, so a runner does not invent one mid-run. One row per state per screen
- * this file adds; the four counter screens' map is `counterScreens.stories.tsx`'s own header, and
- * outstanding balances' row follows with #421.
+ * run needs before it starts, so a runner does not invent one mid-run. One row per state for all
+ * seven billing screens — the four counter screens `counterScreens.stories.tsx` (#422/#514) adds, as
+ * well as the three here — each naming the Storybook story id that reaches it, or in one line why the
+ * state is unreachable.
  *
  * | Screen | Loading | Loaded | Empty | Error | Offline | Forbidden | Pseudo-locale |
  * | --- | --- | --- | --- | --- | --- | --- | --- |
+ * | Take payment | `billing-counter-screens--take-payment-loading` | `billing-counter-screens--take-payment` | `billing-counter-screens--take-payment-empty` (no `orderId` on the address) | `billing-counter-screens--take-payment-error` | `billing-counter-screens--take-payment-offline` | `billing-counter-screens--take-payment-forbidden` | `billing-counter-screens--take-payment-pseudo-locale` |
+ * | Allocate advance | `billing-counter-screens--allocate-advance-loading` | `billing-counter-screens--allocate-advance` | `billing-counter-screens--allocate-advance-empty` (nothing held) | `billing-counter-screens--allocate-advance-error` | `billing-counter-screens--allocate-advance-offline` | `billing-counter-screens--allocate-advance-forbidden` | `billing-counter-screens--allocate-advance-pseudo-locale` |
+ * | Payment detail | `billing-counter-screens--payment-detail-loading` | `billing-counter-screens--payment-detail` | `billing-counter-screens--payment-detail-empty` (nothing applied or held) | `billing-counter-screens--payment-detail-error` | no write on this screen, so no blocked-action state | `billing-counter-screens--payment-detail-forbidden` | `billing-counter-screens--payment-detail-pseudo-locale` |
+ * | Cashier session | `billing-counter-screens--cashier-session-loading` | `billing-counter-screens--cashier-session` | `billing-counter-screens--cashier-session-empty` (no open session) | `billing-counter-screens--cashier-session-error` | `billing-counter-screens--cashier-session-offline` | `billing-counter-screens--cashier-session-forbidden` | `billing-counter-screens--cashier-session-pseudo-locale` |
+ * | Outstanding balances | `billing-office-screens--outstanding-balances-loading` | `billing-office-screens--outstanding-balances` | `billing-office-screens--outstanding-balances-empty` | `billing-office-screens--outstanding-balances-error` | no write on this screen, so no blocked-action state | `billing-office-screens--outstanding-balances-forbidden` | `billing-office-screens--outstanding-balances-pseudo-locale` |
  * | Reconciliation approval | `billing-office-screens--reconciliation-approval-loading` | `billing-office-screens--reconciliation-approval` | `billing-office-screens--reconciliation-approval-approved` (already signed off) and `billing-office-screens--reconciliation-approval-no-variance` (closed clean, nothing to approve) | `billing-office-screens--reconciliation-approval-error` | `billing-office-screens--reconciliation-approval-offline` | `billing-office-screens--reconciliation-approval-forbidden` | `billing-office-screens--reconciliation-approval-pseudo-locale` |
  * | Dispatch exception approval | `billing-office-screens--dispatch-exception-approval-loading` | `billing-office-screens--dispatch-exception-approval` | `billing-office-screens--dispatch-exception-approval-empty` (no order on the address) | `billing-office-screens--dispatch-exception-approval-error` | `billing-office-screens--dispatch-exception-approval-offline` | `billing-office-screens--dispatch-exception-approval-forbidden` | `billing-office-screens--dispatch-exception-approval-pseudo-locale` |
- * | Outstanding balances | not yet — #421 | not yet — #421 | not yet — #421 | not yet — #421 | no write on this screen, so no state to force | not yet — #421 | not yet — #421 |
+ *
+ * Three screens also carry a 320 px reflow-floor story, beyond the table above: `TakePayment` and
+ * `CashierSession` (`billing-counter-screens--take-payment-reflow-floor`,
+ * `billing-counter-screens--cashier-session-reflow-floor`) as the two phone-first counter screens, and
+ * `billing-office-screens--outstanding-balances-reflow-floor` here — the one screen of this group with
+ * a wide table, where `DataTable`'s `hideWhenNarrow` columns are the thing a reviewer has to see
+ * collapse. The two approval screens are single-column forms, already covered by the text-size and
+ * locale toolbars, so they carry no reflow-floor story of their own.
  */
 const meta = {
   title: 'Billing/Office screens',
@@ -239,4 +253,94 @@ export const DispatchExceptionApprovalForbidden: Story = {
 export const DispatchExceptionApprovalPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => dispatchExceptionApproval({}),
+}
+
+/* Outstanding balances. ------------------------------------------------------------------------ */
+
+const OUTSTANDING_PATH = '/billing/outstanding'
+const OUTSTANDING_FIRST_PAGE = '/api/v1/billing/outstanding-balances?limit=20'
+const OUTSTANDING_SECOND_PAGE =
+  '/api/v1/billing/outstanding-balances?cursor=story-cursor-2&limit=20'
+
+const outstandingBalances = (routes: StoryRoutes, options: ScreenOptions = {}) =>
+  link(options.online ?? true, () =>
+    withBillingApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.createInvoice}>
+        <OutstandingBalancesRoute />
+      </RequirePermission>,
+      {
+        [`GET ${OUTSTANDING_FIRST_PAGE}`]: () =>
+          storyJson(anOutstandingBalancePage({ nextCursor: 'story-cursor-2' })),
+        [`GET ${OUTSTANDING_SECOND_PAGE}`]: () =>
+          storyJson(
+            anOutstandingBalancePage({
+              rows: [
+                anOutstandingBalanceRow({
+                  invoiceId: '0199dd00-0000-7000-8000-000000006101',
+                  invoiceNumber: 'I-CBE01-2627-000900',
+                  orderNumber: 'O-CBE01-2627-000900',
+                }),
+              ],
+              nextCursor: null,
+            }),
+          ),
+        ...routes,
+      },
+      {
+        path: OUTSTANDING_PATH,
+        at: options.at ?? OUTSTANDING_PATH,
+        permissions: options.permissions ?? [BILLING_PERMISSIONS.createInvoice],
+      },
+    ),
+  )
+
+/**
+ * Every posted invoice at this branch with money still owed, one page at a time — a second page
+ * waiting behind Show more, stubbed here so the control actually works if a reviewer clicks it.
+ */
+export const OutstandingBalances: Story = { render: () => outstandingBalances({}) }
+
+export const OutstandingBalancesLoading: Story = {
+  render: () => outstandingBalances({ [`GET ${OUTSTANDING_FIRST_PAGE}`]: storyPending }),
+}
+
+/** Every posted invoice at this branch is paid in full — the scan exhausted with nothing owed. */
+export const OutstandingBalancesEmpty: Story = {
+  render: () =>
+    outstandingBalances({
+      [`GET ${OUTSTANDING_FIRST_PAGE}`]: () =>
+        storyJson(anOutstandingBalancePage({ rows: [], nextCursor: null })),
+    }),
+}
+
+export const OutstandingBalancesError: Story = {
+  render: () =>
+    outstandingBalances({
+      [`GET ${OUTSTANDING_FIRST_PAGE}`]: () => storyProblem(503, 'platform.unavailable'),
+    }),
+}
+
+/**
+ * No offline story: this screen only reads, so `OfflineBlockedAction` never applies here — see the
+ * file's own header note.
+ */
+
+/** Somebody without `billing.create_invoice`: a sentence and who to ask, never a redirect. */
+export const OutstandingBalancesForbidden: Story = {
+  render: () => outstandingBalances({}, { permissions: [] }),
+}
+
+export const OutstandingBalancesPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => outstandingBalances({}),
+}
+
+/**
+ * At the 320 px reflow floor, over the same render as the loaded story: the `hideWhenNarrow` invoice
+ * and total columns are gone, the table scrolls inside its own container, and the page itself does
+ * not scroll horizontally.
+ */
+export const OutstandingBalancesReflowFloor: Story = {
+  globals: { viewport: { value: 'reflowFloor' } },
+  render: () => outstandingBalances({}),
 }
