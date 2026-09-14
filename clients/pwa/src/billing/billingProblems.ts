@@ -112,6 +112,12 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   'billing.value-too-long': 'pricing.problem.valueTooLong',
   // 'billing.reason-not-well-formed' is already mapped above, to the shared sentence every module
   // uses for the same code.
+  // The price-list version editor's own items (E09-F01-7). `billing.code-not-unique`,
+  // `billing.value-required` and `billing.version-changed`/`-not-editable`/`-not-found` are already
+  // mapped above and shared with the sibling screens; only the item-specific codes are new here.
+  'billing.item-not-found': 'pricing.problem.itemNotFound',
+  'billing.unit-not-well-formed': 'pricing.problem.unitNotWellFormed',
+  'billing.amount-not-well-formed': 'pricing.problem.amountNotWellFormed',
 }
 
 /** The code of a failure, when the server sent one. */

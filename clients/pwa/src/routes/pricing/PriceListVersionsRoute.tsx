@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { listBranches } from '../../admin/adminApi'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { ApiError } from '../../auth/apiClient'
@@ -310,18 +310,29 @@ export function PriceListVersionsRoute() {
               },
             ]}
             rowActions={(row: PriceListVersionSummary) => (
-              <Button
-                aria-label={intl.formatMessage(
-                  { id: 'pricing.priceList.version.clone.label' },
-                  { versionNumber: row.versionNumber },
-                )}
-                onClick={() => {
-                  openClone(row)
-                }}
-                variant="secondary"
-              >
-                <FormattedMessage id="pricing.priceList.version.clone.action" />
-              </Button>
+              <>
+                <Link
+                  aria-label={intl.formatMessage(
+                    { id: 'pricing.priceList.version.open.label' },
+                    { versionNumber: row.versionNumber },
+                  )}
+                  to={`/admin/price-lists/versions/${row.priceListVersionId}`}
+                >
+                  {intl.formatMessage({ id: 'pricing.priceList.version.open' })}
+                </Link>
+                <Button
+                  aria-label={intl.formatMessage(
+                    { id: 'pricing.priceList.version.clone.label' },
+                    { versionNumber: row.versionNumber },
+                  )}
+                  onClick={() => {
+                    openClone(row)
+                  }}
+                  variant="secondary"
+                >
+                  <FormattedMessage id="pricing.priceList.version.clone.action" />
+                </Button>
+              </>
             )}
             rowKey={(row) => row.priceListVersionId}
             rowLabel={(row) => String(row.versionNumber)}

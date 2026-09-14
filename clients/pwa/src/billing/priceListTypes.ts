@@ -1,13 +1,15 @@
 /**
- * The price-list register payloads (#252): a price list and its versions' conventions, pinned
- * against the published contract in `api/contract.ts`.
+ * The price-list register payloads (#252) and the version editor's own payloads (E09-F01-7): a price
+ * list, its versions' conventions, and one version's items and discount rules — pinned against the
+ * published contract in `api/contract.ts`.
  *
  * Every decimal member is typed `number | string`, because the published schema types a decimal as
- * `{"type": ["number", "string"]}` — `overrideThresholdPercent` and `versionNumber` are the two here.
- * No arithmetic is ever done on one; amounts, rates and dates are rendered through `getFormatters()`.
+ * `{"type": ["number", "string"]}` — `overrideThresholdPercent`, `versionNumber`, `baseRate`,
+ * `maximumWithoutApproval` and `maximum` are the ones here. No arithmetic is ever done on one; amounts,
+ * rates and dates are rendered through `getFormatters()`.
  *
- * Items, discount rules, the validation report and publication are E09-F01-7 and E09-F01-7b; nothing
- * here types a price-list item or a discount rule.
+ * The validation report and publication are E09-F01-7b's; `DiscountRule` is typed here because
+ * `PriceListVersion` carries it, but its editor is E09-F01-8's — this issue renders it read-only.
  */
 
 /** A price list, as the register lists it — a code and a name, never deleted. */
@@ -78,4 +80,62 @@ export interface PriceListVersionRequest {
   readonly reason: string | null
   readonly saysTaxInclusive: boolean
   readonly saysBranchIds: boolean
+}
+
+/* The version editor: its items and discount rules (E09-F01-7). ---------------------------------- */
+
+/** One price-list item: a service's base charge, a surcharge or a material. */
+export interface PriceListItem {
+  readonly priceListItemId: string
+  /** Stable across the item's own edits, the way `taxCodeKey` is stable across a tax code's. */
+  readonly priceListItemKey: string
+  readonly code: string
+  readonly description: string
+  /** `Service`, `Surcharge` or `Material`. */
+  readonly kind: string
+  readonly baseRate: number | string
+  readonly unit: string
+  /** A tax code of the published tax configuration — checked at publication, not at save. */
+  readonly taxCode: string
+  /** Whether the item may be priced. A retired item stays readable. */
+  readonly active: boolean
+}
+
+/**
+ * What is sent to add or replace an item. Whole-value: an omitted field is refused, not kept, and
+ * `active` is refused when omitted rather than defaulted — a money-bearing flag is never assumed.
+ */
+export interface PriceListItemRequest {
+  readonly code: string | null
+  readonly description: string | null
+  readonly kind: string | null
+  readonly baseRate: number | string | null
+  readonly unit: string | null
+  readonly taxCode: string | null
+  readonly active: boolean | null
+  readonly reason: string | null
+}
+
+/**
+ * One discount rule of a version, as the editor reads it — read-only here. E09-F01-8 owns the editor
+ * that writes one; this issue renders it because `PriceListVersion` carries it either way, and a rate
+ * an administrator cannot see is worse than one they cannot yet change.
+ */
+export interface DiscountRule {
+  readonly discountRuleId: string
+  readonly discountRuleKey: string
+  readonly code: string
+  readonly description: string
+  /** `Percentage` or `Amount`. */
+  readonly kind: string
+  readonly maximumWithoutApproval: number | string
+  readonly maximum: number | string
+  readonly active: boolean
+}
+
+/** A price-list version and everything in it — its conventions, its items and its discount rules. */
+export interface PriceListVersion {
+  readonly version: PriceListVersionSummary
+  readonly items: readonly PriceListItem[]
+  readonly discountRules: readonly DiscountRule[]
 }

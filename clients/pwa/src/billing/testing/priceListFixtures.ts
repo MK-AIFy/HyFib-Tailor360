@@ -1,13 +1,23 @@
 import { BRANCH_ID } from './fixtures'
-import type { PriceList, PriceListVersionSummary } from '../priceListTypes'
+import type {
+  DiscountRule,
+  PriceList,
+  PriceListItem,
+  PriceListVersion,
+  PriceListVersionSummary,
+} from '../priceListTypes'
 
 /**
- * Synthetic fixtures for the price-list register (#252). No real code, name, rate or threshold
- * appears here or in any story or test built on them.
+ * Synthetic fixtures for the price-list register (#252) and its version editor (E09-F01-7, #268). No
+ * real code, name, rate or threshold appears here or in any story or test built on them.
  */
 
 export const PRICE_LIST_ID = '0199dd00-0000-7000-8000-000000007001'
 export const PRICE_LIST_VERSION_ID = '0199dd00-0000-7000-8000-000000007002'
+export const PRICE_LIST_ITEM_ID = '0199dd00-0000-7000-8000-000000007003'
+export const PRICE_LIST_ITEM_KEY = '0199dd00-0000-7000-8000-000000007004'
+export const DISCOUNT_RULE_ID = '0199dd00-0000-7000-8000-000000007005'
+export const DISCOUNT_RULE_KEY = '0199dd00-0000-7000-8000-000000007006'
 
 /** One price list, by its immutable code. */
 export function aPriceList(overrides: Partial<PriceList> = {}): PriceList {
@@ -41,6 +51,47 @@ export function aPriceListVersionSummary(
     createdAt: '2026-03-20T05:00:00.000Z',
     publishedAt: '2026-03-25T05:00:00.000Z',
     retiredAt: null,
+    ...overrides,
+  }
+}
+
+/** One price-list item: a stitching service's base charge, active, per piece. */
+export function aPriceListItem(overrides: Partial<PriceListItem> = {}): PriceListItem {
+  return {
+    priceListItemId: PRICE_LIST_ITEM_ID,
+    priceListItemKey: PRICE_LIST_ITEM_KEY,
+    code: 'STITCH_BLOUSE',
+    description: 'Blouse stitching',
+    kind: 'Service',
+    baseRate: 505,
+    unit: 'each',
+    taxCode: 'STITCHING_5',
+    active: true,
+    ...overrides,
+  }
+}
+
+/** One discount rule, read-only in this issue — a festive percentage discount within a fixed cap. */
+export function aDiscountRule(overrides: Partial<DiscountRule> = {}): DiscountRule {
+  return {
+    discountRuleId: DISCOUNT_RULE_ID,
+    discountRuleKey: DISCOUNT_RULE_KEY,
+    code: 'FESTIVE10',
+    description: 'Festive season discount',
+    kind: 'Percentage',
+    maximumWithoutApproval: 10,
+    maximum: 20,
+    active: true,
+    ...overrides,
+  }
+}
+
+/** One price-list version and everything in it — a draft carrying one item, no discount rule yet. */
+export function aPriceListVersion(overrides: Partial<PriceListVersion> = {}): PriceListVersion {
+  return {
+    version: aPriceListVersionSummary({ status: 'Draft', publishedAt: null }),
+    items: [aPriceListItem()],
+    discountRules: [],
     ...overrides,
   }
 }
