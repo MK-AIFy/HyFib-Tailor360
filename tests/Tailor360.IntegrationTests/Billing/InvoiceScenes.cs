@@ -149,12 +149,26 @@ internal static class InvoiceScenes
     }
 
     /// <summary>Prices through the contract, as Orders would: no session, so no override permission.</summary>
-    public static async Task<PricingResult> PriceAsync(WebApplicationFixture fixture, Guid branch, string reference, string[] lineKeys, string itemCode, string? surcharge = null)
+    /// <param name="fixture">The hosted application.</param>
+    /// <param name="branch">The branch supplying.</param>
+    /// <param name="reference">The reference the result is stored under.</param>
+    /// <param name="lineKeys">The caller's key per line.</param>
+    /// <param name="itemCode">The base item every line is priced on.</param>
+    /// <param name="surcharge">A surcharge on every line, or none.</param>
+    /// <param name="placeOfSupplyStateCode">
+    /// Where the supply is made. Defaults to <c>"33"</c> — Tamil Nadu, the state every branch fixture
+    /// registers in — so the supply is intra-state and every existing caller prices exactly as before.
+    /// Pass another state's code to reach the inter-state scheme, which is what #326 needs to prove that
+    /// an IGST document prints IGST and no CGST or SGST.
+    /// </param>
+    public static async Task<PricingResult> PriceAsync(
+        WebApplicationFixture fixture, Guid branch, string reference, string[] lineKeys, string itemCode, string? surcharge = null,
+        string placeOfSupplyStateCode = "33")
     {
         using var scope = fixture.Services.CreateScope();
         var priced = await scope.ServiceProvider.GetRequiredService<IPricingService>().PriceAsync(
             new PricingRequest(
-                SessionTestData.OrganisationId, branch, new DateOnly(2026, 9, 12), "33", reference,
+                SessionTestData.OrganisationId, branch, new DateOnly(2026, 9, 12), placeOfSupplyStateCode, reference,
                 [.. lineKeys.Select(key => new PricingLineRequest(key, itemCode, 1m, surcharge is null ? [] : [surcharge], null, null))]),
             Token);
         priced.IsSuccess.ShouldBeTrue(priced.IsFailure ? priced.Error.Message : string.Empty);
