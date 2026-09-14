@@ -626,3 +626,56 @@ export const PriceListVersionEditorPseudoLocale: Story = {
       PRICE_LIST_VERSION_EDITOR_ROUTE,
     ),
 }
+
+/* Validating and publishing a version (E09-F01-7b). ------------------------------------------------- */
+
+/** "Check this version" run against a draft with one blocking problem and one real warning (OD-19). */
+export const PriceListVersionEditorValidated: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+        [`GET ${PRICE_LIST_VERSION}/validation`]: () =>
+          storyJson({
+            versionId: PRICE_LIST_VERSION_ID,
+            canPublish: false,
+            findings: [
+              aBillingFinding({
+                severity: 'Error',
+                code: 'billing.tax-configuration-missing',
+                message:
+                  "No tax configuration version is published, so no item's tax code can be resolved. Publish one first.",
+                target: 'items',
+              }),
+              aBillingFinding({
+                severity: 'Warning',
+                code: 'billing.branch-left-unpriced',
+                message:
+                  '1 branch(es) the published version prices are dropped by this one, and the published catalogue offers priced services there. Keep the branch, or publish another list’s version for it first.',
+                target: 'branchIds',
+              }),
+            ],
+          }),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+/** A holder of the drafting key but not the publishing one: the control is a `Forbidden` region. */
+export const PriceListVersionEditorPublishForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        'GET /api/v1/me': () =>
+          storyJson({ ...STORY_USER, permissions: [BILLING_PERMISSIONS.managePriceLists] }),
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(aPriceListVersion(), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}

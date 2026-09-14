@@ -1,30 +1,38 @@
 import { useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { listBranches } from '../../admin/adminApi'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { ApiError } from '../../auth/apiClient'
 import type { VersionedResponse } from '../../auth/apiClient'
+import { useCurrentUser } from '../../auth/useSession'
+import { BillingFindingsList } from '../../billing/BillingFindingsList'
 import { BillingProblemAlert } from '../../billing/BillingProblemAlert'
+import { BILLING_PERMISSIONS } from '../../billing/billingPermissions'
 import {
   billingProblemCode,
   billingProblemField,
   billingProblemMessage,
+  findingsOf,
 } from '../../billing/billingProblems'
 import {
   addPriceListItem,
   describePriceListVersion,
   editPriceListItem,
+  publishPriceListVersion,
   readPriceListVersion,
   removePriceListItem,
+  validatePriceListVersion,
 } from '../../billing/priceListApi'
 import {
   listTaxConfigurationVersions,
   readTaxConfigurationVersion,
 } from '../../billing/pricingConfigApi'
+import type { BillingFinding, BillingValidationReport } from '../../billing/pricingAdminTypes'
 import type {
   DiscountRule,
   PriceListItem,
+  PriceListPublication,
   PriceListVersionRequest,
 } from '../../billing/priceListTypes'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
@@ -34,6 +42,7 @@ import { Button } from '../../components/primitives/Button'
 import { DataTable } from '../../components/primitives/DataTable'
 import { Icon } from '../../components/primitives/Icon'
 import { EmptyState } from '../../components/states/EmptyState'
+import { Forbidden } from '../../components/states/Forbidden'
 import { LoadingState } from '../../components/states/LoadingState'
 import { NetworkStatusBanner } from '../../components/states/NetworkStatusBanner'
 import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
@@ -53,6 +62,8 @@ import { priceListVersionDraftForEditing } from './priceListVersionDraft'
 import type { PriceListVersionDraft } from './priceListVersionDraft'
 
 const VERSION_CHANGED_CODE = 'billing.version-changed'
+const TAX_CONFIGURATION_MISSING_CODE = 'billing.tax-configuration-missing'
+const CONFLICT_CODES = new Set(['billing.publish-conflict', 'billing.branch-publish-conflict'])
 
 const KIND_KEY: Readonly<Record<string, MessageKey>> = {
   Service: 'pricing.priceListItem.form.kind.Service',
@@ -96,11 +107,20 @@ function requiredFieldFailure(field: string): ApiError {
  * second time here would be the surface this screen has to keep in step with itself; `mode: 'edit'`
  * is the one difference the two callers actually have.
  *
- * ## Why there is no validate control and no publish control here
+ * ## Why validating and publishing reuse `BillingFindingsList.tsx` rather than rendering their own severity
  *
- * Checking a version and publishing it are E09-F01-7b's, which also owns the shared findings list
- * `BillingFindingsList.tsx`. A second rendering of severity here would be the duplication that whole
- * arrangement exists to avoid, so the screen says in one sentence that both arrive next.
+ * `BillingFindingsList.tsx` is what E09-F01-5b built for the tax configuration's own publish, and every
+ * finding it renders — severity, target, the server's own sentence — is exactly what a price-list
+ * publication check answers with too. A second rendering of severity here would be the duplication that
+ * whole arrangement exists to avoid; `publish()` below is kept apart from `send()` for the same reason
+ * `TaxConfigurationEditorRoute.tsx` keeps its own apart — the response carries the version this publish
+ * superseded and every finding it still warned about, neither of which a plain reload would recover.
+ *
+ * ## Why a `billing.tax-configuration-missing` finding also carries a link
+ *
+ * The sentence names publishing a tax configuration as the way out, but a sentence cannot itself be a
+ * route: `taxConfigurationMissingLink` below reads the same case `PriceListItemForm.tsx` already reads
+ * for its own tax-code hint, and the two point at the same place for the same reason.
  *
  * ## Why a published or retired version offers no item or conventions control, but still shows its
  * discount rules
@@ -122,7 +142,11 @@ export function PriceListVersionEditorRoute() {
   const intl = useIntl()
   const formatters = getFormatters()
   const { versionId } = useParams()
+  const navigate = useNavigate()
   const network = useNetworkState()
+  const { permissions } = useCurrentUser()
+
+  const canPublish = permissions.includes(BILLING_PERMISSIONS.publishPriceList)
 
   const data = useAdminResource(`price-list-version:${versionId ?? ''}`, (signal) =>
     readPriceListVersion(versionId ?? '', signal),
@@ -153,6 +177,11 @@ export function PriceListVersionEditorRoute() {
     readonly draft: PriceListItemDraft
   } | null>(null)
   const [removingItem, setRemovingItem] = useState<PriceListItem | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [validation, setValidation] = useState<BillingValidationReport | null>(null)
+  const [staleReport, setStaleReport] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState<PriceListPublication | null>(null)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -211,6 +240,8 @@ export function PriceListVersionEditorRoute() {
       setEditingVersion(null)
       setEditingItem(null)
       setRemovingItem(null)
+      // Every write moves the version past whatever the last check saw.
+      setStaleReport(validation !== null)
       setNotice(done)
       data.reload()
     } catch (cause: unknown) {
@@ -224,6 +255,81 @@ export function PriceListVersionEditorRoute() {
     setFailure(null)
     setHeld(undefined)
     data.reload()
+  }
+
+  const check = async (): Promise<void> => {
+    if (versionId === undefined) {
+      return
+    }
+
+    setChecking(true)
+    setFailure(null)
+
+    try {
+      setValidation(await validatePriceListVersion(versionId))
+      setStaleReport(false)
+    } catch (cause: unknown) {
+      setFailure(cause)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const openPublish = (): void => {
+    setFailure(null)
+    setEditingVersion(null)
+    setEditingItem(null)
+    setRemovingItem(null)
+    setPublished(null)
+    setPublishing(true)
+  }
+
+  /**
+   * Publishes the draft, with the reason the trail records.
+   *
+   * Kept apart from `send()`: the response carries the version this publish superseded and every
+   * finding it still warned about, neither of which a plain reload would recover, so this reads the
+   * body itself and keeps it in `published` for the screen to show alongside the version's new state.
+   * Either lost race — this list's own (`billing.publish-conflict`) or another list's over a shared
+   * branch (`billing.branch-publish-conflict`) — still re-reads the version, so the screen shows its
+   * new status once the dialog is dismissed rather than leaving a stale `Draft` on screen.
+   */
+  const publish = async (outcome: ConfirmOutcome): Promise<void> => {
+    if (versionId === undefined) {
+      return
+    }
+    if (precondition === undefined) {
+      setFailure(new ApiError('The version must be read again.', { status: 409 }))
+      return
+    }
+    const reason = outcome.reason?.trim() ?? ''
+
+    setBusy(true)
+    setFailure(null)
+    setNotice(null)
+
+    try {
+      const result = await publishPriceListVersion({
+        versionId,
+        reason: reason === '' ? null : reason,
+        version: precondition,
+        idempotencyKey: keyFor('publish'),
+      })
+      forget('publish')
+      setHeld(result.version)
+      setPublishing(false)
+      setPublished(result.value)
+      setStaleReport(validation !== null)
+      data.reload()
+    } catch (cause: unknown) {
+      setFailure(cause)
+      if (CONFLICT_CODES.has(billingProblemCode(cause) ?? '')) {
+        setHeld(undefined)
+        data.reload()
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   const openEditVersion = (): void => {
@@ -388,6 +494,13 @@ export function PriceListVersionEditorRoute() {
     taxCodeError !== undefined ||
     activeError !== undefined ||
     itemReasonError !== undefined
+
+  const publishReasonError = fieldSentence(publishing, 'reason')
+  const publishFindings = publishing ? findingsOf(failure) : []
+
+  /** The link out `PriceListItemForm.tsx` already reads for the same case, read here for the report. */
+  const taxConfigurationMissingLink = (findings: readonly BillingFinding[]): boolean =>
+    findings.some((finding) => finding.code === TAX_CONFIGURATION_MISSING_CODE)
 
   if (data.loading) {
     return (
@@ -719,6 +832,82 @@ export function PriceListVersionEditorRoute() {
         )}
       </section>
 
+      <section>
+        <h3>{intl.formatMessage({ id: 'pricing.priceList.editor.checksTitle' })}</h3>
+
+        {network.online ? (
+          <Button
+            busy={checking}
+            onClick={() => {
+              void check()
+            }}
+            variant="secondary"
+          >
+            <FormattedMessage id="pricing.priceList.editor.validate" />
+          </Button>
+        ) : (
+          <OfflineBlockedAction
+            action={intl.formatMessage({ id: 'pricing.priceList.editor.validate.offlineAction' })}
+          />
+        )}
+
+        {validation === null ? null : (
+          <>
+            {staleReport ? (
+              <Alert live="polite" tone="info">
+                <FormattedMessage id="pricing.priceList.editor.check.stale" />
+              </Alert>
+            ) : null}
+            <BillingFindingsList findings={validation.findings} />
+            {taxConfigurationMissingLink(validation.findings) ? (
+              <p>
+                <Link to="/admin/tax-configuration">
+                  {intl.formatMessage({ id: 'pricing.priceListItem.form.taxCode.noneHint.link' })}
+                </Link>
+              </p>
+            ) : null}
+          </>
+        )}
+
+        {isDraft ? (
+          canPublish ? (
+            network.online ? (
+              <Button busy={busy && publishing} onClick={openPublish} variant="primary">
+                <FormattedMessage id="pricing.priceList.editor.publish" />
+              </Button>
+            ) : (
+              <OfflineBlockedAction
+                action={intl.formatMessage({
+                  id: 'pricing.priceList.editor.publish.offlineAction',
+                })}
+              />
+            )
+          ) : (
+            <Forbidden
+              action={intl.formatMessage({
+                id: 'pricing.priceList.editor.publish.forbiddenAction',
+              })}
+              allowedRoles={['Owner']}
+              onBack={() => {
+                void navigate(`/admin/price-lists/${value.version.priceListId}`)
+              }}
+            />
+          )
+        ) : null}
+
+        {published === null ? null : (
+          <>
+            <Alert live="polite" tone="success">
+              <p>{intl.formatMessage({ id: 'pricing.priceList.editor.publish.done' })}</p>
+              {published.supersededVersionId === null ? null : (
+                <p>{intl.formatMessage({ id: 'pricing.priceList.editor.publish.superseded' })}</p>
+              )}
+            </Alert>
+            <BillingFindingsList findings={published.findings} />
+          </>
+        )}
+      </section>
+
       {editingItem === null ? null : !network.online ? (
         <OfflineBlockedAction
           action={intl.formatMessage({
@@ -792,6 +981,47 @@ export function PriceListVersionEditorRoute() {
           {intl.formatMessage({ id: 'pricing.priceListItem.remove.body' })}
         </ConfirmDialog>
       )}
+
+      {publishing ? (
+        <ConfirmDialog
+          action={intl.formatMessage({ id: 'pricing.priceList.editor.publish' })}
+          busy={busy}
+          cancelLabel={intl.formatMessage({ id: 'admin.cancel' })}
+          confirmLabel={intl.formatMessage({ id: 'pricing.priceList.editor.publish' })}
+          irreversible
+          onCancel={() => {
+            setPublishing(false)
+            setFailure(null)
+          }}
+          onConfirm={(outcome) => {
+            void publish(outcome)
+          }}
+          open
+          problem={
+            publishReasonError !== undefined ? null : publishFindings.length > 0 ? (
+              <>
+                <BillingFindingsList findings={publishFindings} />
+                {taxConfigurationMissingLink(publishFindings) ? (
+                  <p>
+                    <Link to="/admin/tax-configuration">
+                      {intl.formatMessage({
+                        id: 'pricing.priceListItem.form.taxCode.noneHint.link',
+                      })}
+                    </Link>
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <BillingProblemAlert failure={failure} />
+            )
+          }
+          {...(publishReasonError === undefined ? {} : { reasonError: publishReasonError })}
+          tier="reason"
+          title={intl.formatMessage({ id: 'pricing.priceList.editor.publish.title' })}
+        >
+          {intl.formatMessage({ id: 'pricing.priceList.editor.publish.body' })}
+        </ConfirmDialog>
+      ) : null}
     </section>
   )
 }

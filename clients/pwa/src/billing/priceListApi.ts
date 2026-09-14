@@ -1,10 +1,12 @@
 import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
+import type { BillingValidationReport } from './pricingAdminTypes'
 import type {
   CreatePriceListRequest,
   PriceList,
   PriceListItem,
   PriceListItemRequest,
+  PriceListPublication,
   PriceListVersion,
   PriceListVersionRequest,
   PriceListVersionSummary,
@@ -18,8 +20,9 @@ import type {
  * items. Every write is on `BILLING_PERMISSIONS.managePriceLists`, organisation scope, and carries an
  * `Idempotency-Key` the caller mints and holds across a retry.
  *
- * The validation report and publication (`ValidatePriceListVersion`, `PublishPriceListVersion`) and
- * the three discount-rule routes are E09-F01-7b's and E09-F01-8's; nothing here calls them.
+ * The validation report and publication (`validatePriceListVersion`, `publishPriceListVersion`,
+ * E09-F01-7b, on `BILLING_PERMISSIONS.publishPriceList`) are appended at the end of this file. The
+ * three discount-rule routes are E09-F01-8's; nothing here calls them.
  */
 
 const BILLING = '/api/v1/billing'
@@ -204,6 +207,48 @@ export async function removePriceListItem(input: {
 }): Promise<VersionedResponse<void>> {
   return await apiRequestVersioned<void>(
     `${BILLING}/price-lists/versions/${input.versionId}/items/${input.itemId}/delete`,
+    {
+      method: 'POST',
+      body: { reason: input.reason },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+}
+
+/* Validating and publishing a version (E09-F01-7b). ----------------------------------------------- */
+
+/**
+ * Runs the publication checks against a version without publishing it — an item naming a tax code
+ * nobody published, a branch another list already prices, a code re-spelled after the catalogue
+ * referred to it. They encode no rate.
+ */
+export async function validatePriceListVersion(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<BillingValidationReport> {
+  return await apiRequest<BillingValidationReport>(
+    `${BILLING}/price-lists/versions/${versionId}/validation`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/**
+ * Publishes a draft, retiring the list's published version in the same transaction: step-up, a
+ * mandatory reason, and the two races two administrators can lose — `billing.publish-conflict` when
+ * another version of *this* list was published at the same moment, `billing.branch-publish-conflict`
+ * when another *list's* version pricing one of the same branches was. Refused with
+ * `billing.publish-validation-failed` and every finding, warnings included, when the publication
+ * checks are not satisfied.
+ */
+export async function publishPriceListVersion(input: {
+  readonly versionId: string
+  readonly reason: string | null
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<PriceListPublication>> {
+  return await apiRequestVersioned<PriceListPublication>(
+    `${BILLING}/price-lists/versions/${input.versionId}/publish`,
     {
       method: 'POST',
       body: { reason: input.reason },
