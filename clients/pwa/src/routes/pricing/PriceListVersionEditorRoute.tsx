@@ -16,11 +16,14 @@ import {
   findingsOf,
 } from '../../billing/billingProblems'
 import {
+  addDiscountRule,
   addPriceListItem,
   describePriceListVersion,
+  editDiscountRule,
   editPriceListItem,
   publishPriceListVersion,
   readPriceListVersion,
+  removeDiscountRule,
   removePriceListItem,
   validatePriceListVersion,
 } from '../../billing/priceListApi'
@@ -50,8 +53,15 @@ import { useNetworkState } from '../../components/states/useNetworkState'
 import { getFormatters } from '../../i18n/formatters'
 import { parseDecimalString } from '../../i18n/parseNumber'
 import type { MessageKey } from '../../i18n/en-IN'
+import { DiscountRuleForm } from './DiscountRuleForm'
 import { PriceListItemForm } from './PriceListItemForm'
 import { PriceListVersionForm } from './PriceListVersionForm'
+import {
+  blankDiscountRuleDraft,
+  discountRuleRequestFrom,
+  draftFromDiscountRule,
+} from './discountRuleDraft'
+import type { DiscountRuleDraft } from './discountRuleDraft'
 import {
   blankPriceListItemDraft,
   draftFromPriceListItem,
@@ -98,7 +108,8 @@ function requiredFieldFailure(field: string): ApiError {
 }
 
 /**
- * One price-list version: its own conventions, its items, and its discount rules (E09-F01-7).
+ * One price-list version: its own conventions, its items (E09-F01-7), and its discount rules
+ * (E09-F01-8).
  *
  * ## Why the conventions form is reused rather than rebuilt inline
  *
@@ -122,15 +133,16 @@ function requiredFieldFailure(field: string): ApiError {
  * route: `taxConfigurationMissingLink` below reads the same case `PriceListItemForm.tsx` already reads
  * for its own tax-code hint, and the two point at the same place for the same reason.
  *
- * ## Why a published or retired version offers no item or conventions control, but still shows its
- * discount rules
+ * ## Why a published or retired version offers no item, rule or conventions control, but still shows
+ * its discount rules
  *
  * The server refuses every write against one (`billing.version-not-editable`): a published version is
  * what every invoice since was calculated on, and changing it would change what an order already
  * priced *meant*. The screen therefore offers no control that would end in that refusal — only the
  * sentence that says where the change is actually made, a draft cloned from it on the versions screen.
  * Its discount rules stay visible regardless, because a rate an administrator cannot see is worse than
- * one they cannot yet change; E09-F01-8 adds the editor for them.
+ * one they cannot yet change; a rule is never deleted from a published version, because there is no
+ * route that could.
  *
  * ## Why the tax code stays a typed field even when nothing is published
  *
@@ -177,6 +189,11 @@ export function PriceListVersionEditorRoute() {
     readonly draft: PriceListItemDraft
   } | null>(null)
   const [removingItem, setRemovingItem] = useState<PriceListItem | null>(null)
+  const [editingRule, setEditingRule] = useState<{
+    readonly existing: DiscountRule | null
+    readonly draft: DiscountRuleDraft
+  } | null>(null)
+  const [removingRule, setRemovingRule] = useState<DiscountRule | null>(null)
   const [checking, setChecking] = useState(false)
   const [validation, setValidation] = useState<BillingValidationReport | null>(null)
   const [staleReport, setStaleReport] = useState(false)
@@ -240,6 +257,8 @@ export function PriceListVersionEditorRoute() {
       setEditingVersion(null)
       setEditingItem(null)
       setRemovingItem(null)
+      setEditingRule(null)
+      setRemovingRule(null)
       // Every write moves the version past whatever the last check saw.
       setStaleReport(validation !== null)
       setNotice(done)
@@ -280,6 +299,8 @@ export function PriceListVersionEditorRoute() {
     setEditingVersion(null)
     setEditingItem(null)
     setRemovingItem(null)
+    setEditingRule(null)
+    setRemovingRule(null)
     setPublished(null)
     setPublishing(true)
   }
@@ -339,6 +360,8 @@ export function PriceListVersionEditorRoute() {
     setFailure(null)
     setEditingItem(null)
     setRemovingItem(null)
+    setEditingRule(null)
+    setRemovingRule(null)
     setEditingVersion(priceListVersionDraftForEditing(value.version))
   }
 
@@ -374,6 +397,8 @@ export function PriceListVersionEditorRoute() {
     setFailure(null)
     setEditingVersion(null)
     setRemovingItem(null)
+    setEditingRule(null)
+    setRemovingRule(null)
     setEditingItem({ existing: null, draft: blankPriceListItemDraft() })
   }
 
@@ -381,6 +406,8 @@ export function PriceListVersionEditorRoute() {
     setFailure(null)
     setEditingVersion(null)
     setRemovingItem(null)
+    setEditingRule(null)
+    setRemovingRule(null)
     setEditingItem({ existing: item, draft: draftFromPriceListItem(item) })
   }
 
@@ -423,6 +450,8 @@ export function PriceListVersionEditorRoute() {
     setFailure(null)
     setEditingVersion(null)
     setEditingItem(null)
+    setEditingRule(null)
+    setRemovingRule(null)
     setRemovingItem(item)
   }
 
@@ -444,6 +473,89 @@ export function PriceListVersionEditorRoute() {
           idempotencyKey,
         }),
       intl.formatMessage({ id: 'pricing.priceListItem.removed' }, { code: item.code }),
+    )
+  }
+
+  const openAddRule = (): void => {
+    setFailure(null)
+    setEditingVersion(null)
+    setEditingItem(null)
+    setRemovingItem(null)
+    setRemovingRule(null)
+    setEditingRule({ existing: null, draft: blankDiscountRuleDraft() })
+  }
+
+  const openEditRule = (rule: DiscountRule): void => {
+    setFailure(null)
+    setEditingVersion(null)
+    setEditingItem(null)
+    setRemovingItem(null)
+    setRemovingRule(null)
+    setEditingRule({ existing: rule, draft: draftFromDiscountRule(rule) })
+  }
+
+  const saveRule = (): void => {
+    if (versionId === undefined || editingRule === null) {
+      return
+    }
+    const { draft, existing } = editingRule
+
+    if (draft.kind === '') {
+      setFailure(requiredFieldFailure('kind'))
+      return
+    }
+    if (draft.active === '') {
+      setFailure(requiredFieldFailure('active'))
+      return
+    }
+
+    const body = discountRuleRequestFrom(draft)
+    const id =
+      existing === null ? `add-rule:${body.code ?? ''}` : `edit-rule:${existing.discountRuleId}`
+
+    void send(
+      id,
+      ({ version, idempotencyKey }) =>
+        existing === null
+          ? addDiscountRule({ versionId, rule: body, version, idempotencyKey })
+          : editDiscountRule({
+              versionId,
+              ruleId: existing.discountRuleId,
+              rule: body,
+              version,
+              idempotencyKey,
+            }),
+      intl.formatMessage({ id: 'pricing.discountRule.saved' }, { code: body.code ?? '' }),
+    )
+  }
+
+  const openRemoveRule = (rule: DiscountRule): void => {
+    setFailure(null)
+    setEditingVersion(null)
+    setEditingItem(null)
+    setRemovingItem(null)
+    setEditingRule(null)
+    setRemovingRule(rule)
+  }
+
+  const removeRule = (outcome: ConfirmOutcome): void => {
+    if (versionId === undefined || removingRule === null) {
+      return
+    }
+    const rule = removingRule
+    const reason = outcome.reason?.trim() ?? ''
+
+    void send(
+      `remove-rule:${rule.discountRuleId}`,
+      ({ version, idempotencyKey }) =>
+        removeDiscountRule({
+          versionId,
+          ruleId: rule.discountRuleId,
+          reason: reason === '' ? null : reason,
+          version,
+          idempotencyKey,
+        }),
+      intl.formatMessage({ id: 'pricing.discountRule.removed' }, { code: rule.code }),
     )
   }
 
@@ -494,6 +606,23 @@ export function PriceListVersionEditorRoute() {
     taxCodeError !== undefined ||
     activeError !== undefined ||
     itemReasonError !== undefined
+
+  const ruleOpen = editingRule !== null
+  const ruleCodeError = fieldSentence(ruleOpen, 'code')
+  const ruleDescriptionError = fieldSentence(ruleOpen, 'description')
+  const ruleKindError = fieldSentence(ruleOpen, 'kind')
+  const ruleMaximumWithoutApprovalError = fieldSentence(ruleOpen, 'maximumWithoutApproval')
+  const ruleMaximumError = fieldSentence(ruleOpen, 'maximum')
+  const ruleActiveError = fieldSentence(ruleOpen, 'active')
+  const ruleReasonError = fieldSentence(ruleOpen, 'reason')
+  const ruleFieldMatched =
+    ruleCodeError !== undefined ||
+    ruleDescriptionError !== undefined ||
+    ruleKindError !== undefined ||
+    ruleMaximumWithoutApprovalError !== undefined ||
+    ruleMaximumError !== undefined ||
+    ruleActiveError !== undefined ||
+    ruleReasonError !== undefined
 
   const publishReasonError = fieldSentence(publishing, 'reason')
   const publishFindings = publishing ? findingsOf(failure) : []
@@ -756,9 +885,6 @@ export function PriceListVersionEditorRoute() {
 
       <section>
         <h3>{intl.formatMessage({ id: 'pricing.priceList.editor.discountRulesTitle' })}</h3>
-        <Alert live="off" tone="info">
-          <FormattedMessage id="pricing.priceList.editor.discountRulesComingSoon" />
-        </Alert>
 
         {value.discountRules.length === 0 ? (
           <EmptyState iconName="list" live="polite">
@@ -825,9 +951,41 @@ export function PriceListVersionEditorRoute() {
                 ),
               },
             ]}
+            rowActions={(row: DiscountRule) =>
+              isDraft ? (
+                <>
+                  <Button
+                    onClick={() => {
+                      openEditRule(row)
+                    }}
+                    variant="secondary"
+                  >
+                    {intl.formatMessage({ id: 'pricing.discountRule.edit' }, { code: row.code })}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      openRemoveRule(row)
+                    }}
+                    variant="danger"
+                  >
+                    {intl.formatMessage({ id: 'pricing.discountRule.remove' }, { code: row.code })}
+                  </Button>
+                </>
+              ) : null
+            }
             rowKey={(row) => row.discountRuleId}
             rowLabel={(row) => row.code}
             rows={value.discountRules}
+          />
+        )}
+
+        {!isDraft ? null : network.online ? (
+          <Button onClick={openAddRule} variant="primary">
+            <FormattedMessage id="pricing.discountRule.add" />
+          </Button>
+        ) : (
+          <OfflineBlockedAction
+            action={intl.formatMessage({ id: 'pricing.discountRule.add.offlineAction' })}
           />
         )}
       </section>
@@ -979,6 +1137,81 @@ export function PriceListVersionEditorRoute() {
           title={intl.formatMessage({ id: 'pricing.priceListItem.remove.title' })}
         >
           {intl.formatMessage({ id: 'pricing.priceListItem.remove.body' })}
+        </ConfirmDialog>
+      )}
+
+      {editingRule === null ? null : !network.online ? (
+        <OfflineBlockedAction
+          action={intl.formatMessage({
+            id:
+              editingRule.existing === null
+                ? 'pricing.discountRule.add.offlineAction'
+                : 'pricing.discountRule.edit.offlineAction',
+          })}
+        />
+      ) : (
+        <>
+          {ruleFieldMatched ? null : <BillingProblemAlert failure={failure} />}
+          {isConcurrencyFailure ? (
+            <Button onClick={reread} variant="secondary">
+              {intl.formatMessage({ id: 'pricing.priceList.editor.reread' })}
+            </Button>
+          ) : null}
+          <DiscountRuleForm
+            busy={busy}
+            controlId={(name) => `discount-rule-${name}`}
+            draft={editingRule.draft}
+            existing={editingRule.existing}
+            onCancel={() => {
+              setEditingRule(null)
+              setFailure(null)
+            }}
+            onChange={(draft) => {
+              setEditingRule({ ...editingRule, draft })
+            }}
+            onSubmit={saveRule}
+            {...(ruleCodeError === undefined ? {} : { codeError: ruleCodeError })}
+            {...(ruleDescriptionError === undefined
+              ? {}
+              : { descriptionError: ruleDescriptionError })}
+            {...(ruleKindError === undefined ? {} : { kindError: ruleKindError })}
+            {...(ruleMaximumWithoutApprovalError === undefined
+              ? {}
+              : { maximumWithoutApprovalError: ruleMaximumWithoutApprovalError })}
+            {...(ruleMaximumError === undefined ? {} : { maximumError: ruleMaximumError })}
+            {...(ruleActiveError === undefined ? {} : { activeError: ruleActiveError })}
+            {...(ruleReasonError === undefined ? {} : { reasonError: ruleReasonError })}
+          />
+        </>
+      )}
+
+      {removingRule === null ? null : !network.online ? (
+        <OfflineBlockedAction
+          action={intl.formatMessage({ id: 'pricing.discountRule.remove.offlineAction' })}
+        />
+      ) : (
+        <ConfirmDialog
+          action={intl.formatMessage(
+            { id: 'pricing.discountRule.remove' },
+            { code: removingRule.code },
+          )}
+          busy={busy}
+          cancelLabel={intl.formatMessage({ id: 'admin.cancel' })}
+          confirmLabel={intl.formatMessage(
+            { id: 'pricing.discountRule.remove' },
+            { code: removingRule.code },
+          )}
+          onCancel={() => {
+            setRemovingRule(null)
+            setFailure(null)
+          }}
+          onConfirm={removeRule}
+          open
+          problem={<BillingProblemAlert failure={failure} />}
+          tier="reason"
+          title={intl.formatMessage({ id: 'pricing.discountRule.remove.title' })}
+        >
+          {intl.formatMessage({ id: 'pricing.discountRule.remove.body' })}
         </ConfirmDialog>
       )}
 

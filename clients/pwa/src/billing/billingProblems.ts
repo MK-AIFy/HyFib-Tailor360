@@ -133,6 +133,13 @@ const CODE_MESSAGES: Readonly<Record<string, MessageKey>> = {
   // from the commit, because the exclusion constraint is deferred, so this is a second sentence, not a
   // second reading of the first one's code.
   'billing.branch-publish-conflict': 'pricing.problem.branchPublishConflict',
+  // The price-list version editor's own discount rules (E09-F01-8). `billing.code-not-unique`,
+  // `billing.value-required`, `billing.rate-out-of-range`, `billing.amount-not-well-formed` and
+  // `billing.version-changed`/`-not-editable`/`-not-found` are already mapped above and shared with
+  // the sibling screens; only the two codes this screen's own routes can answer that no sibling
+  // already mapped are new here.
+  'billing.discount-bounds-not-ordered': 'pricing.problem.discountBoundsNotOrdered',
+  'billing.discount-rule-not-found': 'pricing.problem.discountRuleNotFound',
 }
 
 /** The code of a failure, when the server sent one. */

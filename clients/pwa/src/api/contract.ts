@@ -105,6 +105,7 @@ import type {
 import type {
   CreatePriceListRequest,
   DiscountRule,
+  DiscountRuleRequest,
   PriceList,
   PriceListItem,
   PriceListItemRequest,
@@ -751,6 +752,12 @@ export type PriceListItemConforms = Conforms<
 export type DiscountRuleConforms = Conforms<
   DiscountRule,
   Immutable<components['schemas']['DiscountRulePayload']>
+>
+
+/** The discount-rule editor's own write (E09-F01-8). `EditDiscountRule` sends the same body shape. */
+export type AddDiscountRuleRequestConforms = Conforms<
+  DiscountRuleRequest,
+  Immutable<RequestBody<'AddDiscountRule'>>
 >
 
 /** The same body on both routes, asserted separately so a divergence between them is caught. */

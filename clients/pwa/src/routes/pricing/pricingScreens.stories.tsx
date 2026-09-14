@@ -627,6 +627,96 @@ export const PriceListVersionEditorPseudoLocale: Story = {
     ),
 }
 
+/* The version editor's discount rules (E09-F01-8). --------------------------------------------- */
+
+const SECOND_DISCOUNT_RULE_ID = '0199dd00-0000-7000-8000-000000007007'
+
+/** A draft carrying both kinds of rule, so a `Percentage` one and an `Amount` one are both visible. */
+const DRAFT_WITH_DISCOUNT_RULES = aPriceListVersion({
+  discountRules: [
+    aDiscountRule(),
+    aDiscountRule({
+      discountRuleId: SECOND_DISCOUNT_RULE_ID,
+      code: 'CLEARANCE_FLAT',
+      description: 'Clearance flat-amount discount',
+      kind: 'Amount',
+      maximumWithoutApproval: 50,
+      maximum: 150,
+    }),
+  ],
+})
+
+export const PriceListVersionEditorDiscountRulesWorking: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(DRAFT_WITH_DISCOUNT_RULES, 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+/** A draft with items already but no discount rule yet, and the add control beside the fact. */
+export const PriceListVersionEditorDiscountRulesEmpty: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () =>
+          storyJson(aPriceListVersion({ discountRules: [] }), 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorDiscountRulesError: Story = {
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyProblem(503, 'platform.unavailable'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorDiscountRulesForbidden: Story = {
+  render: () =>
+    withAdminApi(
+      <RequirePermission permission={BILLING_PERMISSIONS.managePriceLists}>
+        <PriceListVersionEditorRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }),
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(DRAFT_WITH_DISCOUNT_RULES, 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
+export const PriceListVersionEditorDiscountRulesPseudoLocale: Story = {
+  globals: { locale: 'en-XA' },
+  render: () =>
+    withAdminApi(
+      <PriceListVersionEditorRoute />,
+      {
+        [`GET ${PRICE_LIST_VERSION}`]: () => storyJson(DRAFT_WITH_DISCOUNT_RULES, 'W/"1"'),
+        [`GET ${BRANCHES}`]: () => storyJson(BRANCH_ROWS),
+        [`GET ${TAX_VERSIONS}`]: () => storyJson([]),
+      },
+      PRICE_LIST_VERSION_EDITOR_ROUTE,
+    ),
+}
+
 /* Validating and publishing a version (E09-F01-7b). ------------------------------------------------- */
 
 /** "Check this version" run against a draft with one blocking problem and one real warning (OD-19). */

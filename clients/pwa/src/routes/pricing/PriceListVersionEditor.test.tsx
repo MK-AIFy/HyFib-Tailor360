@@ -596,7 +596,7 @@ describe('the price-list version editor', () => {
     expect(screen.queryByRole('button', { name: /^Remove /i })).not.toBeInTheDocument()
   })
 
-  it('still shows discount rules on a published version, read-only', async () => {
+  it('still shows discount rules on a published version, read-only, with no control', async () => {
     const published = aPriceListVersion({
       version: aPriceListVersionSummary({
         priceListVersionId: PRICE_LIST_VERSION_ID,
@@ -611,9 +611,9 @@ describe('the price-list version editor', () => {
     renderEditorAt(PRICE_LIST_VERSION_ID)
 
     expect(await screen.findByText('FESTIVE10')).toBeInTheDocument()
-    expect(
-      screen.getByText('Adding, editing and removing a discount rule are not in this screen yet.'),
-    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add a discount rule' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Edit /i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Remove /i })).not.toBeInTheDocument()
   })
 
   it('shows a sentence without the manage key, and makes no request', async () => {

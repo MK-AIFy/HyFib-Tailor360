@@ -11,8 +11,8 @@ import type { BillingFinding } from './pricingAdminTypes'
  * rates and dates are rendered through `getFormatters()`.
  *
  * The validation report (`BillingValidationReport`, declared in `pricingAdminTypes.ts`) and
- * `PriceListPublication` below are E09-F01-7b's. `DiscountRule` is typed here because `PriceListVersion`
- * carries it, but its editor is E09-F01-8's — this issue renders it read-only.
+ * `PriceListPublication` below are E09-F01-7b's. `DiscountRule` and `DiscountRuleRequest` are the
+ * discount-rule editor's own (E09-F01-8).
  */
 
 /** A price list, as the register lists it — a code and a name, never deleted. */
@@ -120,9 +120,9 @@ export interface PriceListItemRequest {
 }
 
 /**
- * One discount rule of a version, as the editor reads it — read-only here. E09-F01-8 owns the editor
- * that writes one; this issue renders it because `PriceListVersion` carries it either way, and a rate
- * an administrator cannot see is worse than one they cannot yet change.
+ * One discount rule of a version, as the editor reads it — writable on a draft, read-only on a
+ * published or retired one (E09-F01-8): what a counter may take off a line, and what nobody may
+ * exceed.
  */
 export interface DiscountRule {
   readonly discountRuleId: string
@@ -134,6 +134,22 @@ export interface DiscountRule {
   readonly maximumWithoutApproval: number | string
   readonly maximum: number | string
   readonly active: boolean
+}
+
+/**
+ * What is sent to add or replace a discount rule. Whole-value: an omitted field is refused, not
+ * kept, and `active` is refused when omitted rather than defaulted — a money-bearing flag is never
+ * assumed. Neither bound is compared to the other here: the ordering rule
+ * (`billing.discount-bounds-not-ordered`) is the server's alone.
+ */
+export interface DiscountRuleRequest {
+  readonly code: string | null
+  readonly description: string | null
+  readonly kind: string | null
+  readonly maximumWithoutApproval: number | string | null
+  readonly maximum: number | string | null
+  readonly active: boolean | null
+  readonly reason: string | null
 }
 
 /** A price-list version and everything in it — its conventions, its items and its discount rules. */

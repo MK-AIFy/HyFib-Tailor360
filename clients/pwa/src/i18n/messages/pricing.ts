@@ -344,11 +344,8 @@ export const pricingEn = {
   'pricing.priceList.editor.items.empty': 'No item yet. Add the first one below.',
   'pricing.priceList.editor.items.caption': 'Every item in this version',
   'pricing.priceList.editor.discountRulesTitle': 'Discount rules',
-  'pricing.priceList.editor.discountRulesComingSoon':
-    'Adding, editing and removing a discount rule are not in this screen yet.',
   'pricing.priceList.editor.discountRules.empty': 'No discount rule yet.',
-  'pricing.priceList.editor.discountRules.caption':
-    'Every discount rule in this version, read-only',
+  'pricing.priceList.editor.discountRules.caption': 'Every discount rule in this version',
 
   'pricing.priceListItem.column.code': 'Code',
   'pricing.priceListItem.column.description': 'Description',
@@ -406,12 +403,47 @@ export const pricingEn = {
   'pricing.discountRule.kind.Amount': 'Fixed amount',
   'pricing.discountRule.active.yes': 'Active',
   'pricing.discountRule.active.no': 'Inactive',
+  'pricing.discountRule.add': 'Add a discount rule',
+  'pricing.discountRule.add.offlineAction': 'Adding a discount rule',
+  'pricing.discountRule.edit': 'Edit {code}',
+  'pricing.discountRule.edit.offlineAction': 'Editing a discount rule',
+  'pricing.discountRule.remove': 'Remove {code}',
+  'pricing.discountRule.remove.offlineAction': 'Removing a discount rule',
+  'pricing.discountRule.remove.title': 'Remove a discount rule',
+  'pricing.discountRule.remove.body':
+    'This removes the rule from the draft. It can be added again, as a fresh row.',
+  'pricing.discountRule.saved': 'Saved the discount rule {code}.',
+  'pricing.discountRule.removed': 'Removed the discount rule {code}.',
+
+  'pricing.discountRule.form.addTitle': 'Add a discount rule',
+  'pricing.discountRule.form.editTitle': 'Edit the discount rule {code}',
+  'pricing.discountRule.form.code': 'Code',
+  'pricing.discountRule.form.code.hint':
+    'Upper snake case — capital letters, digits and underscores, beginning with a letter. What a line’s discount cites.',
+  'pricing.discountRule.form.description': 'Description',
+  'pricing.discountRule.form.kind': 'How the discount is given',
+  'pricing.discountRule.form.kind.Percentage':
+    'A percentage of the line’s gross amount: its base and its surcharges together',
+  'pricing.discountRule.form.kind.Amount': 'A fixed amount off the line',
+  'pricing.discountRule.form.maximumWithoutApproval': 'Maximum without approval',
+  'pricing.discountRule.form.maximumWithoutApproval.hint':
+    'The most a counter may give on their own authority.',
+  'pricing.discountRule.form.maximum': 'Maximum',
+  'pricing.discountRule.form.maximum.hint': 'The most anybody may give, with approval.',
+  'pricing.discountRule.form.active': 'Status',
+  'pricing.discountRule.form.active.true': 'Active',
+  'pricing.discountRule.form.active.false': 'Inactive',
+  'pricing.discountRule.form.reason': 'Note (optional)',
+  'pricing.discountRule.form.save': 'Save',
 
   'pricing.problem.itemNotFound': 'No price-list item matches that address.',
   'pricing.problem.unitNotWellFormed':
     'A unit is a short lower-case word such as each, metre or hour.',
   'pricing.problem.amountNotWellFormed':
     'An amount is a non-negative value in rupees with at most two decimal places.',
+  'pricing.problem.discountBoundsNotOrdered':
+    'The maximum without approval cannot be more than the maximum anybody may give.',
+  'pricing.problem.discountRuleNotFound': 'No discount rule matches that address.',
 
   /* Validating and publishing a price-list version (E09-F01-7b). -------------------------------- */
   'pricing.priceList.editor.checksTitle': 'Checks and publishing',
@@ -1023,13 +1055,9 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   // not translated — awaiting native-speaker review
   'pricing.priceList.editor.discountRulesTitle': 'Discount rules',
   // not translated — awaiting native-speaker review
-  'pricing.priceList.editor.discountRulesComingSoon':
-    'Adding, editing and removing a discount rule are not in this screen yet.',
-  // not translated — awaiting native-speaker review
   'pricing.priceList.editor.discountRules.empty': 'No discount rule yet.',
   // not translated — awaiting native-speaker review
-  'pricing.priceList.editor.discountRules.caption':
-    'Every discount rule in this version, read-only',
+  'pricing.priceList.editor.discountRules.caption': 'Every discount rule in this version',
 
   // not translated — awaiting native-speaker review
   'pricing.priceListItem.column.code': 'Code',
@@ -1137,6 +1165,65 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   'pricing.discountRule.active.yes': 'Active',
   // not translated — awaiting native-speaker review
   'pricing.discountRule.active.no': 'Inactive',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.add': 'Add a discount rule',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.add.offlineAction': 'Adding a discount rule',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.edit': 'Edit {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.edit.offlineAction': 'Editing a discount rule',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.remove': 'Remove {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.remove.offlineAction': 'Removing a discount rule',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.remove.title': 'Remove a discount rule',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.remove.body':
+    'This removes the rule from the draft. It can be added again, as a fresh row.',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.saved': 'Saved the discount rule {code}.',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.removed': 'Removed the discount rule {code}.',
+
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.addTitle': 'Add a discount rule',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.editTitle': 'Edit the discount rule {code}',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.code': 'Code',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.code.hint':
+    'Upper snake case — capital letters, digits and underscores, beginning with a letter. What a line’s discount cites.',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.description': 'Description',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.kind': 'How the discount is given',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.kind.Percentage':
+    'A percentage of the line’s gross amount: its base and its surcharges together',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.kind.Amount': 'A fixed amount off the line',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.maximumWithoutApproval': 'Maximum without approval',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.maximumWithoutApproval.hint':
+    'The most a counter may give on their own authority.',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.maximum': 'Maximum',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.maximum.hint': 'The most anybody may give, with approval.',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.active': 'Status',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.active.true': 'Active',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.active.false': 'Inactive',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.reason': 'Note (optional)',
+  // not translated — awaiting native-speaker review
+  'pricing.discountRule.form.save': 'Save',
 
   // not translated — awaiting native-speaker review
   'pricing.problem.itemNotFound': 'No price-list item matches that address.',
@@ -1146,6 +1233,11 @@ export const pricingTa: Record<keyof typeof pricingEn, string> = {
   // not translated — awaiting native-speaker review
   'pricing.problem.amountNotWellFormed':
     'An amount is a non-negative value in rupees with at most two decimal places.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.discountBoundsNotOrdered':
+    'The maximum without approval cannot be more than the maximum anybody may give.',
+  // not translated — awaiting native-speaker review
+  'pricing.problem.discountRuleNotFound': 'No discount rule matches that address.',
 
   /* Validating and publishing a price-list version (E09-F01-7b). -------------------------------- */
   // not translated — awaiting native-speaker review
