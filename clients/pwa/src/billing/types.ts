@@ -287,16 +287,29 @@ export interface BarcodeResolution {
   readonly currency: string
 }
 
-/** An order's outstanding balance, joined to the invoice it was found from, for one screen's list. */
+/** A posted invoice with money still owed against it, as the outstanding-balances screen lists it. */
 export interface OutstandingBalanceRow {
   readonly invoiceId: string
-  readonly invoiceNumber: string | null
+  readonly invoiceNumber: string
   readonly orderId: string
   readonly orderNumber: string
   readonly customerDisplayName: string
   readonly grandTotal: number | string
   readonly outstanding: number | string
   readonly currency: string
+}
+
+/**
+ * A page of the branch's outstanding balances, by cursor (#421).
+ *
+ * `nextCursor` is non-null whenever the server's scan stopped without exhausting the branch's posted
+ * invoices — including a page whose `rows` came back empty, because a source page of posted invoices
+ * that are all settled answers no rows on its own. It is null only once nothing posted and unpaid is
+ * left to find, which is what makes the screen's empty state honest.
+ */
+export interface OutstandingBalancePage {
+  readonly rows: readonly OutstandingBalanceRow[]
+  readonly nextCursor: string | null
 }
 
 /** One rupee received against an advance, once a payment allocated part of it. */

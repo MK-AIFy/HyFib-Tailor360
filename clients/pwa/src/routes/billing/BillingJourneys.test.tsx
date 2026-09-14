@@ -28,6 +28,8 @@ import {
   aCashierSession,
   anInvoicePage,
   anOrderBalance,
+  anOutstandingBalancePage,
+  anOutstandingBalanceRow,
   aPayment,
 } from '../../billing/testing/fixtures'
 import { CashierSessionRoute } from './CashierSessionRoute'
@@ -40,7 +42,7 @@ const formatters = getFormatters()
 
 const SESSIONS = '/api/v1/billing/cashier-sessions'
 const MODES = '/api/v1/billing/payment-modes/available'
-const INVOICES = '/api/v1/billing/invoices'
+const OUTSTANDING = '/api/v1/billing/outstanding-balances'
 const PAYMENTS = '/api/v1/billing/payments'
 const DISPATCH = '/api/v1/billing/dispatch-exceptions'
 const balanceUrl = (orderId: string) => `/api/v1/billing/orders/${orderId}/balance`
@@ -250,7 +252,9 @@ describe('the unpaid-then-paid dispatch journey', () => {
     const user = userEvent.setup()
     let outstanding = 309
 
-    transport.route(`GET ${INVOICES}?status=Posted&limit=50`, () => jsonResponse(anInvoicePage()))
+    transport.route(`GET ${OUTSTANDING}?limit=20`, () =>
+      jsonResponse(anOutstandingBalancePage({ rows: [anOutstandingBalanceRow({ outstanding })] })),
+    )
     transport.route(`GET ${balanceUrl(ORDER_ID)}`, () =>
       jsonResponse(
         anOrderBalance({
