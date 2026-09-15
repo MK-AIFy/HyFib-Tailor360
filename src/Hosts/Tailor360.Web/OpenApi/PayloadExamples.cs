@@ -1167,6 +1167,47 @@ public static class PayloadExamples
               "notes": "Customer asked to push the date by three days."
             }
             """,
+
+        ["AddOrderDraftGarment"] = """
+            {
+              "categoryKey": "blouse",
+              "serviceTypeKey": "stitch-new",
+              "designSelectionDraftId": "0199c2f0-0000-7000-8000-0000000000e2",
+              "measurementIntent": "TakeLater",
+              "measurementVersionId": null,
+              "dueDate": "2026-09-25",
+              "instructions": "Keep the shoulder loose.",
+              "referenceMediaIds": []
+            }
+            """,
+
+        ["SaveOrderDraftGarment"] = """
+            {
+              "categoryKey": "blouse",
+              "serviceTypeKey": "stitch-new",
+              "designSelectionDraftId": "0199c2f0-0000-7000-8000-0000000000e2",
+              "measurementIntent": "ReuseVersion",
+              "measurementVersionId": "0199c2f0-0000-7000-8000-0000000000f2",
+              "dueDate": "2026-09-25",
+              "instructions": "Keep the shoulder loose.",
+              "referenceMediaIds": []
+            }
+            """,
+
+        ["DeclareOrderDraftDependency"] = """
+            {
+              "prerequisiteGarmentId": "0199c2f0-0000-7000-8000-0000000000e3",
+              "kind": "DeliverTogether",
+              "reason": "The sari blouse goes home with the sari."
+            }
+            """,
+
+        ["WithdrawOrderDraftDependency"] = """
+            {
+              "prerequisiteGarmentId": "0199c2f0-0000-7000-8000-0000000000e3",
+              "kind": "DeliverTogether"
+            }
+            """,
     };
 
     /// <summary>The example for an operation, or <see langword="null"/> when none is registered.</summary>

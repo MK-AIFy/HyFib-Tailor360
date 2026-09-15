@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Options;
+using Tailor360.Modules.Catalog.Contracts.Catalogue;
 using Tailor360.Modules.Customers.Contracts.Customers;
+using Tailor360.Modules.Customers.Contracts.Measurements;
 using Tailor360.Modules.Orders.Application.Abstractions;
 using Tailor360.Modules.Orders.Application.Options;
 using Tailor360.Modules.Orders.Domain;
 using Tailor360.Modules.Orders.Domain.Drafts;
+using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Identifiers;
@@ -27,14 +30,20 @@ namespace Tailor360.Modules.Orders.Application.Drafts;
 /// <see cref="ICustomerSnapshotQuery"/> instead.
 /// </para>
 /// <para>
-/// <strong>Garment sections and dependencies are not here.</strong> They are the second half of #199,
-/// filed separately: adding, saving and removing a section, and declaring or withdrawing a dependency
-/// between two of them, each pull in their own cross-module reads (Catalog's offerability and
-/// Customers' measurement existence) that draft lifecycle does not need.
+/// <strong>Garment sections pin their catalogue and measurement references server-side.</strong>
+/// <c>OrderDraftGarmentContent.Create</c> checks only that a category and service key are non-empty and
+/// short enough, and that the measurement pair is internally consistent — never that either is real. A
+/// section's <c>catalogVersionId</c> and <c>measurementTemplateId</c> come from
+/// <see cref="ICatalogAvailabilityQuery.GetOrderableCatalogAsync"/>, the same pin a confirmed order is
+/// frozen against, and a reused measurement version is confirmed to exist through
+/// <see cref="IMeasurementSnapshotQuery.ExistingAsync"/> — never <c>GetAsync</c>, whose values are
+/// sensitive personal data a draft must not hold.
 /// </para>
 /// </remarks>
 /// <param name="store">The draft store.</param>
 /// <param name="customers">Customer existence and the merge pointer, never a name or a contact detail.</param>
+/// <param name="catalog">What a branch may order today, for the pin a garment section takes.</param>
+/// <param name="measurements">Whether a reused measurement version exists, never its values.</param>
 /// <param name="audit">The platform's audit writer.</param>
 /// <param name="clock">The clock.</param>
 /// <param name="ids">The identifier generator.</param>
@@ -42,6 +51,8 @@ namespace Tailor360.Modules.Orders.Application.Drafts;
 public sealed class OrderDraftHandler(
     IOrderDraftStore store,
     ICustomerSnapshotQuery customers,
+    ICatalogAvailabilityQuery catalog,
+    IMeasurementSnapshotQuery measurements,
     IAuditWriter audit,
     IClock clock,
     IIdGenerator ids,
@@ -59,6 +70,21 @@ public sealed class OrderDraftHandler(
 
     /// <summary>A draft's order-level schedule was saved.</summary>
     public const string ScheduleSetAction = "orders.draft.schedule_set";
+
+    /// <summary>A garment section was added to a draft.</summary>
+    public const string GarmentAddedAction = "orders.draft.garment_added";
+
+    /// <summary>A garment section's content was replaced.</summary>
+    public const string GarmentSavedAction = "orders.draft.garment_saved";
+
+    /// <summary>A garment section was removed from a draft.</summary>
+    public const string GarmentRemovedAction = "orders.draft.garment_removed";
+
+    /// <summary>A dependency between two garment sections was declared.</summary>
+    public const string DependencyDeclaredAction = "orders.draft.dependency_declared";
+
+    /// <summary>A dependency between two garment sections was withdrawn.</summary>
+    public const string DependencyWithdrawnAction = "orders.draft.dependency_withdrawn";
 
     /// <summary>
     /// Starts a draft, with an order-level schedule if one was given.
@@ -140,6 +166,35 @@ public sealed class OrderDraftHandler(
         }
 
         return Result.Success(new CapturedOrderDraft(draft, store.EntityTagOf(draft)));
+    }
+
+    /// <summary>
+    /// Reads one garment section, for the current tag a stale <c>If-Match</c> is answered with.
+    /// </summary>
+    /// <param name="draftId">The draft.</param>
+    /// <param name="garmentId">The section.</param>
+    /// <param name="organisationId">The organisation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The section, or the reason it could not be read.</returns>
+    public async Task<Result<CapturedOrderDraftGarment>> ReadGarmentAsync(
+        Guid draftId,
+        Guid garmentId,
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+    {
+        var draft = await store.FindAsync(draftId, organisationId, cancellationToken);
+
+        if (draft is null)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(OrdersErrors.DraftNotFound);
+        }
+
+        if (draft.FindGarment(garmentId) is not { } garment)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(OrdersErrors.GarmentNotOnDraft);
+        }
+
+        return Result.Success(new CapturedOrderDraftGarment(draft, garment, store.EntityTagOf(garment)));
     }
 
     /// <summary>Points a draft at a different customer.</summary>
@@ -224,6 +279,302 @@ public sealed class OrderDraftHandler(
         return Result.Success(new CapturedOrderDraft(draft, store.EntityTagOf(draft)));
     }
 
+    /// <summary>Adds a garment section to a draft.</summary>
+    /// <remarks>
+    /// No <c>If-Match</c>: this creates the section, so there is no earlier version to be stale against.
+    /// The position race two counters can cause by adding at the same instant is settled by the unique
+    /// index over <c>(order_draft_id, position)</c> and surfaces as <see cref="OrdersErrors.ConcurrentChange"/>
+    /// through <see cref="IOrderDraftStore.SaveAsync"/> — the loser re-reads and retries, and no loop is
+    /// added here for that.
+    /// </remarks>
+    /// <param name="command">The command.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The section, or the reason it could not be added.</returns>
+    public async Task<Result<CapturedOrderDraftGarment>> AddGarmentAsync(
+        AddOrderDraftGarmentCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var draft = await store.FindAsync(command.DraftId, command.OrganisationId, cancellationToken);
+        if (draft is null)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(OrdersErrors.DraftNotFound);
+        }
+
+        var content = await ResolveGarmentContentAsync(
+            draft.OrganisationId,
+            draft.BranchId,
+            command.CategoryKey,
+            command.ServiceTypeKey,
+            command.DesignSelectionDraftId,
+            command.MeasurementIntent,
+            command.MeasurementVersionId,
+            command.DueDate,
+            command.Instructions,
+            command.ReferenceMediaIds,
+            cancellationToken);
+
+        if (content.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(content.Error);
+        }
+
+        var added = draft.AddGarment(ids.NewId(), content.Value, clock.UtcNow, command.By);
+        if (added.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(added.Error);
+        }
+
+        var saved = await store.SaveAsync(cancellationToken);
+        if (saved.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(saved.Error);
+        }
+
+        await OrdersAudit.RecordAsync(
+            audit, GarmentAddedAction, added.Value.Id, "Garment section added to an order draft.", cancellationToken);
+
+        return Result.Success(
+            new CapturedOrderDraftGarment(draft, added.Value, store.EntityTagOf(added.Value)));
+    }
+
+    /// <summary>Replaces the whole content of a garment section.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The section, or the reason it could not be saved.</returns>
+    public async Task<Result<CapturedOrderDraftGarment>> SaveGarmentAsync(
+        SaveOrderDraftGarmentCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var loaded = await LoadGarmentForChangeAsync(
+            command.DraftId, command.GarmentId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
+
+        if (loaded.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(loaded.Error);
+        }
+
+        var (draft, garment) = loaded.Value;
+
+        var content = await ResolveGarmentContentAsync(
+            draft.OrganisationId,
+            draft.BranchId,
+            command.CategoryKey,
+            command.ServiceTypeKey,
+            command.DesignSelectionDraftId,
+            command.MeasurementIntent,
+            command.MeasurementVersionId,
+            command.DueDate,
+            command.Instructions,
+            command.ReferenceMediaIds,
+            cancellationToken);
+
+        if (content.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(content.Error);
+        }
+
+        var saveOutcome = draft.SaveGarment(garment.Id, content.Value, clock.UtcNow, command.By);
+        if (saveOutcome.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(saveOutcome.Error);
+        }
+
+        var saved = await store.SaveAsync(cancellationToken);
+        if (saved.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(saved.Error);
+        }
+
+        await OrdersAudit.RecordAsync(
+            audit, GarmentSavedAction, garment.Id, "Garment section content replaced.", cancellationToken);
+
+        return Result.Success(new CapturedOrderDraftGarment(draft, garment, store.EntityTagOf(garment)));
+    }
+
+    /// <summary>Removes a garment section, and every dependency naming it in either direction.</summary>
+    /// <remarks>
+    /// Answers with the whole draft, not the removed section: the removal can withdraw dependencies on
+    /// other sections too, so a caller re-reading only the section it named would miss what else changed.
+    /// </remarks>
+    /// <param name="command">The command.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The draft, or the reason the removal was refused.</returns>
+    public async Task<Result<CapturedOrderDraft>> RemoveGarmentAsync(
+        RemoveOrderDraftGarmentCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var loaded = await LoadGarmentForChangeAsync(
+            command.DraftId, command.GarmentId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
+
+        if (loaded.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraft>(loaded.Error);
+        }
+
+        var (draft, garment) = loaded.Value;
+
+        var removed = draft.RemoveGarment(garment.Id, clock.UtcNow, command.By);
+        if (removed.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraft>(removed.Error);
+        }
+
+        var saved = await store.SaveAsync(cancellationToken);
+        if (saved.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraft>(saved.Error);
+        }
+
+        await OrdersAudit.RecordAsync(
+            audit, GarmentRemovedAction, draft.Id, "Garment section removed from an order draft.", cancellationToken);
+
+        return Result.Success(new CapturedOrderDraft(draft, store.EntityTagOf(draft)));
+    }
+
+    /// <summary>Declares that one section waits for, or is delivered with, another section of the same draft.</summary>
+    /// <remarks>
+    /// The precondition is the dependent section's own tag. Declaring touches the garment
+    /// (<c>OrderDraftGarment.DeclareDependency</c> calls <c>Touch</c>), so the section's row moves and this
+    /// is a genuine token even though the dependency table itself carries none.
+    /// </remarks>
+    /// <param name="command">The command.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The dependent section, or the reason the declaration was refused.</returns>
+    public async Task<Result<CapturedOrderDraftGarment>> DeclareDependencyAsync(
+        DeclareOrderDraftDependencyCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var loaded = await LoadGarmentForChangeAsync(
+            command.DraftId, command.GarmentId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
+
+        if (loaded.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(loaded.Error);
+        }
+
+        var (draft, garment) = loaded.Value;
+
+        var declared = draft.DeclareDependency(
+            garment.Id, command.PrerequisiteGarmentId, command.Kind, command.Reason, clock.UtcNow, command.By);
+        if (declared.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(declared.Error);
+        }
+
+        var saved = await store.SaveAsync(cancellationToken);
+        if (saved.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(saved.Error);
+        }
+
+        await OrdersAudit.RecordAsync(
+            audit, DependencyDeclaredAction, garment.Id, "Garment dependency declared.", cancellationToken);
+
+        return Result.Success(new CapturedOrderDraftGarment(draft, garment, store.EntityTagOf(garment)));
+    }
+
+    /// <summary>Withdraws a dependency one section declared on another.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The dependent section, or the reason the withdrawal was refused.</returns>
+    public async Task<Result<CapturedOrderDraftGarment>> WithdrawDependencyAsync(
+        WithdrawOrderDraftDependencyCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var loaded = await LoadGarmentForChangeAsync(
+            command.DraftId, command.GarmentId, command.OrganisationId, command.ExpectedVersion, cancellationToken);
+
+        if (loaded.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(loaded.Error);
+        }
+
+        var (draft, garment) = loaded.Value;
+
+        var withdrawn = draft.WithdrawDependency(
+            garment.Id, command.PrerequisiteGarmentId, command.Kind, clock.UtcNow, command.By);
+        if (withdrawn.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(withdrawn.Error);
+        }
+
+        var saved = await store.SaveAsync(cancellationToken);
+        if (saved.IsFailure)
+        {
+            return Result.Failure<CapturedOrderDraftGarment>(saved.Error);
+        }
+
+        await OrdersAudit.RecordAsync(
+            audit, DependencyWithdrawnAction, garment.Id, "Garment dependency withdrawn.", cancellationToken);
+
+        return Result.Success(new CapturedOrderDraftGarment(draft, garment, store.EntityTagOf(garment)));
+    }
+
+    /// <summary>
+    /// Pins a garment section's catalogue and measurement references server-side, and validates the rest
+    /// through <see cref="OrderDraftGarmentContent.Create"/>.
+    /// </summary>
+    /// <remarks>
+    /// Shared by <see cref="AddGarmentAsync"/> and <see cref="SaveGarmentAsync"/>, which take identical
+    /// content and differ only in what they do with it once validated.
+    /// </remarks>
+    private async Task<Result<OrderDraftGarmentContent>> ResolveGarmentContentAsync(
+        Guid organisationId,
+        Guid branchId,
+        string? categoryKey,
+        string? serviceTypeKey,
+        Guid? designSelectionDraftId,
+        MeasurementIntent measurementIntent,
+        Guid? measurementVersionId,
+        DateOnly? dueDate,
+        string? instructions,
+        IReadOnlyCollection<Guid>? referenceMediaIds,
+        CancellationToken cancellationToken)
+    {
+        var offered = await catalog.GetOrderableCatalogAsync(
+            organisationId, branchId, clock.UtcNow, cancellationToken);
+
+        var service = offered.Services.FirstOrDefault(candidate =>
+            string.Equals(candidate.CategoryCode, categoryKey, StringComparison.Ordinal)
+            && string.Equals(candidate.ServiceCode, serviceTypeKey, StringComparison.Ordinal));
+
+        if (service is null)
+        {
+            return Result.Failure<OrderDraftGarmentContent>(OrdersErrors.ServiceNotOrderableHere);
+        }
+
+        if (measurementIntent is MeasurementIntent.ReuseVersion && measurementVersionId is { } reused)
+        {
+            var existing = await measurements.ExistingAsync([reused], organisationId, cancellationToken);
+            if (!existing.Contains(reused))
+            {
+                return Result.Failure<OrderDraftGarmentContent>(OrdersErrors.MeasurementVersionNotFound);
+            }
+        }
+
+        return OrderDraftGarmentContent.Create(
+            categoryKey,
+            serviceTypeKey,
+            service.CatalogVersionId,
+            designSelectionDraftId,
+            measurementIntent,
+            measurementVersionId,
+            service.MeasurementTemplateId,
+            dueDate,
+            instructions,
+            referenceMediaIds);
+    }
+
     /// <summary>
     /// Confirms the customer exists and follows the merge pointer, so a draft never stands against a
     /// record that has since been folded into another one.
@@ -258,5 +609,34 @@ public sealed class OrderDraftHandler(
         return expected.Matches(store.EntityTagOf(draft))
             ? Result.Success(draft)
             : Result.Failure<OrderDraft>(OrdersErrors.ConcurrentChange);
+    }
+
+    /// <summary>
+    /// Loads a draft and one of its garment sections, comparing the precondition against the
+    /// <strong>section's own</strong> tag rather than the draft's — the per-garment lock
+    /// <c>docs/prd/state-transitions.md</c> section 2.1 requires.
+    /// </summary>
+    private async Task<Result<(OrderDraft Draft, OrderDraftGarment Garment)>> LoadGarmentForChangeAsync(
+        Guid draftId,
+        Guid garmentId,
+        Guid organisationId,
+        EntityTag expected,
+        CancellationToken cancellationToken)
+    {
+        var draft = await store.FindAsync(draftId, organisationId, cancellationToken);
+
+        if (draft is null)
+        {
+            return Result.Failure<(OrderDraft, OrderDraftGarment)>(OrdersErrors.DraftNotFound);
+        }
+
+        if (draft.FindGarment(garmentId) is not { } garment)
+        {
+            return Result.Failure<(OrderDraft, OrderDraftGarment)>(OrdersErrors.GarmentNotOnDraft);
+        }
+
+        return expected.Matches(store.EntityTagOf(garment))
+            ? Result.Success((draft, garment))
+            : Result.Failure<(OrderDraft, OrderDraftGarment)>(OrdersErrors.ConcurrentChange);
     }
 }
