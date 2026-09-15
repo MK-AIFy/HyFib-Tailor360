@@ -184,6 +184,76 @@
         ],
         "type": "object"
       },
+      "AddOrderDraftGarmentRequest": {
+        "properties": {
+          "categoryKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "designSelectionDraftId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dueDate": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instructions": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementIntent": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referenceMediaIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "serviceTypeKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "categoryKey",
+          "serviceTypeKey",
+          "designSelectionDraftId",
+          "measurementIntent",
+          "measurementVersionId",
+          "dueDate",
+          "instructions",
+          "referenceMediaIds"
+        ],
+        "type": "object"
+      },
       "AdjustmentNoteLinePayload": {
         "properties": {
           "garmentJobId": {
@@ -2458,6 +2528,32 @@
           "attemptCount",
           "lastError",
           "correlationId"
+        ],
+        "type": "object"
+      },
+      "DeclareOrderDraftDependencyRequest": {
+        "properties": {
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "prerequisiteGarmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "prerequisiteGarmentId",
+          "kind",
+          "reason"
         ],
         "type": "object"
       },
@@ -6084,6 +6180,131 @@
         ],
         "type": "object"
       },
+      "OrderDraftGarmentDependencyPayload": {
+        "properties": {
+          "declaredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "prerequisiteOrderDraftGarmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "prerequisiteOrderDraftGarmentId",
+          "kind",
+          "reason",
+          "declaredAt"
+        ],
+        "type": "object"
+      },
+      "OrderDraftGarmentPayload": {
+        "properties": {
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "categoryKey": {
+            "type": "string"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/OrderDraftGarmentDependencyPayload"
+            },
+            "type": "array"
+          },
+          "designSelectionDraftId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dueDate": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instructions": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementIntent": {
+            "type": "string"
+          },
+          "measurementTemplateId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDraftGarmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "position": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "referenceMediaIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "serviceTypeKey": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderDraftGarmentId",
+          "position",
+          "categoryKey",
+          "serviceTypeKey",
+          "catalogVersionId",
+          "designSelectionDraftId",
+          "measurementIntent",
+          "measurementVersionId",
+          "measurementTemplateId",
+          "dueDate",
+          "instructions",
+          "referenceMediaIds",
+          "updatedAt",
+          "dependencies"
+        ],
+        "type": "object"
+      },
       "OrderDraftPayload": {
         "properties": {
           "branchId": {
@@ -6111,6 +6332,12 @@
           "expiresAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "garments": {
+            "items": {
+              "$ref": "#/components/schemas/OrderDraftGarmentPayload"
+            },
+            "type": "array"
           },
           "isOpen": {
             "type": "boolean"
@@ -6160,7 +6387,8 @@
           "updatedBy",
           "expiresAt",
           "consumedAt",
-          "isOpen"
+          "isOpen",
+          "garments"
         ],
         "type": "object"
       },
@@ -8852,6 +9080,76 @@
         ],
         "type": "object"
       },
+      "SaveOrderDraftGarmentRequest": {
+        "properties": {
+          "categoryKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "designSelectionDraftId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dueDate": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instructions": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementIntent": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "measurementVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referenceMediaIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "serviceTypeKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "categoryKey",
+          "serviceTypeKey",
+          "designSelectionDraftId",
+          "measurementIntent",
+          "measurementVersionId",
+          "dueDate",
+          "instructions",
+          "referenceMediaIds"
+        ],
+        "type": "object"
+      },
       "ServiceTypePayload": {
         "properties": {
           "activeFrom": {
@@ -10382,6 +10680,25 @@
           "current",
           "environment",
           "schemaVersion"
+        ],
+        "type": "object"
+      },
+      "WithdrawOrderDraftDependencyRequest": {
+        "properties": {
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "prerequisiteGarmentId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prerequisiteGarmentId",
+          "kind"
         ],
         "type": "object"
       }
@@ -27955,7 +28272,7 @@
     },
     "/api/v1/orders/drafts/{draftId}": {
       "get": {
-        "description": "The entity tag is what an edit to the order-level fields sends back as If-Match. Garment sections carry their own tag, once #199's second slice adds them.",
+        "description": "The entity tag is what an edit to the order-level fields sends back as If-Match. Garment sections carry their own tag, sent back by adding or reading one.",
         "operationId": "GetOrderDraft",
         "parameters": [
           {
@@ -28126,6 +28443,613 @@
           "Orders"
         ],
         "x-tailor360-audit": "orders.draft.customer_set",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/garments": {
+      "post": {
+        "description": "The category, service type and measurement template are pinned server-side from what the branch may order today — the same pin a confirmed order is frozen against — never trusted from the request. No If-Match: this creates the section, so there is no earlier version to be stale against.",
+        "operationId": "AddOrderDraftGarment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "categoryKey": "blouse",
+                "designSelectionDraftId": "0199c2f0-0000-7000-8000-0000000000e2",
+                "dueDate": "2026-09-25",
+                "instructions": "Keep the shoulder loose.",
+                "measurementIntent": "TakeLater",
+                "measurementVersionId": null,
+                "referenceMediaIds": [],
+                "serviceTypeKey": "stitch-new"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/AddOrderDraftGarmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftGarmentPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a garment section to a draft.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.garment_added",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}": {
+      "put": {
+        "description": "Every field is replaced together; the section's identity, position and dependencies are left alone. The precondition is the section's own tag, not the draft's — two counters editing different sections of one draft never collide.",
+        "operationId": "SaveOrderDraftGarment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "garmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "categoryKey": "blouse",
+                "designSelectionDraftId": "0199c2f0-0000-7000-8000-0000000000e2",
+                "dueDate": "2026-09-25",
+                "instructions": "Keep the shoulder loose.",
+                "measurementIntent": "ReuseVersion",
+                "measurementVersionId": "0199c2f0-0000-7000-8000-0000000000f2",
+                "referenceMediaIds": [],
+                "serviceTypeKey": "stitch-new"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SaveOrderDraftGarmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftGarmentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace the whole content of a garment section.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.garment_saved",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}/delete": {
+      "post": {
+        "description": "A POST sub-resource rather than DELETE, matching the withdraw-dependency route: no permissioned route in this module uses the DELETE verb. Answers with the whole draft, not the removed section — the removal can withdraw dependencies on other sections too. Precondition is the removed section's own tag.",
+        "operationId": "RemoveOrderDraftGarment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "garmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Remove a garment section, and every dependency naming it.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.garment_removed",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}/dependencies": {
+      "post": {
+        "description": "Both sections must be on this draft. Declaring touches the dependent section, so its tag moves and is a genuine precondition even though the dependency table itself carries none.",
+        "operationId": "DeclareOrderDraftDependency",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "garmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "kind": "DeliverTogether",
+                "prerequisiteGarmentId": "0199c2f0-0000-7000-8000-0000000000e3",
+                "reason": "The sari blouse goes home with the sari."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DeclareOrderDraftDependencyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftGarmentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Declare that one section waits for, or is delivered with, another.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.dependency_declared",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}/dependencies/delete": {
+      "post": {
+        "description": "A body rather than a route segment: the composite primary key makes the prerequisite-and-kind pair the row's identity, and a route can carry only one identifier past the section.",
+        "operationId": "WithdrawOrderDraftDependency",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "garmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "kind": "DeliverTogether",
+                "prerequisiteGarmentId": "0199c2f0-0000-7000-8000-0000000000e3"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawOrderDraftDependencyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftGarmentPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Withdraw a dependency one section declared on another.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.dependency_withdrawn",
         "x-tailor360-authorisation": "permission:orders.intake",
         "x-tailor360-rate-limit": "write"
       }

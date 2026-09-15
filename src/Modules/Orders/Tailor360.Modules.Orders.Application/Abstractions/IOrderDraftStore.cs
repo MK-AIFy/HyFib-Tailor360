@@ -46,6 +46,18 @@ public interface IOrderDraftStore
     EntityTag EntityTagOf(OrderDraft draft);
 
     /// <summary>
+    /// The concurrency token a garment section's own edits must be made against.
+    /// </summary>
+    /// <remarks>
+    /// The per-garment lock <c>docs/prd/state-transitions.md</c> section 2.1 requires: a section is flattened
+    /// onto its own row with its own <c>xmin</c> (<see cref="OrderDraftGarment"/>'s own remarks), so two
+    /// counters editing different sections of one draft never collide on the draft's own tag.
+    /// </remarks>
+    /// <param name="garment">A tracked garment section.</param>
+    /// <returns>The entity tag.</returns>
+    EntityTag EntityTagOf(OrderDraftGarment garment);
+
+    /// <summary>
     /// Commits, turning the failures a second counter can cause into results rather than exceptions.
     /// </summary>
     /// <remarks>

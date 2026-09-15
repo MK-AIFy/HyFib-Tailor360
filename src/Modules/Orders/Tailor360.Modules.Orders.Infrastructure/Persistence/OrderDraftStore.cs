@@ -41,6 +41,9 @@ public sealed class OrderDraftStore(OrdersDbContext context) : IOrderDraftStore
     public EntityTag EntityTagOf(OrderDraft draft) => context.EntityTagOf(draft);
 
     /// <inheritdoc />
+    public EntityTag EntityTagOf(OrderDraftGarment garment) => context.EntityTagOf(garment);
+
+    /// <inheritdoc />
     public async Task<Result> SaveAsync(CancellationToken cancellationToken = default)
     {
         try
