@@ -6,6 +6,9 @@ using Shouldly;
 using Tailor360.IntegrationTests.Billing;
 using Tailor360.IntegrationTests.Customers;
 using Tailor360.IntegrationTests.Identity;
+using Tailor360.Modules.Customers.Application.Measurements;
+using Tailor360.Modules.Customers.Domain.Measurements;
+using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Modules.Orders.Infrastructure.Persistence;
 using Tailor360.Platform.Security.Permissions;
 
@@ -235,9 +238,405 @@ public sealed class OrderDraftEndpointTests(WebApplicationFixture fixture)
         mismatched.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
     }
 
+    [Fact]
+    public async Task ACounterAddsSavesDependsOnAndRemovesGarmentSectionsEndToEnd()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-happy-c", "203.0.113.232");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+        var (categoryKey, serviceTypeKey) = await OrderableServiceAsync("garm-happy");
+
+        var added = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments",
+            GarmentBody(categoryKey, serviceTypeKey, dueDate: "2026-09-25", instructions: "Keep the shoulder loose."),
+            Key());
+        added.StatusCode.ShouldBe(HttpStatusCode.Created, await added.Content.ReadAsStringAsync(Token));
+        added.Headers.ETag.ShouldNotBeNull();
+        added.Headers.Location.ShouldNotBeNull();
+
+        using var addedBody = JsonDocument.Parse(await added.Content.ReadAsStringAsync(Token));
+        var garmentId = addedBody.RootElement.GetProperty("orderDraftGarmentId").GetGuid();
+        addedBody.RootElement.GetProperty("categoryKey").GetString().ShouldBe(categoryKey);
+        addedBody.RootElement.GetProperty("serviceTypeKey").GetString().ShouldBe(serviceTypeKey);
+        // Never trusted from the request: the catalogue version is the one the service is published
+        // under, and a template id neither the request nor the test named.
+        addedBody.RootElement.GetProperty("catalogVersionId").GetGuid().ShouldNotBe(Guid.Empty);
+        addedBody.RootElement.GetProperty("measurementTemplateId").GetGuid().ShouldNotBe(Guid.Empty);
+        addedBody.RootElement.GetProperty("position").GetInt32().ShouldBe(1);
+
+        // A second garment, to make the dependency and the removal's cascade genuine.
+        var secondAdded = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments",
+            GarmentBody(categoryKey, serviceTypeKey),
+            Key());
+        secondAdded.StatusCode.ShouldBe(HttpStatusCode.Created);
+        using var secondBody = JsonDocument.Parse(await secondAdded.Content.ReadAsStringAsync(Token));
+        var secondGarmentId = secondBody.RootElement.GetProperty("orderDraftGarmentId").GetGuid();
+        var secondTag = ("If-Match", secondAdded.Headers.ETag!.ToString());
+
+        var saved = await counter.PutAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{garmentId}",
+            GarmentBody(
+                categoryKey, serviceTypeKey, dueDate: "2026-09-28", instructions: "Customer asked for a looser fit."),
+            [Key()[0], ("If-Match", added.Headers.ETag!.ToString())]);
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync(Token));
+        using var savedBody = JsonDocument.Parse(await saved.Content.ReadAsStringAsync(Token));
+        savedBody.RootElement.GetProperty("dueDate").GetString().ShouldBe("2026-09-28");
+        savedBody.RootElement.GetProperty("instructions").GetString().ShouldBe("Customer asked for a looser fit.");
+        var savedTag = ("If-Match", saved.Headers.ETag!.ToString());
+
+        var declared = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{secondGarmentId}/dependencies",
+            new
+            {
+                prerequisiteGarmentId = garmentId,
+                kind = "DeliverTogether",
+                reason = "The sari blouse goes home with the sari.",
+            },
+            [Key()[0], secondTag]);
+        declared.StatusCode.ShouldBe(HttpStatusCode.OK, await declared.Content.ReadAsStringAsync(Token));
+        using var declaredBody = JsonDocument.Parse(await declared.Content.ReadAsStringAsync(Token));
+        var dependencies = declaredBody.RootElement.GetProperty("dependencies").EnumerateArray().ToArray();
+        dependencies.Length.ShouldBe(1);
+        dependencies[0].GetProperty("prerequisiteOrderDraftGarmentId").GetGuid().ShouldBe(garmentId);
+        dependencies[0].GetProperty("kind").GetString().ShouldBe("DeliverTogether");
+        // Declaring touches the dependent section, moving its own tag even though the dependency table
+        // itself carries none.
+        declared.Headers.ETag.ShouldNotBeNull();
+        declared.Headers.ETag!.ToString().ShouldNotBe(secondTag.Item2);
+        var declaredTag = ("If-Match", declared.Headers.ETag!.ToString());
+
+        var withdrawn = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{secondGarmentId}/dependencies/delete",
+            new { prerequisiteGarmentId = garmentId, kind = "DeliverTogether" },
+            [Key()[0], declaredTag]);
+        withdrawn.StatusCode.ShouldBe(HttpStatusCode.OK, await withdrawn.Content.ReadAsStringAsync(Token));
+        using var withdrawnBody = JsonDocument.Parse(await withdrawn.Content.ReadAsStringAsync(Token));
+        withdrawnBody.RootElement.GetProperty("dependencies").EnumerateArray().ShouldBeEmpty();
+        var withdrawnTag = ("If-Match", withdrawn.Headers.ETag!.ToString());
+
+        // Re-declare it so removal has a dependency to cascade over.
+        var redeclared = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{secondGarmentId}/dependencies",
+            new { prerequisiteGarmentId = garmentId, kind = "DeliverTogether", reason = (string?)null },
+            [Key()[0], withdrawnTag]);
+        redeclared.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var removed = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{garmentId}/delete",
+            new { },
+            [Key()[0], savedTag]);
+        removed.StatusCode.ShouldBe(HttpStatusCode.OK, await removed.Content.ReadAsStringAsync(Token));
+        using var removedBody = JsonDocument.Parse(await removed.Content.ReadAsStringAsync(Token));
+        var remaining = removedBody.RootElement.GetProperty("garments").EnumerateArray().ToArray();
+        remaining.Length.ShouldBe(1);
+        remaining[0].GetProperty("orderDraftGarmentId").GetGuid().ShouldBe(secondGarmentId);
+        // The cascade: the removed section's own dependency went with it, along with the sibling's
+        // dependency naming it.
+        remaining[0].GetProperty("dependencies").EnumerateArray().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AddingAGarmentForAnUnorderableServiceIsRefused()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-cat-c", "203.0.113.233");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+
+        var refused = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments",
+            GarmentBody("NO-SUCH-CATEGORY", "NO-SUCH-SERVICE"),
+            Key());
+        refused.StatusCode.ShouldBe(HttpStatusCode.NotFound, await refused.Content.ReadAsStringAsync(Token));
+        (await CodeOfAsync(refused)).ShouldBe("orders.service-not-orderable-here");
+    }
+
+    [Fact]
+    public async Task AddingAGarmentThatReusesAnUnknownMeasurementVersionIsRefused()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-meas-c", "203.0.113.234");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+        var (categoryKey, serviceTypeKey) = await OrderableServiceAsync("garm-meas");
+
+        var refused = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments",
+            GarmentBody(
+                categoryKey,
+                serviceTypeKey,
+                measurementIntent: "ReuseVersion",
+                measurementVersionId: Guid.CreateVersion7()),
+            Key());
+        refused.StatusCode.ShouldBe(HttpStatusCode.NotFound, await refused.Content.ReadAsStringAsync(Token));
+        (await CodeOfAsync(refused)).ShouldBe("orders.measurement-version-not-found");
+    }
+
+    [Fact]
+    public async Task AGarmentRouteRefusesACallerWithNoPermission()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-perm-owner", "203.0.113.235");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+        var (categoryKey, serviceTypeKey) = await OrderableServiceAsync("garm-perm");
+
+        using var stranger = await AdministrationHarness.AdministratorAsync(
+            fixture, "draft-garm-perm-none", "203.0.113.236", grantPermission: null);
+
+        (await stranger.PostAsync(
+                $"/api/v1/orders/drafts/{draftId}/garments", GarmentBody(categoryKey, serviceTypeKey), Key()))
+            .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task AStaleIfMatchOnAGarmentIsRefusedWithTheCurrentVersion()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-stale-c", "203.0.113.237");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+        var (categoryKey, serviceTypeKey) = await OrderableServiceAsync("garm-stale");
+
+        var added = await counter.PostAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments", GarmentBody(categoryKey, serviceTypeKey), Key());
+        added.StatusCode.ShouldBe(HttpStatusCode.Created);
+        using var addedBody = JsonDocument.Parse(await added.Content.ReadAsStringAsync(Token));
+        var garmentId = addedBody.RootElement.GetProperty("orderDraftGarmentId").GetGuid();
+        var staleTag = ("If-Match", added.Headers.ETag!.ToString());
+
+        // A first save moves the garment's own tag — the draft's tag is untouched by this, which is
+        // exactly the per-section lock the precondition proves here.
+        (await counter.PutAsync(
+                $"/api/v1/orders/drafts/{draftId}/garments/{garmentId}",
+                GarmentBody(categoryKey, serviceTypeKey, dueDate: "2026-09-25"),
+                [Key()[0], staleTag]))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var stale = await counter.PutAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{garmentId}",
+            GarmentBody(categoryKey, serviceTypeKey, dueDate: "2026-09-30"),
+            [Key()[0], staleTag]);
+        stale.StatusCode.ShouldBe(HttpStatusCode.Conflict, await stale.Content.ReadAsStringAsync(Token));
+        (await CodeOfAsync(stale)).ShouldBe("orders.concurrent-change");
+        stale.Headers.ETag.ShouldNotBeNull();
+        using var staleBody = JsonDocument.Parse(await stale.Content.ReadAsStringAsync(Token));
+        staleBody.RootElement.GetProperty("currentVersion").GetString()
+            .ShouldBe(stale.Headers.ETag!.Tag.Trim('"'));
+    }
+
+    [Fact]
+    public async Task AGarmentNotOnTheDraftIsRefusedAsNotFound()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-missing-c", "203.0.113.238");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+
+        var refused = await counter.PutAsync(
+            $"/api/v1/orders/drafts/{draftId}/garments/{Guid.CreateVersion7()}",
+            GarmentBody("whatever", "whatever"),
+            [Key()[0], ("If-Match", "\"1\"")]);
+        refused.StatusCode.ShouldBe(HttpStatusCode.NotFound, await refused.Content.ReadAsStringAsync(Token));
+        (await CodeOfAsync(refused)).ShouldBe("orders.garment-not-on-draft");
+    }
+
+    private static object GarmentBody(
+        string? categoryKey,
+        string? serviceTypeKey,
+        string measurementIntent = "TakeLater",
+        Guid? measurementVersionId = null,
+        string? dueDate = null,
+        string? instructions = null)
+        => new
+        {
+            categoryKey,
+            serviceTypeKey,
+            designSelectionDraftId = (Guid?)null,
+            measurementIntent,
+            measurementVersionId,
+            dueDate,
+            instructions,
+            referenceMediaIds = Array.Empty<Guid>(),
+        };
+
     private Task<AdministrationHarness.AdministratorClient> CounterAsync(string prefix, string address)
+
         => AdministrationHarness.AdministratorAsync(
             fixture, prefix, address, OrdersPermissions.Intake, CustomersPermissions.Create);
+
+    /// <summary>
+    /// Publishes a real category and service type, offered at <see cref="SessionTestData.HomeBranchId"/>
+    /// today, and answers the pair a garment section pins against.
+    /// </summary>
+    /// <remarks>
+    /// A real measurement template is created and published too — the catalogue's own publish
+    /// validation checks the link (#27) — but no garment in these tests reuses a confirmed measurement
+    /// version, so building one is out of scope here: <c>MeasurementIntent.TakeLater</c> exercises the
+    /// catalogue pin, which is what this fixture exists for, without it.
+    /// </remarks>
+    private async Task<(string CategoryKey, string ServiceTypeKey)> OrderableServiceAsync(string stem)
+    {
+        // Catalog category and service-type codes are upper snake case — capitals, digits and
+        // underscores only — so a hyphenated stem is sanitised before it is used to build one.
+        var code = $"{stem.Replace('-', '_').ToUpperInvariant()}_{AdministrationHarness.UniqueToken(6).ToUpperInvariant()}";
+
+        using var owner = await AdministrationHarness.AdministratorAsync(
+            fixture, $"draft-cat-{stem}", "203.0.113.230", CatalogPermissions.Edit, CatalogPermissions.Publish);
+
+        var version = await CatalogVersionAsync(owner, code);
+        var categoryKey = $"CAT_{code}";
+        var serviceTypeKey = "STITCH";
+        var category = await CatalogCategoryAsync(owner, version, categoryKey);
+        await CatalogServiceAsync(owner, version, category, serviceTypeKey, code);
+
+        var published = await owner.PostAsync(
+            $"/api/v1/catalog/versions/{version}/publish",
+            new { reason = "Fixture for an order draft integration test." },
+            await CatalogVersionKeyAsync(owner, version));
+        published.StatusCode.ShouldBe(HttpStatusCode.OK, await published.Content.ReadAsStringAsync(Token));
+
+        return (categoryKey, serviceTypeKey);
+    }
+
+    private static async Task<Guid> CatalogVersionAsync(AdministrationHarness.AdministratorClient owner, string name)
+    {
+        var response = await owner.PostAsync("/api/v1/catalog/versions", new { name }, Key());
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
+        return body.RootElement.GetProperty("version").GetProperty("catalogVersionId").GetGuid();
+    }
+
+    private static async Task<Guid> CatalogCategoryAsync(
+        AdministrationHarness.AdministratorClient owner, Guid version, string code)
+    {
+        var response = await owner.PostAsync(
+            $"/api/v1/catalog/versions/{version}/categories",
+            new
+            {
+                code,
+                name = code,
+                nameTamil = (string?)null,
+                description = "A synthetic category written by an order draft integration test.",
+                displayOrder = 0,
+                parentId = (Guid?)null,
+                branchIds = new[] { SessionTestData.HomeBranchId },
+                reason = (string?)null,
+            },
+            await CatalogVersionKeyAsync(owner, version));
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
+        return body.RootElement.GetProperty("categoryId").GetGuid();
+    }
+
+    private async Task<Guid> CatalogServiceAsync(
+        AdministrationHarness.AdministratorClient owner, Guid version, Guid categoryId, string code, string stem)
+    {
+        var measurementTemplateId = await PublishedTemplateAsync(stem);
+
+        var response = await owner.PostAsync(
+            $"/api/v1/catalog/versions/{version}/categories/{categoryId}/service-types",
+            new
+            {
+                code,
+                name = "Stitching",
+                nameTamil = (string?)null,
+                description = "A synthetic service type written by an order draft integration test.",
+                displayOrder = 0,
+                expectedDurationDays = 7,
+                intakeWarning = (string?)null,
+                measurementTemplateId,
+                workflowDefinitionId = Guid.CreateVersion7(),
+                designOptionGroupIds = Array.Empty<Guid>(),
+                priceListItemCode = "PL-SYNTHETIC",
+                qcChecklistTemplateId = Guid.CreateVersion7(),
+                allowIncomplete = false,
+                activeFrom = (DateOnly?)null,
+                activeTo = (DateOnly?)null,
+                branchIds = new[] { SessionTestData.HomeBranchId },
+                reason = (string?)null,
+            },
+            await CatalogVersionKeyAsync(owner, version));
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(Token));
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
+        return body.RootElement.GetProperty("serviceTypeId").GetGuid();
+    }
+
+    private static async Task<(string Name, string Value)[]> CatalogVersionKeyAsync(
+        AdministrationHarness.AdministratorClient owner, Guid version)
+    {
+        using var read = await owner.GetAsync($"/api/v1/catalog/versions/{version}");
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+        read.Headers.ETag.ShouldNotBeNull();
+        return [.. Key(), ("If-Match", read.Headers.ETag!.ToString())];
+    }
+
+    /// <summary>
+    /// Creates a measurement template with one published version, through the handler rather than over
+    /// HTTP — a fixture for this file's tests, not the thing they test, following
+    /// <c>CatalogEndpointTests.PublishedTemplateAsync</c>'s own precedent and reasoning.
+    /// </summary>
+    private async Task<Guid> PublishedTemplateAsync(string stem)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var handler = scope.ServiceProvider.GetRequiredService<MeasurementTemplateHandler>();
+        var organisationId = SessionTestData.OrganisationId;
+        var code = $"MT_{stem.Replace('-', '_').ToUpperInvariant()}_{AdministrationHarness.UniqueToken(6).ToUpperInvariant()}";
+
+        var template = await handler.CreateAsync(
+            new CreateMeasurementTemplateCommand(organisationId, code, code, null, null), Token);
+        template.IsSuccess.ShouldBeTrue();
+        var templateId = template.Value.Template.Id;
+
+        var draft = await handler.StartDraftAsync(
+            new StartTemplateDraftCommand(
+                templateId, organisationId, "Version 1", null, DisplayUnit.Inch, null, null),
+            Token);
+        draft.IsSuccess.ShouldBeTrue();
+        var versionId = draft.Value.Version!.Id;
+
+        var field = await handler.SaveFieldAsync(
+            new SaveTemplateFieldCommand(
+                templateId,
+                versionId,
+                organisationId,
+                null,
+                new TemplateFieldDefinition(
+                    "chest_bust",
+                    "Chest (bust)",
+                    null,
+                    "Bodice",
+                    0,
+                    CanonicalUnit.Millimetre,
+                    FieldPrecision.Eighths,
+                    new ValidationBands(550m, 1500m, 710m, 1270m),
+                    true,
+                    "Body measurement.",
+                    "blouse_front_v1",
+                    null,
+                    "Body measurement.",
+                    null,
+                    []),
+                null,
+                null),
+            Token);
+        field.IsSuccess.ShouldBeTrue();
+
+        var command = new TemplateLifecycleCommand(templateId, versionId, organisationId, "Fixture.", null, null);
+        (await handler.SubmitAsync(command, Token)).IsSuccess.ShouldBeTrue();
+        (await handler.ApproveAsync(command, Token)).IsSuccess.ShouldBeTrue();
+        (await handler.PublishAsync(command, Token)).IsSuccess.ShouldBeTrue();
+
+        return templateId;
+    }
 
     private static async Task<Guid> CustomerAsync(AdministrationHarness.AdministratorClient counter)
     {

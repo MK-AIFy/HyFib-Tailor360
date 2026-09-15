@@ -366,6 +366,32 @@ public static class OrdersErrors
         "orders.garment-already-on-draft",
         "That garment is already on this draft.");
 
+    /// <summary>
+    /// No category-and-service pair the caller named matches something the branch may order today.
+    /// </summary>
+    /// <remarks>
+    /// The domain's own check on <c>categoryKey</c>/<c>serviceTypeKey</c> is only that they are non-empty and
+    /// short enough; whether the pair is real and offerable here today is a cross-module question, asked of
+    /// <c>Catalog.Contracts.ICatalogAvailabilityQuery.GetOrderableCatalogAsync</c> because Orders may not read
+    /// the catalogue's own tables (ARCH-005). One answer for "no such category or service" and "not offered at
+    /// this branch today", for the reason <see cref="DraftNotFound"/> gives: a distinguishable refusal would let
+    /// a caller enumerate keys that exist but are not offered here.
+    /// </remarks>
+    public static Error ServiceNotOrderableHere { get; } = Error.NotFound(
+        "orders.service-not-orderable-here",
+        "That service is not offered at this branch today.");
+
+    /// <summary>A garment named a measurement version to reuse that does not exist in this organisation.</summary>
+    /// <remarks>
+    /// The domain's own check is only that a version is named when <see cref="Drafts.MeasurementIntent.ReuseVersion"/>
+    /// is declared; that it actually exists is asked of
+    /// <c>Customers.Contracts.IMeasurementSnapshotQuery.ExistingAsync</c>, batched even for one garment because
+    /// the port is shaped for confirmation's own batch of pins.
+    /// </remarks>
+    public static Error MeasurementVersionNotFound { get; } = Error.NotFound(
+        "orders.measurement-version-not-found",
+        "No measurement matches that identifier.");
+
     /// <summary>A garment reached confirmation with no measurement decision taken.</summary>
     /// <remarks>
     /// Confirmation is refused with a field error listing every garment in this state, which the
