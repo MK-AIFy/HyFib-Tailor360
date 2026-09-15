@@ -144,6 +144,13 @@ public sealed class OrderDraftEndpointTests(WebApplicationFixture fixture)
         stale.StatusCode.ShouldBe(HttpStatusCode.Conflict, await stale.Content.ReadAsStringAsync(Token));
         (await CodeOfAsync(stale)).ShouldBe("orders.concurrent-change");
 
+        // The loser gets the current version on the response as well as in the body, so it can offer a
+        // merge without a second manual GET — the same shape CustomerEndpoints' merge route answers with.
+        stale.Headers.ETag.ShouldNotBeNull();
+        using var staleBody = JsonDocument.Parse(await stale.Content.ReadAsStringAsync(Token));
+        staleBody.RootElement.GetProperty("currentVersion").GetString()
+            .ShouldBe(stale.Headers.ETag!.Tag.Trim('"'));
+
         // Nothing was lost: the first edit's schedule stands, and the stale customer write never landed.
         using var unchanged = JsonDocument.Parse(
             await (await counter.GetAsync($"/api/v1/orders/drafts/{draftId}")).Content.ReadAsStringAsync(Token));

@@ -6,6 +6,7 @@ using Tailor360.Modules.Orders.Application.Drafts;
 using Tailor360.Modules.Orders.Domain;
 using Tailor360.Platform.Abstractions.Concurrency;
 using Tailor360.Platform.Abstractions.Multitenancy;
+using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Security.Authorisation;
 using Tailor360.Platform.Security.Endpoints;
 using Tailor360.Platform.Security.Permissions;
@@ -81,8 +82,9 @@ public static class OrderDraftEndpoints
             .WithSummary("Start an order draft.")
             .WithDescription(
                 "Shared within the branch: every user holding orders.intake sees it and may carry it on. "
-                + "Expires after the branch's configured window, default 72 hours, at which point it "
-                + "is removed by the retention job rather than left standing.")
+                + "Expires after the branch's configured window, default 72 hours, at which point every "
+                + "further edit is refused. The retention sweep that removes an expired row is separate "
+                + "worker infrastructure, not part of this route.")
             .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
             .RequireRateLimiting(RateLimitPolicyNames.Write)
             .Audited(OrderDraftHandler.DraftCreatedAction)
@@ -143,7 +145,8 @@ public static class OrderDraftEndpoints
 
                     if (result.IsFailure)
                     {
-                        return Problems.From(result.Error, context);
+                        return await ConflictOrProblemAsync(
+                            result.Error, draftId, caller.Context.OrganisationId, context, handler, cancellationToken);
                     }
 
                     context.Response.SetEntityTag(result.Value.Tag);
@@ -188,7 +191,8 @@ public static class OrderDraftEndpoints
 
                     if (result.IsFailure)
                     {
-                        return Problems.From(result.Error, context);
+                        return await ConflictOrProblemAsync(
+                            result.Error, draftId, caller.Context.OrganisationId, context, handler, cancellationToken);
                     }
 
                     context.Response.SetEntityTag(result.Value.Tag);
@@ -214,4 +218,35 @@ public static class OrderDraftEndpoints
 
     private static EntityTag Precondition(HttpContext context)
         => context.Request.TryGetIfMatch(out var expected) ? expected : new EntityTag(string.Empty);
+
+    /// <summary>
+    /// Answers a failed edit, carrying the row's current tag when the failure was a stale
+    /// <c>If-Match</c> — the caller re-reads only to render a generic problem, otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Mirrors <c>CustomerEndpoints</c>' merge route: on <c>orders.concurrent-change</c>, read the
+    /// draft again for its current tag and answer through <see cref="ConcurrencyResults.VersionConflict"/>,
+    /// which sets the <c>ETag</c> header and a <c>currentVersion</c> body member so the losing caller
+    /// can offer a merge without a second manual round trip. The code and message are the domain
+    /// error's own — this changes the response's shape, not its vocabulary.
+    /// </remarks>
+    private static async Task<IResult> ConflictOrProblemAsync(
+        Error error,
+        Guid draftId,
+        Guid organisationId,
+        HttpContext context,
+        OrderDraftHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (error != OrdersErrors.ConcurrentChange)
+        {
+            return Problems.From(error, context);
+        }
+
+        var current = await handler.ReadAsync(draftId, organisationId, cancellationToken);
+
+        return current.IsFailure
+            ? Problems.From(current.Error, context)
+            : ConcurrencyResults.VersionConflict(context, error.Code, error.Message, current.Value.Tag);
+    }
 }

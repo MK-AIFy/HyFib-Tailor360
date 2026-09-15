@@ -3160,7 +3160,7 @@ export interface paths {
         put?: never;
         /**
          * Start an order draft.
-         * @description Shared within the branch: every user holding orders.intake sees it and may carry it on. Expires after the branch's configured window, default 72 hours, at which point it is removed by the retention job rather than left standing.
+         * @description Shared within the branch: every user holding orders.intake sees it and may carry it on. Expires after the branch's configured window, default 72 hours, at which point every further edit is refused. The retention sweep that removes an expired row is separate worker infrastructure, not part of this route.
          */
         post: operations["StartOrderDraft"];
         delete?: never;
