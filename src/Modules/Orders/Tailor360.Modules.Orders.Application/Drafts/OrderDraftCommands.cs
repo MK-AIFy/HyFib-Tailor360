@@ -47,10 +47,19 @@ public sealed record SetOrderDraftScheduleCommand(
     EntityTag ExpectedVersion,
     Guid? By);
 
-/// <summary>A draft and the tag an edit to it must be made against.</summary>
+/// <summary>A draft, the tag an edit to it must be made against, and the tag of each of its garment sections.</summary>
+/// <remarks>
+/// The section tags travel with the draft because a draft is read whole and edited by the section: a screen
+/// that reopens a draft holds every section's content from one read and needs every section's tag from the
+/// same read, or its first edit to any of them has no precondition to send.
+/// </remarks>
 /// <param name="Draft">The draft.</param>
 /// <param name="Tag">Its <c>xmin</c>, as the <c>ETag</c> the client sends back as <c>If-Match</c>.</param>
-public sealed record CapturedOrderDraft(OrderDraft Draft, EntityTag Tag);
+/// <param name="GarmentTags">Each garment section's own <c>xmin</c>, by section identity.</param>
+public sealed record CapturedOrderDraft(
+    OrderDraft Draft,
+    EntityTag Tag,
+    IReadOnlyDictionary<Guid, EntityTag> GarmentTags);
 
 /// <summary>Adds a garment section.</summary>
 /// <param name="DraftId">The draft.</param>

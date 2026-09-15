@@ -77,7 +77,7 @@ public static class OrderDraftEndpoints
 
                     return Results.Created(
                         $"/api/v1/orders/drafts/{result.Value.Draft.Id}",
-                        OrderDraftPayload.From(result.Value.Draft));
+                        OrderDraftPayload.From(result.Value.Draft, result.Value.GarmentTags));
                 })
             .Produces<OrderDraftPayload>(StatusCodes.Status201Created)
             .WithName("StartOrderDraft")
@@ -111,14 +111,16 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft));
+                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft, result.Value.GarmentTags));
                 })
             .Produces<OrderDraftPayload>(StatusCodes.Status200OK)
             .WithName("GetOrderDraft")
             .WithSummary("Read an order draft.")
             .WithDescription(
                 "The entity tag is what an edit to the order-level fields sends back as If-Match. "
-                + "Garment sections carry their own tag, sent back by adding or reading one.")
+                + "Each garment section carries its own version in the body, sent back in double quotes as "
+                + "If-Match on every edit to that section — so a draft reopened from this read can be edited "
+                + "section by section without a further round trip.")
             .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
             .ScopedToResource(OrdersResourceKinds.OrderDraft, "draftId")
             .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
@@ -153,14 +155,15 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft));
+                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft, result.Value.GarmentTags));
                 })
             .Produces<OrderDraftPayload>(StatusCodes.Status200OK)
             .WithName("SetOrderDraftCustomer")
             .WithSummary("Point a draft at a different customer.")
             .WithDescription(
                 "Corrects a mis-selection at the counter: the garment sections are kept, because they "
-                + "describe the garments and not the person.")
+                + "describe the garments and not the person. Refused while a section still reuses a "
+                + "measurement taken for the customer the draft is leaving — change that section first.")
             .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
             .ScopedToResource(OrdersResourceKinds.OrderDraft, "draftId")
             .RequireRateLimiting(RateLimitPolicyNames.Write)
@@ -199,7 +202,7 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft));
+                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft, result.Value.GarmentTags));
                 })
             .Produces<OrderDraftPayload>(StatusCodes.Status200OK)
             .WithName("SetOrderDraftSchedule")
@@ -251,7 +254,7 @@ public static class OrderDraftEndpoints
 
                     return Results.Created(
                         $"/api/v1/orders/drafts/{draftId}/garments/{result.Value.Garment.Id}",
-                        OrderDraftGarmentPayload.From(result.Value.Garment));
+                        OrderDraftGarmentPayload.From(result.Value.Garment, result.Value.Tag));
                 })
             .Produces<OrderDraftGarmentPayload>(StatusCodes.Status201Created)
             .WithName("AddOrderDraftGarment")
@@ -259,8 +262,9 @@ public static class OrderDraftEndpoints
             .WithDescription(
                 "The category, service type and measurement template are pinned server-side from what "
                 + "the branch may order today — the same pin a confirmed order is frozen against — never "
-                + "trusted from the request. No If-Match: this creates the section, so there is no earlier "
-                + "version to be stale against.")
+                + "trusted from the request. A reused measurement must be this customer's own and answer "
+                + "the template the service is measured by. No If-Match: this creates the section, so "
+                + "there is no earlier version to be stale against.")
             .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
             .ScopedToResource(OrdersResourceKinds.OrderDraft, "draftId")
             .RequireRateLimiting(RateLimitPolicyNames.Write)
@@ -307,15 +311,16 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftGarmentPayload.From(result.Value.Garment));
+                    return Results.Ok(OrderDraftGarmentPayload.From(result.Value.Garment, result.Value.Tag));
                 })
             .Produces<OrderDraftGarmentPayload>(StatusCodes.Status200OK)
             .WithName("SaveOrderDraftGarment")
             .WithSummary("Replace the whole content of a garment section.")
             .WithDescription(
                 "Every field is replaced together; the section's identity, position and dependencies are "
-                + "left alone. The precondition is the section's own tag, not the draft's — two counters "
-                + "editing different sections of one draft never collide.")
+                + "left alone. The precondition is the section's own tag, not the draft's, and only the "
+                + "section's row moves — two counters editing different sections of one draft never "
+                + "collide, on either tag. A reused measurement is bound as on adding a section.")
             .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
             .ScopedToResource(OrdersResourceKinds.OrderDraft, "draftId")
             .RequireRateLimiting(RateLimitPolicyNames.Write)
@@ -352,7 +357,7 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft));
+                    return Results.Ok(OrderDraftPayload.From(result.Value.Draft, result.Value.GarmentTags));
                 })
             .Produces<OrderDraftPayload>(StatusCodes.Status200OK)
             .WithName("RemoveOrderDraftGarment")
@@ -404,7 +409,7 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftGarmentPayload.From(result.Value.Garment));
+                    return Results.Ok(OrderDraftGarmentPayload.From(result.Value.Garment, result.Value.Tag));
                 })
             .Produces<OrderDraftGarmentPayload>(StatusCodes.Status200OK)
             .WithName("DeclareOrderDraftDependency")
@@ -453,7 +458,7 @@ public static class OrderDraftEndpoints
 
                     context.Response.SetEntityTag(result.Value.Tag);
 
-                    return Results.Ok(OrderDraftGarmentPayload.From(result.Value.Garment));
+                    return Results.Ok(OrderDraftGarmentPayload.From(result.Value.Garment, result.Value.Tag));
                 })
             .Produces<OrderDraftGarmentPayload>(StatusCodes.Status200OK)
             .WithName("WithdrawOrderDraftDependency")

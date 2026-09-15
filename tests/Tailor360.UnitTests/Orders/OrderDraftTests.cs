@@ -293,6 +293,64 @@ public sealed class OrderDraftTests
     }
 
     [Fact]
+    public void ASectionsOwnEditsLeaveTheDraftsOwnRowAlone()
+    {
+        // The draft's row is the order-level lock. If a section's save moved it, two counters saving different
+        // sections would collide on the draft's token — the collision the per-section lock exists to avoid.
+        var draft = OrdersTestData.Draft();
+        Add(draft, "first");
+        Add(draft, "second");
+        var (updatedAt, updatedBy) = (draft.UpdatedAt, draft.UpdatedBy);
+        var somebodyElse = OrdersTestData.Id("the-other-counter");
+
+        draft.SaveGarment(
+            OrdersTestData.Id("first"),
+            OrdersTestData.GarmentContent(categoryKey: "saree-fall"),
+            Later,
+            somebodyElse).IsSuccess.ShouldBeTrue();
+        draft.DeclareDependency(
+            OrdersTestData.Id("second"),
+            OrdersTestData.Id("first"),
+            JobDependencyKind.FinishBefore,
+            reason: null,
+            Later,
+            somebodyElse).IsSuccess.ShouldBeTrue();
+        draft.WithdrawDependency(
+            OrdersTestData.Id("second"),
+            OrdersTestData.Id("first"),
+            JobDependencyKind.FinishBefore,
+            Later,
+            somebodyElse).IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(updatedAt);
+        draft.UpdatedBy.ShouldBe(updatedBy);
+        draft.FindGarment(OrdersTestData.Id("first"))!.UpdatedAt.ShouldBe(Later);
+        draft.FindGarment(OrdersTestData.Id("second"))!.UpdatedAt.ShouldBe(Later);
+    }
+
+    [Fact]
+    public void ChangingWhatTheDraftIsMadeOfMovesTheDraftItself()
+    {
+        // Adding and removing a section are the draft's own edits: a client holding the draft's tag is told
+        // that what it is looking at has a different set of sections now.
+        var draft = OrdersTestData.Draft();
+        Add(draft, "first");
+
+        draft.AddGarment(
+            OrdersTestData.Id("second"),
+            OrdersTestData.GarmentContent(),
+            Later,
+            OrdersTestData.Actor).IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(Later);
+
+        draft.RemoveGarment(OrdersTestData.Id("second"), Later.AddMinutes(1), OrdersTestData.Actor)
+            .IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(Later.AddMinutes(1));
+    }
+
+    [Fact]
     public void RemovingASectionTakesEveryDependencyNamingItInEitherDirection()
     {
         // A dependency is a statement about two garments and only one of them holds the row. Leaving the

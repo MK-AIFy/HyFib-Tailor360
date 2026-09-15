@@ -1,4 +1,5 @@
 using Tailor360.Modules.Orders.Domain.Drafts;
+using Tailor360.Platform.Abstractions.Concurrency;
 
 namespace Tailor360.Modules.Orders.Api.Payloads;
 
@@ -19,12 +20,16 @@ namespace Tailor360.Modules.Orders.Api.Payloads;
 /// <param name="Notes">What the counter wrote about the order as a whole, or null.</param>
 /// <param name="StartedAt">When the draft was started, in UTC.</param>
 /// <param name="StartedBy">Who started it, as an identifier, or null.</param>
-/// <param name="UpdatedAt">When it was last written to, in UTC.</param>
-/// <param name="UpdatedBy">Who last wrote to it, as an identifier, or null.</param>
+/// <param name="UpdatedAt">
+/// When the draft's own fields — its customer, its schedule, which sections it has — were last written to,
+/// in UTC. A section's own edits move that section's <see cref="OrderDraftGarmentPayload.UpdatedAt"/> and
+/// <see cref="OrderDraftGarmentPayload.Version"/>, not this.
+/// </param>
+/// <param name="UpdatedBy">Who last wrote to those fields, as an identifier, or null.</param>
 /// <param name="ExpiresAt">When it stops being work in progress, in UTC.</param>
 /// <param name="ConsumedAt">When it became an order, or null while it is still work in progress.</param>
 /// <param name="IsOpen">Whether the draft has yet to become an order.</param>
-/// <param name="Garments">The garment sections, in display order.</param>
+/// <param name="Garments">The garment sections, in display order, each with its own version.</param>
 public sealed record OrderDraftPayload(
     Guid OrderDraftId,
     Guid CustomerId,
@@ -42,10 +47,12 @@ public sealed record OrderDraftPayload(
 {
     /// <summary>Projects a draft onto the payload a screen reads.</summary>
     /// <param name="draft">The draft.</param>
+    /// <param name="garmentTags">Each section's own tag, by section identity.</param>
     /// <returns>The payload.</returns>
-    public static OrderDraftPayload From(OrderDraft draft)
+    public static OrderDraftPayload From(OrderDraft draft, IReadOnlyDictionary<Guid, EntityTag> garmentTags)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        ArgumentNullException.ThrowIfNull(garmentTags);
 
         return new OrderDraftPayload(
             draft.Id,
@@ -61,16 +68,25 @@ public sealed record OrderDraftPayload(
             draft.ConsumedAt,
             draft.IsOpen,
             // Garments is already position-ordered on the aggregate (OrderDraft.Garments' own remarks).
-            [.. draft.Garments.Select(OrderDraftGarmentPayload.From)]);
+            [.. draft.Garments.Select(garment => OrderDraftGarmentPayload.From(garment, garmentTags[garment.Id]))]);
     }
 }
 
 /// <summary>One garment section of a draft, as a screen reads it.</summary>
 /// <remarks>
+/// <para>
 /// <see cref="MeasurementIntent"/> and a dependency's <see cref="OrderDraftGarmentDependencyPayload.Kind"/>
 /// are serialised as names, matching the <c>varchar(20)</c> <c>HasConversion&lt;string&gt;()</c>
 /// persistence — never as a number, which the domain would refuse to round-trip
 /// (<c>orders.value-not-understood</c> on a cast a deserialiser makes from an unrecognised value).
+/// </para>
+/// <para>
+/// <see cref="Version"/> is the section's own concurrency token, carried in the body because a draft is
+/// read whole and edited by the section: a screen that reopened a draft has every section's content from
+/// one read and needs every section's token from the same read, or its first save has nothing to send as
+/// <c>If-Match</c>. It is the same value the section's own responses carry as <c>ETag</c> and a
+/// <c>409</c> reports as <c>currentVersion</c> — unquoted here, quoted on the wire as a header.
+/// </para>
 /// </remarks>
 /// <param name="OrderDraftGarmentId">Identity of the section.</param>
 /// <param name="Position">Display order within the draft, one-based.</param>
@@ -85,6 +101,9 @@ public sealed record OrderDraftPayload(
 /// <param name="Instructions">Free-text craft instructions, or null.</param>
 /// <param name="ReferenceMediaIds">Reference and material images, by Media id.</param>
 /// <param name="UpdatedAt">When the section was last written to, in UTC.</param>
+/// <param name="Version">
+/// The section's own version, sent back in double quotes as <c>If-Match</c> on every edit to it.
+/// </param>
 /// <param name="Dependencies">What this section must wait for, or be delivered with.</param>
 public sealed record OrderDraftGarmentPayload(
     Guid OrderDraftGarmentId,
@@ -100,12 +119,14 @@ public sealed record OrderDraftGarmentPayload(
     string? Instructions,
     IReadOnlyList<Guid> ReferenceMediaIds,
     DateTimeOffset UpdatedAt,
+    string Version,
     IReadOnlyList<OrderDraftGarmentDependencyPayload> Dependencies)
 {
     /// <summary>Projects a garment section onto the payload a screen reads.</summary>
     /// <param name="garment">The section.</param>
+    /// <param name="tag">The section's own tag.</param>
     /// <returns>The payload.</returns>
-    public static OrderDraftGarmentPayload From(OrderDraftGarment garment)
+    public static OrderDraftGarmentPayload From(OrderDraftGarment garment, EntityTag tag)
     {
         ArgumentNullException.ThrowIfNull(garment);
 
@@ -123,6 +144,7 @@ public sealed record OrderDraftGarmentPayload(
             garment.Instructions,
             garment.ReferenceMediaIds,
             garment.UpdatedAt,
+            tag.Version,
             // Dependencies is an IReadOnlyCollection with no ordering guarantee — sorted here so the
             // response is deterministic across reads, ordered on the pair that is the row's identity.
             [.. garment.Dependencies

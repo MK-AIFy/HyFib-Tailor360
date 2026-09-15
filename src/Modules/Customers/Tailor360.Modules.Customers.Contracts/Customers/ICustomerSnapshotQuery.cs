@@ -19,10 +19,13 @@ namespace Tailor360.Modules.Customers.Contracts.Customers;
 /// receives what it may see.
 /// </para>
 /// <para>
-/// <strong>Reach is not checked here</strong>, deliberately. A customer record is organisation-wide
-/// and belongs to no one branch (<c>docs/prd/workflows/branch-scenarios.md</c> section 3.2), so there
-/// is no branch for this query to refuse against; the endpoint that authorised the caller has already
-/// taken that decision, and the identifier it passes is a UUIDv7 rather than anything guessable.
+/// <strong>The organisation is checked here; branch reach is not.</strong> The organisation is the
+/// tenant boundary and is never the caller's to assert past (ADR-0007 keeps multi-tenancy an additive
+/// change, which means nothing may be built that would hand one organisation's record to another), so
+/// a customer looked up under the wrong organisation reads as not found — indistinguishably from one
+/// that does not exist. Within the organisation a customer record is organisation-wide and belongs to
+/// no one branch (<c>docs/prd/workflows/branch-scenarios.md</c> section 3.2), so there is no branch for
+/// this query to refuse against; the endpoint that authorised the caller has already taken that decision.
 /// </para>
 /// </remarks>
 public interface ICustomerSnapshotQuery
@@ -31,14 +34,16 @@ public interface ICustomerSnapshotQuery
     /// The facts about one customer that a document may carry, masked to what the caller may see.
     /// </summary>
     /// <param name="customerId">The customer.</param>
+    /// <param name="organisationId">The organisation the caller is acting within. A record outside it is not found.</param>
     /// <param name="callerPermissions">
     /// The permission keys the caller holds. Only <see cref="CustomerSnapshot.ContactPermission"/> is
     /// read; the rest are ignored, so a caller may pass its whole set without filtering it first.
     /// </param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The snapshot, or null when no record has that identity.</returns>
+    /// <returns>The snapshot, or null when no record in that organisation has that identity.</returns>
     Task<CustomerSnapshot?> GetAsync(
         Guid customerId,
+        Guid organisationId,
         IReadOnlyCollection<string> callerPermissions,
         CancellationToken cancellationToken = default);
 }
@@ -79,6 +84,13 @@ public interface ICustomerSnapshotQuery
 /// existing construction still means what it did.
 /// </para>
 /// </param>
+/// <param name="IsActive">
+/// Whether the record is still in ordinary use. False once it has been deactivated: still readable,
+/// still named by every order that referenced it, but "not offered when somebody is starting something
+/// new" (<c>CustomerStatus.Deactivated</c>'s own words) — a consumer starting new work refuses it, while
+/// one printing a document about existing work carries on. Added within v1 the same way as
+/// <paramref name="MergedIntoCustomerId"/>, defaulting to the answer every construction before it meant.
+/// </param>
 public sealed record CustomerSnapshot(
     Guid CustomerId,
     string CustomerNumber,
@@ -93,7 +105,8 @@ public sealed record CustomerSnapshot(
     string? AddressLine,
     string? Locality,
     string? Postcode,
-    Guid? MergedIntoCustomerId = null)
+    Guid? MergedIntoCustomerId = null,
+    bool IsActive = true)
 {
     /// <summary>
     /// The permission a caller must hold for the contact fields to be populated.

@@ -3178,7 +3178,7 @@ export interface paths {
         };
         /**
          * Read an order draft.
-         * @description The entity tag is what an edit to the order-level fields sends back as If-Match. Garment sections carry their own tag, sent back by adding or reading one.
+         * @description The entity tag is what an edit to the order-level fields sends back as If-Match. Each garment section carries its own version in the body, sent back in double quotes as If-Match on every edit to that section — so a draft reopened from this read can be edited section by section without a further round trip.
          */
         get: operations["GetOrderDraft"];
         put?: never;
@@ -3199,7 +3199,7 @@ export interface paths {
         get?: never;
         /**
          * Point a draft at a different customer.
-         * @description Corrects a mis-selection at the counter: the garment sections are kept, because they describe the garments and not the person.
+         * @description Corrects a mis-selection at the counter: the garment sections are kept, because they describe the garments and not the person. Refused while a section still reuses a measurement taken for the customer the draft is leaving — change that section first.
          */
         put: operations["SetOrderDraftCustomer"];
         post?: never;
@@ -3220,7 +3220,7 @@ export interface paths {
         put?: never;
         /**
          * Add a garment section to a draft.
-         * @description The category, service type and measurement template are pinned server-side from what the branch may order today — the same pin a confirmed order is frozen against — never trusted from the request. No If-Match: this creates the section, so there is no earlier version to be stale against.
+         * @description The category, service type and measurement template are pinned server-side from what the branch may order today — the same pin a confirmed order is frozen against — never trusted from the request. A reused measurement must be this customer's own and answer the template the service is measured by. No If-Match: this creates the section, so there is no earlier version to be stale against.
          */
         post: operations["AddOrderDraftGarment"];
         delete?: never;
@@ -3239,7 +3239,7 @@ export interface paths {
         get?: never;
         /**
          * Replace the whole content of a garment section.
-         * @description Every field is replaced together; the section's identity, position and dependencies are left alone. The precondition is the section's own tag, not the draft's — two counters editing different sections of one draft never collide.
+         * @description Every field is replaced together; the section's identity, position and dependencies are left alone. The precondition is the section's own tag, not the draft's, and only the section's row moves — two counters editing different sections of one draft never collide, on either tag. A reused measurement is bound as on adding a section.
          */
         put: operations["SaveOrderDraftGarment"];
         post?: never;
@@ -4807,6 +4807,7 @@ export interface components {
             serviceTypeKey: string;
             /** Format: date-time */
             updatedAt: string;
+            version: string;
         };
         OrderDraftPayload: {
             /** Format: uuid */
