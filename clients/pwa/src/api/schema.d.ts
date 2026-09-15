@@ -3149,6 +3149,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start an order draft.
+         * @description Shared within the branch: every user holding orders.intake sees it and may carry it on. Expires after the branch's configured window, default 72 hours, at which point every further edit is refused. The retention sweep that removes an expired row is separate worker infrastructure, not part of this route.
+         */
+        post: operations["StartOrderDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an order draft.
+         * @description The entity tag is what an edit to the order-level fields sends back as If-Match. Garment sections carry their own tag, once #199's second slice adds them.
+         */
+        get: operations["GetOrderDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/customer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Point a draft at a different customer.
+         * @description Corrects a mis-selection at the counter: the garment sections are kept, because they describe the garments and not the person.
+         */
+        put: operations["SetOrderDraftCustomer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the order-level promised date and notes.
+         * @description Replaces both fields together, including clearing one by sending null: the aggregate writes them as one whole value, never a partial update.
+         */
+        put: operations["SetOrderDraftSchedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -4577,6 +4657,30 @@ export interface components {
             /** Format: double */
             unappliedAdvances: number | string;
         };
+        OrderDraftPayload: {
+            /** Format: uuid */
+            branchId: string;
+            /** Format: date-time */
+            consumedAt: null | string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: date */
+            dueDate: null | string;
+            /** Format: date-time */
+            expiresAt: string;
+            isOpen: boolean;
+            notes: null | string;
+            /** Format: uuid */
+            orderDraftId: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: uuid */
+            startedBy: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            updatedBy: null | string;
+        };
         OrderableCatalogPayload: {
             /** Format: uuid */
             branchId: string;
@@ -5297,6 +5401,15 @@ export interface components {
             enabled: boolean;
             reason: null | string;
         };
+        SetOrderDraftCustomerRequest: {
+            /** Format: uuid */
+            customerId: string;
+        };
+        SetOrderDraftScheduleRequest: {
+            /** Format: date */
+            dueDate: null | string;
+            notes: null | string;
+        };
         SignInRequest: {
             captchaResponse?: null | string;
             identifier: null | string;
@@ -5361,6 +5474,13 @@ export interface components {
             measurementTemplateId: string;
             /** Format: uuid */
             reuseFromVersionId: null | string;
+        };
+        StartOrderDraftRequest: {
+            /** Format: uuid */
+            customerId: string;
+            /** Format: date */
+            dueDate: null | string;
+            notes: null | string;
         };
         StartTemplateDraftRequest: {
             /** Format: uuid */
@@ -16000,6 +16120,248 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    StartOrderDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "customerId": "0199c2f0-0000-7000-8000-0000000000b1",
+                 *       "dueDate": "2026-09-25",
+                 *       "notes": "Wants the earlier delivery date if the fabric arrives in time."
+                 *     }
+                 */
+                "application/json": components["schemas"]["StartOrderDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetOrderDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SetOrderDraftCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "customerId": "0199c2f0-0000-7000-8000-0000000000b2"
+                 *     }
+                 */
+                "application/json": components["schemas"]["SetOrderDraftCustomerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SetOrderDraftSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "dueDate": "2026-09-28",
+                 *       "notes": "Customer asked to push the date by three days."
+                 *     }
+                 */
+                "application/json": components["schemas"]["SetOrderDraftScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
         };

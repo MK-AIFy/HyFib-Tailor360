@@ -339,6 +339,18 @@ public static class OrdersErrors
         "A draft is kept for a window longer than no time at all.",
         "lifetime");
 
+    /// <summary>No customer matches the identifier a draft was started or re-pointed at.</summary>
+    /// <remarks>
+    /// The domain itself refuses only <see cref="Guid.Empty"/> — existence is a cross-module question
+    /// <c>OrderDraftHandler</c> asks through <c>Customers.Contracts.ICustomerSnapshotQuery</c>, because
+    /// the customer record lives in a different schema (ARCH-005) and Orders may not read it directly.
+    /// The same error answers a customer that has since been merged away with nothing to redirect a
+    /// caller to, so a stale identifier and a genuinely absent one read alike.
+    /// </remarks>
+    public static Error CustomerNotFound { get; } = Error.NotFound(
+        "orders.customer-not-found",
+        "No customer matches that identifier.");
+
     /// <summary>A draft carrying no garment section was confirmed.</summary>
     public static Error DraftHasNoGarments { get; } = Error.Conflict(
         "orders.draft-has-no-garments",

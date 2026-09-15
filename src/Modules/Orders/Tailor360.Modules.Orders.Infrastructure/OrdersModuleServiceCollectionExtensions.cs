@@ -4,12 +4,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Orders.Application.Abstractions;
+using Tailor360.Modules.Orders.Application.Drafts;
+using Tailor360.Modules.Orders.Application.Options;
 using Tailor360.Modules.Orders.Contracts.Orders;
+using Tailor360.Modules.Orders.Infrastructure.Drafts;
 using Tailor360.Modules.Orders.Infrastructure.Orders;
 using Tailor360.Modules.Orders.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.Conventions;
 using Tailor360.Platform.Persistence.Migrating;
+using Tailor360.Platform.Security.Authorisation;
 
 namespace Tailor360.Modules.Orders.Infrastructure;
 
@@ -25,11 +29,16 @@ namespace Tailor360.Modules.Orders.Infrastructure;
 /// migrate at all.
 /// </para>
 /// <para>
-/// <strong>No <c>IResourceScopeResolver</c> and no <c>IPermissionSource</c> in this change</strong>, and neither
-/// is an oversight. A resource scope is what ARCH-023 requires of a branch-scoped permissioned endpoint that
-/// carries a route parameter, and the permission keys are what those endpoints declare — both belong with the
-/// endpoints, which are not in this change. Adding either now would mean registering a resolver for routes that
-/// do not exist and a catalogue nothing reads.
+/// <strong>The module's first <c>IResourceScopeResolver</c> arrives here</strong>, for the order draft
+/// (#199): a resource scope is what ARCH-023 requires of a branch-scoped permissioned endpoint that
+/// carries a route parameter, and the draft is the first such route this module publishes. There is no
+/// <c>IPermissionSource</c> here and there never will be one for this module specifically — permission
+/// keys are not module-owned in this repository. <c>ApplicationPermissions</c> composes the whole
+/// catalogue centrally from every module's constants at once, and <c>OrdersPermissions.All</c> has been
+/// part of that composition, and readable, since the permission model shipped (#24); registering a
+/// second <c>IPermissionSource</c> here would not fill a gap — it would throw at start-up, because
+/// <c>PermissionCatalogue</c>'s constructor rejects a key two sources both declare, and
+/// <c>orders.intake</c> and <c>orders.read</c> are declared by <c>ApplicationPermissions</c> already.
 /// </para>
 /// <para>
 /// <strong><c>IAlterationRequests</c> stays unregistered</strong> for the same reason: it is issue #34, and a
@@ -76,6 +85,24 @@ public static class OrdersModuleServiceCollectionExtensions
         services.TryAddScoped<IOrderDraftStore, OrderDraftStore>();
         services.TryAddScoped<IEstimateStore, EstimateStore>();
         services.TryAddScoped<IOrderStore, OrderStore>();
+
+        // The order draft lifecycle (#199): the module's first resource-scoped route. The window is
+        // documented as branch configuration (glossary.md section 4); no branch-configuration surface
+        // exists yet, so this is the module-level binding the application uses until one does, with the
+        // documented default bound from OrderDraft.DefaultLifetime rather than restated as a literal.
+        services.AddOptions<OrdersDraftOptions>()
+            .Bind(configuration.GetSection(OrdersDraftOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(
+                draftOptions => draftOptions.IsLifetimeUsable,
+                "Orders:Draft:DraftLifetime must be between one hour and thirty days.")
+            .ValidateOnStart();
+
+        services.TryAddScoped<OrderDraftHandler>();
+
+        // Enumerable, not TryAdd: a second module's resolver, for a resource kind of its own, must join
+        // this list rather than replace the draft's.
+        services.AddScoped<IResourceScopeResolver, OrderDraftScopeResolver>();
 
         // The module's published surface, registered here rather than in each consuming module so that the only
         // way to reach an order fact is the contract the boundary allows (ARCH-004), and so a consumer that

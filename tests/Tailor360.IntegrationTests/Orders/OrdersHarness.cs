@@ -31,11 +31,13 @@ namespace Tailor360.IntegrationTests.Orders;
 /// because that is exactly what the triggers exist to refuse and there is no other way to produce one.
 /// </para>
 /// <para>
-/// <strong>Orders has no HTTP surface yet</strong> — <c>OrdersEndpoints.MapOrdersEndpoints</c> maps a group and
-/// nothing in it — so these tests reach the module the way Billing and Custody will: through
-/// <c>IOrderStore</c>, <c>IEstimateStore</c> and <c>IOrderSnapshotQuery</c>, resolved from the hosted
-/// application's own container. That keeps the composition under test as well: a store registered against the
-/// wrong context, or a context whose migration had not run, fails here rather than at the first endpoint.
+/// <strong>Orders' confirmation surface has no HTTP route yet.</strong> The order draft lifecycle does, as of
+/// #199 — <c>OrderDraftEndpointTests</c> exercises it over HTTP — but confirming a draft into an order, issuing
+/// an estimate and everything past intake are still #201 and later. Until they land, these tests reach the rest
+/// of the module the way the eventual endpoints will: through <c>IOrderStore</c>, <c>IEstimateStore</c> and
+/// <c>IOrderSnapshotQuery</c>, resolved from the hosted application's own container. That keeps the composition
+/// under test as well: a store registered against the wrong context, or a context whose migration had not run,
+/// fails here rather than at the first endpoint.
 /// </para>
 /// <para>
 /// <strong>Every value is synthetic.</strong> No name, telephone number, address or measurement below belongs to
