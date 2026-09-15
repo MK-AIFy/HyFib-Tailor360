@@ -1146,6 +1146,27 @@ public static class PayloadExamples
               "correctsVersionId": "0199c2f0-0000-7000-8000-0000000000e1"
             }
             """,
+
+        ["StartOrderDraft"] = """
+            {
+              "customerId": "0199c2f0-0000-7000-8000-0000000000b1",
+              "dueDate": "2026-09-25",
+              "notes": "Wants the earlier delivery date if the fabric arrives in time."
+            }
+            """,
+
+        ["SetOrderDraftCustomer"] = """
+            {
+              "customerId": "0199c2f0-0000-7000-8000-0000000000b2"
+            }
+            """,
+
+        ["SetOrderDraftSchedule"] = """
+            {
+              "dueDate": "2026-09-28",
+              "notes": "Customer asked to push the date by three days."
+            }
+            """,
     };
 
     /// <summary>The example for an operation, or <see langword="null"/> when none is registered.</summary>

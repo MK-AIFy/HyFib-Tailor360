@@ -55,6 +55,13 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
         ["Platform"] =
             "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the "
             + "anti-forgery token pair and the build description the client shell reads on start-up.",
+        ["Orders"] =
+            "Order intake: the counter's own draft, shared within the branch building it, locked per "
+            + "garment section once garment routes land. A draft holds no money and no measurement "
+            + "value — it names a customer, a promised date and notes, and expires to nothing if it is "
+            + "abandoned, because starting one is not an obligation. As the epic lands, this will also "
+            + "cover estimates, confirmed orders, garment jobs, the production workflow, quality "
+            + "control and alterations.",
     };
 
     /// <inheritdoc />

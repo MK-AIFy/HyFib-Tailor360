@@ -6084,6 +6084,86 @@
         ],
         "type": "object"
       },
+      "OrderDraftPayload": {
+        "properties": {
+          "branchId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "consumedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isOpen": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDraftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "orderDraftId",
+          "customerId",
+          "branchId",
+          "dueDate",
+          "notes",
+          "startedAt",
+          "startedBy",
+          "updatedAt",
+          "updatedBy",
+          "expiresAt",
+          "consumedAt",
+          "isOpen"
+        ],
+        "type": "object"
+      },
       "OrderableCatalogPayload": {
         "properties": {
           "branchId": {
@@ -9146,6 +9226,40 @@
         ],
         "type": "object"
       },
+      "SetOrderDraftCustomerRequest": {
+        "properties": {
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customerId"
+        ],
+        "type": "object"
+      },
+      "SetOrderDraftScheduleRequest": {
+        "properties": {
+          "dueDate": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "dueDate",
+          "notes"
+        ],
+        "type": "object"
+      },
       "SignInRequest": {
         "properties": {
           "captchaResponse": {
@@ -9389,6 +9503,33 @@
           "customerId",
           "measurementTemplateId",
           "reuseFromVersionId"
+        ],
+        "type": "object"
+      },
+      "StartOrderDraftRequest": {
+        "properties": {
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerId",
+          "dueDate",
+          "notes"
         ],
         "type": "object"
       },
@@ -27718,6 +27859,394 @@
         "x-tailor360-rate-limit": "default-user"
       }
     },
+    "/api/v1/orders/drafts": {
+      "post": {
+        "description": "Shared within the branch: every user holding orders.intake sees it and may carry it on. Expires after the branch's configured window, default 72 hours, at which point it is removed by the retention job rather than left standing.",
+        "operationId": "StartOrderDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "customerId": "0199c2f0-0000-7000-8000-0000000000b1",
+                "dueDate": "2026-09-25",
+                "notes": "Wants the earlier delivery date if the fabric arrives in time."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StartOrderDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start an order draft.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft_create",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}": {
+      "get": {
+        "description": "The entity tag is what an edit to the order-level fields sends back as If-Match. Garment sections carry their own tag, once #199's second slice adds them.",
+        "operationId": "GetOrderDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read an order draft.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/customer": {
+      "put": {
+        "description": "Corrects a mis-selection at the counter: the garment sections are kept, because they describe the garments and not the person.",
+        "operationId": "SetOrderDraftCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "customerId": "0199c2f0-0000-7000-8000-0000000000b2"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SetOrderDraftCustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Point a draft at a different customer.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.customer_set",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/schedule": {
+      "put": {
+        "description": "Replaces both fields together, including clearing one by sending null: the aggregate writes them as one whole value, never a partial update.",
+        "operationId": "SetOrderDraftSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "dueDate": "2026-09-28",
+                "notes": "Customer asked to push the date by three days."
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SetOrderDraftScheduleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Set the order-level promised date and notes.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft.schedule_set",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -27883,6 +28412,10 @@
     {
       "description": "The customer record: finding one, creating one, correcting it, withdrawing it from use, and recording that a second branch has begun serving the person. A search answers across the whole organisation and returns a masked disambiguation card for a record the caller's branches cannot see, because a revealed last-four is cheaper than the duplicate record it prevents. Contact details are a separate permission from finding the record at all, so a role without `customers.read_contact` receives those fields as null.",
       "name": "Customers"
+    },
+    {
+      "description": "Order intake: the counter's own draft, shared within the branch building it, locked per garment section once garment routes land. A draft holds no money and no measurement value — it names a customer, a promised date and notes, and expires to nothing if it is abandoned, because starting one is not an obligation. As the epic lands, this will also cover estimates, confirmed orders, garment jobs, the production workflow, quality control and alterations.",
+      "name": "Orders"
     },
     {
       "description": "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the anti-forgery token pair and the build description the client shell reads on start-up.",

@@ -73,8 +73,11 @@ public const string GroupPrefix = "/api/v1/orders";
 public static IEndpointRouteBuilder MapOrdersEndpoints(this IEndpointRouteBuilder endpoints)
 ```
 
-Permissions are registered from the module's `Application` project as an `IPermissionSource`. The catalogue is
-composed at start-up and rejects a key claimed by two modules, so every permission has exactly one owner.
+Permissions are **not** module-owned. Every module's constants — `OrdersPermissions`, `CatalogPermissions`, and
+so on — live centrally in `Tailor360.Platform.Security.Permissions`, and `ApplicationPermissions`, the single
+`IPermissionSource` in the solution, composes them all at start-up into one catalogue that rejects a key claimed
+twice. A module registers no `IPermissionSource` of its own; doing so throws at start-up the moment its keys
+collide with the ones `ApplicationPermissions` already declares (issue #199 found this the hard way).
 
 ## 4. Endpoints
 
@@ -87,9 +90,9 @@ group.MapPost("/{id}/confirm", ConfirmAsync)
      .Audited("orders.confirm");                                       // ARCH-008
 ```
 
-The permission key is a constant on the module's `IPermissionSource`, not a literal typed at the call site; the
-scope is `CurrentBranch`, `AssignedBranches` or `Organisation`, and `CurrentBranch` is the default for anything
-touching branch-owned data.
+The permission key is the module's constant from `Tailor360.Platform.Security.Permissions` (for example
+`OrdersPermissions.Confirm`), not a literal typed at the call site; the scope is `CurrentBranch`,
+`AssignedBranches` or `Organisation`, and `CurrentBranch` is the default for anything touching branch-owned data.
 
 - An endpoint deliberately reachable without a session uses
   `AllowAnonymousWithJustification(justification, reviewedIn)` — never a bare `AllowAnonymous()`.
