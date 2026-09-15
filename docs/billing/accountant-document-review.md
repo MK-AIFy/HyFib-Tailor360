@@ -166,8 +166,8 @@ document, it is marked Not applicable **with the reason**, as the checklist requ
 | **A11Y-DP-03** — real text, never an image of text | **Pass** | Same basis as A11Y-DP-01, asserted in two tiers. A picture of a page would extract nothing and every figure assertion would fail |
 | **A11Y-DP-04** — reading order matches visual order | **Pass** | QuestPDF's PDF/UA-1 conformance gives the document its own structure tree — `Document`, `Header`, `Content` and `Footer` landmarks — so the order a reader announces is the order the document declares, not one inferred from geometry. Proved by the same structure-tree assertion in `DocumentAdapterTests`, alongside the extraction-order assertions already held by `RenderedDocumentIsAccessibleAsFarAsTheRendererAllows` and `PdfSnapshotAgreementTests`. **Closed by #512** |
 | **A11Y-DP-05** — tables carry header cells | **Pass** | The line table is tagged `SemanticTable()` and its column headings `SemanticHorizontalHeader()`, so the structure tree carries a genuine table-header role (`/S /TH`) a reader can announce, alongside the printed-once-above-their-rows layout `DocumentAdapterTests` already pinned. Proved by `RenderedInvoiceCarriesATaggedPdfStructureTreeWithHeaderRolesAndATamilLanguageSpan`. **Closed by #512** |
-| **A11Y-DP-06** — Print, Send to print station and Download PDF distinct and named | **Not applicable to the artefact** — reason: these are **screen controls**, not properties of a rendered document. Answered on the invoice detail screen, delivered by **E09-F02-5**, and recorded against that screen |
-| **A11Y-DP-07** — "queued to the print station" announced with branch and job | **Not applicable to the artefact** — reason: as A11Y-DP-06, a screen announcement delivered by **E09-F02-5** |
+| **A11Y-DP-06** — Print, Send to print station and Download PDF distinct and named | **Not applicable to the artefact** — reason: these are **screen controls**, not properties of a rendered document. Answered on the invoice detail screen, delivered by **E09-F02-5** — recorded as **Pass** in [`../nfr/a11y-records/2026-09-15-billing-invoice-screens.md`](../nfr/a11y-records/2026-09-15-billing-invoice-screens.md) section 3.5 |
+| **A11Y-DP-07** — "queued to the print station" announced with branch and job | **Not applicable to the artefact** — reason: as A11Y-DP-06, a screen announcement delivered by **E09-F02-5** — recorded as **Fail** in [`../nfr/a11y-records/2026-09-15-billing-invoice-screens.md`](../nfr/a11y-records/2026-09-15-billing-invoice-screens.md) section 3.5: the announcement names the job but not the branch, filed as [#533](https://github.com/MK-AIFy/HyFib-Tailor360/issues/533) |
 | **A11Y-DP-08** — an amount in words is read as words | **Not applicable** — reason: **the billing templates print no amount in words.** Should the accountant require one (question 3.1.1), this record becomes live and must be answered before that change ships |
 | **A11Y-DP-09** — the measurement sheet renders in the reader's display unit with the unit announced | **Not applicable to the billing documents** — reason: there is **no measurement-sheet template**; `Documents/` holds the billing document and the receipt only. The record belongs to whichever issue renders a measurement sheet |
 
@@ -175,6 +175,14 @@ The manual screen-reader pass that turns these desk verdicts into observed ones 
 needs the NVDA pairing and a real device; it has **not** been run against these artefacts. The verdicts above are
 recorded from the renderer's measured behaviour and the assertions named beside them, which is what can honestly be
 claimed from a coding session.
+
+**Update, issue #516**: a coding session attempted the live NVDA pass against these artefacts (Adobe Acrobat, the
+non-browser pairing available) and confirmed visually that the Tamil display name and the CGST/SGST/Grand total
+labels render as expected, but could not capture an actual NVDA transcript — NVDA's own windows are unreachable to
+this kind of automation once elevated, and a non-elevated copy cannot be granted access by the sandbox running it.
+The deferral this implies is recorded once, covering both this artefact-level pass and the on-screen pass, in
+[`../nfr/a11y-records/2026-09-15-billing-invoice-screens.md`](../nfr/a11y-records/2026-09-15-billing-invoice-screens.md)
+section 4, rather than duplicated here.
 
 ---
 
