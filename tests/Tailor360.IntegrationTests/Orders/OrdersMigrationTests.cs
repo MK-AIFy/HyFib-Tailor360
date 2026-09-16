@@ -118,7 +118,10 @@ public sealed class OrdersMigrationTests
                 "the migration re-applies cleanly onto the schema its own Down emptied");
 
             (await FunctionCountAsync(connectionString)).ShouldBe(8);
-            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(1);
+
+            // Two migrations now: InitialOrdersSchema and #232's own — each re-apply this test drives applies
+            // every migration the module has, not just the first one docs/dev/migrations.md was written against.
+            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(2);
 
             // Nothing is pending afterwards, which is what the startup probe reads before it lets the host
             // serve. A re-apply that left the model and the history disagreeing would pass every check above.

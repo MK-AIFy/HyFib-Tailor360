@@ -136,7 +136,10 @@ internal static class OrdersHarness
             "The everyday stitching process docs/prd/workflows/blouse.md section 2.1 describes.", now, null)
             .Value;
 
-        var version = definition.AddVersion(ids, now, null);
+        // The real generator mints a fresh UUIDv7 (ARCH-015) and cannot be steered onto the fixed constant every
+        // test pins, so this one call gets a generator that hands over exactly the identifier asked for; every
+        // other identifier this method needs — the phases, the transitions — still comes from the real one.
+        var version = definition.AddVersion(new FixedIdGenerator(WorkflowVersion), now, null);
         version.Id.ShouldBe(WorkflowVersion, "the fixture's version identifier must be the one every test pins");
 
         var phases = new[]
@@ -183,6 +186,12 @@ internal static class OrdersHarness
 
         var saved = await store.SaveAsync(Token);
         saved.IsSuccess.ShouldBeTrue($"the fixture's workflow definition was refused: {saved.Error.Code}");
+    }
+
+    /// <summary>Hands over one decided identifier rather than minting one, for the one caller that must not.</summary>
+    private sealed class FixedIdGenerator(Guid id) : IIdGenerator
+    {
+        public Guid NewId() => id;
     }
 
     /// <summary>The measurement template the frozen copy names as its provenance.</summary>

@@ -174,6 +174,12 @@ public sealed class WorkflowPersistenceTests(WebApplicationFixture fixture)
                 .IsSuccess.ShouldBeTrue();
             definition.Publish(first.Id, now, null, "First launch.").IsSuccess.ShouldBeTrue();
 
+            // Retired before the race starts: Publish never retires a sibling on its own (the class remarks —
+            // "immutable but for retirement" — say nothing about the *previous* version), so the partial unique
+            // index would refuse either racer's second version while the first stayed Published, and this test
+            // would be exercising that refusal instead of the race it names.
+            definition.Retire(first.Id, now, null, "Retiring for the next launch.").IsSuccess.ShouldBeTrue();
+
             store.Add(definition);
             (await store.SaveAsync(Token)).IsSuccess.ShouldBeTrue();
 
