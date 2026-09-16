@@ -3178,7 +3178,7 @@ export interface paths {
         };
         /**
          * Read an order draft.
-         * @description The entity tag is what an edit to the order-level fields sends back as If-Match. Garment sections carry their own tag, once #199's second slice adds them.
+         * @description The entity tag is what an edit to the order-level fields sends back as If-Match. Each garment section carries its own version in the body, sent back in double quotes as If-Match on every edit to that section — so a draft reopened from this read can be edited section by section without a further round trip.
          */
         get: operations["GetOrderDraft"];
         put?: never;
@@ -3199,10 +3199,110 @@ export interface paths {
         get?: never;
         /**
          * Point a draft at a different customer.
-         * @description Corrects a mis-selection at the counter: the garment sections are kept, because they describe the garments and not the person.
+         * @description Corrects a mis-selection at the counter: the garment sections are kept, because they describe the garments and not the person. Refused while a section still reuses a measurement taken for the customer the draft is leaving — change that section first.
          */
         put: operations["SetOrderDraftCustomer"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/garments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a garment section to a draft.
+         * @description The category, service type and measurement template are pinned server-side from what the branch may order today — the same pin a confirmed order is frozen against — never trusted from the request. A reused measurement must be this customer's own and answer the template the service is measured by. No If-Match: this creates the section, so there is no earlier version to be stale against.
+         */
+        post: operations["AddOrderDraftGarment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the whole content of a garment section.
+         * @description Every field is replaced together; the section's identity, position and dependencies are left alone. The precondition is the section's own tag, not the draft's: two counters editing different, non-reusing sections of one draft never collide, on either tag. A reused measurement is bound as on adding a section, and — because that binding depends on the draft's own customer — a save that leaves a section reusing one also moves the draft's tag, so it does collide with a concurrent re-point of the customer.
+         */
+        put: operations["SaveOrderDraftGarment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a garment section, and every dependency naming it.
+         * @description A POST sub-resource rather than DELETE, matching the withdraw-dependency route: no permissioned route in this module uses the DELETE verb. Answers with the whole draft, not the removed section — the removal can withdraw dependencies on other sections too. Precondition is the removed section's own tag.
+         */
+        post: operations["RemoveOrderDraftGarment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Declare that one section waits for, or is delivered with, another.
+         * @description Both sections must be on this draft. Declaring touches the dependent section, so its tag moves and is a genuine precondition even though the dependency table itself carries none.
+         */
+        post: operations["DeclareOrderDraftDependency"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/garments/{garmentId}/dependencies/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a dependency one section declared on another.
+         * @description A body rather than a route segment: the composite primary key makes the prerequisite-and-kind pair the row's identity, and a route can carry only one identifier past the section.
+         */
+        post: operations["WithdrawOrderDraftDependency"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3293,6 +3393,19 @@ export interface components {
             mustChangePassword: boolean;
             /** Format: int32 */
             unusedRecoveryCodes: number | string;
+        };
+        AddOrderDraftGarmentRequest: {
+            categoryKey: null | string;
+            /** Format: uuid */
+            designSelectionDraftId: null | string;
+            /** Format: date */
+            dueDate: null | string;
+            instructions: null | string;
+            measurementIntent: null | string;
+            /** Format: uuid */
+            measurementVersionId: null | string;
+            referenceMediaIds: null | string[];
+            serviceTypeKey: null | string;
         };
         AdjustmentNoteLinePayload: {
             /** Format: uuid */
@@ -3818,6 +3931,12 @@ export interface components {
             occurredAt: string;
             /** Format: int32 */
             schemaVersion: number | string;
+        };
+        DeclareOrderDraftDependencyRequest: {
+            kind: null | string;
+            /** Format: uuid */
+            prerequisiteGarmentId: string;
+            reason: null | string;
         };
         DefineRolePayload: {
             description: null | string;
@@ -4657,6 +4776,39 @@ export interface components {
             /** Format: double */
             unappliedAdvances: number | string;
         };
+        OrderDraftGarmentDependencyPayload: {
+            /** Format: date-time */
+            declaredAt: string;
+            kind: string;
+            /** Format: uuid */
+            prerequisiteOrderDraftGarmentId: string;
+            reason: null | string;
+        };
+        OrderDraftGarmentPayload: {
+            /** Format: uuid */
+            catalogVersionId: string;
+            categoryKey: string;
+            dependencies: components["schemas"]["OrderDraftGarmentDependencyPayload"][];
+            /** Format: uuid */
+            designSelectionDraftId: null | string;
+            /** Format: date */
+            dueDate: null | string;
+            instructions: null | string;
+            measurementIntent: string;
+            /** Format: uuid */
+            measurementTemplateId: null | string;
+            /** Format: uuid */
+            measurementVersionId: null | string;
+            /** Format: uuid */
+            orderDraftGarmentId: string;
+            /** Format: int32 */
+            position: number | string;
+            referenceMediaIds: string[];
+            serviceTypeKey: string;
+            /** Format: date-time */
+            updatedAt: string;
+            version: string;
+        };
         OrderDraftPayload: {
             /** Format: uuid */
             branchId: string;
@@ -4668,6 +4820,7 @@ export interface components {
             dueDate: null | string;
             /** Format: date-time */
             expiresAt: string;
+            garments: components["schemas"]["OrderDraftGarmentPayload"][];
             isOpen: boolean;
             notes: null | string;
             /** Format: uuid */
@@ -5316,6 +5469,19 @@ export interface components {
             groupName: string;
             values: components["schemas"]["MeasurementValueRequest"][];
         };
+        SaveOrderDraftGarmentRequest: {
+            categoryKey: null | string;
+            /** Format: uuid */
+            designSelectionDraftId: null | string;
+            /** Format: date */
+            dueDate: null | string;
+            instructions: null | string;
+            measurementIntent: null | string;
+            /** Format: uuid */
+            measurementVersionId: null | string;
+            referenceMediaIds: null | string[];
+            serviceTypeKey: null | string;
+        };
         ServiceTypePayload: {
             /** Format: date */
             activeFrom: null | string;
@@ -5670,6 +5836,11 @@ export interface components {
             environment: string;
             minimumClient: string;
             schemaVersion: string;
+        };
+        WithdrawOrderDraftDependencyRequest: {
+            kind: null | string;
+            /** Format: uuid */
+            prerequisiteGarmentId: string;
         };
     };
     responses: {
@@ -16244,6 +16415,378 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddOrderDraftGarment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "categoryKey": "blouse",
+                 *       "designSelectionDraftId": "0199c2f0-0000-7000-8000-0000000000e2",
+                 *       "dueDate": "2026-09-25",
+                 *       "instructions": "Keep the shoulder loose.",
+                 *       "measurementIntent": "TakeLater",
+                 *       "measurementVersionId": null,
+                 *       "referenceMediaIds": [],
+                 *       "serviceTypeKey": "stitch-new"
+                 *     }
+                 */
+                "application/json": components["schemas"]["AddOrderDraftGarmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftGarmentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    SaveOrderDraftGarment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+                garmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "categoryKey": "blouse",
+                 *       "designSelectionDraftId": "0199c2f0-0000-7000-8000-0000000000e2",
+                 *       "dueDate": "2026-09-25",
+                 *       "instructions": "Keep the shoulder loose.",
+                 *       "measurementIntent": "ReuseVersion",
+                 *       "measurementVersionId": "0199c2f0-0000-7000-8000-0000000000f2",
+                 *       "referenceMediaIds": [],
+                 *       "serviceTypeKey": "stitch-new"
+                 *     }
+                 */
+                "application/json": components["schemas"]["SaveOrderDraftGarmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftGarmentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    RemoveOrderDraftGarment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+                garmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    DeclareOrderDraftDependency: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+                garmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "kind": "DeliverTogether",
+                 *       "prerequisiteGarmentId": "0199c2f0-0000-7000-8000-0000000000e3",
+                 *       "reason": "The sari blouse goes home with the sari."
+                 *     }
+                 */
+                "application/json": components["schemas"]["DeclareOrderDraftDependencyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftGarmentPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    WithdrawOrderDraftDependency: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+                garmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "kind": "DeliverTogether",
+                 *       "prerequisiteGarmentId": "0199c2f0-0000-7000-8000-0000000000e3"
+                 *     }
+                 */
+                "application/json": components["schemas"]["WithdrawOrderDraftDependencyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftGarmentPayload"];
                 };
             };
             /** @description Bad Request */

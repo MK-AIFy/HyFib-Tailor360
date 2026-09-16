@@ -39,11 +39,16 @@ namespace Tailor360.Modules.Orders.Infrastructure.Persistence;
 /// already been broken, so there is no refusal the counter can act on, but there is a result rather than a 500.
 /// </para>
 /// <para>
-/// <strong>What is deliberately not mapped.</strong> A foreign-key violation (23503) and a not-null violation
-/// (23502) are left to escape. Neither is a refusal this schema is designed to raise at a caller: the two
-/// <c>ON DELETE RESTRICT</c> arms guard deletes no command performs, and a null in a required column is a mapping
-/// defect. Answering them with a conflict would put a defect behind a message that invites a retry, which is the
-/// same mistake the unnamed-unique arm below exists to stop.
+/// <strong>What is deliberately not mapped, with one named exception.</strong> A foreign-key violation (23503)
+/// and a not-null violation (23502) are otherwise left to escape: the remaining <c>ON DELETE RESTRICT</c> and
+/// <c>CASCADE</c> arms guard deletes no command performs concurrently with the insert that could race them, and a
+/// null in a required column is a mapping defect. The one exception is
+/// <see cref="OrdersDbContext.DraftGarmentDependencyPrerequisiteKey"/>: declaring a dependency and removing its
+/// prerequisite section are two counters' own edits, deliberately uncoupled from each other
+/// (<c>OrderDraft.SaveGarment</c>'s remarks), so the loser of that race reaches the database rather than a
+/// draft-level conflict, and is answered as the section it named no longer being on the draft. Answering the
+/// others with a conflict would put a defect behind a message that invites a retry, which is the same mistake the
+/// unnamed-unique arm below exists to stop.
 /// </para>
 /// </remarks>
 internal static class OrdersWriteFailures
@@ -77,6 +82,14 @@ internal static class OrdersWriteFailures
             case PostgresErrorCodes.CheckViolation:
             case PostgresErrorCodes.RestrictViolation:
                 error = OrdersErrors.WriteRefused;
+
+                return true;
+
+            // The one named foreign key: see the remarks on DraftGarmentDependencyPrerequisiteKey. Every other
+            // foreign-key violation still escapes, by the class remarks above.
+            case PostgresErrorCodes.ForeignKeyViolation
+                when postgres.ConstraintName == OrdersDbContext.DraftGarmentDependencyPrerequisiteKey:
+                error = OrdersErrors.GarmentNotOnDraft;
 
                 return true;
 

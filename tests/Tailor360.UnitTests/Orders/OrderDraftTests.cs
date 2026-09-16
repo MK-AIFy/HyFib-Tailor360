@@ -293,6 +293,90 @@ public sealed class OrderDraftTests
     }
 
     [Fact]
+    public void ASectionsOwnEditsLeaveTheDraftsOwnRowAlone()
+    {
+        // The draft's row is the order-level lock. If a section's save moved it, two counters saving different
+        // sections would collide on the draft's token — the collision the per-section lock exists to avoid.
+        // Neither section here ends up reusing a measurement, which is the one case that is coupled back in
+        // (AMeasurementReusingSaveMovesTheDraftToo below) for a data-integrity reason of its own.
+        var draft = OrdersTestData.Draft();
+        Add(draft, "first", MeasurementIntent.TakeLater);
+        Add(draft, "second", MeasurementIntent.TakeLater);
+        var (updatedAt, updatedBy) = (draft.UpdatedAt, draft.UpdatedBy);
+        var somebodyElse = OrdersTestData.Id("the-other-counter");
+
+        draft.SaveGarment(
+            OrdersTestData.Id("first"),
+            OrdersTestData.GarmentContent(MeasurementIntent.TakeLater, categoryKey: "saree-fall"),
+            Later,
+            somebodyElse).IsSuccess.ShouldBeTrue();
+        draft.DeclareDependency(
+            OrdersTestData.Id("second"),
+            OrdersTestData.Id("first"),
+            JobDependencyKind.FinishBefore,
+            reason: null,
+            Later,
+            somebodyElse).IsSuccess.ShouldBeTrue();
+        draft.WithdrawDependency(
+            OrdersTestData.Id("second"),
+            OrdersTestData.Id("first"),
+            JobDependencyKind.FinishBefore,
+            Later,
+            somebodyElse).IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(updatedAt);
+        draft.UpdatedBy.ShouldBe(updatedBy);
+        draft.FindGarment(OrdersTestData.Id("first"))!.UpdatedAt.ShouldBe(Later);
+        draft.FindGarment(OrdersTestData.Id("second"))!.UpdatedAt.ShouldBe(Later);
+    }
+
+    /// <summary>
+    /// The one deliberate exception to the section/draft split above: whether a reused measurement belongs to
+    /// this draft's customer is checked in two places that can disagree once a customer re-point runs
+    /// concurrently, so a save that leaves a section reusing a measurement also moves the draft — coupling it
+    /// to <see cref="OrderDraft.SetCustomer"/>, which always moves the draft too — rather than leaving that
+    /// race to plain optimistic concurrency on disjoint rows, which cannot catch it.
+    /// </summary>
+    [Fact]
+    public void AMeasurementReusingSaveMovesTheDraftToo()
+    {
+        var draft = OrdersTestData.Draft();
+        Add(draft, "first", MeasurementIntent.TakeLater);
+        var beforeTheSave = draft.UpdatedAt;
+
+        draft.SaveGarment(
+            OrdersTestData.Id("first"),
+            OrdersTestData.GarmentContent(MeasurementIntent.ReuseVersion),
+            Later,
+            OrdersTestData.Actor).IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(Later);
+        draft.UpdatedAt.ShouldNotBe(beforeTheSave);
+    }
+
+    [Fact]
+    public void ChangingWhatTheDraftIsMadeOfMovesTheDraftItself()
+    {
+        // Adding and removing a section are the draft's own edits: a client holding the draft's tag is told
+        // that what it is looking at has a different set of sections now.
+        var draft = OrdersTestData.Draft();
+        Add(draft, "first");
+
+        draft.AddGarment(
+            OrdersTestData.Id("second"),
+            OrdersTestData.GarmentContent(),
+            Later,
+            OrdersTestData.Actor).IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(Later);
+
+        draft.RemoveGarment(OrdersTestData.Id("second"), Later.AddMinutes(1), OrdersTestData.Actor)
+            .IsSuccess.ShouldBeTrue();
+
+        draft.UpdatedAt.ShouldBe(Later.AddMinutes(1));
+    }
+
+    [Fact]
     public void RemovingASectionTakesEveryDependencyNamingItInEitherDirection()
     {
         // A dependency is a statement about two garments and only one of them holds the row. Leaving the

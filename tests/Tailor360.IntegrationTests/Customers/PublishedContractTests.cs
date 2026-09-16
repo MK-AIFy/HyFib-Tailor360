@@ -430,11 +430,29 @@ public sealed class PublishedContractTests(WebApplicationFixture fixture)
             .GetAsync(customerId, TestContext.Current.CancellationToken);
     }
 
-    private async Task<CustomerSnapshot?> SnapshotAsync(Guid customerId, params string[] permissions)
+    [Fact]
+    public async Task ACustomerLookedUpUnderAnotherOrganisationHasNoSnapshot()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        var customerId = await CustomerAsync();
+
+        // The organisation is the tenant boundary and never the caller's to assert past (ADR-0007 keeps
+        // multi-tenancy additive). A consumer holding a real identifier under the wrong organisation gets the
+        // same answer as for one that does not exist, so it learns nothing from asking.
+        (await SnapshotAsync(customerId, CustomersPermissions.Read)).ShouldNotBeNull();
+        (await SnapshotInAsync(customerId, Guid.CreateVersion7(), CustomersPermissions.Read)).ShouldBeNull();
+    }
+
+    private Task<CustomerSnapshot?> SnapshotAsync(Guid customerId, params string[] permissions)
+        => SnapshotInAsync(customerId, SessionTestData.OrganisationId, permissions);
+
+    private async Task<CustomerSnapshot?> SnapshotInAsync(
+        Guid customerId, Guid organisationId, params string[] permissions)
     {
         using var scope = fixture.Services.CreateScope();
 
         return await scope.ServiceProvider.GetRequiredService<ICustomerSnapshotQuery>()
-            .GetAsync(customerId, permissions, TestContext.Current.CancellationToken);
+            .GetAsync(customerId, organisationId, permissions, TestContext.Current.CancellationToken);
     }
 }

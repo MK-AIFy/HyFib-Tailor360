@@ -104,10 +104,14 @@ public sealed class OrderDraft
     /// <summary>Who started it.</summary>
     public Guid? StartedBy { get; private set; }
 
-    /// <summary>When it was last written to, in UTC.</summary>
+    /// <summary>
+    /// When the draft's own row was last written to, in UTC: its customer, its schedule, or which sections it
+    /// has. A section's own edits move the section's <see cref="OrderDraftGarment.UpdatedAt"/>, not this
+    /// (<see cref="SaveGarment"/>'s remarks).
+    /// </summary>
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    /// <summary>Who last wrote to it.</summary>
+    /// <summary>Who last wrote to the draft's own row.</summary>
     public Guid? UpdatedBy { get; private set; }
 
     /// <summary>When it stops being work in progress, in UTC.</summary>
@@ -296,10 +300,32 @@ public sealed class OrderDraft
     /// Replaces one garment section, leaving every other section alone.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This is the unit the per-section <c>If-Match</c> lock protects. Two people editing one draft is the
     /// ordinary case in a shop, and the loser of a race on the same section gets <c>409</c> with the current
     /// version rather than having their work silently overwritten
     /// (<c>docs/prd/state-transitions.md</c> section 2.1).
+    /// </para>
+    /// <para>
+    /// <strong>The draft itself is not touched, except by a section that ends up reusing a measurement.</strong>
+    /// The section's row is the one that ordinarily moves; the draft's own <c>UpdatedAt</c> and version stay
+    /// where they were, so two counters saving <em>different</em>, non-reusing sections never collide on the
+    /// draft's token — the very thing the per-section lock exists to avoid. The same holds for declaring and
+    /// withdrawing a dependency, which are the section's own edits too. Adding and removing a section do move
+    /// the draft, because they change what the draft is made of.
+    /// </para>
+    /// <para>
+    /// <strong>The one exception is deliberate.</strong> Whether a reused measurement belongs to this draft's
+    /// customer is answered against the customer as read, and re-pointing the customer is answered against the
+    /// sections as read (<c>OrderDraftHandler.ReusedMeasurementsFollowAsync</c>) — two checks over data that can
+    /// change between them, which plain optimistic concurrency on disjoint rows cannot by itself serialise. A
+    /// save that leaves a section reusing a measurement therefore also moves the draft, coupling it to a
+    /// concurrent re-point of the customer (which always moves the draft) so that whichever commits second is
+    /// refused and re-reads, rather than a garment quietly ending up pinned to another customer's measurement.
+    /// This narrows the case the per-section lock is for — it no longer protects two concurrent
+    /// <em>reusing</em> saves on different sections from each other — in exchange for closing a data-integrity
+    /// gap; a save that leaves a section not reusing anything is unaffected.
+    /// </para>
     /// </remarks>
     /// <param name="garmentId">The section being saved.</param>
     /// <param name="content">The validated new content.</param>
@@ -326,7 +352,11 @@ public sealed class OrderDraft
         }
 
         garment.Apply(content, now, by);
-        Touch(now, by);
+
+        if (content.MeasurementIntent is MeasurementIntent.ReuseVersion)
+        {
+            Touch(now, by);
+        }
 
         return Result.Success();
     }
@@ -407,15 +437,8 @@ public sealed class OrderDraft
             return Result.Failure(OrdersErrors.GarmentNotOnDraft);
         }
 
-        var declared = garment.DeclareDependency(prerequisiteGarmentId, kind, reason, now, by);
-        if (declared.IsFailure)
-        {
-            return declared;
-        }
-
-        Touch(now, by);
-
-        return Result.Success();
+        // The dependent section's own edit: it moves that section's row and nothing else (SaveGarment's remarks).
+        return garment.DeclareDependency(prerequisiteGarmentId, kind, reason, now, by);
     }
 
     /// <summary>Withdraws a dependency one section declared on another.</summary>
@@ -443,15 +466,8 @@ public sealed class OrderDraft
             return Result.Failure(OrdersErrors.GarmentNotOnDraft);
         }
 
-        var withdrawn = garment.WithdrawDependency(prerequisiteGarmentId, kind, now, by);
-        if (withdrawn.IsFailure)
-        {
-            return withdrawn;
-        }
-
-        Touch(now, by);
-
-        return Result.Success();
+        // As for declaring: the dependent section's own edit, and the draft's row is left alone.
+        return garment.WithdrawDependency(prerequisiteGarmentId, kind, now, by);
     }
 
     /// <summary>
@@ -566,6 +582,10 @@ public sealed class OrderDraft
     private int NextPosition()
         => _garments.Count == 0 ? 1 : _garments.Max(garment => garment.Position) + 1;
 
+    /// <summary>
+    /// Records a write to the draft's own row: its customer, its schedule, or what it is made of. A section's
+    /// own edits do not come through here — see <see cref="SaveGarment"/>.
+    /// </summary>
     private void Touch(DateTimeOffset now, Guid? by)
     {
         UpdatedAt = now;

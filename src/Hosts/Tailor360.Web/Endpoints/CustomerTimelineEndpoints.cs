@@ -92,7 +92,7 @@ public static class CustomerTimelineEndpoints
                 // nothing has happened to are different things, and answering both with an empty
                 // timeline would make the second look like a bug and the first look like a record.
                 var customer = await customers.GetAsync(
-                    customerId, [.. caller.Permissions], cancellationToken);
+                    customerId, caller.Context.OrganisationId, [.. caller.Permissions], cancellationToken);
 
                 if (customer is null)
                 {
