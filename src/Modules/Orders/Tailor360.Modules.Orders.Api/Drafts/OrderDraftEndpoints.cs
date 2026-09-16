@@ -318,9 +318,11 @@ public static class OrderDraftEndpoints
             .WithSummary("Replace the whole content of a garment section.")
             .WithDescription(
                 "Every field is replaced together; the section's identity, position and dependencies are "
-                + "left alone. The precondition is the section's own tag, not the draft's, and only the "
-                + "section's row moves — two counters editing different sections of one draft never "
-                + "collide, on either tag. A reused measurement is bound as on adding a section.")
+                + "left alone. The precondition is the section's own tag, not the draft's: two counters "
+                + "editing different, non-reusing sections of one draft never collide, on either tag. A "
+                + "reused measurement is bound as on adding a section, and — because that binding depends "
+                + "on the draft's own customer — a save that leaves a section reusing one also moves the "
+                + "draft's tag, so it does collide with a concurrent re-point of the customer.")
             .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
             .ScopedToResource(OrdersResourceKinds.OrderDraft, "draftId")
             .RequireRateLimiting(RateLimitPolicyNames.Write)

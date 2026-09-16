@@ -682,6 +682,68 @@ public sealed class OrderDraftEndpointTests(WebApplicationFixture fixture)
         return body.RootElement.GetProperty("orderDraftGarmentId").GetGuid();
     }
 
+    /// <summary>
+    /// The regression a section save and a customer re-point can otherwise cause together: both check the
+    /// invariant against data each read before the other wrote -- the save validates the reused measurement
+    /// against the customer as loaded, and the re-point checks every reused measurement against the sections
+    /// as loaded -- so plain optimistic concurrency on two disjoint rows would let both commit, leaving the
+    /// draft pointed at a new customer with a section still pinned to the old one's measurement.
+    /// <see cref="OrderDraft.SaveGarment"/>'s remarks record the fix: a save that ends up reusing a
+    /// measurement also moves the draft, coupling it to the re-point (which always moves the draft), so
+    /// whichever commits second is refused rather than landing silently. Driven at the store level, like
+    /// <see cref="TwoCountersSavingDifferentSectionsOfOneDraftBothSucceed"/>, to control the exact interleaving
+    /// a sequence of HTTP calls cannot force.
+    /// </summary>
+    [Fact]
+    public async Task ARaceBetweenARepointAndAReusingSaveIsCaughtRatherThanLettingBothLand()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-race2-c", "203.0.113.245");
+        var oldCustomer = await CustomerAsync(counter);
+        var newCustomer = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, oldCustomer);
+        var (categoryKey, serviceTypeKey, templateId) = await OrderableServiceAsync("garm-race2");
+        var measurementVersionId = await ConfirmedMeasurementAsync(oldCustomer, templateId);
+        var garmentId = await AddedGarmentAsync(counter, draftId, categoryKey, serviceTypeKey);
+        var organisationId = SessionTestData.OrganisationId;
+
+        using var one = fixture.Services.CreateScope();
+        using var other = fixture.Services.CreateScope();
+        var oneStore = one.ServiceProvider.GetRequiredService<IOrderDraftStore>();
+        var otherStore = other.ServiceProvider.GetRequiredService<IOrderDraftStore>();
+        var now = one.ServiceProvider.GetRequiredService<IClock>().UtcNow;
+
+        // Both read before either writes: the shape the race needs, and the one a sequence of requests
+        // through the application's own guard (ReusedMeasurementsFollowAsync) cannot produce, because that
+        // guard re-reads at call time. This proves the row-level lock catches it regardless.
+        var draftForTheSave = (await oneStore.FindAsync(draftId, organisationId, Token))!;
+        var draftForTheRepoint = (await otherStore.FindAsync(draftId, organisationId, Token))!;
+
+        draftForTheSave.SaveGarment(
+            garmentId,
+            OrderDraftGarmentContent.Create(
+                categoryKey,
+                serviceTypeKey,
+                draftForTheSave.FindGarment(garmentId)!.CatalogVersionId,
+                designSelectionDraftId: null,
+                MeasurementIntent.ReuseVersion,
+                measurementVersionId,
+                templateId,
+                dueDate: null,
+                instructions: null,
+                referenceMediaIds: null).Value,
+            now,
+            null).IsSuccess.ShouldBeTrue();
+        draftForTheRepoint.SetCustomer(newCustomer, now, null).IsSuccess.ShouldBeTrue();
+
+        (await oneStore.SaveAsync(Token)).IsSuccess.ShouldBeTrue();
+        var loser = await otherStore.SaveAsync(Token);
+
+        loser.IsFailure.ShouldBeTrue();
+        loser.Error.Code.ShouldBe("orders.concurrent-change");
+    }
+
     /// <summary>The section's content as loaded, with only its instructions changed.</summary>
     private static OrderDraftGarmentContent Reworded(OrderDraft draft, Guid garmentId, string instructions)
     {
@@ -698,6 +760,47 @@ public sealed class OrderDraftEndpointTests(WebApplicationFixture fixture)
             garment.DueDate,
             instructions,
             garment.ReferenceMediaIds).Value;
+    }
+
+    /// <summary>
+    /// A concurrent declare and remove naming the same prerequisite: the declare checks the prerequisite is
+    /// on the draft against the copy it loaded, and the two edits are deliberately uncoupled from the draft's
+    /// own row (see <see cref="OrderDraft.SaveGarment"/>'s remarks), so the loser reaches the database with a
+    /// prerequisite that is already gone. Proves it is answered as orders.garment-not-on-draft -- the section
+    /// it named no longer being there -- rather than an unhandled foreign-key violation.
+    /// </summary>
+    [Fact]
+    public async Task DeclaringAgainstARemovedPrerequisiteIsRefusedRatherThanFailingTheRequest()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        using var counter = await CounterAsync("draft-garm-fk-c", "203.0.113.246");
+        var customerId = await CustomerAsync(counter);
+        var draftId = await StartDraftAsync(counter, customerId);
+        var (categoryKey, serviceTypeKey, _) = await OrderableServiceAsync("garm-fk");
+        var dependent = await AddedGarmentAsync(counter, draftId, categoryKey, serviceTypeKey);
+        var prerequisite = await AddedGarmentAsync(counter, draftId, categoryKey, serviceTypeKey);
+        var organisationId = SessionTestData.OrganisationId;
+
+        using var one = fixture.Services.CreateScope();
+        using var other = fixture.Services.CreateScope();
+        var oneStore = one.ServiceProvider.GetRequiredService<IOrderDraftStore>();
+        var otherStore = other.ServiceProvider.GetRequiredService<IOrderDraftStore>();
+        var now = one.ServiceProvider.GetRequiredService<IClock>().UtcNow;
+
+        var draftForTheDeclare = (await oneStore.FindAsync(draftId, organisationId, Token))!;
+        var draftForTheRemoval = (await otherStore.FindAsync(draftId, organisationId, Token))!;
+
+        draftForTheDeclare.DeclareDependency(
+            dependent, prerequisite, JobDependencyKind.FinishBefore, reason: null, now, null)
+            .IsSuccess.ShouldBeTrue();
+        draftForTheRemoval.RemoveGarment(prerequisite, now, null).IsSuccess.ShouldBeTrue();
+
+        (await otherStore.SaveAsync(Token)).IsSuccess.ShouldBeTrue();
+        var refused = await oneStore.SaveAsync(Token);
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Code.ShouldBe("orders.garment-not-on-draft");
     }
 
     /// <summary>

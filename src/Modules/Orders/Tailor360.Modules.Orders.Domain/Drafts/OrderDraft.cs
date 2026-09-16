@@ -307,12 +307,24 @@ public sealed class OrderDraft
     /// (<c>docs/prd/state-transitions.md</c> section 2.1).
     /// </para>
     /// <para>
-    /// <strong>The draft itself is not touched.</strong> The section's row is the one that moves; the draft's
-    /// own <c>UpdatedAt</c> and version stay where they were. Touching the draft here would put its row into
-    /// every section save, and two counters saving <em>different</em> sections would then collide on the
+    /// <strong>The draft itself is not touched, except by a section that ends up reusing a measurement.</strong>
+    /// The section's row is the one that ordinarily moves; the draft's own <c>UpdatedAt</c> and version stay
+    /// where they were, so two counters saving <em>different</em>, non-reusing sections never collide on the
     /// draft's token — the very thing the per-section lock exists to avoid. The same holds for declaring and
     /// withdrawing a dependency, which are the section's own edits too. Adding and removing a section do move
     /// the draft, because they change what the draft is made of.
+    /// </para>
+    /// <para>
+    /// <strong>The one exception is deliberate.</strong> Whether a reused measurement belongs to this draft's
+    /// customer is answered against the customer as read, and re-pointing the customer is answered against the
+    /// sections as read (<c>OrderDraftHandler.ReusedMeasurementsFollowAsync</c>) — two checks over data that can
+    /// change between them, which plain optimistic concurrency on disjoint rows cannot by itself serialise. A
+    /// save that leaves a section reusing a measurement therefore also moves the draft, coupling it to a
+    /// concurrent re-point of the customer (which always moves the draft) so that whichever commits second is
+    /// refused and re-reads, rather than a garment quietly ending up pinned to another customer's measurement.
+    /// This narrows the case the per-section lock is for — it no longer protects two concurrent
+    /// <em>reusing</em> saves on different sections from each other — in exchange for closing a data-integrity
+    /// gap; a save that leaves a section not reusing anything is unaffected.
     /// </para>
     /// </remarks>
     /// <param name="garmentId">The section being saved.</param>
@@ -340,6 +352,11 @@ public sealed class OrderDraft
         }
 
         garment.Apply(content, now, by);
+
+        if (content.MeasurementIntent is MeasurementIntent.ReuseVersion)
+        {
+            Touch(now, by);
+        }
 
         return Result.Success();
     }
