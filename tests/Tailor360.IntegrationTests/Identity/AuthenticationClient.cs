@@ -47,22 +47,36 @@ public sealed class AuthenticationClient : IDisposable
     /// <summary>How the JSON in these tests is read, matching the host's own web defaults.</summary>
     public static JsonSerializerOptions Json { get; } = new(JsonSerializerDefaults.Web);
 
+    /// <summary>The client options every caller here needs: no redirects, cookies carried by hand, HTTPS.</summary>
+    /// <remarks>
+    /// HTTPS, because the session and anti-forgery cookies are Secure and the framework refuses to
+    /// issue a Secure cookie over a plain request rather than issuing one the browser would silently
+    /// discard. A test that ran over http would be testing a deployment that cannot exist.
+    /// </remarks>
+    public static WebApplicationFactoryClientOptions ClientOptions { get; } = new()
+    {
+        AllowAutoRedirect = false,
+        HandleCookies = false,
+        BaseAddress = new Uri("https://localhost"),
+    };
+
     /// <summary>Opens a client with its own client address.</summary>
     public static AuthenticationClient Open(WebApplicationFixture fixture, string clientAddress)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var client = fixture.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false,
-            HandleCookies = false,
+        return Open(fixture.CreateClient(ClientOptions), clientAddress);
+    }
 
-            // https, because the session and anti-forgery cookies are Secure and the framework refuses
-            // to issue a Secure cookie over a plain request rather than issuing one the browser would
-            // silently discard. A test that ran over http would be testing a deployment that cannot
-            // exist.
-            BaseAddress = new Uri("https://localhost"),
-        });
+    /// <summary>
+    /// Opens a client over an already-created <see cref="HttpClient"/>, for a test that needs one built
+    /// against a differently-configured host — a health check registered for one test only, say —
+    /// rather than against the shared fixture's own application. The caller is responsible for giving
+    /// the client <see cref="ClientOptions"/> or their equivalent.
+    /// </summary>
+    public static AuthenticationClient Open(HttpClient client, string clientAddress)
+    {
+        ArgumentNullException.ThrowIfNull(client);
 
         return new AuthenticationClient(client, clientAddress);
     }
