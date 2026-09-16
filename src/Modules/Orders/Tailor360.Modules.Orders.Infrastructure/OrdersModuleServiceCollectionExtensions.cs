@@ -86,6 +86,11 @@ public static class OrdersModuleServiceCollectionExtensions
         services.TryAddScoped<IEstimateStore, EstimateStore>();
         services.TryAddScoped<IOrderStore, OrderStore>();
 
+        // Workflow definitions (#232): a fourth store over the same context and therefore the same unit of
+        // work, though nothing here yet asks it to commit alongside a draft, an estimate or an order — this
+        // slice has no command that touches more than one of the four in a single save.
+        services.TryAddScoped<IWorkflowDefinitionStore, WorkflowDefinitionStore>();
+
         // The order draft lifecycle (#199): the module's first resource-scoped route. The window is
         // documented as branch configuration (glossary.md section 4); no branch-configuration surface
         // exists yet, so this is the module-level binding the application uses until one does, with the

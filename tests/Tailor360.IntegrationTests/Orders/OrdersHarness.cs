@@ -12,9 +12,13 @@ using Tailor360.Modules.Orders.Domain.Estimates;
 using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Modules.Orders.Domain.Orders;
 using Tailor360.Modules.Orders.Domain.Snapshots;
+using Tailor360.Modules.Orders.Domain.Workflows;
 using Tailor360.Modules.Orders.Infrastructure.Persistence;
+using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Abstractions.Results;
+using Tailor360.Platform.Abstractions.Time;
+using WorkflowDefinitionAggregate = Tailor360.Modules.Orders.Domain.Workflows.WorkflowDefinition;
 
 namespace Tailor360.IntegrationTests.Orders;
 
@@ -96,6 +100,99 @@ internal static class OrdersHarness
 
     /// <summary>The workflow version a garment job pins when it enters production (INV-JOB-02).</summary>
     public static readonly Guid WorkflowVersion = Guid.Parse("0199d000-0000-7000-8000-0000000000c5");
+
+    /// <summary>
+    /// Makes <see cref="WorkflowDefinition"/> and <see cref="WorkflowVersion"/> name real, published rows
+    /// (issue #232) rather than the bare identifiers <c>GarmentJobSpecification</c> accepted before the tables
+    /// existed.
+    /// </summary>
+    /// <remarks>
+    /// Idempotent — checked and skipped rather than reinserted — because every test in this collection that
+    /// pins a garment to these two identifiers shares one database, and the partial unique index refuses a
+    /// second published version of one definition. The six phases are
+    /// <c>docs/prd/workflows/blouse.md</c> section 2.1's own list, in the straight-line order #232's own scope
+    /// records; nothing here instantiates a phase or pins a job to one — that is E06-F02-4's.
+    /// </remarks>
+    /// <param name="fixture">The hosted application.</param>
+    /// <returns>A task that completes once the definition and its published version exist.</returns>
+    public static async Task EnsureWorkflowSeededAsync(WebApplicationFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        using var scope = fixture.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IWorkflowDefinitionStore>();
+
+        if (await store.FindAsync(WorkflowDefinition, Organisation, Token) is not null)
+        {
+            return;
+        }
+
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var ids = scope.ServiceProvider.GetRequiredService<IIdGenerator>();
+        var now = clock.UtcNow;
+
+        var definition = WorkflowDefinitionAggregate.Create(
+            WorkflowDefinition, Organisation, "STITCH_STANDARD", "Stitching, standard",
+            "The everyday stitching process docs/prd/workflows/blouse.md section 2.1 describes.", now, null)
+            .Value;
+
+        // The real generator mints a fresh UUIDv7 (ARCH-015) and cannot be steered onto the fixed constant every
+        // test pins, so this one call gets a generator that hands over exactly the identifier asked for; every
+        // other identifier this method needs — the phases, the transitions — still comes from the real one.
+        var version = definition.AddVersion(new FixedIdGenerator(WorkflowVersion), now, null);
+        version.Id.ShouldBe(WorkflowVersion, "the fixture's version identifier must be the one every test pins");
+
+        var phases = new[]
+        {
+            ("CUTTING", "Cutting", (string[])["tailor"], false, (TimeSpan?)null, (TimeSpan?)null, false, false,
+                false),
+            ("SPECIALIST_WORK", "Specialist work", ["aari_specialist"], true, TimeSpan.FromDays(10), null, true,
+                true, false),
+            ("STITCHING", "Stitching", ["tailor"], false, null, null, false, false, false),
+            ("FINISHING", "Finishing", ["tailor"], false, null, null, false, false, false),
+            ("QC", "QC", ["tailor_master"], true, null, TimeSpan.FromHours(4), false, false, false),
+            ("READY", "Ready", ["tailor_master"], false, null, null, false, false, true),
+        };
+
+        var content = phases.Select((phase, ordinal) => WorkflowPhaseContent.Create(
+            phase.Item1, phase.Item2, ordinal, phase.Item3, phase.Item4, phase.Item5, phase.Item6, phase.Item7,
+            phase.Item8, phase.Item9).Value).ToList();
+
+        definition.ReplacePhases(version.Id, ids, content, now, null).IsSuccess.ShouldBeTrue();
+
+        var transitions = new (string From, string To)[]
+        {
+            ("CUTTING", "SPECIALIST_WORK"),
+            ("CUTTING", "STITCHING"),
+            ("SPECIALIST_WORK", "STITCHING"),
+            ("STITCHING", "FINISHING"),
+            ("FINISHING", "QC"),
+            ("QC", "READY"),
+        };
+
+        definition.ReplaceTransitions(
+                version.Id,
+                [.. transitions.Select(edge => PhaseTransition.Create(edge.From, edge.To).Value)],
+                now,
+                null)
+            .IsSuccess.ShouldBeTrue();
+
+        version.ValidateForPublication().ShouldBeEmpty();
+
+        var published = definition.Publish(version.Id, now, null, "Seeded for the integration fixture.");
+        published.IsSuccess.ShouldBeTrue($"the fixture's workflow version was refused: {published.Error.Code}");
+
+        store.Add(definition);
+
+        var saved = await store.SaveAsync(Token);
+        saved.IsSuccess.ShouldBeTrue($"the fixture's workflow definition was refused: {saved.Error.Code}");
+    }
+
+    /// <summary>Hands over one decided identifier rather than minting one, for the one caller that must not.</summary>
+    private sealed class FixedIdGenerator(Guid id) : IIdGenerator
+    {
+        public Guid NewId() => id;
+    }
 
     /// <summary>The measurement template the frozen copy names as its provenance.</summary>
     public static readonly Guid MeasurementTemplate = Guid.Parse("0199d000-0000-7000-8000-0000000000c6");

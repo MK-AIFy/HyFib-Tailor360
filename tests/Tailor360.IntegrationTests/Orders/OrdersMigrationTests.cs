@@ -40,7 +40,8 @@ public sealed class OrdersMigrationTests
 {
     /// <summary>The tables <c>Up</c> creates, which is every table the module owns.</summary>
     /// <remarks>
-    /// Ten from <c>docs/architecture/module-ownership.md</c> section 5.5 as amended, plus the module's own
+    /// Ten from <c>docs/architecture/module-ownership.md</c> section 5.5 as amended, plus <c>workflow_definitions</c>,
+    /// <c>workflow_versions</c> and <c>workflow_version_phases</c> from #232, plus the module's own
     /// <c>outbox_messages</c> and <c>inbox_messages</c> from <c>ModuleDbContext</c> — which are in this schema
     /// and not in the platform's, because which outbox a published event lands in is decided by the context it
     /// was tracked on.
@@ -59,6 +60,9 @@ public sealed class OrdersMigrationTests
         "order_revisions",
         "orders",
         "outbox_messages",
+        "workflow_definitions",
+        "workflow_version_phases",
+        "workflow_versions",
     ];
 
     [Fact]
@@ -114,7 +118,10 @@ public sealed class OrdersMigrationTests
                 "the migration re-applies cleanly onto the schema its own Down emptied");
 
             (await FunctionCountAsync(connectionString)).ShouldBe(8);
-            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(1);
+
+            // Two migrations now: InitialOrdersSchema and #232's own — each re-apply this test drives applies
+            // every migration the module has, not just the first one docs/dev/migrations.md was written against.
+            (await AppliedMigrationCountAsync(connectionString)).ShouldBe(2);
 
             // Nothing is pending afterwards, which is what the startup probe reads before it lets the host
             // serve. A re-apply that left the model and the history disagreeing would pass every check above.
