@@ -351,6 +351,18 @@ public static class OrdersErrors
         "orders.customer-not-found",
         "No customer matches that identifier.");
 
+    /// <summary>The customer a draft was started or re-pointed at has been withdrawn from ordinary use.</summary>
+    /// <remarks>
+    /// Customers' <c>CustomerStatus.Deactivated</c> is, in its own words, "not offered when somebody is
+    /// starting something new". The record stays readable and every existing order still names it, so
+    /// this is a state clash on a record the caller may legitimately know about — a conflict, not a
+    /// not-found — and it says so, because the remedy (reactivate the record, or pick another) is the
+    /// counter's to choose.
+    /// </remarks>
+    public static Error CustomerNotActive { get; } = Error.Conflict(
+        "orders.customer-not-active",
+        "That customer has been withdrawn from use and cannot be attached to new work.");
+
     /// <summary>A draft carrying no garment section was confirmed.</summary>
     public static Error DraftHasNoGarments { get; } = Error.Conflict(
         "orders.draft-has-no-garments",
@@ -365,6 +377,66 @@ public static class OrdersErrors
     public static Error GarmentAlreadyOnDraft { get; } = Error.Conflict(
         "orders.garment-already-on-draft",
         "That garment is already on this draft.");
+
+    /// <summary>
+    /// No category-and-service pair the caller named matches something the branch may order today.
+    /// </summary>
+    /// <remarks>
+    /// The domain's own check on <c>categoryKey</c>/<c>serviceTypeKey</c> is only that they are non-empty and
+    /// short enough; whether the pair is real and offerable here today is a cross-module question, asked of
+    /// <c>Catalog.Contracts.ICatalogAvailabilityQuery.GetOrderableCatalogAsync</c> because Orders may not read
+    /// the catalogue's own tables (ARCH-005). One answer for "no such category or service" and "not offered at
+    /// this branch today", for the reason <see cref="DraftNotFound"/> gives: a distinguishable refusal would let
+    /// a caller enumerate keys that exist but are not offered here.
+    /// </remarks>
+    public static Error ServiceNotOrderableHere { get; } = Error.NotFound(
+        "orders.service-not-orderable-here",
+        "That service is not offered at this branch today.");
+
+    /// <summary>
+    /// A garment named a measurement version to reuse that does not exist in this organisation, or that was
+    /// taken for a different customer from the one the draft is for.
+    /// </summary>
+    /// <remarks>
+    /// The domain's own check is only that a version is named when <see cref="Drafts.MeasurementIntent.ReuseVersion"/>
+    /// is declared; that it exists and whose it is are asked of
+    /// <c>Customers.Contracts.IMeasurementSnapshotQuery.DescribeAsync</c>, batched even for one garment because
+    /// the port is shaped for confirmation's own batch of pins. Another customer's measurement reads as absent
+    /// rather than as "somebody else's", for the reason <see cref="DraftNotFound"/> gives: a distinguishable
+    /// refusal would let a caller holding <c>orders.intake</c> enumerate which measurement identifiers exist.
+    /// </remarks>
+    public static Error MeasurementVersionNotFound { get; } = Error.NotFound(
+        "orders.measurement-version-not-found",
+        "No measurement of that customer's matches that identifier.");
+
+    /// <summary>
+    /// A garment named a measurement version to reuse that answers a different template from the one the
+    /// service measures by.
+    /// </summary>
+    /// <remarks>
+    /// The service pins its template through the catalogue (link 1, #27) and the measurement records the
+    /// template it answered; a garment carrying a version of the wrong template would reach the tailor as a
+    /// blouse measured with a trouser sheet. A field error rather than a not-found, because the measurement is
+    /// the customer's own and the caller may well know it — the mistake is which one was picked.
+    /// </remarks>
+    public static Error MeasurementNotForService { get; } = Error.Validation(
+        "orders.measurement-not-for-service",
+        "That measurement answers a different template from the one this service is measured by.",
+        "measurementVersionId");
+
+    /// <summary>
+    /// A draft was pointed at a different customer while a garment section still reuses a measurement taken for
+    /// the customer it is leaving.
+    /// </summary>
+    /// <remarks>
+    /// Refused rather than quietly cleared: the sections are locked one by one, and re-pointing the draft holds
+    /// the draft's own tag, not theirs — so the correction is the counter's to make on each section, and the
+    /// draft says which is in the way rather than rewriting a section somebody else may have open.
+    /// </remarks>
+    public static Error ReusedMeasurementsNotForCustomer { get; } = Error.Conflict(
+        "orders.reused-measurements-not-for-customer",
+        "A garment section reuses a measurement taken for the customer this draft is leaving. Change that "
+        + "section's measurement first, then point the draft at the new customer.");
 
     /// <summary>A garment reached confirmation with no measurement decision taken.</summary>
     /// <remarks>

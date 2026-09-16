@@ -159,6 +159,20 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
     /// <summary>The unique index that is <c>OrdersErrors.DuplicateDependency</c> for confirmed jobs.</summary>
     public const string JobDependencyIndex = "ux_job_dependencies_job_prerequisite_kind";
 
+    /// <summary>
+    /// The foreign key from a draft dependency to the prerequisite section it names.
+    /// </summary>
+    /// <remarks>
+    /// <c>OrderDraft.DeclareDependency</c> checks the prerequisite is on the draft against the copy it loaded, not
+    /// against the database — declaring and removing the prerequisite section are two counters' own edits and
+    /// deliberately do not lock the draft's row against each other (<c>OrderDraft.SaveGarment</c>'s remarks), so
+    /// the loser of that race reaches the database with a prerequisite that is already gone. The trigger for this
+    /// is a genuine race rather than a defect, unlike the other foreign keys this schema declares, so it is named
+    /// and mapped rather than left to escape.
+    /// </remarks>
+    public const string DraftGarmentDependencyPrerequisiteKey =
+        "fk_order_draft_garment_dependencies_order_draft_garments_prere";
+
     /// <summary>The drafts table.</summary>
     /// <remarks>
     /// Named for the same reason the indexes above are: <c>OrderStore</c> takes a row lock on this table with a

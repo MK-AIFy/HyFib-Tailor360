@@ -58,7 +58,7 @@ public sealed class MeasurementSnapshotQuery(CustomersDbContext context) : IMeas
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlySet<Guid>> ExistingAsync(
+    public async Task<IReadOnlyList<MeasurementVersionHeader>> DescribeAsync(
         IReadOnlyCollection<Guid> measurementVersionIds,
         Guid organisationId,
         CancellationToken cancellationToken = default)
@@ -67,16 +67,24 @@ public sealed class MeasurementSnapshotQuery(CustomersDbContext context) : IMeas
 
         if (measurementVersionIds.Count == 0)
         {
-            return new HashSet<Guid>();
+            return [];
         }
 
-        var found = await context.MeasurementVersions
+        // Projected before it is materialised, so the values never leave the database for this question: a
+        // header is what the contract promises, and an entity loaded whole would carry them into memory for no
+        // reason.
+        return await context.MeasurementVersions
             .AsNoTracking()
             .Where(version => measurementVersionIds.Contains(version.Id)
                               && version.OrganisationId == organisationId)
-            .Select(version => version.Id)
+            .Select(version => new MeasurementVersionHeader(
+                version.Id,
+                version.CustomerId,
+                version.BranchId,
+                version.TemplateId,
+                version.TemplateVersionId,
+                version.VersionNumber,
+                version.TakenAt))
             .ToListAsync(cancellationToken);
-
-        return found.ToHashSet();
     }
 }

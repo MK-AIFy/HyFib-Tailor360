@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tailor360.Modules.Customers.Contracts.Customers;
+using Tailor360.Modules.Customers.Domain.Customers;
 
 namespace Tailor360.Modules.Customers.Infrastructure.Persistence;
 
@@ -26,14 +27,18 @@ public sealed class CustomerSnapshotQuery(CustomersDbContext context) : ICustome
     /// <inheritdoc />
     public async Task<CustomerSnapshot?> GetAsync(
         Guid customerId,
+        Guid organisationId,
         IReadOnlyCollection<string> callerPermissions,
         CancellationToken cancellationToken = default)
     {
         var mayReadContact = CustomerSnapshot.MayReadContact(callerPermissions);
 
+        // The organisation is the tenant boundary: a record outside it is not found, indistinguishably
+        // from one that does not exist, so a consumer holding an identifier it should not have learns
+        // nothing from asking.
         return await context.Customers
             .AsNoTracking()
-            .Where(customer => customer.Id == customerId)
+            .Where(customer => customer.Id == customerId && customer.OrganisationId == organisationId)
             .Select(customer => new CustomerSnapshot(
                 customer.Id,
                 customer.CustomerNumber,
@@ -51,7 +56,9 @@ public sealed class CustomerSnapshotQuery(CustomersDbContext context) : ICustome
                 // Never masked. Whether the record a consumer is holding still stands is not personal
                 // data about the person; it is a fact about the record, and a consumer that cannot see
                 // it re-points nothing and shows a customer who no longer exists.
-                customer.MergedIntoCustomerId))
+                customer.MergedIntoCustomerId,
+                // Likewise a fact about the record: whether it may still be attached to new work.
+                customer.Status == CustomerStatus.Active))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

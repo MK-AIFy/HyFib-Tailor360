@@ -480,7 +480,8 @@ public sealed class InvoiceHandler(
             return Result.Failure<AdministeredInvoice>(calculation.Error);
         }
 
-        var customer = await customers.GetAsync(order.CustomerId, command.CallerPermissions, cancellationToken);
+        var customer = await customers.GetAsync(
+            order.CustomerId, command.OrganisationId, command.CallerPermissions, cancellationToken);
         if (customer is null)
         {
             return Result.Failure<AdministeredInvoice>(BillingErrors.CustomerNotFound);

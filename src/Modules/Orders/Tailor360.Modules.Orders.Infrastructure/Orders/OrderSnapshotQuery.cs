@@ -134,7 +134,7 @@ public sealed class OrderSnapshotQuery(OrdersDbContext context) : IOrderSnapshot
         ArgumentNullException.ThrowIfNull(garmentJobIds);
 
         // Answered before the database is touched. A parcel check at the door with nothing in it is a round trip
-        // that can only return nothing — the shape MeasurementSnapshotQuery.ExistingAsync uses.
+        // that can only return nothing — the shape MeasurementSnapshotQuery.DescribeAsync uses.
         if (garmentJobIds.Count == 0)
         {
             return [];
