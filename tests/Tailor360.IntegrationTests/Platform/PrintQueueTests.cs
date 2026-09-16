@@ -216,18 +216,29 @@ public sealed class PrintQueueTests(PlatformDatabaseFixture fixture)
         var first = new PrintStationQueue(context, new AuditWriter<PlatformDbContext>(context, auditContext, clock, ids), clock);
         var second = new PrintStationQueue(secondContext, new AuditWriter<PlatformDbContext>(secondContext, auditContext, clock, ids), clock);
 
-        // Both load the row while it is still queued before either resolves it, by resolving through
-        // two independent contexts that only see the committed row from Enqueue above.
-        var firstResult = await first.MarkPrintedAsync(jobId, Guid.CreateVersion7(), "counter-1", Token);
-        var secondResult = await second.MarkFailedAsync(jobId, Guid.CreateVersion7(), "counter-2", "Too slow.", Token);
+        // Both calls are started — not awaited — before either is awaited, exactly as
+        // OutboxTests.TwoDispatchersNeverProcessTheSameMessage races two dispatchers: each method's
+        // synchronous prefix runs immediately on this call, up to its own first genuine await (the
+        // SELECT), so both loads are issued while the row is still queued on both contexts, before
+        // either has saved. Awaiting one first and then the other — the bug this replaces — would let
+        // the first resolution commit in full before the second's load ever ran, so the second would
+        // simply observe an already-printed row and take the ordinary in-memory refusal, never
+        // reaching SaveChangesAsync at all.
+        var firstTask = first.MarkPrintedAsync(jobId, Guid.CreateVersion7(), "counter-1", Token);
+        var secondTask = second.MarkFailedAsync(jobId, Guid.CreateVersion7(), "counter-2", "Too slow.", Token);
 
-        var outcomes = new[] { firstResult, secondResult };
+        await Task.WhenAll(firstTask, secondTask);
+
+        // Which of the two wins is not determined by this test — that is what "genuinely concurrent"
+        // means — only that exactly one does, and that the row that persists is whichever one it was.
+        var outcomes = new[] { firstTask.Result, secondTask.Result };
         outcomes.Count(result => result.IsSuccess).ShouldBe(1, "exactly one station may resolve the job");
+        var winner = outcomes.Single(result => result.IsSuccess);
         outcomes.Single(result => result.IsFailure).Error.ShouldBe(PrintJobErrors.AlreadyResolved);
 
         context.ChangeTracker.Clear();
         var stored = await context.PrintJobs.AsNoTracking().SingleAsync(row => row.Id == jobId, Token);
-        stored.Status.ShouldBe(PrintJobStatuses.Printed, "the winner's resolution is the one that persisted");
+        stored.Status.ShouldBe(winner.Value.Status, "the winner's resolution is the one that persisted");
 
         (await context.AuditEvents.AsNoTracking().CountAsync(entry => entry.EntityId == jobId, Token))
             .ShouldBe(1, "the loser's audit entry must not have committed with a save that failed");

@@ -56,8 +56,8 @@ nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the seven Cus
 `Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones, and
 `Tailor360.Modules.Orders.Contracts.Events` the eleven Orders ones. The one exception is `platform.print-job-queued.v1`:
 Platform has no `Contracts` project, so it is declared in `Tailor360.Platform.Abstractions.Events` instead, which
-[`../architecture/module-ownership.md`](../architecture/module-ownership.md) names as the surface Platform publishes
-its ports from.
+[`../../architecture/module-ownership.md`](../../architecture/module-ownership.md) names as the surface Platform
+publishes its ports from.
 
 ## 2. Naming and versioning
 
