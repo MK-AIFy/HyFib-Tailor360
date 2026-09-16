@@ -1916,6 +1916,49 @@
         ],
         "type": "object"
       },
+      "CreateWorkflowDefinitionRequest": {
+        "properties": {
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
+      "CreateWorkflowVersionRequest": {
+        "properties": {
+          "cloneFromVersionId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "cloneFromVersionId"
+        ],
+        "type": "object"
+      },
       "CurrentUserResponse": {
         "properties": {
           "branchId": {
@@ -8920,6 +8963,43 @@
         ],
         "type": "object"
       },
+      "ReplaceWorkflowVersionGraphRequest": {
+        "properties": {
+          "categoryKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "phases": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowPhaseRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowTransitionRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "required": [
+          "phases",
+          "transitions",
+          "categoryKeys"
+        ],
+        "type": "object"
+      },
       "RepriceInvoiceRequest": {
         "properties": {
           "lines": {
@@ -10703,6 +10783,355 @@
         "required": [
           "prerequisiteGarmentId",
           "kind"
+        ],
+        "type": "object"
+      },
+      "WorkflowDefinitionPayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowVersionSummaryPayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "description",
+          "isActive",
+          "versions"
+        ],
+        "type": "object"
+      },
+      "WorkflowPhasePayload": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "expectedDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "isSkippable": {
+            "type": "boolean"
+          },
+          "isTerminal": {
+            "type": "boolean"
+          },
+          "ordinal": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "requiredRoleKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "requiresEvidence": {
+            "type": "boolean"
+          },
+          "sla": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "displayName",
+          "ordinal",
+          "requiredRoleKeys",
+          "requiresEvidence",
+          "expectedDuration",
+          "sla",
+          "isOptional",
+          "isSkippable",
+          "isTerminal"
+        ],
+        "type": "object"
+      },
+      "WorkflowPhaseRequest": {
+        "properties": {
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "isSkippable": {
+            "type": "boolean"
+          },
+          "isTerminal": {
+            "type": "boolean"
+          },
+          "ordinal": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "requiredRoleKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "requiresEvidence": {
+            "type": "boolean"
+          },
+          "sla": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "displayName",
+          "ordinal",
+          "requiredRoleKeys",
+          "requiresEvidence",
+          "expectedDuration",
+          "sla",
+          "isOptional",
+          "isSkippable",
+          "isTerminal"
+        ],
+        "type": "object"
+      },
+      "WorkflowTransitionPayload": {
+        "properties": {
+          "fromPhaseCode": {
+            "type": "string"
+          },
+          "toPhaseCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fromPhaseCode",
+          "toPhaseCode"
+        ],
+        "type": "object"
+      },
+      "WorkflowTransitionRequest": {
+        "properties": {
+          "fromPhaseCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toPhaseCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "fromPhaseCode",
+          "toPhaseCode"
+        ],
+        "type": "object"
+      },
+      "WorkflowVersionPayload": {
+        "properties": {
+          "categoryKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "phases": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowPhasePayload"
+            },
+            "type": "array"
+          },
+          "publishReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "retiredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "retiredReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowTransitionPayload"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "workflowDefinitionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workflowDefinitionId",
+          "versionNumber",
+          "status",
+          "tag",
+          "phases",
+          "transitions",
+          "categoryKeys",
+          "publishedAt",
+          "publishReason",
+          "retiredAt",
+          "retiredReason",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "WorkflowVersionSummaryPayload": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "publishedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "retiredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "versionNumber",
+          "status",
+          "tag",
+          "publishedAt",
+          "retiredAt"
         ],
         "type": "object"
       }
@@ -29172,6 +29601,509 @@
         ],
         "x-tailor360-audit": "orders.draft.schedule_set",
         "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/workflow-definitions": {
+      "get": {
+        "description": "Whole, not paged: one definition per production process the shop runs, so the list is small by construction. Each version is a summary carrying its own entity tag; reading a version's phase graph is a separate call.",
+        "operationId": "ListWorkflowDefinitions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowDefinitionPayload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the organisation's workflow definitions, each with every version it has.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.workflows.edit",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "post": {
+        "description": "Starts the named process with no versions yet. A first draft version is a separate call, so an administrator may name several processes before drafting any of their graphs.",
+        "operationId": "CreateWorkflowDefinition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "code": "STITCH_STANDARD",
+                "description": "The everyday production process most garments run through.",
+                "name": "Standard stitching"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkflowDefinitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDefinitionPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Create a new, empty workflow definition.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.workflow_definition_created",
+        "x-tailor360-authorisation": "permission:catalog.workflows.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/workflow-definitions/{definitionId}/versions": {
+      "post": {
+        "description": "Cloning is the ordinary way to change a published version: a published version is immutable, so a correction is a clone, an edit and a publication of the new draft. The clone carries the source's phases, transitions and category mapping as fresh rows of its own; the source must belong to this same definition.",
+        "operationId": "CreateWorkflowVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000f1"
+              },
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateWorkflowVersionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowVersionPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start a new draft version, empty or cloned from an existing version of the same definition.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.workflow_version_drafted",
+        "x-tailor360-authorisation": "permission:catalog.workflows.edit",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/workflow-definitions/{definitionId}/versions/{versionId}": {
+      "get": {
+        "description": "The same call whatever the version's status: a retired version reads exactly as it did, which is what makes a job started against it render unchanged. The entity tag is what an edit to this version must be made against.",
+        "operationId": "GetWorkflowVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read one workflow version with its whole graph.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-authorisation": "permission:catalog.workflows.edit",
+        "x-tailor360-rate-limit": "default-user"
+      },
+      "put": {
+        "description": "One payload, not a dozen sub-resources: a phase list and a transition matrix are only valid as a set, so all three are replaced together. Every one of the six graph checks runs before the save — an unreachable phase, a phase with no permitted role, more or fewer than one start phase, no terminal phase, a phase with no way out that is not terminal, and a duplicate phase code — and if any of them fails, every finding comes back in one document, keyed by phase code, and nothing is saved. Refused on a version that is not a draft, naming its status, rather than silently doing nothing.",
+        "operationId": "ReplaceWorkflowVersionGraph",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "categoryKeys": [
+                  "blouse"
+                ],
+                "phases": [
+                  {
+                    "code": "CUTTING",
+                    "displayName": "Cutting",
+                    "expectedDuration": "02:00:00",
+                    "isOptional": false,
+                    "isSkippable": false,
+                    "isTerminal": false,
+                    "ordinal": 0,
+                    "requiredRoleKeys": [
+                      "cutter"
+                    ],
+                    "requiresEvidence": false,
+                    "sla": null
+                  },
+                  {
+                    "code": "STITCHING",
+                    "displayName": "Stitching",
+                    "expectedDuration": "1.00:00:00",
+                    "isOptional": false,
+                    "isSkippable": false,
+                    "isTerminal": false,
+                    "ordinal": 1,
+                    "requiredRoleKeys": [
+                      "tailor"
+                    ],
+                    "requiresEvidence": false,
+                    "sla": null
+                  },
+                  {
+                    "code": "QC",
+                    "displayName": "Quality check",
+                    "expectedDuration": "00:30:00",
+                    "isOptional": false,
+                    "isSkippable": false,
+                    "isTerminal": true,
+                    "ordinal": 2,
+                    "requiredRoleKeys": [
+                      "qc_inspector"
+                    ],
+                    "requiresEvidence": true,
+                    "sla": "04:00:00"
+                  }
+                ],
+                "transitions": [
+                  {
+                    "fromPhaseCode": "CUTTING",
+                    "toPhaseCode": "STITCHING"
+                  },
+                  {
+                    "fromPhaseCode": "STITCHING",
+                    "toPhaseCode": "QC"
+                  }
+                ]
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceWorkflowVersionGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowVersionPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace a draft version's whole graph: its phases, its transitions and its category mapping.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.workflow_version_edited",
+        "x-tailor360-authorisation": "permission:catalog.workflows.edit",
         "x-tailor360-rate-limit": "write"
       }
     },

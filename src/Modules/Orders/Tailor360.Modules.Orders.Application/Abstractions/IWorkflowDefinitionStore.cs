@@ -36,6 +36,18 @@ public interface IWorkflowDefinitionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists every definition the organisation has, each with every version — the administration
+    /// screen's own read, and small by construction (E06-F02-2's scope: one definition per process the
+    /// shop runs, returned whole rather than paged).
+    /// </summary>
+    /// <param name="organisationId">The tenant the caller is acting within.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>Every definition, newest first.</returns>
+    Task<IReadOnlyList<WorkflowDefinition>> ListAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// The version that was published at a given instant, for the definition named.
     /// </summary>
     /// <remarks>

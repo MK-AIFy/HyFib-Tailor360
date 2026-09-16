@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Tailor360.Modules.Orders.Application.Abstractions;
 using Tailor360.Modules.Orders.Application.Drafts;
 using Tailor360.Modules.Orders.Application.Options;
+using Tailor360.Modules.Orders.Application.Workflows;
 using Tailor360.Modules.Orders.Contracts.Orders;
 using Tailor360.Modules.Orders.Infrastructure.Drafts;
 using Tailor360.Modules.Orders.Infrastructure.Orders;
@@ -90,6 +91,10 @@ public static class OrdersModuleServiceCollectionExtensions
         // work, though nothing here yet asks it to commit alongside a draft, an estimate or an order — this
         // slice has no command that touches more than one of the four in a single save.
         services.TryAddScoped<IWorkflowDefinitionStore, WorkflowDefinitionStore>();
+
+        // The drafting surface over it (#243): list and create a definition, read a version, replace a
+        // draft version's whole graph, and start a new draft by cloning one.
+        services.TryAddScoped<WorkflowDefinitionHandler>();
 
         // The order draft lifecycle (#199): the module's first resource-scoped route. The window is
         // documented as branch configuration (glossary.md section 4); no branch-configuration surface

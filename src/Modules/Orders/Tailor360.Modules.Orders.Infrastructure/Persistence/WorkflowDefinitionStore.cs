@@ -34,6 +34,18 @@ public sealed class WorkflowDefinitionStore(OrdersDbContext context) : IWorkflow
                 cancellationToken);
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<WorkflowDefinition>> ListAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken = default)
+        => await context.WorkflowDefinitions
+            .Include(definition => definition.Versions)
+            .ThenInclude(version => version.Phases)
+            .AsSplitQuery()
+            .Where(definition => definition.OrganisationId == organisationId)
+            .OrderByDescending(definition => definition.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task<WorkflowVersion?> FindPublishedVersionAsync(
         Guid workflowDefinitionId,
         Guid organisationId,

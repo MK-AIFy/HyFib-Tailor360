@@ -3329,6 +3329,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/workflow-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organisation's workflow definitions, each with every version it has.
+         * @description Whole, not paged: one definition per production process the shop runs, so the list is small by construction. Each version is a summary carrying its own entity tag; reading a version's phase graph is a separate call.
+         */
+        get: operations["ListWorkflowDefinitions"];
+        put?: never;
+        /**
+         * Create a new, empty workflow definition.
+         * @description Starts the named process with no versions yet. A first draft version is a separate call, so an administrator may name several processes before drafting any of their graphs.
+         */
+        post: operations["CreateWorkflowDefinition"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/workflow-definitions/{definitionId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a new draft version, empty or cloned from an existing version of the same definition.
+         * @description Cloning is the ordinary way to change a published version: a published version is immutable, so a correction is a clone, an edit and a publication of the new draft. The clone carries the source's phases, transitions and category mapping as fresh rows of its own; the source must belong to this same definition.
+         */
+        post: operations["CreateWorkflowVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/workflow-definitions/{definitionId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one workflow version with its whole graph.
+         * @description The same call whatever the version's status: a retired version reads exactly as it did, which is what makes a job started against it render unchanged. The entity tag is what an edit to this version must be made against.
+         */
+        get: operations["GetWorkflowVersion"];
+        /**
+         * Replace a draft version's whole graph: its phases, its transitions and its category mapping.
+         * @description One payload, not a dozen sub-resources: a phase list and a transition matrix are only valid as a set, so all three are replaced together. Every one of the six graph checks runs before the save — an unreachable phase, a phase with no permitted role, more or fewer than one start phase, no terminal phase, a phase with no way out that is not terminal, and a duplicate phase code — and if any of them fails, every finding comes back in one document, keyed by phase code, and nothing is saved. Refused on a version that is not a draft, naming its status, rather than silently doing nothing.
+         */
+        put: operations["ReplaceWorkflowVersionGraph"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -3779,6 +3847,15 @@ export interface components {
             effectiveFrom: null | string;
             name: null | string;
             notes: null | string;
+        };
+        CreateWorkflowDefinitionRequest: {
+            code: null | string;
+            description: null | string;
+            name: null | string;
+        };
+        CreateWorkflowVersionRequest: {
+            /** Format: uuid */
+            cloneFromVersionId: null | string;
         };
         CurrentUserResponse: {
             /** Format: uuid */
@@ -5433,6 +5510,11 @@ export interface components {
             reason: null | string;
             roleKeys: null | string[];
         };
+        ReplaceWorkflowVersionGraphRequest: {
+            categoryKeys: null | string[];
+            phases: null | components["schemas"]["WorkflowPhaseRequest"][];
+            transitions: null | components["schemas"]["WorkflowTransitionRequest"][];
+        };
         RepriceInvoiceRequest: {
             lines: null | components["schemas"]["PricingLineRequestPayload"][];
             /** Format: date */
@@ -5841,6 +5923,84 @@ export interface components {
             kind: null | string;
             /** Format: uuid */
             prerequisiteGarmentId: string;
+        };
+        WorkflowDefinitionPayload: {
+            code: string;
+            description: null | string;
+            /** Format: uuid */
+            id: string;
+            isActive: boolean;
+            name: string;
+            versions: components["schemas"]["WorkflowVersionSummaryPayload"][];
+        };
+        WorkflowPhasePayload: {
+            code: string;
+            displayName: string;
+            expectedDuration: null | string;
+            isOptional: boolean;
+            isSkippable: boolean;
+            isTerminal: boolean;
+            /** Format: int32 */
+            ordinal: number | string;
+            requiredRoleKeys: string[];
+            requiresEvidence: boolean;
+            sla: null | string;
+        };
+        WorkflowPhaseRequest: {
+            code: null | string;
+            displayName: null | string;
+            expectedDuration: null | string;
+            isOptional: boolean;
+            isSkippable: boolean;
+            isTerminal: boolean;
+            /** Format: int32 */
+            ordinal: number | string;
+            requiredRoleKeys: null | string[];
+            requiresEvidence: boolean;
+            sla: null | string;
+        };
+        WorkflowTransitionPayload: {
+            fromPhaseCode: string;
+            toPhaseCode: string;
+        };
+        WorkflowTransitionRequest: {
+            fromPhaseCode: null | string;
+            toPhaseCode: null | string;
+        };
+        WorkflowVersionPayload: {
+            categoryKeys: string[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            phases: components["schemas"]["WorkflowPhasePayload"][];
+            publishReason: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            retiredReason: null | string;
+            status: string;
+            tag: string;
+            transitions: components["schemas"]["WorkflowTransitionPayload"][];
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int32 */
+            versionNumber: number | string;
+            /** Format: uuid */
+            workflowDefinitionId: string;
+        };
+        WorkflowVersionSummaryPayload: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            retiredAt: null | string;
+            status: string;
+            tag: string;
+            /** Format: int32 */
+            versionNumber: number | string;
         };
     };
     responses: {
@@ -16862,6 +17022,322 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListWorkflowDefinitions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDefinitionPayload"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateWorkflowDefinition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "code": "STITCH_STANDARD",
+                 *       "description": "The everyday production process most garments run through.",
+                 *       "name": "Standard stitching"
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateWorkflowDefinitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowDefinitionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    CreateWorkflowVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definitionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000f1"
+                 *     }
+                 */
+                "application/json": null | components["schemas"]["CreateWorkflowVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowVersionPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetWorkflowVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definitionId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowVersionPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ReplaceWorkflowVersionGraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                definitionId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "categoryKeys": [
+                 *         "blouse"
+                 *       ],
+                 *       "phases": [
+                 *         {
+                 *           "code": "CUTTING",
+                 *           "displayName": "Cutting",
+                 *           "expectedDuration": "02:00:00",
+                 *           "isOptional": false,
+                 *           "isSkippable": false,
+                 *           "isTerminal": false,
+                 *           "ordinal": 0,
+                 *           "requiredRoleKeys": [
+                 *             "cutter"
+                 *           ],
+                 *           "requiresEvidence": false,
+                 *           "sla": null
+                 *         },
+                 *         {
+                 *           "code": "STITCHING",
+                 *           "displayName": "Stitching",
+                 *           "expectedDuration": "1.00:00:00",
+                 *           "isOptional": false,
+                 *           "isSkippable": false,
+                 *           "isTerminal": false,
+                 *           "ordinal": 1,
+                 *           "requiredRoleKeys": [
+                 *             "tailor"
+                 *           ],
+                 *           "requiresEvidence": false,
+                 *           "sla": null
+                 *         },
+                 *         {
+                 *           "code": "QC",
+                 *           "displayName": "Quality check",
+                 *           "expectedDuration": "00:30:00",
+                 *           "isOptional": false,
+                 *           "isSkippable": false,
+                 *           "isTerminal": true,
+                 *           "ordinal": 2,
+                 *           "requiredRoleKeys": [
+                 *             "qc_inspector"
+                 *           ],
+                 *           "requiresEvidence": true,
+                 *           "sla": "04:00:00"
+                 *         }
+                 *       ],
+                 *       "transitions": [
+                 *         {
+                 *           "fromPhaseCode": "CUTTING",
+                 *           "toPhaseCode": "STITCHING"
+                 *         },
+                 *         {
+                 *           "fromPhaseCode": "STITCHING",
+                 *           "toPhaseCode": "QC"
+                 *         }
+                 *       ]
+                 *     }
+                 */
+                "application/json": components["schemas"]["ReplaceWorkflowVersionGraphRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowVersionPayload"];
                 };
             };
             /** @description Bad Request */

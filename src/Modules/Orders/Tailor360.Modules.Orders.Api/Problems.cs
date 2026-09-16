@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Tailor360.Modules.Orders.Api.Payloads;
+using Tailor360.Modules.Orders.Domain.Workflows;
 using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Orders.Api;
@@ -15,9 +17,10 @@ namespace Tailor360.Modules.Orders.Api;
 /// platform publishes <c>ProblemResults</c>, which takes a status and a code rather than an
 /// <see cref="Error"/>. The status and title tables below are identical to theirs on purpose — two
 /// modules answering one classification two ways is the drift this comment exists to make visible if
-/// it ever happens. This copy omits <c>FromFindings</c>: the Orders draft path returns exactly one
-/// error at a time, first-failure-wins, everywhere (<c>OrderDraftGarmentContent.Create</c>'s own
-/// remarks say so), so there is no multi-field producer to answer here.
+/// it ever happens. <see cref="FromFindings"/> was added for E06-F02-2: the order draft path this class
+/// once served alone returns exactly one error at a time, first-failure-wins
+/// (<c>OrderDraftGarmentContent.Create</c>'s own remarks say so), but a workflow version's graph checks
+/// run every check and report every finding together, the same shape Catalog's own copy answers.
 /// </remarks>
 /// <remarks>
 /// <para>
@@ -66,6 +69,38 @@ public static class Problems
         }
 
         return Results.Problem(
+            detail: error.Message,
+            instance: context.Request.Path,
+            statusCode: status,
+            title: TitleFor(status),
+            type: TypeFor(error),
+            extensions: extensions);
+    }
+
+    /// <summary>Answers a failure carrying several findings at once — a workflow graph check, for example.</summary>
+    /// <param name="error">The failure the handler returned, naming the refusal as a whole.</param>
+    /// <param name="findings">Every finding, errors and warnings alike.</param>
+    /// <param name="context">The request, for the instance path and the correlation identifier.</param>
+    public static IResult FromFindings(Error error, IReadOnlyList<WorkflowFindingPayload> findings, HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var fields = findings
+            .Where(finding => finding.Severity == nameof(WorkflowFindingSeverity.Error))
+            .Where(finding => finding.Target is { Length: > 0 })
+            .GroupBy(finding => finding.Target!, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(finding => finding.Message).ToArray(),
+                StringComparer.Ordinal);
+
+        var status = StatusFor(error.Type);
+        var extensions = Extensions(error, context);
+        extensions["findings"] = findings;
+
+        return Results.ValidationProblem(
+            fields,
             detail: error.Message,
             instance: context.Request.Path,
             statusCode: status,
