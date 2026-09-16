@@ -112,6 +112,31 @@ public sealed class WorkflowGraphTests
             finding.Code == WorkflowGraph.PhaseWithoutRequiredRole && finding.Target == "LONELY");
     }
 
+    [Fact]
+    public void ATransitionNamingAPhaseNotOnTheVersionIsFlaggedAndDoesNotConfuseOtherChecks()
+    {
+        // An otherwise sound two-phase graph, plus one extra edge naming a phase nobody submitted. Without
+        // this check the edge would simply be dropped from every other check's view of the graph, so this
+        // proves it is reported rather than silently ignored, and that the sound part of the graph still
+        // reports nothing else — START stays the one start phase, END stays reachable and terminal.
+        var findings = Graph(Phase("START", terminal: false), Phase("END", terminal: true))
+            .WithEdges(("START", "END"), ("END", "MISSING"));
+
+        findings.ShouldHaveSingleItem();
+        findings.Single().Code.ShouldBe(WorkflowGraph.TransitionNamesMissingPhase);
+        findings.Single().Target.ShouldBe("MISSING");
+    }
+
+    [Fact]
+    public void ATransitionWhoseFromPhaseIsMissingIsFlaggedByItsOwnCode()
+    {
+        var findings = Graph(Phase("AA", terminal: true))
+            .WithEdges(("GHOST", "AA"));
+
+        findings.ShouldContain(finding =>
+            finding.Code == WorkflowGraph.TransitionNamesMissingPhase && finding.Target == "GHOST");
+    }
+
     /// <summary>
     /// The acceptance criterion's own combination: five defects that can genuinely coexist on one graph appear
     /// together in one report. "No start phase" and "two start phases" are the two failure modes of one check

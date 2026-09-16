@@ -7,14 +7,14 @@ namespace Tailor360.Modules.Orders.Application.Drafts;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The module's first audit helper — Orders has none today. It follows <c>CustomerAudit</c> and
-/// <c>MeasurementTemplateAudit</c> rather than <c>BillingAudit</c>: those inject the plain,
-/// non-generic <see cref="IAuditWriter"/>, which is bound once, platform-wide, to
+/// The module's first audit helper — Orders had none before order drafts. It follows
+/// <c>CustomerAudit</c> and <c>MeasurementTemplateAudit</c> rather than <c>BillingAudit</c>: those
+/// inject the plain, non-generic <see cref="IAuditWriter"/>, which is bound once, platform-wide, to
 /// <c>AuditWriter&lt;PlatformDbContext&gt;</c>, and commit the entry through its own separate
 /// <see cref="IAuditWriter.SaveAsync"/> after the module's own store has already committed the change —
 /// two commits, in that order, which is the house rule: <strong>save the change first, then record
 /// it</strong>. A module builds its own <c>IBillingAuditWriter</c>-shaped port only when it needs the
-/// entry to ride the same transaction as its own save; Orders' draft path does not.
+/// entry to ride the same transaction as its own save; nothing in this module needs that yet.
 /// </para>
 /// <para>
 /// <strong>Nothing personal reaches the trail.</strong> A customer identifier is not personal data on
@@ -27,9 +27,31 @@ public static class OrdersAudit
     /// <summary>The entity type an order draft is recorded against in the audit trail.</summary>
     public const string DraftEntity = "orders.order_draft";
 
-    /// <summary>Records one change and commits the entry.</summary>
+    /// <summary>The entity type a workflow definition is recorded against in the audit trail.</summary>
+    public const string WorkflowDefinitionEntity = "orders.workflow_definition";
+
+    /// <summary>The entity type a workflow version is recorded against in the audit trail.</summary>
+    public const string WorkflowVersionEntity = "orders.workflow_version";
+
+    /// <summary>Records one change against an order draft and commits the entry.</summary>
     /// <param name="audit">The platform's audit writer.</param>
     /// <param name="action">The action constant.</param>
+    /// <param name="entityId">The record.</param>
+    /// <param name="summary">What happened, in words, naming no personal data.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
+    /// <returns>A task that completes when the entry is committed.</returns>
+    public static Task RecordAsync(
+        IAuditWriter audit,
+        string action,
+        Guid entityId,
+        string summary,
+        CancellationToken cancellationToken)
+        => RecordAsync(audit, action, DraftEntity, entityId, summary, cancellationToken);
+
+    /// <summary>Records one change against a named entity type and commits the entry.</summary>
+    /// <param name="audit">The platform's audit writer.</param>
+    /// <param name="action">The action constant.</param>
+    /// <param name="entityType">The entity type, one of the constants on this class.</param>
     /// <param name="entityId">The record.</param>
     /// <param name="summary">What happened, in words, naming no personal data.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
@@ -37,12 +59,13 @@ public static class OrdersAudit
     public static async Task RecordAsync(
         IAuditWriter audit,
         string action,
+        string entityType,
         Guid entityId,
         string summary,
         CancellationToken cancellationToken)
     {
         await audit.WriteAsync(
-            new AuditEntry(action, DraftEntity, entityId, summary),
+            new AuditEntry(action, entityType, entityId, summary),
             cancellationToken);
 
         await audit.SaveAsync(cancellationToken);

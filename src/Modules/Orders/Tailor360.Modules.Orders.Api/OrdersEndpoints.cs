@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Tailor360.Modules.Orders.Api.Drafts;
+using Tailor360.Modules.Orders.Api.Workflows;
 
 namespace Tailor360.Modules.Orders.Api;
 
@@ -26,7 +27,8 @@ public static class OrdersEndpoints
 
         endpoints.MapGroup(GroupPrefix)
             .WithTags(OpenApiTag)
-            .MapOrderDraftEndpoints();
+            .MapOrderDraftEndpoints()
+            .MapWorkflowDefinitionEndpoints();
 
         return endpoints;
     }

@@ -1208,6 +1208,68 @@ public static class PayloadExamples
               "kind": "DeliverTogether"
             }
             """,
+
+        ["CreateWorkflowDefinition"] = """
+            {
+              "code": "STITCH_STANDARD",
+              "name": "Standard stitching",
+              "description": "The everyday production process most garments run through."
+            }
+            """,
+
+        ["CreateWorkflowVersion"] = """
+            {
+              "cloneFromVersionId": "0199c2f0-0000-7000-8000-0000000000f1"
+            }
+            """,
+
+        ["ReplaceWorkflowVersionGraph"] = """
+            {
+              "phases": [
+                {
+                  "code": "CUTTING",
+                  "displayName": "Cutting",
+                  "ordinal": 0,
+                  "requiredRoleKeys": ["cutter"],
+                  "requiresEvidence": false,
+                  "expectedDuration": "02:00:00",
+                  "sla": null,
+                  "isOptional": false,
+                  "isSkippable": false,
+                  "isTerminal": false
+                },
+                {
+                  "code": "STITCHING",
+                  "displayName": "Stitching",
+                  "ordinal": 1,
+                  "requiredRoleKeys": ["tailor"],
+                  "requiresEvidence": false,
+                  "expectedDuration": "1.00:00:00",
+                  "sla": null,
+                  "isOptional": false,
+                  "isSkippable": false,
+                  "isTerminal": false
+                },
+                {
+                  "code": "QC",
+                  "displayName": "Quality check",
+                  "ordinal": 2,
+                  "requiredRoleKeys": ["qc_inspector"],
+                  "requiresEvidence": true,
+                  "expectedDuration": "00:30:00",
+                  "sla": "04:00:00",
+                  "isOptional": false,
+                  "isSkippable": false,
+                  "isTerminal": true
+                }
+              ],
+              "transitions": [
+                { "fromPhaseCode": "CUTTING", "toPhaseCode": "STITCHING" },
+                { "fromPhaseCode": "STITCHING", "toPhaseCode": "QC" }
+              ],
+              "categoryKeys": ["blouse"]
+            }
+            """,
     };
 
     /// <summary>The example for an operation, or <see langword="null"/> when none is registered.</summary>
