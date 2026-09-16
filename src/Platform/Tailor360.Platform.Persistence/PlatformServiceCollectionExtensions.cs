@@ -9,6 +9,7 @@ using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Idempotency;
 using Tailor360.Platform.Abstractions.Identifiers;
 using Tailor360.Platform.Abstractions.Outbox;
+using Tailor360.Platform.Abstractions.Ports;
 using Tailor360.Platform.Abstractions.Scheduling;
 using Tailor360.Platform.Abstractions.Sequencing;
 using Tailor360.Platform.Abstractions.Time;
@@ -20,6 +21,7 @@ using Tailor360.Platform.Persistence.Health;
 using Tailor360.Platform.Persistence.Idempotency;
 using Tailor360.Platform.Persistence.Migrating;
 using Tailor360.Platform.Persistence.Outbox;
+using Tailor360.Platform.Persistence.Printing;
 using Tailor360.Platform.Persistence.Scheduling;
 using Tailor360.Platform.Persistence.Sequencing;
 
@@ -189,6 +191,12 @@ public static class PlatformServiceCollectionExtensions
         // registered last writing every module's events — into its own schema. A module registers its
         // own publisher over its own context, behind a port its Application project declares (#77).
         services.AddModuleOutbox<PlatformDbContext>();
+
+        // The durable print queue (E07-F01-5). Registered here, not by Integration, because
+        // platform.print_jobs is Platform's own table (ARCH-005) and the interim LoggingPrintQueue that
+        // used to live in Integration.Infrastructure is gone.
+        services.TryAddScoped<IPrintQueue, DatabasePrintQueue>();
+        services.TryAddScoped<IPrintStationQueue, PrintStationQueue>();
 
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database", tags: [HealthCheckTags.Ready])

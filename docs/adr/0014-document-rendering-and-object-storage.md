@@ -37,7 +37,7 @@ Constraints that shaped the choice:
 | `IPdfRenderer` | `QuestPdfRenderer` | QuestPDF 2026.8 | QuestPDF Community, which the licence grants to organisations under its annual revenue threshold (USD 1M at the time of writing). HyFib Tailor 360's operator is a tailoring business well under it; the threshold is re-checked at each licence change, and the fallback is the Professional licence, a purchase rather than a rewrite |
 | `IBarcodeRenderer` | `Code128BarcodeRenderer` | ZXing.Net 0.16 (core package only) | Apache 2.0 |
 | `IObjectStorage` (new, `Platform.Abstractions`) | `MinioObjectStorage`; `InMemoryObjectStorage` for tests and a developer without the compose stack | Minio 6.0 | Apache 2.0 |
-| `IPrintQueue` | `LoggingPrintQueue` — **interim** | — | — |
+| `IPrintQueue` | `DatabasePrintQueue`, over `platform.print_jobs` (E07-F01-5) | — | — |
 | Fonts | Noto Sans and Noto Sans Tamil, embedded resources | — | SIL Open Font License 1.1, beside the files |
 
 Specifics the code relies on:

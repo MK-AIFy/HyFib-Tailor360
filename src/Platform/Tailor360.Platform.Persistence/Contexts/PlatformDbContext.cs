@@ -43,6 +43,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     /// <summary>Per-instance worker heartbeats.</summary>
     public DbSet<WorkerHeartbeat> WorkerHeartbeats => Set<WorkerHeartbeat>();
 
+    /// <summary>The durable print queue: a job per branch, from enqueue to a station's resolution.</summary>
+    public DbSet<PrintJob> PrintJobs => Set<PrintJob>();
+
     /// <summary>
     /// The ASP.NET Core data-protection key ring. It lives here rather than on a container's disk
     /// because the images run with a read-only root file system and because a second web replica with
@@ -111,6 +114,26 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(e => e.InstanceName);
             entity.Property(e => e.InstanceName).HasMaxLength(128);
             entity.Property(e => e.Version).HasMaxLength(64).IsRequired();
+        });
+
+        modelBuilder.Entity<PrintJob>(entity =>
+        {
+            entity.ToTable("print_jobs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Kind).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Format).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.PayloadReference).HasMaxLength(1024).IsRequired();
+            entity.Property(e => e.PrinterHint).HasMaxLength(128);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ResolvedStation).HasMaxLength(128);
+            entity.Property(e => e.FailureReason).HasMaxLength(2000);
+            UseRowVersion(entity);
+
+            // The station's list reads a branch's still-queued jobs, oldest first; the partial index
+            // keeps that query small even once a busy branch has resolved thousands of jobs.
+            entity.HasIndex(e => new { e.BranchId, e.Status, e.RequestedAt })
+                .HasDatabaseName("ix_print_jobs_branch_status_requested_at")
+                .HasFilter("status = 'queued'");
         });
 
         modelBuilder.Entity<DataProtectionKey>(entity =>

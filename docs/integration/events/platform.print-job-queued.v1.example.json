@@ -1,0 +1,12 @@
+{
+  "eventId": "019bd200-1a2b-7c3d-8e4f-5a6b7c8d9e0f",
+  "occurredAt": "2026-09-16T10:24:16.4820000+00:00",
+  "aggregateId": "019bd200-1a2b-7c3d-8e4f-5a6b7c8d9e10",
+  "branchId": "019bcf80-04c5-7e9a-9b33-2a1b0c9d8e7f",
+  "kind": "document.receipt",
+  "format": "pdf",
+  "payloadReference": "documents/receipts/019bd200-1a2b-7c3d-8e4f-5a6b7c8d9e10.pdf",
+  "printerHint": null,
+  "eventType": "platform.print-job-queued.v1",
+  "schemaVersion": 1
+}

@@ -49,11 +49,15 @@ and one of those disagree, they win and this one is corrected.
 | `orders.job-ready-for-delivery.v1` | [schema](orders.job-ready-for-delivery.v1.schema.json) | [example](orders.job-ready-for-delivery.v1.example.json) | Orders, when the ready-for-delivery gate opens on a garment | #32 |
 | `orders.job-cancelled.v1` | [schema](orders.job-cancelled.v1.schema.json) | [example](orders.job-cancelled.v1.example.json) | Orders, on the cancellation of one garment | #32 |
 | `orders.order-cancelled.v1` | [schema](orders.order-cancelled.v1.schema.json) | [example](orders.order-cancelled.v1.example.json) | Orders, on the cancellation of a whole order | #32 |
+| `platform.print-job-queued.v1` | [schema](platform.print-job-queued.v1.schema.json) | [example](platform.print-job-queued.v1.example.json) | Platform, when a job is enqueued to `platform.print_jobs` | #251 |
 
 Each is declared as a record in the publishing module's `Contracts` project — the module's published surface — and
 nowhere else. `Tailor360.Modules.Customers.Contracts.Events` holds the seven Customers events,
 `Tailor360.Modules.Catalog.Contracts.Events` the two Catalog ones, and
-`Tailor360.Modules.Orders.Contracts.Events` the eleven Orders ones.
+`Tailor360.Modules.Orders.Contracts.Events` the eleven Orders ones. The one exception is `platform.print-job-queued.v1`:
+Platform has no `Contracts` project, so it is declared in `Tailor360.Platform.Abstractions.Events` instead, which
+[`../../architecture/module-ownership.md`](../../architecture/module-ownership.md) names as the surface Platform
+publishes its ports from.
 
 ## 2. Naming and versioning
 

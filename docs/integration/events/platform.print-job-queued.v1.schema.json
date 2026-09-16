@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyfib.com/tailor360/events/platform.print-job-queued.v1.schema.json",
+  "title": "platform.print-job-queued.v1",
+  "description": "A print job was enqueued to platform.print_jobs. Published at enqueue time, before any station has seen the job, so it carries only what enqueuing knows and says nothing about whether the job was ever printed.",
+  "type": "object",
+  "additionalProperties": true,
+  "$comment": "additionalProperties is true on purpose. conventions.md section 5.5 permits additive changes within a major version, so a subscriber must tolerate a field it has not seen; a closed schema would make every such addition breaking. required lists the fields present when v1 was published — a field added within v1 is optional forever, because a dead-lettered message replayed later carries the payload as it was written.",
+  "required": [
+    "eventId",
+    "occurredAt",
+    "aggregateId",
+    "branchId",
+    "kind",
+    "format",
+    "payloadReference",
+    "eventType",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identity of this occurrence. Delivery is at least once; consumers de-duplicate on it."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the job was enqueued, in UTC."
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The print job's own identity. Also the value a station resolves through IPrintStationQueue."
+    },
+    "branchId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The branch whose print station should drain it."
+    },
+    "kind": {
+      "type": "string",
+      "description": "What is being printed, for example label.garment_job or document.invoice."
+    },
+    "format": {
+      "type": "string",
+      "description": "The artefact's format, for example pdf. A free-text token supplied by the queueing module."
+    },
+    "payloadReference": {
+      "type": "string",
+      "description": "An opaque object-storage key naming the artefact. Never dereferenced by this event; a subscriber that needs the bytes streams them through the station route that re-authorises the request. Never logged and never returned to a caller who asks for anything but the bytes themselves."
+    },
+    "printerHint": {
+      "type": ["string", "null"],
+      "description": "The printer name or profile the caller asked for, or null when the branch has only one."
+    },
+    "eventType": {
+      "type": "string",
+      "const": "platform.print-job-queued.v1",
+      "description": "The wire name."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "The payload's major version. Agrees with the .v suffix of eventType."
+    }
+  }
+}
