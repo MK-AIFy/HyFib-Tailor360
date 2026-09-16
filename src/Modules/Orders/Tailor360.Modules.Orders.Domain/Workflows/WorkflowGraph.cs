@@ -1,7 +1,7 @@
 namespace Tailor360.Modules.Orders.Domain.Workflows;
 
 /// <summary>
-/// The six checks a workflow version's phases and transitions must pass before the version may be published.
+/// The checks a workflow version's phases and transitions must pass before the version may be published.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -44,7 +44,17 @@ public static class WorkflowGraph
     /// <summary>Phase codes must be unique within the version.</summary>
     public const string DuplicatePhaseCode = "orders.workflow-graph-duplicate-phase-code";
 
-    /// <summary>Runs all six checks and returns every finding, in no particular order.</summary>
+    /// <summary>Every transition must name phases that are actually on this version.</summary>
+    /// <remarks>
+    /// <see cref="PhaseTransition.Create"/> checks only that the two codes are well formed and defers this
+    /// question here, once the whole set of phases is known. Without it, a transition naming a phase that
+    /// was never submitted — or one removed by the same edit — would simply be excluded from every other
+    /// check's view of the graph rather than reported, so an administrator could save, and later publish,
+    /// a version whose transition matrix silently disagrees with its phase list.
+    /// </remarks>
+    public const string TransitionNamesMissingPhase = "orders.workflow-graph-transition-names-missing-phase";
+
+    /// <summary>Runs every check and returns every finding, in no particular order.</summary>
     /// <param name="phases">The version's phases.</param>
     /// <param name="transitions">The version's transitions.</param>
     /// <returns>What is wrong, or an empty list when the graph is sound.</returns>
@@ -69,6 +79,12 @@ public static class WorkflowGraph
             .Select(group => group.First())
             .ToList();
         var codes = distinctPhases.Select(phase => phase.Code).ToHashSet(StringComparer.Ordinal);
+
+        // Asked over every submitted transition, not the de-duplicated-by-code set below — a transition
+        // naming a phase nobody submitted is exactly the defect this check exists to report, so it must see
+        // the phase the caller actually named rather than one already filtered down to what is valid.
+        CheckTransitionEndpoints(transitions, codes, findings);
+
         var validTransitions = transitions
             .Where(transition => codes.Contains(transition.FromPhaseCode) && codes.Contains(transition.ToPhaseCode))
             .ToList();
@@ -107,6 +123,35 @@ public static class WorkflowGraph
                     $"Phase '{phase.Code}' names no role that may work it.",
                     phase.Code));
             }
+        }
+    }
+
+    private static void CheckTransitionEndpoints(
+        IReadOnlyList<PhaseTransition> transitions,
+        HashSet<string> codes,
+        List<WorkflowFinding> findings)
+    {
+        var missing = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach (var transition in transitions)
+        {
+            if (!codes.Contains(transition.FromPhaseCode))
+            {
+                missing.Add(transition.FromPhaseCode);
+            }
+
+            if (!codes.Contains(transition.ToPhaseCode))
+            {
+                missing.Add(transition.ToPhaseCode);
+            }
+        }
+
+        foreach (var code in missing)
+        {
+            findings.Add(WorkflowFinding.Error(
+                TransitionNamesMissingPhase,
+                $"A transition names phase '{code}', which this version does not have.",
+                code));
         }
     }
 

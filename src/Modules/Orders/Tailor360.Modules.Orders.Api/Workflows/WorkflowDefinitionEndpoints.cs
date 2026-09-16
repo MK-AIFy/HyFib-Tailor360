@@ -225,12 +225,13 @@ public static class WorkflowDefinitionEndpoints
             .WithSummary("Replace a draft version's whole graph: its phases, its transitions and its category mapping.")
             .WithDescription(
                 "One payload, not a dozen sub-resources: a phase list and a transition matrix are only "
-                + "valid as a set, so all three are replaced together. Every one of the six graph checks "
-                + "runs before the save — an unreachable phase, a phase with no permitted role, more or "
-                + "fewer than one start phase, no terminal phase, a phase with no way out that is not "
-                + "terminal, and a duplicate phase code — and if any of them fails, every finding comes "
-                + "back in one document, keyed by phase code, and nothing is saved. Refused on a version "
-                + "that is not a draft, naming its status, rather than silently doing nothing.")
+                + "valid as a set, so all three are replaced together. Every graph check runs before the "
+                + "save — an unreachable phase, a phase with no permitted role, more or fewer than one "
+                + "start phase, no terminal phase, a phase with no way out that is not terminal, a "
+                + "duplicate phase code, and a transition naming a phase that is not in the submitted "
+                + "list — and if any of them fails, every finding comes back in one document, keyed by "
+                + "phase code, and nothing is saved. Refused on a version that is not a draft, naming its "
+                + "status, rather than silently doing nothing.")
             .RequirePermission(CatalogPermissions.EditWorkflows, BranchScope.Organisation)
             .TouchesNoBranchOwnedResource(OrganisationOwned, Review)
             .RequireRateLimiting(RateLimitPolicyNames.Write)

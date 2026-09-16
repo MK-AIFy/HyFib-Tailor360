@@ -87,10 +87,21 @@ public sealed class WorkflowDefinitionStore(OrdersDbContext context) : IWorkflow
 
             return Result.Success();
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException exception)
         {
             // A definition's own row, or one of its versions' — either way, somebody else's write reached the
-            // row between this store's read and this save.
+            // row between this store's read and this save. The context is scoped to the request, so a caller
+            // that re-reads through it afterwards (WorkflowDefinitionEndpoints.ConflictOrProblemAsync, to hand
+            // back the current entity tag) would otherwise get the same tracked instance back unchanged — EF's
+            // identity resolution returns what is already in the change tracker rather than asking the database
+            // again. Reloading each conflicting entry here is what makes that re-read see the row's current
+            // xmin instead of the one that just lost the race, so the tag the client is told to retry with is
+            // the one that will actually succeed.
+            foreach (var entry in exception.Entries)
+            {
+                await entry.ReloadAsync(cancellationToken);
+            }
+
             return Result.Failure(OrdersErrors.ConcurrentChange);
         }
         catch (DbUpdateException exception) when (OrdersWriteFailures.TryMap(exception, out var error))
