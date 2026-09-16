@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -922,6 +923,28 @@ public sealed class OrderDraftEndpointTests(WebApplicationFixture fixture)
     /// validation checks the link (#27) — and is answered alongside the keys, because the reuse tests
     /// need a confirmed measurement against exactly the template the service pins.
     /// </remarks>
+    private static int _catalogOwnerAddressCounter;
+
+    /// <summary>
+    /// A synthetic client address distinct from every other login this file makes, including every other call
+    /// to <see cref="OrderableServiceAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// Every login this file makes needs its own address: <c>auth-anon</c> is rate-limited ten requests per
+    /// minute per client IP (<c>RateLimitPolicies.cs</c>), and every <em>other</em> login in this file already
+    /// takes a distinct literal for exactly that reason. This one call site used a single shared literal for
+    /// every stem, so the catalogue "owner" logins from however many tests happened to run inside one sliding
+    /// window competed for the same ten-request budget — invisible locally, where the suite runs unhurried, and
+    /// consistent in CI, where a shard runs this file's tests back to back. A counter guarantees no two calls
+    /// ever collide, which a hash of the stem could not.
+    /// </remarks>
+    private static string CatalogOwnerAddress()
+    {
+        var next = Interlocked.Increment(ref _catalogOwnerAddressCounter);
+
+        return $"203.0.{117 + (next / 254)}.{1 + (next % 254)}";
+    }
+
     private async Task<(string CategoryKey, string ServiceTypeKey, Guid MeasurementTemplateId)> OrderableServiceAsync(
         string stem)
     {
@@ -930,7 +953,7 @@ public sealed class OrderDraftEndpointTests(WebApplicationFixture fixture)
         var code = $"{stem.Replace('-', '_').ToUpperInvariant()}_{AdministrationHarness.UniqueToken(6).ToUpperInvariant()}";
 
         using var owner = await AdministrationHarness.AdministratorAsync(
-            fixture, $"draft-cat-{stem}", "203.0.113.230", CatalogPermissions.Edit, CatalogPermissions.Publish);
+            fixture, $"draft-cat-{stem}", CatalogOwnerAddress(), CatalogPermissions.Edit, CatalogPermissions.Publish);
 
         var version = await CatalogVersionAsync(owner, code);
         var categoryKey = $"CAT_{code}";
