@@ -41,6 +41,7 @@ using Tailor360.Web.Configuration;
 using Tailor360.Web.Endpoints;
 using Tailor360.Web.Middleware;
 using Tailor360.Web.OpenApi;
+using Tailor360.Web.Telemetry;
 using Tailor360.Web.Timeline;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -73,6 +74,15 @@ builder.Services.AddOptions<ClientCompatibilityOptions>()
     .Bind(builder.Configuration.GetSection(ClientCompatibilityOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+builder.Services.AddOptions<ClientTelemetryOptions>()
+    .Bind(builder.Configuration.GetSection(ClientTelemetryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// AuthorisationDenialCoalescer is already registered by AddTailor360Security(); the refusal audit path
+// below reuses it rather than a second instance.
+builder.Services.AddScoped<ClientTelemetryHandler>();
 
 builder.Services.AddTailor360Platform();
 
@@ -173,6 +183,7 @@ app.UseAuthorization();
 app.MapTailor360HealthEndpoints();
 app.MapVersionEndpoint(app.Environment);
 app.MapAntiForgeryEndpoint();
+app.MapClientTelemetryEndpoint();
 
 app.MapCustomerTimelineEndpoint();
 

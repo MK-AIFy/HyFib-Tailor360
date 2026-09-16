@@ -3431,6 +3431,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telemetry/client": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a batch of client telemetry events.
+         * @description Same-origin, anonymous and rate-limited. Every event's type and every attribute name and shape must be on the server-side allowlist or it is dropped before it reaches a log or a metric; a batch left with nothing allowlisted is refused rather than silently accepted. No table, no schema: an accepted event is a structured log record and a counter increment, never a row.
+         */
+        post: operations["IngestClientTelemetry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/version": {
         parameters: {
             query?: never;
@@ -3744,6 +3764,7 @@ export interface components {
             parentCategoryId: null | string;
             reason: null | string;
         };
+        ClientTelemetryAcceptedResponse: Record<string, never>;
         CloseCashierSessionRequest: {
             denominations: null | components["schemas"]["DenominationCountRequest"][];
             modeTotals: null | components["schemas"]["ModeCountRequest"][];
@@ -17433,6 +17454,101 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    IngestClientTelemetry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "batchId": "0199c2f0-0000-7000-8000-0000000000f1",
+                 *       "clientVersion": "2026.9.1",
+                 *       "deviceClass": "shop-floor-phone",
+                 *       "engine": "blink",
+                 *       "events": [
+                 *         {
+                 *           "attributes": {
+                 *             "metric": "LCP",
+                 *             "value": 1820
+                 *           },
+                 *           "timestamp": "2026-09-16T09:12:03.412Z",
+                 *           "type": "web_vital"
+                 *         },
+                 *         {
+                 *           "attributes": {
+                 *             "capability": "cameraScanning",
+                 *             "result": "supported"
+                 *           },
+                 *           "timestamp": "2026-09-16T09:12:01.005Z",
+                 *           "type": "capability_detection"
+                 *         }
+                 *       ],
+                 *       "operatingSystemFamily": "android",
+                 *       "routeName": "orders/workboard"
+                 *     }
+                 */
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description A client-generated identifier for this flush, for de-duplication at the log level.
+                     */
+                    batchId: string;
+                    /** @description The build the client is running. */
+                    clientVersion?: null | string;
+                    /** @description The device class the client detected itself as, for example `shop-floor-phone`. */
+                    deviceClass?: null | string;
+                    /** @description The rendering engine, for example `blink`. */
+                    engine?: null | string;
+                    /** @description The events flushed in this batch, bounded by `ClientTelemetry:MaxEventsPerBatch`. */
+                    events: {
+                        /** @description A bounded attribute bag. Only the names and shapes the allowlist declares for this event's type survive; everything else is dropped before it reaches a sink. */
+                        attributes?: null | Record<string, never>;
+                        /**
+                         * Format: date-time
+                         * @description When the client observed it.
+                         */
+                        timestamp?: null | string;
+                        /** @description The event type. Only a closed set of names survives the server-side allowlist; anything else drops the whole event. */
+                        type?: null | string;
+                    }[];
+                    /** @description The operating-system family, for example `android`. */
+                    operatingSystemFamily?: null | string;
+                    /** @description The client route the batch was flushed from, by name — never a URL. */
+                    routeName?: null | string;
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientTelemetryAcceptedResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The batch body exceeded ClientTelemetry:MaxBodyBytes. */
+            413: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["X-Correlation-Id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

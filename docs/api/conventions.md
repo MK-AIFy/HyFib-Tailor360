@@ -193,6 +193,25 @@ headers; and `GET /api/version` is the handshake, which is why it is the one pat
 A client below `minimumClient` is refused with `426` on every other endpoint, carrying `minimumClient`
 and `current` so the update prompt can be written from the problem body.
 
+### 5.1 `POST /api/v1/telemetry/client`
+
+The one other route outside the ordinary session-and-permission model, for the opposite reason: the
+version handshake is read before a session exists, and this route is *posted to* before one exists —
+by the unsupported-configuration page, and by a batch `navigator.sendBeacon` flushes on page hide, which
+cannot attach the anti-forgery header a session-backed `POST` would otherwise need. It is same-origin,
+anonymous with a recorded justification (`#52`), rate-limited under `telemetry-ingest`, and refuses a
+request that declares neither `Origin` nor `Sec-Fetch-Site` — the one gap the global origin check
+deliberately leaves open for the tools and probes that need it, closed here because this route is
+anti-forgery-exempt and has no other compensating control.
+
+The body is a batch: an envelope (a client-generated `batchId`, the client version, the route name, the
+device class, the engine and the operating-system family) carrying events, each with a `type` from a
+closed set and a bounded `attributes` bag. Only a name and shape the server-side allowlist declares for
+that event's type survives; anything else is dropped before it reaches a log or a metric, and a batch
+left with nothing allowlisted is refused rather than silently accepted. The response is `202 Accepted`
+with an empty body: the client must not wait on it, and must not retry a refusal — a dropped batch of
+telemetry is not worth a second attempt at the caller's expense.
+
 ## 6. Before an endpoint is merged
 
 - It declares a permission or a justified anonymous exposure (**ARCH-007**), and never both (**ARCH-022**).
