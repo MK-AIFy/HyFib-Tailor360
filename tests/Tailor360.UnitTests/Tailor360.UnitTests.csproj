@@ -56,6 +56,13 @@
     <ProjectReference Include="..\..\src\Modules\Reporting\Tailor360.Modules.Reporting.Domain\Tailor360.Modules.Reporting.Domain.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Hosts\Tailor360.Worker\Tailor360.Worker.csproj" />
+    <!--
+      Tailor360.Web is referenced for ClientTelemetryAllowlist alone, on the same reading as Identity's
+      password hasher and Orders' infrastructure above: it is a pure function over a JSON element with no
+      database and no host behind it, so its tests belong in this tier. The endpoint itself stays in the
+      integration tier.
+    -->
+    <ProjectReference Include="..\..\src\Hosts\Tailor360.Web\Tailor360.Web.csproj" />
     <ProjectReference Include="..\..\src\Tools\Tailor360.Cli\Tailor360.Cli.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Observability\Tailor360.Platform.Observability.csproj" />
     <ProjectReference Include="..\..\src\Platform\Tailor360.Platform.Persistence\Tailor360.Platform.Persistence.csproj" />

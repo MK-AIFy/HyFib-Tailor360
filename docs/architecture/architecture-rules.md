@@ -360,6 +360,7 @@ without reading the tests. An exception that is not in this table does not exist
 | ARCH-007 | OpenAPI document, mapped in Development only | `AllowAnonymousWithJustification` in `Tailor360.Web` | #20 |
 | ARCH-007 | PWA shell fallback to `index.html` | `AllowAnonymousWithJustification` in `Tailor360.Web` | #20 |
 | ARCH-007 | `GET /api/version` | `AllowAnonymousWithJustification` in `VersionEndpoints` | #20 |
+| ARCH-007 | `POST /api/v1/telemetry/client` | `AllowAnonymousWithJustification` in `ClientTelemetryEndpoints` | #52 |
 | ARCH-009 | Test projects; `Tailor360.Modules.Integration.Infrastructure` | Exempt set in the test method | #20, extended by #55 |
 | ARCH-012 | Projects whose name ends in `Tests` | Name suffix check in the test | #20 |
 | ARCH-014 | `SystemClock.cs` | `sanctioned` array in the test method | #20 |

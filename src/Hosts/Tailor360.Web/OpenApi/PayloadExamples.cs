@@ -925,6 +925,29 @@ public static class PayloadExamples
             }
             """,
 
+        ["IngestClientTelemetry"] = """
+            {
+              "batchId": "0199c2f0-0000-7000-8000-0000000000f1",
+              "clientVersion": "2026.9.1",
+              "routeName": "orders/workboard",
+              "deviceClass": "shop-floor-phone",
+              "engine": "blink",
+              "operatingSystemFamily": "android",
+              "events": [
+                {
+                  "type": "web_vital",
+                  "timestamp": "2026-09-16T09:12:03.412Z",
+                  "attributes": { "metric": "LCP", "value": 1820 }
+                },
+                {
+                  "type": "capability_detection",
+                  "timestamp": "2026-09-16T09:12:01.005Z",
+                  "attributes": { "capability": "cameraScanning", "result": "supported" }
+                }
+              ]
+            }
+            """,
+
         ["SignIn"] = """
             {
               "identifier": "counter.demo",

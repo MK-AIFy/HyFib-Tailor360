@@ -85,6 +85,7 @@ public static class ApiDocument
 
             options.AddDocumentTransformer<ApiDocumentTransformer>();
             options.AddOperationTransformer<EndpointContractTransformer>();
+            options.AddOperationTransformer<ClientTelemetryOperationTransformer>();
             options.AddSchemaTransformer<OmittedMemberSchemaTransformer>();
         });
 

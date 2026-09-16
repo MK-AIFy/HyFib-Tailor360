@@ -1414,6 +1414,9 @@
         ],
         "type": "object"
       },
+      "ClientTelemetryAcceptedResponse": {
+        "type": "object"
+      },
       "CloseCashierSessionRequest": {
         "properties": {
           "denominations": {
@@ -30209,6 +30212,181 @@
         "x-tailor360-audit": "identity.session.revoked",
         "x-tailor360-authorisation": "session",
         "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/telemetry/client": {
+      "post": {
+        "description": "Same-origin, anonymous and rate-limited. Every event's type and every attribute name and shape must be on the server-side allowlist or it is dropped before it reaches a log or a metric; a batch left with nothing allowlisted is refused rather than silently accepted. No table, no schema: an accepted event is a structured log record and a counter increment, never a row.",
+        "operationId": "IngestClientTelemetry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "batchId": "0199c2f0-0000-7000-8000-0000000000f1",
+                "clientVersion": "2026.9.1",
+                "deviceClass": "shop-floor-phone",
+                "engine": "blink",
+                "events": [
+                  {
+                    "attributes": {
+                      "metric": "LCP",
+                      "value": 1820
+                    },
+                    "timestamp": "2026-09-16T09:12:03.412Z",
+                    "type": "web_vital"
+                  },
+                  {
+                    "attributes": {
+                      "capability": "cameraScanning",
+                      "result": "supported"
+                    },
+                    "timestamp": "2026-09-16T09:12:01.005Z",
+                    "type": "capability_detection"
+                  }
+                ],
+                "operatingSystemFamily": "android",
+                "routeName": "orders/workboard"
+              },
+              "schema": {
+                "description": "A client-generated flush: an envelope identifying the client, carrying the events it observed since the last flush.",
+                "properties": {
+                  "batchId": {
+                    "description": "A client-generated identifier for this flush, for de-duplication at the log level.",
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "clientVersion": {
+                    "description": "The build the client is running.",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "deviceClass": {
+                    "description": "The device class the client detected itself as, for example `shop-floor-phone`.",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "engine": {
+                    "description": "The rendering engine, for example `blink`.",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "events": {
+                    "description": "The events flushed in this batch, bounded by `ClientTelemetry:MaxEventsPerBatch`.",
+                    "items": {
+                      "properties": {
+                        "attributes": {
+                          "description": "A bounded attribute bag. Only the names and shapes the allowlist declares for this event's type survive; everything else is dropped before it reaches a sink.",
+                          "type": [
+                            "null",
+                            "object"
+                          ]
+                        },
+                        "timestamp": {
+                          "description": "When the client observed it.",
+                          "format": "date-time",
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "type": {
+                          "description": "The event type. Only a closed set of names survives the server-side allowlist; anything else drops the whole event.",
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "operatingSystemFamily": {
+                    "description": "The operating-system family, for example `android`.",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "routeName": {
+                    "description": "The client route the batch was flushed from, by name — never a URL.",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "batchId",
+                  "events"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientTelemetryAcceptedResponse"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The batch body exceeded ClientTelemetry:MaxBodyBytes.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/X-Correlation-Id"
+              }
+            }
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": []
+          }
+        ],
+        "summary": "Accept a batch of client telemetry events.",
+        "tags": [
+          "Platform"
+        ],
+        "x-tailor360-anonymous": "#52",
+        "x-tailor360-audit": "observability.client_telemetry_refused",
+        "x-tailor360-authorisation": "anonymous",
+        "x-tailor360-rate-limit": "telemetry-ingest"
       }
     },
     "/api/version": {

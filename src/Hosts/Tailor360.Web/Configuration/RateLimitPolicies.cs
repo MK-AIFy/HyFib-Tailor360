@@ -106,6 +106,12 @@ public static class RateLimitPolicies
         // when it starts, so this window has to hold a shift's worth of devices starting together —
         // hence a limit that only a loop could reach, not one a Monday morning could.
         new(RateLimitPolicyNames.DefaultIp, 120, TimeSpan.FromMinutes(1), KeyedOnAccount: false),
+
+        // Client telemetry ingest. Derived from the flush interval [E12-F03-5] proposes — one batch
+        // roughly every 30 seconds per client — rather than chosen freely: a shift's worth of devices on
+        // one shop address flushing at that cadence needs headroom for several to flush at once, not for
+        // a loop. Anonymous, so keyed on the address the same as the other unauthenticated policies.
+        new(RateLimitPolicyNames.ClientTelemetryIngest, 40, TimeSpan.FromMinutes(1), KeyedOnAccount: false),
     ];
 
     /// <summary>Registers every policy in the catalogue and the shared rejection behaviour.</summary>

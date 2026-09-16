@@ -11,7 +11,10 @@ namespace Tailor360.Platform.Security.Endpoints;
 /// </para>
 /// <para>
 /// The catalogue is the one in plan section 4.4. Issue #23 needs the first three and the two defaults;
-/// #53 completes the rest and adds ARCH-017, which fails an endpoint that declares none.
+/// #53 (closed) added ARCH-017, which fails an endpoint that declares none, and the shape of the rest.
+/// The customer-link, provider-callback and telemetry-ingest policies arrive with the endpoints that
+/// need them — #47, #55 and #52 (<c>docs/architecture/components.md</c> line 172) — because #53 closed
+/// before any of the three existed to be sized.
 /// </para>
 /// </remarks>
 public static class RateLimitPolicyNames
@@ -48,4 +51,12 @@ public static class RateLimitPolicyNames
 
     /// <summary>Report and export generation, which is expensive per call.</summary>
     public const string ExportHeavy = "export-heavy";
+
+    /// <summary>
+    /// Client telemetry ingest. Anonymous and keyed on the client address, because the caller may have no
+    /// account — the unsupported-configuration page and a batch flushed by <c>navigator.sendBeacon</c> on
+    /// page hide both predate a session. Shaped as a steady trickle rather than a burst: one flush per
+    /// client roughly every <c>[E12-F03-5]</c>'s configured interval, not a scan-style spike.
+    /// </summary>
+    public const string ClientTelemetryIngest = "telemetry-ingest";
 }

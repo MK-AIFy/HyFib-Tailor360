@@ -484,7 +484,7 @@ to show a merge asks `ICustomerSnapshotQuery`, which re-authorises the read.
 | In backups | No; backend retention only |
 | In logs | Not applicable — telemetry is the log's sibling and carries the same prohibition list. **No personal data, no free text typed by a user, no image or measurement values, no route parameter values that are themselves personal**; high-cardinality identifiers appear as attributes on traces only, never as metric labels |
 | In exports | Dashboards and the release performance report; both aggregate |
-| Deletion and anonymisation | Expiry by backend retention policy. A client telemetry redaction test runs in the pull-request pipeline (#52, #58) |
+| Deletion and anonymisation | Expiry by backend retention policy. A client telemetry redaction test runs in the pull-request pipeline (#52, #58) — `ClientTelemetryEndpointTests` posts a batch carrying a customer name, a phone number, a measurement value, a full stack trace and a URL with a query string, and asserts none of the six sentinels appears in any emitted log record or metric label |
 
 ### 5.19 Reporting projections and exports
 
