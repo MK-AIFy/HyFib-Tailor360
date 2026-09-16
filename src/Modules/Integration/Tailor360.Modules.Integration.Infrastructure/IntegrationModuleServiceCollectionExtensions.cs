@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Integration.Infrastructure.Documents;
-using Tailor360.Modules.Integration.Infrastructure.Printing;
 using Tailor360.Modules.Integration.Infrastructure.Storage;
 using Tailor360.Platform.Abstractions.Ports;
 
@@ -53,7 +52,10 @@ public static class IntegrationModuleServiceCollectionExtensions
         });
         services.TryAddSingleton<IPdfRenderer, QuestPdfRenderer>();
         services.TryAddSingleton<IBarcodeRenderer, Code128BarcodeRenderer>();
-        services.TryAddScoped<IPrintQueue, LoggingPrintQueue>();
+
+        // IPrintQueue is registered by Platform (DatabasePrintQueue, E07-F01-5): platform.print_jobs is
+        // Platform's own table (ARCH-005), and the interim LoggingPrintQueue this module used to bind is
+        // gone.
 
         return services;
     }

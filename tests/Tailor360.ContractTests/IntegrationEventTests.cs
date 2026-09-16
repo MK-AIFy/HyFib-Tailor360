@@ -99,10 +99,20 @@ public sealed class IntegrationEventTests
     /// An event is declared in its own module's <c>Contracts</c> project, and its name says so.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>Contracts</c> is the module's published surface (ARCH-004), and an event is the most
     /// published thing a module has. One declared in <c>Application</c> or <c>Infrastructure</c> could
     /// not be consumed without breaking the boundary; one whose name claimed another module's segment
     /// would put a subscriber's routing on the wrong owner.
+    /// </para>
+    /// <para>
+    /// <strong>The <c>platform</c> segment is the one exception</strong>, and it is not a module: Platform
+    /// has no <c>Contracts</c> project of its own, because <c>docs/architecture/module-ownership.md</c>
+    /// says Platform "publishes them as ports in <c>Platform.Abstractions</c>" — that assembly is
+    /// Platform's published surface, the way a module's <c>Contracts</c> project is its. An event named
+    /// <c>platform.*</c> is expected there instead, first for <c>platform.print-job-queued.v1</c>
+    /// (E07-F01-5).
+    /// </para>
     /// </remarks>
     [Fact]
     public void EveryEventIsDeclaredInItsOwnModulesPublishedSurface()
@@ -110,6 +120,17 @@ public sealed class IntegrationEventTests
         foreach (var published in IntegrationEventInventory.All())
         {
             var assembly = published.Type.Assembly.GetName().Name!;
+
+            if (published.Module == "platform")
+            {
+                assembly.ShouldBe(
+                    "Tailor360.Platform.Abstractions",
+                    $"'{published.EventType}' claims the 'platform' segment but is declared in "
+                    + $"'{assembly}'. Platform has no Contracts project; Platform.Abstractions is its "
+                    + "published surface (docs/architecture/module-ownership.md).");
+
+                continue;
+            }
 
             assembly.ShouldEndWith(
                 ".Contracts",

@@ -12,6 +12,7 @@ using Tailor360.Modules.Billing.Domain.Invoicing;
 using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Platform.Abstractions.Barcodes;
 using Tailor360.Platform.Persistence.Contexts;
+using Tailor360.Platform.Persistence.Entities;
 using Tailor360.Platform.Security.Permissions;
 using static Tailor360.IntegrationTests.Billing.InvoiceScenes;
 
@@ -94,7 +95,22 @@ public sealed class ReceiptEndpointTests(WebApplicationFixture fixture)
         // Printed: one to five copies, acknowledged with the job, audited.
         var printed = await cashier.PostAsync($"/api/v1/billing/receipts/{receiptId}/print", new { copies = 2 }, Key());
         printed.StatusCode.ShouldBe(HttpStatusCode.Accepted, await printed.Content.ReadAsStringAsync(Token));
+        var printJobId = JsonDocument.Parse(await printed.Content.ReadAsStringAsync(Token)).RootElement.GetProperty("printJobId").GetGuid();
         await Refused(cashier.PostAsync($"/api/v1/billing/receipts/{receiptId}/print", new { copies = 6 }, Key()), HttpStatusCode.BadRequest, "billing.copies-out-of-range");
+
+        // The durable queue (#251): the print left a real, queued row rather than a log line and nothing else.
+        using (var scope = fixture.Services.CreateScope())
+        {
+            var job = await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().PrintJobs.AsNoTracking()
+                .SingleAsync(row => row.Id == printJobId, Token);
+
+            job.BranchId.ShouldBe(scene.Branch);
+            job.Kind.ShouldBe(DocumentArtifactHandler.ReceiptPrintKind);
+            job.Format.ShouldBe("pdf");
+            job.PayloadReference.ShouldBe(artifact.ObjectKey);
+            job.Copies.ShouldBe(2);
+            job.Status.ShouldBe(PrintJobStatuses.Queued);
+        }
 
         // Resolved from the barcode for this branch; the invoice lookup does not answer an R- payload.
         var resolved = await cashier.GetAsync($"/api/v1/billing/receipts/barcode/{barcode}");

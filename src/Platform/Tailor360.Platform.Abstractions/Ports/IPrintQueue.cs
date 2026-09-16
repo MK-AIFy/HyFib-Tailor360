@@ -17,9 +17,16 @@ public interface IPrintQueue
 /// <param name="PayloadReference">Reference to the artefact to print, resolved by the print station.</param>
 /// <param name="Copies">Number of copies; a reprint is a separate, audited job.</param>
 /// <param name="PrinterHint">Optional printer name or profile when a branch has more than one.</param>
+/// <param name="Format">
+/// The artefact's format, for example <c>pdf</c>. Added as a non-breaking extension (plan D15) once the
+/// durable queue needed somewhere to put it; every caller today renders through <see
+/// cref="Tailor360.Platform.Abstractions.Ports.IPdfRenderer"/>, so the default matches what is actually
+/// produced. A caller that queues a different format — a thermal label, once #191 exists — names it.
+/// </param>
 public sealed record PrintJobRequest(
     Guid BranchId,
     string Kind,
     string PayloadReference,
     int Copies = 1,
-    string? PrinterHint = null);
+    string? PrinterHint = null,
+    string Format = "pdf");
