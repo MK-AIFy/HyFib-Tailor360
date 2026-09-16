@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Modules.Orders.Domain.Snapshots;
+using Tailor360.Modules.Orders.Domain.Workflows;
 
 namespace Tailor360.Modules.Orders.Infrastructure.Persistence;
 
@@ -112,6 +113,43 @@ public static class OrdersJson
     public static IReadOnlyCollection<ReadyGateBlock> ReadBlocks(string? json)
         => Read<ReadyGateBlockDocument>(json).ConvertAll(document => document.ToBlock());
 
+    /// <summary>Writes a workflow version's phase transitions.</summary>
+    /// <param name="transitions">The transitions, possibly empty.</param>
+    /// <returns>The JSON.</returns>
+    public static string Write(IReadOnlyList<PhaseTransition> transitions)
+    {
+        ArgumentNullException.ThrowIfNull(transitions);
+
+        return JsonSerializer.Serialize(transitions.Select(PhaseTransitionDocument.Of).ToList(), Options);
+    }
+
+    /// <summary>Reads a workflow version's phase transitions back.</summary>
+    /// <param name="json">The JSON.</param>
+    /// <returns>The transitions, empty when there are none.</returns>
+    public static IReadOnlyList<PhaseTransition> ReadTransitions(string? json)
+        => Read<PhaseTransitionDocument>(json).ConvertAll(document => document.ToTransition());
+
+    /// <summary>Writes which catalogue categories use a workflow version.</summary>
+    /// <remarks>
+    /// A plain list of strings, the same shape <see cref="Write(IReadOnlyList{string})"/> already writes for a
+    /// design snapshot's conditional notes — but named for what it holds rather than reused under that method's
+    /// name, so a reader at either call site sees what the column means without following the type back to
+    /// <c>WorkflowVersion.CategoryKeys</c>.
+    /// </remarks>
+    /// <param name="categoryKeys">The category keys, possibly empty.</param>
+    /// <returns>The JSON.</returns>
+    public static string WriteCategoryMapping(IReadOnlyList<string> categoryKeys)
+    {
+        ArgumentNullException.ThrowIfNull(categoryKeys);
+
+        return JsonSerializer.Serialize(categoryKeys, Options);
+    }
+
+    /// <summary>Reads which catalogue categories use a workflow version back.</summary>
+    /// <param name="json">The JSON.</param>
+    /// <returns>The category keys, empty when there are none.</returns>
+    public static IReadOnlyList<string> ReadCategoryMapping(string? json) => Read<string>(json);
+
     private static List<T> Read<T>(string? json)
         => string.IsNullOrWhiteSpace(json)
             ? []
@@ -186,5 +224,14 @@ public static class OrdersJson
         public static ReadyGateBlockDocument Of(ReadyGateBlock block) => new(block.Predicate, block.Reference);
 
         public ReadyGateBlock ToBlock() => ReadyGateBlock.Create(Predicate, Reference).Value;
+    }
+
+    /// <summary>One phase transition, as it sits in the column.</summary>
+    private sealed record PhaseTransitionDocument(string FromPhaseCode, string ToPhaseCode)
+    {
+        public static PhaseTransitionDocument Of(PhaseTransition transition)
+            => new(transition.FromPhaseCode, transition.ToPhaseCode);
+
+        public PhaseTransition ToTransition() => PhaseTransition.Create(FromPhaseCode, ToPhaseCode).Value;
     }
 }

@@ -8,6 +8,7 @@ using Tailor360.Modules.Orders.Domain.Estimates;
 using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Modules.Orders.Domain.Orders;
 using Tailor360.Modules.Orders.Domain.Snapshots;
+using Tailor360.Modules.Orders.Domain.Workflows;
 using Tailor360.Platform.Abstractions.Money;
 using Tailor360.Platform.Persistence.Conventions;
 
@@ -18,8 +19,8 @@ namespace Tailor360.Modules.Orders.Infrastructure.Persistence;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ten tables, plus the <c>outbox_messages</c> and <c>inbox_messages</c> pair every module gets from
-/// <see cref="ModuleDbContext"/>. Eight of the ten are the aggregate roots
+/// Thirteen tables, plus the <c>outbox_messages</c> and <c>inbox_messages</c> pair every module gets from
+/// <see cref="ModuleDbContext"/>. Eight of the ten from before #232 are the aggregate roots
 /// <c>docs/architecture/module-ownership.md</c> section 5.5 names. The two beyond that list are the draft's
 /// garment sections and their dependencies, which section 5.5 folds into <c>order_drafts</c> and which are rows
 /// here rather than a document for four reasons given in the pull request — the decisive one being that 5.5 also
@@ -29,18 +30,24 @@ namespace Tailor360.Modules.Orders.Infrastructure.Persistence;
 /// <c>garment_jobs</c> for the reason <see cref="ConfigurePriceSnapshot"/> gives; and <c>job_ready_state</c>,
 /// because the gate's outcome is three more columns on the same table for the reason
 /// <see cref="ConfigureReadyState"/> gives — Entity Framework Core 10.0.11 cannot read an entity that is both
-/// split across two tables and holds a complex property, and the price copy is a complex property.
+/// split across two tables and holds a complex property, and the price copy is a complex property. Issue #232
+/// adds the remaining three: <c>workflow_definitions</c>, <c>workflow_versions</c> and
+/// <c>workflow_version_phases</c>, exactly the trio section 5.5 already names.
 /// </para>
 /// <para>
 /// Which tables carry a concurrency token, and why:
 /// </para>
 /// <list type="bullet">
 /// <item><description>
-/// <c>order_drafts</c>, <c>order_draft_garments</c>, <c>estimates</c>, <c>orders</c> and
-/// <c>garment_jobs</c> <strong>do</strong>. Each is edited after it is created — a draft by two counters at
-/// once, an estimate by supersession and conversion, an order by revision and cancellation, a job by every
-/// production command — and the token is what turns the second writer into a 409 the screen can explain instead
-/// of a silent overwrite.
+/// <c>order_drafts</c>, <c>order_draft_garments</c>, <c>estimates</c>, <c>orders</c>,
+/// <c>garment_jobs</c>, <c>workflow_definitions</c>, <c>workflow_versions</c> and
+/// <c>workflow_version_phases</c> <strong>do</strong>. Each is edited after it is created — a draft by two
+/// counters at once, an estimate by supersession and conversion, an order by revision and cancellation, a job
+/// by every production command, a workflow version by draft edits and then by publish and retire — and the
+/// token is what turns the second writer into a 409 the screen can explain instead of a silent overwrite. A
+/// workflow phase is replaced wholesale rather than edited in place (<c>WorkflowPhase</c>'s own remarks), so its
+/// own token guards nothing today; it is there because this issue's scope asks every one of its three tables to
+/// carry the same baseline columns, and a future editor of one phase at a time will need it.
 /// </description></item>
 /// <item><description>
 /// <c>order_revisions</c> and <c>job_dependencies</c> do <strong>not</strong>. Both are append-only, so there is
@@ -75,16 +82,25 @@ namespace Tailor360.Modules.Orders.Infrastructure.Persistence;
 /// <c>estimates</c> included.
 /// </para>
 /// <para>
+/// <strong>The three workflow tables break that substitution deliberately.</strong> They carry the literal
+/// <c>created_at</c>/<c>created_by</c> pair issue #232's own scope names, because a workflow definition or a
+/// phase has no creating <em>business event</em> the way an order has a confirmation — it is simply authored —
+/// so there is no domain-specific name to substitute and the baseline pair is the honest one.
+/// </para>
+/// <para>
 /// No column here is a foreign key into another schema. <c>customer_id</c>, <c>catalog_version_id</c>,
 /// <c>measurement_version_id</c>, <c>design_selection_draft_id</c> and the media identifiers are bare
 /// <c>uuid</c> columns with no <c>HasOne</c>: a key across the boundary would be an ARCH-005 violation, and the
 /// rows behind them are read through their owners' published contracts instead.
 /// </para>
 /// <para>
-/// <strong>Deliberately absent, recorded rather than silent.</strong> <c>workflow_definition_id</c>,
-/// <c>workflow_version_id</c> and every <c>*_reason_code</c> have no foreign key and no value list: workflow
-/// definitions, holds and cancellations are issues #33 and #34, and the hold, cancellation and defect
-/// vocabularies are OD-10 configuration whose codes are opaque strings. There is no <c>priority</c> column,
+/// <strong>Deliberately absent, recorded rather than silent.</strong> <c>workflow_definition_id</c> and
+/// <c>workflow_version_id</c> on <c>garment_jobs</c> still have no foreign key, even now that #232 gives the
+/// rows they name somewhere real to point at: this migration is expand-only and alters no existing table
+/// (<c>garment_jobs</c> included), and the two columns' own refusal of an empty or a repeated pin already lives
+/// in the Domain (<c>GarmentJob.StartProduction</c>). Every <c>*_reason_code</c> likewise has no foreign key and
+/// no value list: hold and cancellation are issue #34's, and the hold, cancellation and defect vocabularies are
+/// OD-10 configuration whose codes are opaque strings. There is no <c>priority</c> column,
 /// notwithstanding the word in section 5.5's <c>orders</c> row: the Domain models none and priority has no
 /// vocabulary, so a column would be inventing a product decision. Nothing forbids <c>status = 'Closed'</c>
 /// either — SQ-01 is unsettled, nothing writes it, and a constraint added now would have to be contracted out at
@@ -171,6 +187,20 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
     /// <summary>The estimates table. Named for the reason <see cref="OrderDraftsTable"/> gives.</summary>
     public const string EstimatesTable = "estimates";
 
+    /// <summary>
+    /// The partial unique index that refuses a definition a second published version at once (#232).
+    /// </summary>
+    /// <remarks>
+    /// Named because <c>WorkflowDefinitionStore</c> reads it off a failed write: two administrators racing to
+    /// publish two different draft versions of one definition is a genuine conflict, not the identifier
+    /// collision the unnamed-unique arm below assumes, so it is mapped to
+    /// <c>OrdersErrors.ConcurrentChange</c> explicitly rather than falling through to <c>WriteRefused</c>.
+    /// </remarks>
+    public const string WorkflowVersionPublishedIndex = "ux_workflow_versions_definition_published";
+
+    /// <summary>The unique index over a definition's own version numbers (#232).</summary>
+    public const string WorkflowVersionNumberIndex = "ux_workflow_versions_definition_number";
+
     /// <summary>Orders being built at the counter. Work in progress, expiring, and never an obligation.</summary>
     public DbSet<OrderDraft> OrderDrafts => Set<OrderDraft>();
 
@@ -190,6 +220,13 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
     /// </remarks>
     public DbSet<GarmentJob> GarmentJobs => Set<GarmentJob>();
 
+    /// <summary>
+    /// Named production processes and every version anyone has ever drafted, published or retired of one
+    /// (#232). <c>garment_jobs.workflow_definition_id</c> and <c>.workflow_version_id</c> point at rows here,
+    /// with no foreign key between the two — see the class remarks.
+    /// </summary>
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -206,6 +243,9 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
         ConfigureJobDependencies(modelBuilder);
         ConfigureReadyState(modelBuilder);
         ConfigureSnapshots(modelBuilder);
+        ConfigureWorkflowDefinitions(modelBuilder);
+        ConfigureWorkflowVersions(modelBuilder);
+        ConfigureWorkflowPhases(modelBuilder);
     }
 
     private static void ConfigureDrafts(ModelBuilder modelBuilder)
@@ -1113,4 +1153,118 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
 
     /// <summary>An ISO 4217 code is three characters. <see cref="Money"/>'s own constructor says so.</summary>
     private const int CurrencyCodeLength = 3;
+
+    private static void ConfigureWorkflowDefinitions(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<WorkflowDefinition>(entity =>
+        {
+            entity.ToTable("workflow_definitions");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code).HasMaxLength(WorkflowCode.MaximumLength).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(WorkflowDefinition.MaximumNameLength).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(WorkflowDefinition.MaximumDescriptionLength);
+
+            entity.HasMany(e => e.Versions)
+                .WithOne()
+                .HasForeignKey(v => v.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Navigation(e => e.Versions).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigureWorkflowVersions(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<WorkflowVersion>(entity =>
+        {
+            entity.ToTable("workflow_versions", table =>
+            {
+                // A status and its own two columns are one fact in three, exactly the shape
+                // ck_estimates_superseded_is_consistent already uses for a status and its pointer.
+                table.HasCheckConstraint(
+                    "ck_workflow_versions_published_is_consistent",
+                    "(status = 'Published' OR status = 'Retired') = (published_at IS NOT NULL) "
+                    + "AND (published_at IS NULL) = (published_reason IS NULL)");
+
+                table.HasCheckConstraint(
+                    "ck_workflow_versions_retired_is_consistent",
+                    "(status = 'Retired') = (retired_at IS NOT NULL) "
+                    + "AND (retired_at IS NULL) = (retired_reason IS NULL)");
+            });
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PublishReason).HasColumnName("published_reason")
+                .HasMaxLength(WorkflowVersion.MaximumReasonLength);
+            entity.Property(e => e.RetiredReason).HasMaxLength(WorkflowVersion.MaximumReasonLength);
+
+            entity.Property(e => e.Transitions)
+                .HasConversion(
+                    transitions => OrdersJson.Write(transitions),
+                    json => OrdersJson.ReadTransitions(json),
+                    new ValueComparer<IReadOnlyList<PhaseTransition>>(
+                        (left, right) => left!.SequenceEqual(right!),
+                        transitions => transitions.Aggregate(0, (hash, edge) => HashCode.Combine(hash, edge)),
+                        transitions => transitions.ToList()))
+                .HasColumnName("transitions")
+                .HasColumnType("jsonb")
+                .IsRequired();
+
+            entity.Property(e => e.CategoryKeys)
+                .HasConversion(
+                    categoryKeys => OrdersJson.WriteCategoryMapping(categoryKeys),
+                    json => OrdersJson.ReadCategoryMapping(json),
+                    new ValueComparer<IReadOnlyList<string>>(
+                        (left, right) => left!.SequenceEqual(right!),
+                        categoryKeys => categoryKeys.Aggregate(0, (hash, key) => HashCode.Combine(hash, key)),
+                        categoryKeys => categoryKeys.ToList()))
+                .HasColumnName("category_mapping")
+                .HasColumnType("jsonb")
+                .IsRequired();
+
+            // NextVersionNumber() is a max-plus-one read followed by a write, the shape DraftGarmentPositionIndex
+            // already answers OrdersErrors.ConcurrentChange for: two administrators drafting a new version of
+            // one definition at once take the same number, and the loser re-reads.
+            entity.HasIndex(e => new { e.WorkflowDefinitionId, e.VersionNumber })
+                .IsUnique()
+                .HasDatabaseName(WorkflowVersionNumberIndex);
+
+            // The partial unique index a definition's own publish invariant rests on: at most one row per
+            // definition may ever read Published. Filtered rather than a boolean flag column, so the database
+            // enforces the invariant even against a write that reaches the table outside the aggregate.
+            entity.HasIndex(e => e.WorkflowDefinitionId)
+                .IsUnique()
+                .HasFilter("status = 'Published'")
+                .HasDatabaseName(WorkflowVersionPublishedIndex);
+
+            UseRowVersion(entity);
+        });
+
+    private static void ConfigureWorkflowPhases(ModelBuilder modelBuilder)
+        => modelBuilder.Entity<WorkflowPhase>(entity =>
+        {
+            entity.ToTable("workflow_version_phases");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code).HasMaxLength(WorkflowPhaseContent.MaximumCodeLength).IsRequired();
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(WorkflowPhaseContent.MaximumDisplayNameLength).IsRequired();
+
+            // A Postgres array, the same choice OrderDraftGarment.ReferenceMediaIds makes for the same reason:
+            // read and written whole, and order does not matter here the way it does there.
+            entity.PrimitiveCollection(e => e.RequiredRoleKeys)
+                .HasColumnName("required_role_keys")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
+                .IsRequired();
+
+            entity.HasOne<WorkflowVersion>()
+                .WithMany(v => v.Phases)
+                .HasForeignKey(p => p.WorkflowVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            UseRowVersion(entity);
+        });
 }

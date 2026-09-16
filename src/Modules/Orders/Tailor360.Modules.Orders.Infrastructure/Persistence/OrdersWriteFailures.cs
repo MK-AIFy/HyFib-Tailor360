@@ -135,6 +135,12 @@ internal static class OrdersWriteFailures
         OrdersDbContext.OrderNumberIndex => OrdersErrors.ConcurrentChange,
         OrdersDbContext.EstimateNumberIndex => OrdersErrors.ConcurrentChange,
         OrdersDbContext.DraftGarmentPositionIndex => OrdersErrors.ConcurrentChange,
+
+        // Two administrators racing WorkflowDefinition.AddVersion take the same version number; two racing to
+        // publish a different draft of the same definition both satisfy the partial unique index's predicate.
+        // Both are the same shape as the display-number races above: nothing is corrupted, the loser re-reads.
+        OrdersDbContext.WorkflowVersionNumberIndex => OrdersErrors.ConcurrentChange,
+        OrdersDbContext.WorkflowVersionPublishedIndex => OrdersErrors.ConcurrentChange,
         _ => OrdersErrors.WriteRefused,
     };
 }

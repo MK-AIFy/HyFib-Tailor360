@@ -1,5 +1,6 @@
 using Tailor360.Modules.Orders.Domain.Jobs;
 using Tailor360.Modules.Orders.Domain.Orders;
+using Tailor360.Modules.Orders.Domain.Workflows;
 using Tailor360.Platform.Abstractions.Results;
 
 namespace Tailor360.Modules.Orders.Domain;
@@ -790,6 +791,66 @@ public static class OrdersErrors
         + "This evaluation carries two.",
         "partialDeliveryPermitted");
 
+    /* Workflows (#232) ---------------------------------------------------------------------------- */
+
+    /// <summary>A workflow definition or phase code did not follow <see cref="WorkflowCode"/>'s shape.</summary>
+    public static Error WorkflowCodeNotWellFormed(string field) => Error.Validation(
+        "orders.workflow-code-not-well-formed",
+        "A workflow or phase code is upper snake case, two to forty characters, and not one of the reserved "
+        + "words.",
+        field);
+
+    /// <summary>No workflow definition matches the identifier, or the caller may not see it.</summary>
+    public static Error WorkflowDefinitionNotFound { get; } = Error.NotFound(
+        "orders.workflow-definition-not-found",
+        "No workflow definition matches that identifier.");
+
+    /// <summary>A version was named that is not one of this definition's own.</summary>
+    public static Error WorkflowVersionNotFound { get; } = Error.NotFound(
+        "orders.workflow-version-not-found",
+        "No version of this workflow definition matches that identifier.");
+
+    /// <summary>
+    /// A version whose status has left <see cref="Workflows.WorkflowVersionStatus.Draft"/> was edited.
+    /// </summary>
+    /// <remarks>
+    /// Names the status it found, because the acceptance test this issue states outright reads the row back
+    /// rather than trusting the message, and because "published" and "retired" call for two different remedies
+    /// — draft a new version, or nothing at all.
+    /// </remarks>
+    public static Error WorkflowVersionNotEditable(WorkflowVersionStatus status) => Error.Conflict(
+        "orders.workflow-version-not-editable",
+        $"This workflow version is {Words(status)} and can no longer be edited.");
+
+    /// <summary>A version whose status is not <see cref="Workflows.WorkflowVersionStatus.Draft"/> was published.</summary>
+    public static Error WorkflowVersionNotPublishable(WorkflowVersionStatus status) => Error.Conflict(
+        "orders.workflow-version-not-publishable",
+        $"This workflow version is {Words(status)}. Only a draft may be published.");
+
+    /// <summary>A version whose status is not <see cref="Workflows.WorkflowVersionStatus.Published"/> was retired.</summary>
+    public static Error WorkflowVersionNotRetirable(WorkflowVersionStatus status) => Error.Conflict(
+        "orders.workflow-version-not-retirable",
+        $"This workflow version is {Words(status)}. Only a published version may be retired.");
+
+    /// <summary>A duplicate category key was named in one version's category mapping.</summary>
+    public static Error DuplicateWorkflowCategoryMapping { get; } = Error.Validation(
+        "orders.duplicate-workflow-category-mapping",
+        "A catalogue category is named at most once in a version's category mapping.",
+        "categoryKeys");
+
+    /// <summary>
+    /// A version was published while <c>WorkflowGraph.Validate</c> still finds it wrong.
+    /// </summary>
+    /// <remarks>
+    /// One refusal rather than the findings themselves — a <see cref="Result"/> carries one error, and the
+    /// granular report is <c>WorkflowVersion.ValidateForPublication</c>'s own answer, asked before publishing is
+    /// even attempted, the same split <c>MeasurementCaptureHandler.CheckAsync</c>/<c>ConfirmAsync</c> draws.
+    /// </remarks>
+    public static Error WorkflowGraphInvalid { get; } = Error.Conflict(
+        "orders.workflow-graph-invalid",
+        "This version's phase graph still has findings that block publication. Read them from "
+        + "ValidateForPublication before publishing.");
+
     /* Status wording ---------------------------------------------------------------------------- */
 
     /// <summary>
@@ -823,6 +884,15 @@ public static class OrdersErrors
         GarmentJobStatus.Delivered => "delivered",
         GarmentJobStatus.Closed => "closed",
         GarmentJobStatus.Cancelled => "cancelled",
+        _ => "in a state this system does not recognise",
+    };
+
+    /// <summary>A workflow version status as an administrator says it.</summary>
+    private static string Words(WorkflowVersionStatus status) => status switch
+    {
+        WorkflowVersionStatus.Draft => "a draft",
+        WorkflowVersionStatus.Published => "published",
+        WorkflowVersionStatus.Retired => "retired",
         _ => "in a state this system does not recognise",
     };
 }
