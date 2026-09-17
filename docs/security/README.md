@@ -29,7 +29,7 @@ name its model and close the controls the model maps to it).
 | Path | Contents | Delivered by | State today |
 | --- | --- | --- | --- |
 | `threat-models/<flow>.md` | One model per flow: assets, data flow diagram, trust boundaries, STRIDE table, abuse cases, controls mapped to tests, residual risk | #23 (authentication), #32a (authorisation), then #56a for the rest | [`threat-models/authentication.md`](threat-models/authentication.md) is **written and reviewed** (#23, 2026-09-05). The rest are not; the template is [`../templates/threat-model.md`](../templates/threat-model.md) |
-| `abuse-cases.md` | The cross-cutting abuse catalogue — insecure direct object reference, privilege escalation, workflow bypass, barcode replay, invoice and payment tampering, stock manipulation, malicious upload, export leakage, server-side request forgery, credential abuse, denial of service | #56a | Not written |
+| [`abuse-cases.md`](abuse-cases.md) | The cross-cutting abuse catalogue — insecure direct object reference, privilege escalation, workflow bypass, barcode replay, invoice and payment tampering, stock manipulation, malicious upload, export leakage, server-side request forgery, credential abuse, denial of service | #346 | **Written 2026-09-17.** Its coverage map is what section 3.2 below now cites in place of `#56a` |
 | `asvs-traceability.md` | ASVS L2 with selected L3: requirement, control, issue or pull request, test, evidence, residual risk, owner, review date | #56a | Not written |
 | `vulnerability-management.md` | Triage, the remediation service levels of [`../nfr/security-operations-targets.md`](../nfr/security-operations-targets.md), and disclosure | #56a | Not written |
 | `exceptions.md` | Accepted findings with approver, expiry and compensating control; a continuous-integration check fails on an expired entry | #56a | Not written |
@@ -69,15 +69,15 @@ is a finding at that gate.
 | --- | --- | --- | --- | --- |
 | Authentication, sessions, multi-factor authentication, recovery | [`threat-models/authentication.md`](threat-models/authentication.md) | #23 | W1 — **written 2026-09-05** | Nothing: the model is the authority |
 | Authorisation, roles and branch scope | `threat-models/authorisation.md` | **#32a**, the first issue to publish a permissioned route. #24 delivered the mechanism and [`permission-matrix.md`](permission-matrix.md) and did not deliver this document | W3 | The matrix itself, [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) and the deny-by-default rule it asserts. Two controls are already decided and tested and belong in the model when it is written: a foreign resource and a missing one are both answered `404 security.resource-not-found`, and the resource pipeline fails closed — a host that omits `UseTailor360ResourceScope()` refuses every request rather than skipping the check |
-| Customer data, measurements and media | `threat-models/customer-and-media.md` | #56a | W2 | [`../nfr/data-classification.md`](../nfr/data-classification.md) handling rules, and [`../adr/0005-object-storage-authorised-delivery.md`](../adr/0005-object-storage-authorised-delivery.md) |
-| Order and garment workflow | `threat-models/order-workflow.md` | #56a | W2 | The workflow invariants in [`../architecture/invariants.md`](../architecture/invariants.md) |
-| Barcode identity and custody | `threat-models/barcode-custody.md` | #56a | W2 | The custody invariants in [`../architecture/invariants.md`](../architecture/invariants.md) |
-| Inventory and the stock ledger | `threat-models/inventory.md` | #56a | W2 | The same |
-| Billing, invoicing and payments | `threat-models/billing-payment.md` | #56a | W2 | [`../architecture/invariants.md`](../architecture/invariants.md) and the financial handling rules of [`../nfr/data-classification.md`](../nfr/data-classification.md) |
-| Reports and exports | `threat-models/reports-exports.md` | #56a | W2 | [`../adr/0011-reporting-read-models.md`](../adr/0011-reporting-read-models.md) |
-| Customer links and feedback | `threat-models/customer-links.md` | #56a | W2 | The expiring, purpose-bound link design of plan Section 4.4 |
-| Integration adapters | `threat-models/integrations.md` | #56a | W2 | [`../adr/0012-integration-ports-and-adapters.md`](../adr/0012-integration-ports-and-adapters.md) |
-| Deployment, secrets and the runtime | `threat-models/deployment.md` | #56a | W2 | [`../platform/secrets.md`](../platform/secrets.md), [`../adr/0010-deployment-portability.md`](../adr/0010-deployment-portability.md) and [`../process/branch-protection.md`](../process/branch-protection.md) section 8 |
+| Customer data, measurements and media | `threat-models/customer-and-media.md` | #366 | W2 | [`../nfr/data-classification.md`](../nfr/data-classification.md) handling rules, and [`../adr/0005-object-storage-authorised-delivery.md`](../adr/0005-object-storage-authorised-delivery.md) |
+| Order and garment workflow | `threat-models/order-workflow.md` | #378 | W2 | The workflow invariants in [`../architecture/invariants.md`](../architecture/invariants.md) |
+| Barcode identity and custody | `threat-models/barcode-custody.md` | #378 | W2 | The custody invariants in [`../architecture/invariants.md`](../architecture/invariants.md) |
+| Inventory and the stock ledger | `threat-models/inventory.md` | #378 | W2 | The same |
+| Billing, invoicing and payments | `threat-models/billing-payment.md` | #386 | W2 | [`../architecture/invariants.md`](../architecture/invariants.md) and the financial handling rules of [`../nfr/data-classification.md`](../nfr/data-classification.md) |
+| Reports and exports | `threat-models/reports-exports.md` | #386 | W2 | [`../adr/0011-reporting-read-models.md`](../adr/0011-reporting-read-models.md) |
+| Customer links and feedback | `threat-models/customer-links.md` | #366 | W2 | The expiring, purpose-bound link design of plan Section 4.4 |
+| Integration adapters | `threat-models/integrations.md` | #394 | W2 | [`../adr/0012-integration-ports-and-adapters.md`](../adr/0012-integration-ports-and-adapters.md) |
+| Deployment, secrets and the runtime | `threat-models/deployment.md` | #394 | W2 | [`../platform/secrets.md`](../platform/secrets.md), [`../adr/0010-deployment-portability.md`](../adr/0010-deployment-portability.md) and [`../process/branch-protection.md`](../process/branch-protection.md) section 8 |
 
 ---
 
