@@ -30,6 +30,13 @@
     <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Application\Tailor360.Modules.Integration.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Contracts\Tailor360.Modules.Integration.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Domain\Tailor360.Modules.Integration.Domain.csproj" />
+    <!--
+      Integration's infrastructure is referenced for ObjectStorageCircuitBreaker alone, on the same
+      reading as Identity's password hasher above: a pure state machine with no database, no host and no
+      IObjectStorage call anywhere inside it, so its tests belong in this tier. ResilientObjectStorage
+      itself, which wraps a real adapter, stays in the integration tier.
+    -->
+    <ProjectReference Include="..\..\src\Modules\Integration\Tailor360.Modules.Integration.Infrastructure\Tailor360.Modules.Integration.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Inventory\Tailor360.Modules.Inventory.Application\Tailor360.Modules.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Inventory\Tailor360.Modules.Inventory.Contracts\Tailor360.Modules.Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Inventory\Tailor360.Modules.Inventory.Domain\Tailor360.Modules.Inventory.Domain.csproj" />

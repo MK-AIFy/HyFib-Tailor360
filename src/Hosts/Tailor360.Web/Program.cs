@@ -107,6 +107,11 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(),
         tags: [HealthCheckTags.Live, HealthCheckTags.Startup]);
 
+// Compose does not restart a container it merely reports unhealthy; this is what does, per
+// docs/architecture/container.md and docs/architecture/resilience-policies.md.
+builder.Services.AddTailor360LivenessWatchdogOptions(builder.Configuration);
+builder.Services.AddHostedService<LivenessWatchdogService>();
+
 // Modules are composed only through their registration extensions (architecture rule ARCH-006).
 builder.Services
     .AddIdentityModule(builder.Configuration)

@@ -75,7 +75,9 @@ builder.Services.AddTailor360WorkerScopes();
 builder.Services.AddScoped<IAuditContext, WorkerAuditContext>();
 
 builder.Services.AddSingleton<HeartbeatService>();
-builder.Services.AddHostedService<OutboxDispatcherService>();
+builder.Services.AddSingleton<OutboxDispatcherService>();
+builder.Services.AddSingleton<IOutboxDispatcherActivityMonitor>(sp => sp.GetRequiredService<OutboxDispatcherService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<OutboxDispatcherService>());
 builder.Services.AddHostedService<AuditPartitionMaintenanceService>();
 builder.Services.AddHostedService<CustomerExportPurgeService>();
 builder.Services.AddHostedService<DocumentRenderService>();
@@ -85,7 +87,15 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<HeartbeatService>(
 
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: [HealthCheckTags.Live, HealthCheckTags.Startup])
-    .AddCheck<HeartbeatHealthCheck>("heartbeat", tags: [HealthCheckTags.Ready]);
+    .AddCheck<HeartbeatHealthCheck>("heartbeat", tags: [HealthCheckTags.Ready])
+    .AddCheck<OutboxDispatcherLivenessHealthCheck>("outbox-dispatcher-liveness", tags: [HealthCheckTags.Live]);
+
+// Compose does not restart a container it merely reports unhealthy; this is what does, per
+// docs/architecture/container.md and docs/architecture/resilience-policies.md. WorkerLivenessWatchdogService
+// rather than the shared LivenessWatchdogService directly: ARCH-021 requires every hosted service this
+// host composes to carry [WorkerJob], which only the worker's own subclass declares.
+builder.Services.AddTailor360LivenessWatchdogOptions(builder.Configuration);
+builder.Services.AddHostedService<WorkerLivenessWatchdogService>();
 
 // The worker serves nothing but its probes, on a port compose and Kubernetes keep internal.
 var healthPort = builder.Configuration.GetValue<int?>($"{WorkerOptions.SectionName}:HealthPort") ?? 8081;
