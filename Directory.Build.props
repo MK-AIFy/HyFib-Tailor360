@@ -31,6 +31,16 @@
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <Product>HyFib Tailor360</Product>
     <Company>HyFib</Company>
+    <!--
+      The one version source (docs/process/versioning.md): a property function evaluated at property
+      time, not ReadLinesFromFile, which is an MSBuild task and can only run inside a Target — too late
+      for VersionPrefix. $(MSBuildThisFileDirectory) is the repository root because this file is there;
+      MSBuildProjectDirectory would instead read a VERSION file that does not exist beside every project.
+      The Condition means a source tree without the file still builds, on the SDK's own default, rather
+      than failing every project with an IO exception. SourceRevisionId is untouched: the Dockerfiles
+      already append it, and the informational version is VersionPrefix+SourceRevisionId together.
+    -->
+    <VersionPrefix Condition="Exists('$(MSBuildThisFileDirectory)VERSION')">$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)VERSION').Trim())</VersionPrefix>
   </PropertyGroup>
 
   <!-- Test projects opt in to the test SDK and the shared test conventions. -->

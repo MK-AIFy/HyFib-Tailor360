@@ -298,7 +298,7 @@ item, the person who confirms it and the date. Both are changed in the same pull
 | 11 | The migration dry-run output, the rollback note and the recorded recovery target | RG-12 | Technical reviewer |
 | 12 | The most recent restore verification record with its measured recovery point and recovery time | RG-13 | Operations owner |
 | 13 | Every active waiver applying to this release, with its expiry and review date | [`waivers.md`](waivers.md) | Owner |
-| 14 | The release notes: what changed, the expected interruption window, the compatibility matrix for the progressive web application, the application programming interface, the database and the worker, and the minimum supported client | #59 | Technical reviewer |
+| 14 | The release notes: what changed, the expected interruption window, the compatibility matrix for the progressive web application, the application programming interface, the database and the worker, and the minimum supported client | [`../templates/release-notes.md`](../templates/release-notes.md) | Technical reviewer |
 | 15 | The user-acceptance-testing sign-off link, and for any release changing pricing, tax, invoice layout, rounding or a financial report, the accountant's approval of the GST output | #61c | Owner, with the accountant |
 | 16 | The go or no-go record naming the decision owner, the rollback decision owner and the criteria used | #61c | Owner |
 

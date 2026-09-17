@@ -35,6 +35,33 @@ public sealed class WebPipelineTests(WebApplicationFixture fixture)
         // update. It is present and empty here, which is the honest answer before a release: nothing
         // has shipped that a client could be older than.
         version.MinimumClient.ShouldNotBeNull();
+
+        // `current` is read from the repository's VERSION file (docs/process/versioning.md) through
+        // VersionPrefix, exactly — except that the SDK appends `+<SourceRevisionId>` whenever a source
+        // revision is available, which every build inside a git repository's working copy is, including
+        // this one. The rule is therefore "equal, or equal up to the first +", never plain equality: a
+        // test asserting only the bare form would fail on every build that ever ran inside this
+        // repository, this one included.
+        var versionFile = File.ReadAllText(Path.Combine(RepositoryRoot(), "VERSION")).Trim();
+        version.Current.Split('+', 2)[0].ShouldBe(versionFile);
+    }
+
+    /// <summary>The repository root, found by the solution file above the test assembly.</summary>
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "HyFib.Tailor360.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException(
+            "Could not locate the repository root: no HyFib.Tailor360.slnx above " + AppContext.BaseDirectory);
     }
 
     /// <summary>

@@ -201,6 +201,38 @@ public sealed partial class NegativeControlTests
             .ShouldBeTrue("AuditEventMapping.Configure maps only platform.audit_events, ARCH-005's named exception.");
     }
 
+    /// <summary>The version-parity detector must reject VERSION and package.json disagreeing.</summary>
+    [Fact]
+    public void VersionParityDetectorCatchesAMismatch()
+    {
+        var complaint = VersionParityTests.CheckParity("1.2.0", "1.3.0");
+
+        complaint.ShouldNotBeNullOrWhiteSpace();
+        complaint.ShouldContain("1.2.0");
+        complaint.ShouldContain("1.3.0");
+    }
+
+    /// <summary>The version-parity detector must reject a VERSION that is not a semantic version.</summary>
+    [Theory]
+    [InlineData("1.2")]
+    [InlineData("v1.2.3")]
+    [InlineData("")]
+    public void VersionParityDetectorCatchesANonSemanticVersion(string malformed)
+    {
+        var complaint = VersionParityTests.CheckParity(malformed, malformed);
+
+        complaint.ShouldNotBeNullOrWhiteSpace();
+        complaint.ShouldContain("semantic version");
+    }
+
+    /// <summary>
+    /// The one thing the detector must not do: refuse a pre-release version, or truncate it before
+    /// comparing. A release candidate is built from the same source as the release.
+    /// </summary>
+    [Fact]
+    public void VersionParityDetectorAcceptsAPreReleaseVersionUnchanged()
+        => VersionParityTests.CheckParity("1.2.0-rc.1", "1.2.0-rc.1").ShouldBeNull();
+
     [GeneratedRegex(@"\bDateTime(Offset)?\s*\.\s*(UtcNow|Now|Today)\b", RegexOptions.None, 500)]
     private static partial Regex AmbientClockPattern();
 
