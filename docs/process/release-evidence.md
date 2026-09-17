@@ -106,7 +106,7 @@ The sixteen items of [`release-gates.md`](release-gates.md) section 6, keyed so 
 | **RE-11** | The migration dry-run output, the rollback note and the recorded recovery target | RG-12 | | | Technical reviewer | |
 | **RE-12** | The most recent restore verification record, with its measured recovery point and recovery time and its age in days | RG-13 | | | Operations owner | |
 | **RE-13** | Every active waiver applying to this release, with its expiry and review date — see section 6 | [`waivers.md`](waivers.md) | | | Owner | |
-| **RE-14** | The release notes: what changed, the expected interruption window, the compatibility matrix for the progressive web application, the API, the database and the worker, and the minimum supported client | #59 | | | Technical reviewer | |
+| **RE-14** | The release notes: what changed, the expected interruption window, the compatibility matrix for the progressive web application, the API, the database and the worker, and the minimum supported client | [`../templates/release-notes.md`](../templates/release-notes.md) | | | Technical reviewer | |
 | **RE-15** | The user-acceptance-testing sign-off link, and — for any release changing pricing, tax, invoice layout, rounding or a financial report — the accountant's approval of the GST output | #61c | | | Owner, with the accountant | |
 | **RE-16** | The go or no-go record naming the decision owner, the rollback decision owner and the criteria used — see section 8 | #61c | | | Owner | |
 
