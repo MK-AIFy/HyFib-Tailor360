@@ -329,12 +329,42 @@ that sentence has been corrected.
 
 ## 10. ASVS traceability
 
-Filled in from #56a onwards. Left deliberately empty rather than partly filled, so that a half-populated table is
-not mistaken for a completed assessment.
+Filled in by #349 from [`../asvs-traceability.md`](../asvs-traceability.md), against ASVS 4.0.3 Level 2. Every
+row below cites a control already declared in section 8 or a residual risk already declared in section 9 — no new
+`CTL-nn` or `RR-nn` is introduced here, and none already allocated is renumbered. This is the set of Level 2
+requirements this flow answers with a citable control; the full 253-requirement skeleton, including the
+requirements this flow does not answer, lives in `asvs-traceability.md` section 5.2 and 5.3.
 
 | ASVS requirement | Level | Control | Test | Evidence | Residual | Owner | Review date |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | |
+| V2.1.1, V2.1.2, V2.1.3, V2.1.9 | 2 | CTL-08 | `Argon2idPasswordHasherTests` | This test, run in CI on every pull request | — | Owner | W2 exit gate |
+| V2.1.5 | 2 | CTL-26 | `PasswordRecoveryTests.TheSignInAfterAResetStillHasToAnswerTheAuthenticator` | Same | — | Owner | W2 exit gate |
+| V2.1.10 | 2 | CTL-08 (no rotation or history rule is implemented) | `Argon2idPasswordHasherTests` | Same | — | Owner | W2 exit gate |
+| V2.2.1 | 2 | CTL-09, CTL-10 | `CredentialThrottleTests.AnAttemptIsAllowedUntilTheAccountsLimitIsReached`, `LockoutPolicyTests.TheLockoutDoublesWithEachFurtherFailure` | Same | — | Owner | W2 exit gate |
+| V2.2.3, V2.5.5 | 2 | CTL-37, CTL-38 | `HalfSignedInSessionTests.EnrolmentAndReprintingRecoveryCodesLeaveAnAuditTrail`, `PasswordRecoveryTests.AskingForALinkAndCompletingAResetAreBothWrittenToTheAuditTrail` | Same | An audit entry proves the event was recorded; a user-facing notification beyond the audit trail is not yet built | Owner | W2 exit gate |
+| V2.3.2 | 2 | CTL-02, CTL-34, CTL-35 | `MfaEnrolmentTests.AnAuthenticatorCannotBeSwappedOnceItIsConfirmed`, `MultiFactorTests.TheSamePasskeyCannotBeRegisteredTwice` | Same | — | Owner | W2 exit gate |
+| V2.4.1, V2.4.2 | 2 | CTL-08 | `Argon2idPasswordHasherTests` | Same | — | Owner | W2 exit gate |
+| V2.5.1 | 2 | CTL-23 | `RecoveryTokenTests.AMintedTokenIsUrlSafeRandomnessAndIsStoredOnlyAsItsDigest` | Same | — | Owner | W2 exit gate |
+| V2.5.3 | 2 | CTL-26 | `RecoveryAndMultiFactorPersistenceTests.AResetChangesThePasswordAndLeavesTheAuthenticatorAndItsCodesUntouched` | Same | — | Owner | W2 exit gate |
+| V2.5.6 | 2 | CTL-23, CTL-24 | `RecoveryTokenTests.ALifetimeLongerThanAnHourIsRefusedHoweverItWasConfigured`, `PasswordRecoveryTests.AnExpiredLinkIsRefused` | Same | — | Owner | W2 exit gate |
+| V2.5.7 | 2 | CTL-04 | `MultiFactorTests.TheLastFactorCannotBeRemovedFromAnAccountThatHasOne` | Same | **RR-06** | Owner | W2 exit gate |
+| V2.6.1, V2.6.3 | 2 | CTL-28 | `MultiFactorEndpointTests.ARecoveryCodeCannotBeSpentTwice`, `RecoveryAndMultiFactorPersistenceTests.ARecoveryCodeSpentInOneRequestIsStillSpentInTheNext` | Same | — | Owner | W2 exit gate |
+| V2.8.1, V2.8.4, V2.8.5 | 2 | CTL-29 | `MultiFactorTests.ACodeFromAStepAlreadyUsedIsRefused` | Same | — | Owner | W2 exit gate |
+| V2.8.2, V2.9.1 | 2 | CTL-36 | `MfaEnrolmentTests.ASecretThatCannotBeUnwrappedIsReportedAsAServerProblemNotAWrongCode` | Same | — | Owner | W2 exit gate |
+| V2.9.2, V2.9.3 | 2 | CTL-34 | `PasskeyCeremonyStoreTests.ACeremonyIssuedToOneSessionCannotBeCompletedByAnother`, `PasskeyCeremonyStoreTests.ACeremonyIsSpentOnItsFirstAnswerRightOrWrong` | Same | — | Owner | W2 exit gate |
+| V3.2.1 | 2 | CTL-11 | `SessionLifecycleTests.TheSessionIdentifierChangesWhenTheHolderAuthenticates` | Same | — | Owner | W2 exit gate |
+| V3.2.3, V3.4.1, V3.4.3, V3.4.4 | 2 | CTL-12 | `SessionCookieTests`, `AuthenticationEndpointTests.SigningInIssuesAHostPrefixedCookieAndReturnsNoTokenInTheBody` | Same | — | Owner | W2 exit gate |
+| V3.4.2 | 2 | CTL-12, CTL-13 | `AuthenticationEndpointTests.SigningInIssuesAHostPrefixedCookieAndReturnsNoTokenInTheBody`, `LogRedactionTests` | Same | — | Owner | W2 exit gate |
+| V3.3.1 | 2 | CTL-17, CTL-20 | `SessionLifecycleTests.ARevokedSessionIsRefusedOnTheVeryNextRequest`, `SessionTests.RevocationIsFinal` | Same | — | Owner | W2 exit gate |
+| V3.7.1 | 2 | CTL-19, CTL-31 | `SessionLifecycleTests.WorkingSteadilySlidesTheDeadlineButNotPastTheAbsoluteLifetime`, `MultiFactorTests.ARememberedDeviceDoesNotCountAsAStrongAuthentication` | Same | **RR-07** | Owner | W2 exit gate |
+| V4.2.2, V14.5.2 | 2 | CTL-15, CTL-16 | `CrossSiteDefenceTests.AStateChangingRequestWithoutATokenIsRefused`, `CrossSiteDefenceTests.ACrossSiteStateChangeIsRefusedBeforeTheTokenIsEvenConsidered` | Same | — | Owner | W2 exit gate |
+| V7.1.3 | 2 | CTL-39 | `HalfSignedInSessionTests.ASignInIsAttributedToTheAccountThatSignedInRatherThanToTheSystem` | Same | — | Owner | W2 exit gate |
+| V7.2.1 | 2 | CTL-40 | `LogRedactionTests`, `AuthenticationEndpointTests.AFailedSignInIsAuditedAgainstTheAccountWithoutRecordingWhatWasTyped` | Same | — | Owner | W2 exit gate |
+
+**RG-OD-02** is open, so "Owner" above is the Owner with the technical reviewer, exactly as section 1 of this
+file and section 1 of `asvs-traceability.md` both already say. This table does not attempt every ASVS 4.0.3 Level
+2 requirement — only those this flow answers with a citable control; `asvs-traceability.md` records the rest as
+`scheduled` or `not applicable` against this flow.
 
 ---
 
