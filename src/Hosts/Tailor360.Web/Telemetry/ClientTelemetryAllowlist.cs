@@ -183,7 +183,29 @@ public static partial class ClientTelemetryAllowlist
     [GeneratedRegex(@"^[0-9a-f]{8,64}$", RegexOptions.None, matchTimeoutMilliseconds: 200)]
     private static partial Regex HexDigestPattern();
 
-    /// <summary>A client route name: letters, digits, slash, hyphen, underscore and colon (for `:id`-shaped segments).</summary>
-    [GeneratedRegex(@"^[A-Za-z0-9/_:-]+$", RegexOptions.None, matchTimeoutMilliseconds: 200)]
+    /// <summary>
+    /// A client route name: `/`-separated segments, each either a static word (letters and hyphens,
+    /// for example <c>orders</c>) or a <c>:</c>-prefixed placeholder (for example <c>:orderId</c>).
+    /// Deliberately rejects a segment that is purely numeric or otherwise looks like a resolved value —
+    /// a route <b>template</b>, not the path a specific request actually took, which is what keeps a
+    /// resolved identifier such as a phone number or an order number from riding through as a "name".
+    /// </summary>
+    [GeneratedRegex(
+        @"^(?:[A-Za-z][A-Za-z-]*|:[A-Za-z][A-Za-z0-9]*)(?:/(?:[A-Za-z][A-Za-z-]*|:[A-Za-z][A-Za-z0-9]*))*$",
+        RegexOptions.None,
+        matchTimeoutMilliseconds: 200)]
     private static partial Regex RouteNamePattern();
+
+    /// <summary>
+    /// Validates a route name against the same shape <see cref="RouteNamePattern"/> requires of the
+    /// event-level <c>routeName</c> attribute, for the batch envelope's own
+    /// <see cref="ClientTelemetryBatchRequest.RouteName"/>, which the allowlist otherwise never sees —
+    /// it is not itself an event attribute, so nothing filters it before <c>ClientTelemetryHandler</c>
+    /// logs it.
+    /// </summary>
+    /// <returns>The route name unchanged, or null when it is missing, overlong or not route-name-shaped.</returns>
+    public static string? SanitizeRouteName(string? routeName)
+        => routeName is { Length: > 0 and <= MaxAttributeStringLength } text && RouteNamePattern().IsMatch(text)
+            ? text
+            : null;
 }
