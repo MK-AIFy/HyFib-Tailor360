@@ -161,9 +161,13 @@ a control in section 8 or in a residual risk in section 9 — never in nothing.
 A threat is a property of the design; an abuse case is a story about somebody with a motive. Write them as an
 attacker's plan, in order, and take each one to the test that defeats it.
 
-| ID | Abuse case | Actor and motive | Steps | Defeated by | Test |
-| --- | --- | --- | --- | --- | --- |
-| **AB-01** | *(example — delete)* Credential stuffing against the login form | An external attacker with a breach corpus | Automated attempts across many accounts from rotating addresses | CTL-03 lockout, CTL-04 breached-password check | `…Tests.LockoutAfterThreshold` |
+Every abuse case cites the family it instantiates from [`../security/abuse-cases.md`](../security/abuse-cases.md)
+(`ABF-01` to `ABF-11`) — that document's coverage map names which families this flow must answer, and its section 3
+identifier convention explains why `AB-nn` stays file-local while `ABF-nn` does not.
+
+| ID | Abuse case | Family | Actor and motive | Steps | Defeated by | Test |
+| --- | --- | --- | --- | --- | --- | --- |
+| **AB-01** | *(example — delete)* Credential stuffing against the login form | ABF-10 | An external attacker with a breach corpus | Automated attempts across many accounts from rotating addresses | CTL-03 lockout, CTL-04 breached-password check | `…Tests.LockoutAfterThreshold` |
 
 The abuse cases the project expects to see across its flows, so that a model can say which apply and which do not:
 insecure direct object reference, privilege escalation, workflow bypass by calling the API directly, barcode
