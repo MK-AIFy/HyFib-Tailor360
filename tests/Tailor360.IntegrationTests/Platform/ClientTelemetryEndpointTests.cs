@@ -5,6 +5,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Shouldly;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Web.Configuration;
@@ -278,6 +280,164 @@ public sealed class ClientTelemetryEndpointTests(WebApplicationFixture fixture)
         var response = await PostRawAsync(client, "not json at all");
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+    }
+
+    /// <summary>
+    /// The redaction test <c>docs/nfr/data-classification.md</c> section 5.18 names: a batch whose event
+    /// carries six sentinel values — a customer name, a phone number, a measurement value, a full stack
+    /// trace, a URL with a query string and a route parameter value — spread across both attribute names
+    /// the allowlist declares (with a shape that does not match) and names it does not declare at all.
+    /// The batch is still accepted, because a refused-looking event is silently dropped rather than
+    /// failing the whole request; what this test proves is that none of the six sentinels reaches the log
+    /// record the handler emits for the surviving event.
+    /// </summary>
+    /// <remarks>
+    /// Captured at the <see cref="ILogger{ClientTelemetryHandler}"/> boundary itself — the same seam
+    /// <c>ClientTelemetryHandler.Emit</c> writes through — rather than by re-parsing console output, so
+    /// the assertion holds regardless of how Serilog subsequently renders or destructures the call. The
+    /// counter <c>ClientTelemetryHandler</c> increments carries only the fixed event-type tag
+    /// (<c>EventsAccepted.Add(1, ("type", candidate.Type))</c>) and no attribute data, and the handler
+    /// starts no trace activity, so neither channel can carry a sentinel by construction — there is
+    /// nothing there for a test to capture.
+    /// </remarks>
+    [Fact]
+    public async Task ABatchCarryingSixSentinelValuesIsAcceptedAndNoneOfThemReachesTheEmittedLogRecord()
+    {
+        var capturingLogger = new CapturingLogger<ClientTelemetryHandler>();
+        var factory = fixture.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<ILogger<ClientTelemetryHandler>>(capturingLogger))));
+
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestClientAddressStartupFilter.HeaderName, "203.0.113.40");
+        client.DefaultRequestHeaders.Add("Sec-Fetch-Site", "same-origin");
+
+        const string customerNameSentinel = "Priya Sharma";
+        const string phoneNumberSentinel = "+91-98765-43210";
+        const string measurementValueSentinel = "38.5cm chest";
+        const string stackTraceSentinel =
+            "TypeError: Cannot read properties of undefined (reading 'garmentId')\n" +
+            "    at OrderDraftForm.render (OrderDraftForm.tsx:142:18)";
+        const string urlWithQuerySentinel = "https://app.tailor360.example/orders/draft?ref=abc123";
+        const string routeParameterValueSentinel = "orders/9876543210/draft";
+
+        var batch = new
+        {
+            batchId = Guid.CreateVersion7(),
+            clientVersion = "1.0.0",
+            routeName = "orders/draft",
+            deviceClass = "shop-floor-phone",
+            engine = "blink",
+            operatingSystemFamily = "android",
+            events = new[]
+            {
+                new
+                {
+                    type = ClientTelemetryAllowlist.UnhandledError,
+                    timestamp = DateTimeOffset.UtcNow,
+                    attributes = new Dictionary<string, object>
+                    {
+                        // Declared names, wrong shapes: the allowlist's shape constraint is the thing
+                        // under test here, not just the closed set of names.
+                        ["messageCode"] = $"{customerNameSentinel} could not submit the order",
+                        ["stackHash"] = stackTraceSentinel,
+                        ["routeName"] = urlWithQuerySentinel,
+
+                        // Names unhandled_error does not declare at all: dropped regardless of shape.
+                        ["customerPhone"] = phoneNumberSentinel,
+                        ["measurement"] = measurementValueSentinel,
+                        ["routeParam"] = routeParameterValueSentinel,
+                    },
+                },
+            },
+        };
+
+        var response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, Path) { Content = JsonBody(batch) },
+            Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await response.Content.ReadAsStringAsync(Token)).ShouldBeEmpty();
+
+        var sentinels = new[]
+        {
+            customerNameSentinel,
+            phoneNumberSentinel,
+            measurementValueSentinel,
+            stackTraceSentinel,
+            urlWithQuerySentinel,
+            routeParameterValueSentinel,
+        };
+
+        var emittedText = capturingLogger.RenderedValues();
+        foreach (var sentinel in sentinels)
+        {
+            emittedText.ShouldNotContain(
+                text => text.Contains(sentinel, StringComparison.Ordinal),
+                $"sentinel '{sentinel}' must not reach a log record, but was found in: " +
+                string.Join(" | ", emittedText));
+        }
+    }
+
+    /// <summary>
+    /// Captures every value passed to <c>ILogger.Log</c>, structured argument by structured argument,
+    /// rather than only the rendered message — so a value nested inside the destructured
+    /// <c>{@Attributes}</c> object (a <see cref="Dictionary{TKey,TValue}"/>, not a scalar) is inspected on
+    /// its own terms and not lost inside a <c>ToString()</c> that would otherwise just print the type
+    /// name.
+    /// </summary>
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        private readonly List<string> _values = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            ArgumentNullException.ThrowIfNull(formatter);
+
+            _values.Add(formatter(state, exception));
+
+            if (state is IEnumerable<KeyValuePair<string, object?>> structured)
+            {
+                foreach (var (_, value) in structured)
+                {
+                    Flatten(value);
+                }
+            }
+        }
+
+        public List<string> RenderedValues() => _values;
+
+        private void Flatten(object? value)
+        {
+            switch (value)
+            {
+                case null:
+                    return;
+                case string text:
+                    _values.Add(text);
+                    return;
+                case IEnumerable<KeyValuePair<string, object?>> nested:
+                    foreach (var (_, nestedValue) in nested)
+                    {
+                        Flatten(nestedValue);
+                    }
+
+                    return;
+                default:
+                    _values.Add(value.ToString() ?? string.Empty);
+                    return;
+            }
+        }
     }
 
     private HttpClient NewClient(string address)

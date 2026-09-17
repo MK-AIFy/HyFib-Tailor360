@@ -180,6 +180,106 @@ public sealed class ClientTelemetryAllowlistTests
             ],
             ignoreOrder: true);
 
+    /// <summary>
+    /// The property this allowlist exists to guarantee: whatever an attribute bag contains — any name,
+    /// any shape, any count — the survivors for a given event type can never carry a name that type does
+    /// not declare. The example-based tests above pin individual shapes; this one throws unstructured
+    /// noise at <see cref="ClientTelemetryAllowlist.Filter"/> so a future attribute added to one type's
+    /// dictionary without a matching shape check cannot silently leak into another type's output. The
+    /// seed is fixed per event type so a failure reproduces deterministically instead of only sometimes,
+    /// which matters because <c>CLAUDE.md</c> section 5 requires the suite to pass twice in a row.
+    /// </summary>
+    [Theory]
+    [InlineData(ClientTelemetryAllowlist.UnhandledError, 19_837_001)]
+    [InlineData(ClientTelemetryAllowlist.UnhandledRejection, 19_837_002)]
+    [InlineData(ClientTelemetryAllowlist.ServiceWorkerFailure, 19_837_003)]
+    [InlineData(ClientTelemetryAllowlist.CapabilityDetection, 19_837_004)]
+    [InlineData(ClientTelemetryAllowlist.WebVital, 19_837_005)]
+    [InlineData(ClientTelemetryAllowlist.NavigationTiming, 19_837_006)]
+    public void AnArbitraryAttributeBagNeverSurvivesWithAnAttributeNameOutsideTheEventTypesDeclaredSet(
+        string eventType,
+        int seed)
+    {
+        var declaredNames = DeclaredAttributeNames[eventType];
+        var random = new Random(seed);
+
+        for (var iteration = 0; iteration < 500; iteration++)
+        {
+            var bag = RandomBag(random, declaredNames);
+
+            var survivors = ClientTelemetryAllowlist.Filter(eventType, bag);
+
+            survivors.ShouldNotBeNull();
+            foreach (var name in survivors.Keys)
+            {
+                declaredNames.ShouldContain(name, $"'{name}' survived for {eventType} from bag {Describe(bag)}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The attribute names each event type declares, mirrored here from <c>ClientTelemetryAllowlist</c>'s
+    /// own private dictionary so the property test can assert against the same closed sets without
+    /// exposing them from production code purely for a test to read.
+    /// </summary>
+    private static readonly Dictionary<string, IReadOnlyList<string>> DeclaredAttributeNames =
+        new(StringComparer.Ordinal)
+        {
+            [ClientTelemetryAllowlist.UnhandledError] = ["messageCode", "stackHash", "routeName"],
+            [ClientTelemetryAllowlist.UnhandledRejection] = ["messageCode", "stackHash", "routeName"],
+            [ClientTelemetryAllowlist.ServiceWorkerFailure] = ["reasonCode"],
+            [ClientTelemetryAllowlist.CapabilityDetection] = ["capability", "result"],
+            [ClientTelemetryAllowlist.WebVital] = ["metric", "value"],
+            [ClientTelemetryAllowlist.NavigationTiming] = ["metric", "value"],
+        };
+
+    /// <summary>
+    /// A bag mixing genuine attribute names (paired with arbitrary values, to exercise shape rejection)
+    /// with wholly random names (to exercise name rejection), so neither path alone can make the property
+    /// test above pass by construction.
+    /// </summary>
+    private static Dictionary<string, JsonElement> RandomBag(Random random, IReadOnlyList<string> declaredNames)
+    {
+        var bag = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+        for (var i = 0; i < random.Next(0, 12); i++)
+        {
+            var name = declaredNames.Count > 0 && random.Next(2) == 0
+                ? declaredNames[random.Next(declaredNames.Count)]
+                : RandomString(random, random.Next(0, 24));
+
+            bag[name] = RandomJsonElement(random);
+        }
+
+        return bag;
+    }
+
+    private static JsonElement RandomJsonElement(Random random) => random.Next(6) switch
+    {
+        0 => JsonSerializer.SerializeToElement(RandomString(random, random.Next(0, 400))),
+        1 => JsonSerializer.SerializeToElement((random.NextDouble() * 2_000_000) - 1_000_000),
+        2 => JsonSerializer.SerializeToElement(random.Next(-1000, 1000)),
+        3 => JsonSerializer.SerializeToElement(random.Next(2) == 0),
+        4 => JsonSerializer.SerializeToElement<object?>(null),
+        _ => JsonSerializer.SerializeToElement(new[] { RandomString(random, 5), RandomString(random, 5) }),
+    };
+
+    private static string RandomString(Random random, int length)
+    {
+        const string alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:/_-@?=&+\n\t";
+
+        var characters = new char[length];
+        for (var i = 0; i < length; i++)
+        {
+            characters[i] = alphabet[random.Next(alphabet.Length)];
+        }
+
+        return new string(characters);
+    }
+
+    private static string Describe(Dictionary<string, JsonElement> bag)
+        => string.Join(", ", bag.Select(entry => $"{entry.Key}={entry.Value}"));
+
     private static JsonElement Json(string literal) => JsonDocument.Parse(literal).RootElement;
 
     private static Dictionary<string, JsonElement> Bag(params (string Name, JsonElement Value)[] members)
