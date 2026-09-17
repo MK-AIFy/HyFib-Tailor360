@@ -57,6 +57,23 @@ public sealed class ObjectStorageOptions
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Endpoint);
 
     /// <summary>
+    /// The bulkhead bounding concurrent calls into object storage. The limit is per host, not per adapter
+    /// instance: <c>docs/architecture/resilience-policies.md</c> records why the worker and the web host
+    /// carry different values.
+    /// </summary>
+    public ObjectStorageBulkheadOptions Bulkhead { get; set; } = new();
+
+    /// <summary>The circuit breaker that stops a failing dependency from being retried call after call.</summary>
+    public ObjectStorageBreakerOptions Breaker { get; set; } = new();
+
+    /// <summary>
+    /// The per-call timeout the breaker and the bulkhead both wrap. A call that has not finished by this
+    /// point is a failure for the breaker's purposes, whatever it eventually returns.
+    /// </summary>
+    [Range(typeof(TimeSpan), "00:00:01", "00:05:00")]
+    public TimeSpan CallTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
     /// The bucket a key lives in, by its module prefix: one bucket per prefix is how the deployment keeps
     /// one module from reaching another's objects (<c>docs/architecture/module-ownership.md</c> MO-4).
     /// </summary>
@@ -72,4 +89,35 @@ public sealed class ObjectStorageOptions
 
         return key.StartsWith("exports/", StringComparison.Ordinal) ? ExportsBucket : MediaBucket;
     }
+}
+
+/// <summary>
+/// The bulkhead's own settings, bound from <c>ObjectStorage:Bulkhead</c>. Sourced from
+/// <c>docs/nfr/capacity-and-performance.md</c> section 2.4, not invented: 2 concurrent calls in the worker
+/// (the same figure as the worker's <c>MediaProcessing</c> decode bulkhead), 6 in the web host (the same
+/// figure as the concurrent-image-upload row). Each host's own <c>appsettings.json</c> sets the value that
+/// applies to it; this default is the smaller, safer of the two.
+/// </summary>
+public sealed class ObjectStorageBulkheadOptions
+{
+    /// <summary>The most calls into object storage this process makes at once. Any more are rejected, not queued.</summary>
+    [Range(1, 100)]
+    public int MaxConcurrentCalls { get; set; } = 2;
+}
+
+/// <summary>
+/// The circuit breaker's own settings, bound from <c>ObjectStorage:Breaker</c>. Unlike the bulkhead figures,
+/// neither default here is sourced from an existing document — <c>docs/architecture/resilience-policies.md</c>
+/// section 1 and <c>docs/prd/assumptions-and-open-decisions.md</c> **OD-27** record both as proposed, to be
+/// confirmed, rather than presenting them as settled.
+/// </summary>
+public sealed class ObjectStorageBreakerOptions
+{
+    /// <summary>Consecutive failures, of any kind the timeout or the adapter itself can produce, before the breaker opens.</summary>
+    [Range(1, 50)]
+    public int FailureThreshold { get; set; } = 5;
+
+    /// <summary>How long the breaker stays open before it lets one call through to test the dependency.</summary>
+    [Range(typeof(TimeSpan), "00:00:01", "00:10:00")]
+    public TimeSpan BreakDuration { get; set; } = TimeSpan.FromSeconds(30);
 }

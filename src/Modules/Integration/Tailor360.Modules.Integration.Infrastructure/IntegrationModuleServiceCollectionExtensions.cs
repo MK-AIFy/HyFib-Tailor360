@@ -1,11 +1,14 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Integration.Infrastructure.Documents;
 using Tailor360.Modules.Integration.Infrastructure.Storage;
+using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Ports;
+using Tailor360.Platform.Abstractions.Time;
 
 namespace Tailor360.Modules.Integration.Infrastructure;
 
@@ -37,19 +40,39 @@ public static class IntegrationModuleServiceCollectionExtensions
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<ObjectStorageOptions>, ObjectStorageOptionsValidator>();
         services.TryAddSingleton<InMemoryObjectStorage>();
-        services.TryAddSingleton<IObjectStorage>(provider =>
+
+        // ResilientObjectStorage wraps whichever adapter was selected with the bulkhead, the circuit
+        // breaker and the per-call timeout of docs/architecture/resilience-policies.md. It is registered
+        // as itself, with IObjectStorage resolving to that same instance, the same double registration
+        // HeartbeatService uses for IHeartbeatMonitor — so that ObjectStorageHealthCheck reads the one
+        // breaker every caller's calls actually go through, not a second instance of its own.
+        services.TryAddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<ObjectStorageOptions>>();
+            IObjectStorage inner;
             if (options.Value.IsConfigured && options.Value.HasCredentials)
             {
-                return new MinioObjectStorage(options);
+                inner = new MinioObjectStorage(options);
+            }
+            else
+            {
+                // Development only: the validator has refused every other environment by now.
+                provider.GetRequiredService<ILogger<InMemoryObjectStorage>>().LogWarning(
+                    "Object storage is not configured with an endpoint and both keys; the in-memory adapter serves this process alone, and a document rendered by the worker cannot be downloaded from the web host.");
+                inner = provider.GetRequiredService<InMemoryObjectStorage>();
             }
 
-            // Development only: the validator has refused every other environment by now.
-            provider.GetRequiredService<ILogger<InMemoryObjectStorage>>().LogWarning(
-                "Object storage is not configured with an endpoint and both keys; the in-memory adapter serves this process alone, and a document rendered by the worker cannot be downloaded from the web host.");
-            return provider.GetRequiredService<InMemoryObjectStorage>();
+            return new ResilientObjectStorage(
+                inner,
+                options,
+                provider.GetRequiredService<IClock>(),
+                provider.GetRequiredService<ILogger<ResilientObjectStorage>>());
         });
+        services.TryAddSingleton<IObjectStorage>(provider => provider.GetRequiredService<ResilientObjectStorage>());
+
+        services.AddHealthChecks()
+            .AddCheck<ObjectStorageHealthCheck>("object-storage", tags: [HealthCheckTags.NonEssential]);
+
         services.TryAddSingleton<IPdfRenderer, QuestPdfRenderer>();
         services.TryAddSingleton<IBarcodeRenderer, Code128BarcodeRenderer>();
 

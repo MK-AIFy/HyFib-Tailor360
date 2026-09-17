@@ -41,6 +41,63 @@ public sealed class ObjectStorageOptionsValidatorTests
         validator.Validate(null, new ObjectStorageOptions { Endpoint = "http://127.0.0.1:9000" }).Succeeded.ShouldBeTrue();
     }
 
+    /// <summary>
+    /// The bulkhead, breaker and timeout settings are checked in every environment, including
+    /// Development — a broken resilience setting is a bug regardless of where it runs, unlike the
+    /// endpoint and credentials, which Development is deliberately lenient about.
+    /// </summary>
+    [Fact]
+    public void RefusesABulkheadOfZeroInEveryEnvironment()
+    {
+        var validator = new ObjectStorageOptionsValidator(new StubEnvironment(Environments.Development));
+
+        var result = validator.Validate(null, new ObjectStorageOptions { Bulkhead = new ObjectStorageBulkheadOptions { MaxConcurrentCalls = 0 } });
+
+        result.Failed.ShouldBeTrue();
+        result.FailureMessage.ShouldContain("ObjectStorage:Bulkhead:MaxConcurrentCalls");
+    }
+
+    [Fact]
+    public void RefusesABreakerFailureThresholdOfZero()
+    {
+        var validator = new ObjectStorageOptionsValidator(new StubEnvironment(Environments.Development));
+
+        var result = validator.Validate(null, new ObjectStorageOptions { Breaker = new ObjectStorageBreakerOptions { FailureThreshold = 0, BreakDuration = TimeSpan.FromSeconds(30) } });
+
+        result.Failed.ShouldBeTrue();
+        result.FailureMessage.ShouldContain("ObjectStorage:Breaker:FailureThreshold");
+    }
+
+    [Fact]
+    public void RefusesABreakDurationThatIsNotPositive()
+    {
+        var validator = new ObjectStorageOptionsValidator(new StubEnvironment(Environments.Development));
+
+        var result = validator.Validate(null, new ObjectStorageOptions { Breaker = new ObjectStorageBreakerOptions { FailureThreshold = 5, BreakDuration = TimeSpan.Zero } });
+
+        result.Failed.ShouldBeTrue();
+        result.FailureMessage.ShouldContain("ObjectStorage:Breaker:BreakDuration");
+    }
+
+    [Fact]
+    public void RefusesACallTimeoutThatIsNotPositive()
+    {
+        var validator = new ObjectStorageOptionsValidator(new StubEnvironment(Environments.Development));
+
+        var result = validator.Validate(null, new ObjectStorageOptions { CallTimeout = TimeSpan.Zero });
+
+        result.Failed.ShouldBeTrue();
+        result.FailureMessage.ShouldContain("ObjectStorage:CallTimeout");
+    }
+
+    [Fact]
+    public void TheDefaultBulkheadBreakerAndTimeoutSettingsAreAllValid()
+    {
+        var validator = new ObjectStorageOptionsValidator(new StubEnvironment(Environments.Development));
+
+        validator.Validate(null, new ObjectStorageOptions()).Succeeded.ShouldBeTrue();
+    }
+
     /// <summary>The smallest thing that answers "which environment is this".</summary>
     private sealed class StubEnvironment(string environmentName) : IHostEnvironment
     {
