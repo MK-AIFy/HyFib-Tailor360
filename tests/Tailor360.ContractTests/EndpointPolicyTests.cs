@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
+using Tailor360.Platform.Observability.Health;
 using Tailor360.Platform.Security.Endpoints;
 
 namespace Tailor360.ContractTests;
@@ -106,8 +107,15 @@ public sealed class EndpointPolicyTests(WebHostFixture fixture)
         return [.. sources.SelectMany(s => s.Endpoints).OfType<RouteEndpoint>()];
     }
 
+    /// <summary>
+    /// The three orchestrator probes — never <c>/health/detail</c>, which is permissioned and would
+    /// otherwise pass this check as a false anonymous exemption, defeating the point of asserting
+    /// ARCH-007 over it at all.
+    /// </summary>
     private static bool IsHealthProbe(RouteEndpoint endpoint)
-        => endpoint.RoutePattern.RawText?.StartsWith("/health/", StringComparison.Ordinal) == true;
+        => endpoint.RoutePattern.RawText is HealthEndpointExtensions.LivePath
+            or HealthEndpointExtensions.ReadyPath
+            or HealthEndpointExtensions.StartupPath;
 
     private static string Describe(RouteEndpoint endpoint)
     {

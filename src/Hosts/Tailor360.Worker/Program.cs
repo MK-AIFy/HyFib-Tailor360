@@ -23,6 +23,7 @@ using Tailor360.Platform.Observability.Logging;
 using Tailor360.Platform.Observability.Telemetry;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Security.Background;
+using Tailor360.Platform.Security.Endpoints;
 using Tailor360.Worker;
 using Tailor360.Worker.Jobs;
 
@@ -93,5 +94,20 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{healthPort}");
 var app = builder.Build();
 
 app.MapTailor360HealthEndpoints();
+
+// Unauthenticated, and it can only be: this host calls neither AddAuthentication nor
+// UseAuthentication nor UseAuthorization anywhere above, and infra/compose/docker-compose.app.yml
+// states the worker serves nothing but its own probes, on its own port, never published. The
+// exposure is registered in code rather than assumed, the same discipline ARCH-007 demands of the
+// web host's anonymous routes.
+app.MapHealthDetailEndpoint(typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0")
+    .AllowAnonymousWithJustification(
+        "The worker composes no authentication or authorisation at all, and this host's port is " +
+        "never published outside the compose network, so there is no session to demand here.",
+        "#447")
+    .InternalEndpoint(
+        "The detailed health report is an operational diagnostic, not part of the client's " +
+        "published contract. This host publishes no API document at all.",
+        "#447");
 
 await app.RunAsync();

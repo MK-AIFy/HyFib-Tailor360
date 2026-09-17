@@ -33,11 +33,15 @@ public static partial class EndpointInventory
     /// </summary>
     public const string AnyMethod = "ANY";
 
-    /// <summary>The path prefix whose probes are the matrix's one standing exemption.</summary>
+    /// <summary>The path prefix the three orchestrator probes fall back to when nothing else classifies them.</summary>
     /// <remarks>
     /// Health probes answer before authentication is a meaningful concept — an orchestrator asking
     /// whether the process is alive has no session and never will. They are exempted here and named in
-    /// the matrix document rather than being quietly absent from both.
+    /// the matrix document rather than being quietly absent from both. This is no longer the matrix's
+    /// only standing exemption under the prefix: <c>/health/detail</c> also starts with it, but carries
+    /// <see cref="RequiredPermissionMetadata"/>, so <see cref="Describe"/> classifies it as
+    /// <see cref="EndpointDeclarationKind.Permission"/> before this prefix check is ever reached, and it
+    /// demands a matrix row of its own like any other permissioned route.
     /// </remarks>
     public const string HealthProbePrefix = "/health";
 

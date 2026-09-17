@@ -521,6 +521,7 @@ is the route a reader looks at first.
 | `ANY` | `/health/live` | health-probe | — | — | — | — | Process liveness for the orchestrator. The standing exemption: an orchestrator has no session and never will |
 | `ANY` | `/health/ready` | health-probe | — | — | — | — | Readiness for the load balancer, on essential dependencies only |
 | `ANY` | `/health/startup` | health-probe | — | — | — | — | Startup, which refuses traffic until migrations have been applied |
+| `ANY` | `/health/detail` | permission | `admin.health.read` | organisation | — | — | The detailed health report — every registered check named, with its status, duration and description, and the build version. Web host only; the worker's own copy is unauthenticated because that host composes no session at all, and its port is never published (`container.md` line 172, ADR-0010). Not audited: a read, and not the sensitive kind ARCH-008 exists for |
 | `ANY` | `/health/{**path}` | anonymous | — | — | — | — | The health fallback, so an unmatched probe path is a 404 and not the client shell |
 | `GET` | `/openapi/{documentName}.json` | anonymous | — | — | — | — | The generated API document. **Development only** — it is not mapped in any other environment, and this row exists because the tests run the application in Development |
 | `GET` | `/{*path}` | anonymous | — | — | — | — | The client shell. Every non-file path returns `index.html` so the application can route it |

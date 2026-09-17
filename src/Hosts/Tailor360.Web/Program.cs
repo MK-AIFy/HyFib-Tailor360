@@ -29,6 +29,7 @@ using Tailor360.Modules.Reporting.Api;
 using Tailor360.Modules.Reporting.Infrastructure;
 using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Health;
+using Tailor360.Platform.Abstractions.Multitenancy;
 using Tailor360.Platform.Observability.Correlation;
 using Tailor360.Platform.Observability.Health;
 using Tailor360.Platform.Observability.Logging;
@@ -37,6 +38,7 @@ using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Persistence.DataProtection;
 using Tailor360.Platform.Security;
 using Tailor360.Platform.Security.Endpoints;
+using Tailor360.Platform.Security.Permissions;
 using Tailor360.Web.Configuration;
 using Tailor360.Web.Endpoints;
 using Tailor360.Web.Middleware;
@@ -181,6 +183,19 @@ app.UseTailor360ResourceScope();
 app.UseAuthorization();
 
 app.MapTailor360HealthEndpoints();
+
+// Permissioned rather than anonymous like the three probes above: this is the detailed report
+// container.md line 172 reserves for the internal network or admin.health.read, never for a public
+// caller. No audit filter — it is a read, and not the sensitive kind ARCH-008 exists for.
+app.MapHealthDetailEndpoint(BuildInformation.Version)
+    .RequirePermission(PlatformPermissions.HealthRead, BranchScope.Organisation)
+    .InternalEndpoint(
+        "The detailed health report is an operational diagnostic for owner/admin, not part of the " +
+        "client's published contract. docs/api/openapi.v1.json stays unchanged by this route.",
+        "#447")
+    .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+    .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
 app.MapVersionEndpoint(app.Environment);
 app.MapAntiForgeryEndpoint();
 app.MapClientTelemetryEndpoint();

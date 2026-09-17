@@ -70,6 +70,27 @@ internal static class AdministrationHarness
         var (user, _) = await AccountAtBranchAsync(fixture, prefix, homeBranchId, grantPermission, alsoGrant);
         var client = AuthenticationClient.Open(fixture, clientAddress);
 
+        await SignInAsync(client, user);
+
+        return new AdministratorClient(client, user.Id);
+    }
+
+    /// <summary>
+    /// Signs an already-seeded account in and answers its second factor, on an already-open client.
+    /// </summary>
+    /// <remarks>
+    /// Split out of <see cref="AdministratorAtBranchAsync"/> so a test that needs a client built
+    /// against a differently-configured host — a health check registered for one test only, say —
+    /// can still reach a fully authenticated administrator without duplicating the handshake.
+    /// </remarks>
+    /// <param name="client">An open, not-yet-signed-in client.</param>
+    /// <param name="user">The account to sign in as, already seeded by <see cref="AccountAsync"/> or
+    /// <see cref="AccountAtBranchAsync"/>.</param>
+    public static async Task SignInAsync(AuthenticationClient client, StaffUser user)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(user);
+
         (await client.PostAsync(
                 "/api/v1/auth/login",
                 new { identifier = user.UserName, password = AuthenticationTestData.Password }))
@@ -86,8 +107,6 @@ internal static class AdministrationHarness
 
         (await client.PostAsync("/api/v1/auth/mfa/enrol/confirm", new { code }))
             .StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
-
-        return new AdministratorClient(client, user.Id);
     }
 
     /// <summary>Creates the account and the role behind an administrator, without signing in.</summary>
