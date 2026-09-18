@@ -133,6 +133,40 @@ public sealed class ClientTelemetryAllowlistTests
     }
 
     [Fact]
+    public void ARouteNameSegmentThatLooksLikeAResolvedValueIsRejectedEvenWhenEveryCharacterIsOtherwiseAllowed()
+    {
+        // "9876543210" is built entirely from characters the old pattern allowed — it is what a resolved
+        // route parameter (a phone number standing in for :orderId) looks like once the template's own
+        // ":" is gone. The pattern must reject it precisely because it is indistinguishable, character by
+        // character, from a legitimate route name unless segments are checked individually.
+        var rejected = ClientTelemetryAllowlist.Filter(
+            ClientTelemetryAllowlist.UnhandledError,
+            Bag(("routeName", Json("\"orders/9876543210/draft\""))));
+
+        rejected.ShouldNotBeNull();
+        rejected.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("orders/draft")]
+    [InlineData("orders/:orderId/draft")]
+    [InlineData("not-found")]
+    public void SanitizeRouteNameReturnsARouteNameShapedValueUnchanged(string routeName)
+        => ClientTelemetryAllowlist.SanitizeRouteName(routeName).ShouldBe(routeName);
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("orders/9876543210/draft")]
+    [InlineData("https://app.example.com/orders/019c1f4c-1c9f-4e0e-ab0d-0d9c9b1a2c3d")]
+    public void SanitizeRouteNameReturnsNullForAnythingNotRouteNameShaped(string? routeName)
+        => ClientTelemetryAllowlist.SanitizeRouteName(routeName).ShouldBeNull();
+
+    [Fact]
+    public void SanitizeRouteNameRejectsAnOverlongValue()
+        => ClientTelemetryAllowlist.SanitizeRouteName(new string('a', 201)).ShouldBeNull();
+
+    [Fact]
     public void AnOverlongStringAttributeIsDropped()
     {
         var tooLong = new string('a', 201);

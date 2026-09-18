@@ -9,7 +9,11 @@ namespace Tailor360.Web.Telemetry;
 /// </summary>
 /// <param name="BatchId">A client-generated identifier for this flush, for de-duplication at the log level.</param>
 /// <param name="ClientVersion">The build the client is running.</param>
-/// <param name="RouteName">The client route the batch was flushed from, by name — never a URL.</param>
+/// <param name="RouteName">
+/// The client route the batch was flushed from, by name — never a URL. Sanitised by
+/// <see cref="ClientTelemetryAllowlist.SanitizeRouteName"/> before it is logged, since it is the
+/// envelope's own field and never passes through the per-event attribute allowlist.
+/// </param>
 /// <param name="DeviceClass">The device class the client detected itself as, for example <c>shop-floor-phone</c>.</param>
 /// <param name="Engine">The rendering engine, for example <c>blink</c>.</param>
 /// <param name="OperatingSystemFamily">The operating-system family, for example <c>android</c>.</param>

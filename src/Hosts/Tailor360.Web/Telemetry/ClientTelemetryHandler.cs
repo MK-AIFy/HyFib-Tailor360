@@ -69,6 +69,12 @@ public sealed class ClientTelemetryHandler(
 
         if (logger.IsEnabled(LogLevel.Information))
         {
+            // The envelope's routeName never passes through ClientTelemetryAllowlist.Filter — that
+            // allowlist only ever sees an event's own attribute bag — so it is sanitised here, the same
+            // shape the event-level routeName attribute requires, rather than logged as whatever the
+            // client sent.
+            var routeName = ClientTelemetryAllowlist.SanitizeRouteName(batch.RouteName);
+
             // {@Attributes} destructures the dictionary as its own structured object rather than a
             // string, so a reader — and the redaction test — can inspect each surviving attribute by
             // name. Only names and shapes the allowlist has already accepted ever reach this call.
@@ -77,7 +83,7 @@ public sealed class ClientTelemetryHandler(
                 + "{ClientVersion}, correlation {CorrelationId}, attributes {@Attributes}",
                 candidate.Type,
                 batch.BatchId,
-                batch.RouteName,
+                routeName,
                 batch.ClientVersion,
                 correlation.CorrelationId,
                 ToLoggable(attributes));
