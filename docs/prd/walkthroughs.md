@@ -657,7 +657,8 @@ from shop stock — a design revision after confirmation with a price delta agre
 7. **20 April, 10:40 — the material is short (EX-02).** Cutting job `-01` with the published `KIDS` ease, which
    includes the growth allowance on garment length, Latha finds the frill needs 10 cm more than the length
    supplied. She records the shortage against the job and phase. Vijaya confirms no matching fabric is in stock.
-8. **20 April, 10:50 — the job is held.** Latha places job `-01` on hold with reason code `MATERIAL_SHORT`. The
+8. **20 April, 10:50 — the job is held.** On Latha's report, Saravanan places job `-01` on hold with reason code
+   `MATERIAL_SHORT` — `orders.hold` is the Branch Manager's and the Tailor Master's, not the Tailor's. The
    ready gate for that job stays closed while the hold is open, and the hold appears on Saravanan's overdue-hold
    dashboard. Job `-02` continues unaffected — the hold is per garment job, not per order.
 9. **20 April, 11:05 — the guardian is asked.** Reception telephones and offers a contrast frill in a shop fabric
