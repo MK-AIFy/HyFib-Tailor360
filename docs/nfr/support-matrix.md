@@ -339,9 +339,10 @@ review — proposed, to be confirmed.
 ## 10. Open decisions
 
 These items are **not settled**. They extend plan [Section 11](../IMPLEMENTATION_PLAN.md) — principally item 7,
-**OD-07** — and must be transcribed into
-[`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) in the pull request that
-closes issue #19. Identifiers `SM-01` and upwards are local to this document and are referenced from
+**OD-07**. They are mirrored into
+[`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) section 3.2, so that one
+register holds every open item; this document remains the place to change them, and a row added here is added
+there in the same pull request. Identifiers `SM-01` and upwards are local to this document and are referenced from
 [`traceability.md`](traceability.md).
 
 | ID | Open decision | Proposed position, to be confirmed | Owner | Raised | Needed by |
