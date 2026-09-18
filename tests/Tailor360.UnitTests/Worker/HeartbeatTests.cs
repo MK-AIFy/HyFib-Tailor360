@@ -115,20 +115,29 @@ public sealed class HeartbeatTests
     public async Task ADatabaseItCannotReachDoesNotStopTheWorkerOrTheBeat()
     {
         var factory = new ThrowingScopeFactory();
-        var service = Service(factory);
+
+        // An interval short enough that the second beat lands inside the test. The default fifteen
+        // seconds would leave the loop's survival unobserved: the test would end after the first
+        // throw, having watched the failure but never the recovery from it.
+        var service = Service(factory, TimeSpan.FromMilliseconds(20));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         try
         {
-            // Polled rather than read once: StartAsync returns as soon as ExecuteAsync yields, so
-            // reading immediately would assert on whether the first beat happened to finish before
-            // the call returned — which is a scheduling detail, not the behaviour under test.
+            // Gated on the write, not on the in-memory beat. BeatAsync records the beat *before* it
+            // opens the scope, so `LastBeat is not null` is satisfied a few instructions before the
+            // write is attempted — a gate that admitted the very window the assertions below then
+            // failed in. Waiting for the second attempt closes it and asserts the stronger thing:
+            // the first write threw, and the loop came back for another one anyway.
             await WaitFor(
-                () => service.LastBeat is not null,
-                "the first heartbeat to be recorded");
+                () => factory.Attempts >= 2,
+                "a second heartbeat write to be attempted after the first one threw");
 
+            // Both halves of the promise. The beat carries the injected clock's reading rather than
+            // merely existing, so a service that stopped consulting IClock would still fail here.
             service.LastBeat.ShouldBe(Now, "the in-memory beat is recorded before the write is attempted");
-            factory.Attempts.ShouldBeGreaterThan(0, "the service did try to persist the beat");
+            factory.Attempts.ShouldBeGreaterThanOrEqualTo(
+                2, "the service kept trying to persist the beat across a failing write");
         }
         finally
         {
