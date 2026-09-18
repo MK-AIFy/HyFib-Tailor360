@@ -46,8 +46,10 @@ what would have to change if it turned out to be wrong.
 
 ## 3. Owner decision register
 
-Twenty-three decisions. `OD-01` to `OD-15` are transcribed from plan Section 11 in the plan's order and correspond
+Twenty-seven decisions. `OD-01` to `OD-15` are transcribed from plan Section 11 in the plan's order and correspond
 one-to-one with plan Section 11 items 1 to 15 and are the stable reference used across the documentation set.
+Section 3.2 carries a further twenty-seven items mirrored from the three documents issue #19 produced, under the
+identifiers those documents give them.
 
 | Decision | Why it is needed | Blocks | Owner | Status |
 | --- | --- | --- | --- | --- |
@@ -104,6 +106,64 @@ flowchart TD
 
 Plan Section 6.2 makes OD-01 and OD-02 the W0 exit gate: no critical architecture decision may still be open when
 Wave 1 begins.
+
+### 3.2 Numeric targets and support decisions mirrored from the NFR documents
+
+Twenty-seven further open items are raised by the three documents issue #19 produced. They carry identifiers local
+to those documents — `SM-nn` in [`../nfr/support-matrix.md`](../nfr/support-matrix.md), `CP-nn` in
+[`../nfr/capacity-and-performance.md`](../nfr/capacity-and-performance.md), and `TRC-OD-nn` in
+[`../nfr/traceability.md`](../nfr/traceability.md). Each of those documents requires them to be mirrored here, and
+[`../process/definition-of-ready.md`](../process/definition-of-ready.md) section 5 rule 3 requires the same of any
+deferral that changes a published number, "so one register holds every open item".
+
+They are reproduced in their source shape rather than restated, so the wording a reviewer confirms is the wording
+the owning document carries; that document remains the place to change it. **Every row is open.** The proposed
+position is what is in force until it is confirmed, and none may be quoted elsewhere as settled.
+
+#### Support matrix — `SM-01` to `SM-10`
+
+| ID | Open decision | Proposed position, to be confirmed | Owner | Raised | Needed by |
+| --- | --- | --- | --- | --- | --- |
+| **SM-01** | The lowest supported device | Android 10, 4 GB RAM, 360 CSS px, Chrome stable — section 2 | Business owner with the technical reviewer | 2026-09-04 | Before W1 exit; every performance budget depends on it |
+| **SM-02** | Minimum operating-system floors | Android 10; iOS and iPadOS 16.4; Windows 10 22H2; macOS 13 | Business owner | 2026-09-04 | Before W0 exit — OD-07 |
+| **SM-03** | Browser version policy | Evergreen: current stable and the previous major; Firefox current plus ESR | Technical reviewer | 2026-09-04 | Before W0 exit |
+| **SM-04** | Which hardware scanner models are bought or already owned, and USB versus Bluetooth per station | Keyboard-wedge HID only; at least one model per branch nominated and tested | Business owner | 2026-09-04 | Before W3 — feeds #36 |
+| **SM-05** | Thermal label printer models per branch, and the label size and whether a QR accompanies Code 128 | Deferred to **OD-09**; at least one model nominated and printed sheets stored | Business owner | 2026-09-04 | Before W3 — feeds #35 |
+| **SM-06** | Receipt format: A5 sheet or thermal roll | A5 by default, thermal roll if the counter printer is already a roll printer | Business owner with the accountant | 2026-09-04 | Before W4 |
+| **SM-07** | Offline queue bounds | Maximum age 24 hours, maximum depth 200 scans per device | Technical reviewer | 2026-09-04 | Before #51 |
+| **SM-08** | Manual-entry review threshold | Above 2% of a branch's scans over seven days raises a review | Business owner with the Branch Manager | 2026-09-04 | Before go-live |
+| **SM-09** | Whether personal phones may be used at all, or only shop-issued devices | Shop-issued devices for Tier 1 journeys; personal phones Tier 2 and read-mostly | Business owner | 2026-09-04 | Before W1 exit — interacts with **OD-12** |
+| **SM-10** | Whether any branch has a device below the reference specification today | Assumed no; if yes, either the device is replaced or the reference is lowered and every budget is re-derived | Business owner | 2026-09-04 | Before W0 exit |
+
+#### Capacity and performance — `CP-01` to `CP-15`
+
+| ID | Open decision | Proposed position, to be confirmed | Owner | Raised | Needed by |
+| --- | --- | --- | --- | --- | --- |
+| **CP-01** | Order volume per branch per month at launch | 500, the A5 upper bound; A3 allows 100 | Business owner, from the shop's registers gathered by #17 | 2026-09-04 | Before W1 exit — feeds **OD-02** |
+| **CP-02** | Working days per month and the peak-season factors | 26 working days; peak day 3×, peak month 2× | Business owner with the Branch Manager | 2026-09-04 | Before W1 exit |
+| **CP-03** | Concurrent sessions to design for | 150 organisation-wide; load-test design point 20 requests per second sustained | Technical reviewer | 2026-09-04 | Before the first load test in W5 |
+| **CP-04** | Scans per garment job | 10, giving 1,150 on a mean day against the A5 ceiling of 5,000 | Business owner with the Tailor Master | 2026-09-04 | Before W3 — sizes the `scan-burst` policy |
+| **CP-05** | **Object-storage growth.** A5's stated 22 GB per year does not reconcile with its own multiplicands, which give 270 GB of originals and 351 GB with derivatives | Not proposed. Requires a decision among counting images per order, lowering the re-encode target, or shortening image retention — section 2.5 | Business owner with the technical reviewer | 2026-09-04 | **Before OD-02 can be priced** |
+| **CP-06** | Re-encode target for stored originals | Long edge 2,400 px at about 1.5 MB; the 1,600 px and 0.5 MB alternative is on the table | Business owner with the Tailor Master, on image quality | 2026-09-04 | Before W2 — feeds #31 |
+| **CP-07** | Core Web Vitals targets on the reference device | LCP p75 ≤ 2.5 s, INP p75 ≤ 200 ms, CLS p75 ≤ 0.10 | Technical reviewer | 2026-09-04 | Before W1 exit — gates every user-interface issue |
+| **CP-08** | API latency targets and the load they are stated at | Reads p95 < 400 ms, commands p95 < 800 ms at 20 requests per second | Technical reviewer | 2026-09-04 | Before W1 exit — restated in [`../nfr/slo.md`](../nfr/slo.md) |
+| **CP-09** | Separate WebKit scan budget | Scan round trip p95 < 1.5 s on iOS against < 1 s on Blink | Technical reviewer | 2026-09-04 | Before W3 — feeds #36 |
+| **CP-10** | JavaScript bundle budgets | Initial ≤ 180 KB gzip, per route ≤ 60 KB gzip, decoder chunk ≤ 120 KB gzip | Technical reviewer | 2026-09-04 | Before W1 — the design-system issue #50 must build inside it |
+| **CP-11** | Whether the bundle-size check runs on every pull request or only at the release gate | Every pull request, as a fast subset of the performance gate that plan Section 5.3 places at release | Technical reviewer | 2026-09-04 | Before W1 — changes the CI definition in #22 |
+| **CP-12** | Memory ceilings on the scan and capture screens | 180 MB and 250 MB JavaScript heap; 400 MB private memory for the whole tab | Technical reviewer | 2026-09-04 | Before W3 |
+| **CP-13** | Database growth budget and its alert thresholds | 5 GB per year; warn at 70% of the volume, page at 85% | Technical reviewer with the business owner on the volume size | 2026-09-04 | Before W5 — feeds #58 |
+| **CP-14** | Growth horizon to provision for | 25% per year and a fourth branch by year three | Business owner | 2026-09-04 | Before **OD-02** |
+| **CP-15** | The re-baselining commitment | Re-derive from production telemetry after three months, review quarterly | Business owner with the technical reviewer | 2026-09-04 | Before go-live |
+
+#### NFR traceability — `TRC-OD-01` and `TRC-OD-02`
+
+Its section 23 also carries rows for **OD-02** and **OD-05**; those are already in section 3 above and are not
+repeated here.
+
+| ID | Question | Blocks | Owner | Status |
+| --- | --- | --- | --- | --- |
+| **TRC-OD-01** | Confirm that every row's accountable owner is correct, in particular where a target is owned by a role that has not yet been filled | The whole owner column; the escalation path when a target is missed | Business owner | **Open** — needed before the W1 exit gate |
+| **TRC-OD-02** | Which journeys are priority zero, since several gates treat them as unwaivable | RG-05 and RG-06 severities in [`../process/release-gates.md`](../process/release-gates.md) | Business owner, with the technical reviewer | **Proposed, to be confirmed** — order confirmation, custody transfer, the dispatch gate, invoice posting and payment recording |
 
 ---
 

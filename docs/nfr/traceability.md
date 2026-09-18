@@ -227,7 +227,7 @@ flowchart LR
 | **NFR-CB-01** | The browser matrix in [`support-matrix.md`](support-matrix.md) is supported, and behaviour outside it degrades gracefully | Test: the end-to-end matrix across Chromium, Firefox and WebKit at phone, tablet and desktop profiles | RG-05 | Technical reviewer | Target open — depends on **OD-07**; proof scheduled (#52) |
 | **NFR-CB-02** | Barcode decoding never depends solely on the native detector: the camera source falls back to the bundled decoder, and the keyboard-wedge and manual sources always exist | Test: capability-detection unit tests; end-to-end fallback test on WebKit | RG-05 | Technical reviewer | Proof scheduled (#36) — see **RR-10** |
 | **NFR-CB-03** | Manual entry is always available, requires a reason and is audited | Test: integration test; end-to-end test of the manual path | RG-03, RG-05 | Security owner | Proof scheduled (#36) |
-| **NFR-CB-04** | Printing works from a phone through the print station, with a PDF download as the fallback | Evidence: the physical print rehearsal; Test: end-to-end test of the queue drain | RG-05, RG-14 | Owner | Target open — depends on **OD-09**; proof scheduled (#35) — see **RR-11** |
+| **NFR-CB-04** | Printing works from a phone through the print station, with a PDF download as the fallback | Evidence: the physical print rehearsal; Test: end-to-end test of the queue drain | RG-05, RG-14 | Owner | Target open — depends on **OD-09**; proof scheduled (#35) — see **RR-18** |
 | **NFR-CB-05** | The application is installable on the supported devices and is used in installed mode for device evidence | Evidence: install records per device class from wave W2 onwards | RG-14 | Technical reviewer | Proof scheduled (#50, #51) |
 | **NFR-CB-06** | An outdated client is refused with a clear upgrade path rather than failing obscurely | Test: integration test of the minimum-client response; end-to-end test of the update prompt | RG-03, RG-05 | Technical reviewer | Proof scheduled (#51, #53) |
 
@@ -335,8 +335,8 @@ exercises — which is why the cadence is part of the requirement.
 ## 23. Open decisions recorded by this document
 
 Raised 2026-09-04 by issue #19; mirrored in
-[`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) and referenced against plan
-[Section 11](../IMPLEMENTATION_PLAN.md).
+[`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) section 3.2 and referenced
+against plan [Section 11](../IMPLEMENTATION_PLAN.md).
 
 | ID | Question | Blocks | Owner | Status |
 | --- | --- | --- | --- | --- |

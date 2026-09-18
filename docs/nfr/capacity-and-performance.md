@@ -371,9 +371,10 @@ evidence artefact and its owner. A budget without a monitor is a defect in this 
 
 ## 10. Open decisions
 
-Local identifiers `CP-01` and upwards, referenced from [`traceability.md`](traceability.md) and to be transcribed
-into [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) in the pull request
-that closes issue #19. All of them are **open**; none may be quoted elsewhere as settled.
+Local identifiers `CP-01` and upwards, referenced from [`traceability.md`](traceability.md) and mirrored into
+[`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) section 3.2, so that one
+register holds every open item; this document remains the place to change them, and a row added here is added
+there in the same pull request. All of them are **open**; none may be quoted elsewhere as settled.
 
 | ID | Open decision | Proposed position, to be confirmed | Owner | Raised | Needed by |
 | --- | --- | --- | --- | --- | --- |
