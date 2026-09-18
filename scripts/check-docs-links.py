@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from pathlib import PurePath
 from urllib.parse import unquote
 
 # Inline links, reference definitions and bare <> autolinks. The negative lookbehind on "!" keeps
@@ -178,6 +179,23 @@ which render as literal text and must be ignored.
 SELF_TEST_EXPECTED = {("docs/a.md", "missing-image.png"), ("docs/a.md", "c.md")}
 
 
+def posix_sources(links: set[tuple[str, str]]) -> set[tuple[str, str]]:
+    """Rewrite each link's source path with forward slashes, leaving its target alone.
+
+    `find_broken` builds source paths with `os.path`, so on Windows they arrive holding
+    backslashes while the expectation above is written with forward slashes. Comparing the two
+    raw reports every expected link as missed and every produced link as spurious — a separator
+    mismatch wearing the costume of a detector regression, and one that CI cannot see because it
+    runs on Linux. Applied to both sides of the comparison, so the sets differ over links rather
+    than over the platform the self-test happens to run on.
+
+    The target is left exactly as found: it is the text an author wrote inside a markdown link,
+    not a filesystem path, and normalising it would hide a genuine break in a link written with
+    the wrong separator.
+    """
+    return {(PurePath(source).as_posix(), target) for source, target in links}
+
+
 def self_test() -> int:
     """Prove the detector still detects, and still ignores what it is meant to ignore."""
     import tempfile
@@ -189,10 +207,11 @@ def self_test() -> int:
             handle.write(SELF_TEST_DOCUMENT)
         open(os.path.join(documents, "b.md"), "w", encoding="utf-8").close()
 
-        found = set(find_broken(repository)[0])
+        found = posix_sources(set(find_broken(repository)[0]))
 
-    missed = SELF_TEST_EXPECTED - found
-    spurious = found - SELF_TEST_EXPECTED
+    expected = posix_sources(SELF_TEST_EXPECTED)
+    missed = expected - found
+    spurious = found - expected
 
     if missed:
         print("SELF-TEST FAILED: the detector no longer catches:", file=sys.stderr)
