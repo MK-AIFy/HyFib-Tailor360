@@ -321,7 +321,7 @@ flowchart TD
   F -->|Workshop capacity| E
   F -->|Waiting on the customer or a specialist| G[Job held with reason<br/>phase clock paused while the hold is open]
   F -->|Genuine slip| H[Job rescheduled with a new promised date<br/>customer informed on the consented channel before the original date]
-  G -->|Reception| I[Hold released when the blocker clears]
+  G -->|Branch Manager or Tailor Master| I[Hold released when the blocker clears]
   I --> E
 ```
 
