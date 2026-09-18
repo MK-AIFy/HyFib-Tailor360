@@ -48,6 +48,66 @@ public sealed class DocumentAdapterTests
     }
 
     [Fact]
+    public async Task PinsTheFileIdentifierInEitherFormThePdfWriterMayHaveUsedForIt()
+    {
+        // PDF writes a string either as hex or as a literal, and a writer picks whichever is shorter for the
+        // bytes in hand. The identifier PDF/UA makes QuestPDF draw is random, so which form it arrives in is
+        // random too — the literal turned up 37 times in 4,000 renderings, and reading only the hex form
+        // left that rendering unpinned and the test above red for no reason a diff could explain (#568).
+        const string Seed = "billing.invoice|INV-MAIN-2627-000001|2026-09-12T04:30:00.0000000+00:00";
+
+        var hexForm = SyntheticPdf("[<AF6963916352C062C89A53E17C0DE18D> <AF6963916352C062C89A53E17C0DE18D>]");
+        // The literal a writer would emit for bytes that are mostly printable, carrying every escape the
+        // grammar allows into it: an escaped parenthesis of each hand, a balanced pair, an escaped backslash
+        // and an octal escape. Measure any of those wrongly and the array's ']' is not where it is expected.
+        var literalForm = SyntheticPdf(@"[(R4Pp\(P/4E\)a(b)c\d\264) (R4Pp\(P/4E\)a(b)c\d\264)]");
+
+        var fromHex = QuestPdfRenderer.StabiliseFileIdentifier(hexForm, Seed);
+        var fromLiteral = QuestPdfRenderer.StabiliseFileIdentifier(literalForm, Seed);
+
+        var pinned = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Seed))[..16]);
+        System.Text.Encoding.Latin1.GetString(fromHex).ShouldContain($"/ID [<{pinned}> <{pinned}>]");
+        System.Text.Encoding.Latin1.GetString(fromLiteral).ShouldContain($"/ID [<{pinned}> <{pinned}>]");
+        fromLiteral.ShouldBe(fromHex, "one model renders to one file whichever form the writer chose for its identifier");
+
+        // The XMP packet carries the same sixteen bytes and is rewritten with it, length for length, because
+        // those bytes sit in a stream object the cross-reference table addresses by offset.
+        var rewritten = System.Text.Encoding.Latin1.GetString(fromLiteral);
+        var uuid = Regex.Match(rewritten, @"<xmpMM:DocumentID>uuid:([0-9a-f-]{36})</xmpMM:DocumentID>");
+        uuid.Success.ShouldBeTrue();
+        uuid.Groups[1].Value.Replace("-", string.Empty, StringComparison.Ordinal).ShouldBe(pinned.ToLowerInvariant());
+        rewritten.ShouldContain($"<xmpMM:InstanceID>uuid:{uuid.Groups[1].Value}</xmpMM:InstanceID>");
+        rewritten.IndexOf("xref", StringComparison.Ordinal)
+            .ShouldBe(System.Text.Encoding.Latin1.GetString(literalForm).IndexOf("xref", StringComparison.Ordinal),
+                "the body keeps its length, so every offset the cross-reference table holds still lands");
+
+        // A different model is still a different identifier, so the pin has not flattened the documents.
+        QuestPdfRenderer.StabiliseFileIdentifier(hexForm, Seed.Replace("000001", "000002", StringComparison.Ordinal))
+            .ShouldNotBe(fromHex);
+
+        // And the real path reaches it: a rendered invoice carries the pinned form, not a drawn one.
+        var pdf = await RenderAsync(new QuestPdfRenderer(), QuestPdfRenderer.InvoiceTemplate, SampleModel("INV-MAIN-2627-000001"));
+        System.Text.Encoding.Latin1.GetString(pdf).ShouldContain($"/ID [<{pinned}> <{pinned}>]", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// The tail of a PDF as the renderer post-processes it: an XMP packet carrying the identifier in its
+    /// two <c>xmpMM</c> forms, a cross-reference table, and a trailer whose <c>/ID</c> array is the argument.
+    /// </summary>
+    private static byte[] SyntheticPdf(string identifierArray)
+    {
+        const string Drawn = "af696391-6352-c062-c89a-53e17c0de18d";
+        var xmp = $"<x:xmpmeta><rdf:RDF><rdf:Description><xmpMM:DocumentID>uuid:{Drawn}</xmpMM:DocumentID>"
+            + $"<xmpMM:InstanceID>uuid:{Drawn}</xmpMM:InstanceID></rdf:Description></rdf:RDF></x:xmpmeta>";
+
+        return System.Text.Encoding.Latin1.GetBytes(
+            "%PDF-1.7\n"
+            + $"1 0 obj\n<</Type/Metadata/Subtype/XML/Length {xmp.Length}>>\nstream\n{xmp}\nendstream\nendobj\n"
+            + "xref\n0 2\n0000000000 65535 f \n0000000009 00000 n \n"
+            + $"trailer\n<</Size 2/Root 1 0 R/Info 1 0 R/ID {identifierArray}>>\nstartxref\n{xmp.Length + 100}\n%%EOF\n");
+    }
+
+    [Fact]
     public async Task RendersTheReceiptOnTheRollDeterministicallyWithItsFiguresAndBarcode()
     {
         var renderer = new QuestPdfRenderer();

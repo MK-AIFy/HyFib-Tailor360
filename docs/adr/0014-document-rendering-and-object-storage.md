@@ -136,7 +136,12 @@ What #512 changed, concretely:
   `QuestPdfRenderer.StabiliseFileIdentifier` replaces those bytes, after generation, with sixteen bytes derived
   from the template key, the document number and `renderedAt` — the same fields the rest of this record already
   treats as what a rendering is deterministic *for* — so two renderings of one model are byte-for-byte identical
-  again. Every replacement is the same length as what it replaces, so no other offset in the file moves.
+  again. The trailer carries its pair as either of PDF's two string serialisations, whichever was shorter for
+  the bytes drawn, so both are read and both are rewritten to the hex form; reading only the hex form left
+  about one rendering in a hundred unpinned (#568). Rewriting that array may change the trailer's length by a
+  few bytes, which moves no offset: `startxref` points at the cross-reference table, and the trailer follows
+  it. The XMP replacements stay length-for-length, because those bytes sit in a stream object the
+  cross-reference table does address.
 - The receipt template gets the same `PDFUA_1` conformance and the same structure landmarks for free; it carries
   no table and no customer name, so it needed no `Semantic…` call of its own and section 4's "not applicable to
   the artefact" reasoning for the receipt's own accessibility records (E09-F02-10) is unaffected.

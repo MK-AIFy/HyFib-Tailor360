@@ -109,14 +109,24 @@ public sealed partial class QuestPdfRenderer : IPdfRenderer
     /// call, which breaks the determinism ADR-0014 promises and this renderer is tested on. Both forms
     /// encode the same sixteen bytes, so replacing them with sixteen bytes derived from the model keeps the
     /// file's own internal consistency and makes two renderings of one model byte-for-byte identical again.
-    /// Every replacement is the same length as what it replaces, so no offset in the file moves.
     /// </summary>
-    private static byte[] StabiliseFileIdentifier(byte[] pdf, string seed)
+    /// <remarks>
+    /// The trailer's two strings arrive in whichever of PDF's two string serialisations the writer judged
+    /// shorter for the bytes it drew — a hex string (<c>&lt;A1B2…&gt;</c>) for most draws, a literal string
+    /// (<c>(…\264…)</c>) for a draw with enough printable bytes in it. Which one appears is therefore a
+    /// property of the random bytes, not of the model, so both are recognised and both are rewritten to the
+    /// hex form; reading only the hex form left about one rendering in a hundred unpinned (#568).
+    /// Rewriting the array may change the trailer's length by a few bytes. Nothing addresses the trailer by
+    /// offset — <c>startxref</c> points at the cross-reference table, which precedes it — so no offset in the
+    /// file moves. The XMP replacements stay length-for-length, because those bytes sit in a stream object
+    /// the cross-reference table does address.
+    /// </remarks>
+    internal static byte[] StabiliseFileIdentifier(byte[] pdf, string seed)
     {
         var text = Encoding.Latin1.GetString(pdf);
-        if (!TrailerFileIdentifier().IsMatch(text))
+        if (FileIdentifierArray(text) is not { } identifier)
         {
-            // Nothing QuestPDF wrote randomly this time; leave the bytes exactly as generated.
+            // No trailer identifier to pin — nothing here can vary between two renderings of one model.
             return pdf;
         }
 
@@ -135,15 +145,107 @@ public sealed partial class QuestPdfRenderer : IPdfRenderer
             source.AsSpan(20, 12).CopyTo(span[24..]);
         }).ToLowerInvariant();
 
-        text = TrailerFileIdentifier().Replace(text, $"/ID [<{hex}> <{hex}>]");
+        var (start, end) = identifier;
+        text = string.Concat(text.AsSpan(0, start), $"[<{hex}> <{hex}>]", text.AsSpan(end));
         text = XmpDocumentId().Replace(text, uuid);
         text = XmpInstanceId().Replace(text, uuid);
 
         return Encoding.Latin1.GetBytes(text);
     }
 
-    [GeneratedRegex(@"/ID\s*\[\s*<[0-9A-Fa-f]{32}>\s*<[0-9A-Fa-f]{32}>\s*\]")]
-    private static partial Regex TrailerFileIdentifier();
+    /// <summary>
+    /// The half-open bounds of the <c>[…]</c> array that follows <c>/ID</c> in the trailer, or <c>null</c>
+    /// when the file carries no such array. The two strings inside it are read by PDF's string grammar
+    /// rather than by a pattern, so a hex string and a literal string — including one holding escaped or
+    /// balanced parentheses — are both measured correctly.
+    /// </summary>
+    private static (int Start, int End)? FileIdentifierArray(string text)
+    {
+        var trailer = text.LastIndexOf("trailer", StringComparison.Ordinal);
+        if (trailer < 0)
+        {
+            return null;
+        }
+
+        var key = text.IndexOf("/ID", trailer, StringComparison.Ordinal);
+        if (key < 0)
+        {
+            return null;
+        }
+
+        var open = text.IndexOf('[', key);
+        if (open < 0)
+        {
+            return null;
+        }
+
+        var at = open + 1;
+        for (var read = 0; read < 2; read++)
+        {
+            at = SkipWhitespace(text, at);
+            if (at >= text.Length)
+            {
+                return null;
+            }
+
+            at = text[at] switch
+            {
+                '<' when at + 1 < text.Length && text[at + 1] != '<' => EndOfHexString(text, at),
+                '(' => EndOfLiteralString(text, at),
+                _ => -1,
+            };
+
+            if (at < 0)
+            {
+                return null;
+            }
+        }
+
+        at = SkipWhitespace(text, at);
+        return at < text.Length && text[at] == ']' ? (open, at + 1) : null;
+    }
+
+    private static int SkipWhitespace(string text, int at)
+    {
+        while (at < text.Length && char.IsWhiteSpace(text[at]))
+        {
+            at++;
+        }
+
+        return at;
+    }
+
+    /// <summary>One past the closing <c>&gt;</c> of the hex string starting at <paramref name="at" />, or -1.</summary>
+    private static int EndOfHexString(string text, int at)
+    {
+        var close = text.IndexOf('>', at + 1);
+        return close < 0 ? -1 : close + 1;
+    }
+
+    /// <summary>
+    /// One past the closing <c>)</c> of the literal string starting at <paramref name="at" />, or -1.
+    /// A backslash escapes the byte after it, and unescaped parentheses nest, both per the PDF grammar.
+    /// </summary>
+    private static int EndOfLiteralString(string text, int at)
+    {
+        var depth = 0;
+        for (var p = at; p < text.Length; p++)
+        {
+            switch (text[p])
+            {
+                case '\\':
+                    p++;
+                    break;
+                case '(':
+                    depth++;
+                    break;
+                case ')' when --depth == 0:
+                    return p + 1;
+            }
+        }
+
+        return -1;
+    }
 
     [GeneratedRegex(@"(?<=<xmpMM:DocumentID>uuid:)[0-9a-fA-F-]{36}(?=</xmpMM:DocumentID>)")]
     private static partial Regex XmpDocumentId();
