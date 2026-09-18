@@ -76,7 +76,7 @@ schema. No foreign key crosses a schema boundary; cross-module references are id
 application invariants and integration events.
 
 - Good, because ownership is visible in the physical model. A `DbContext` that maps another schema's table is a
-  source-scan architecture rule failure (`ARCH-006`), and the schema layout makes an accidental join obvious in
+  source-scan architecture rule failure (`ARCH-005`), and the schema layout makes an accidental join obvious in
   review.
 - Good, because the atomic invariants remain a single transaction: one connection, one `TransactionScope` across
   the two `DbContext` instances involved, no distributed coordination, no compensation.
@@ -109,7 +109,7 @@ The conventional arrangement: everything in `public`, one context, one migration
 - Good, because referential integrity is enforced by the database everywhere, so orphan rows are impossible.
 - Good, because any join is available to any query, which makes ad-hoc reporting trivial.
 - Bad, because it makes module ownership unenforceable at exactly the layer where violations do the most damage.
-  There is no `ARCH-006` to write, because there is nothing to detect.
+  There is no `ARCH-005` to write, because there is nothing to detect.
 - Bad, because one migration history is a contention point for parallel lanes: two sessions adding migrations in
   the same release collide on ordering.
 - Bad, because it forecloses ADR-0001's extraction path entirely — untangling cross-schema foreign keys after
@@ -215,8 +215,8 @@ flowchart TD
     platformctx --> s_platform
     platformctx --> s_reporting
 
-    ordersctx -.->|"forbidden — ARCH-006"| s_billing
-    billingctx -.->|"forbidden — ARCH-006"| s_orders
+    ordersctx -.->|"forbidden — ARCH-005"| s_billing
+    billingctx -.->|"forbidden — ARCH-005"| s_orders
 
     s_orders -->|"integration events via the outbox"| s_reporting
     s_billing -->|"integration events via the outbox"| s_reporting
@@ -243,7 +243,7 @@ flowchart TD
 | Cross-module referential integrity is not enforced by the database, so orphan references are possible | Data quality overall | Application invariants recorded in [`../architecture/invariants.md`](../architecture/invariants.md); reconciliation jobs in the worker; reporting reconciliation runs that report mismatches rather than hiding them |
 | A convenient cross-module join is unavailable | Whoever writes a report or a screen spanning modules | The Reporting module owns projections built from events and read contracts (ADR-0011); the customer timeline is composed in the BFF from `ITimelineSource` implementations, not by a join |
 | Twelve migration histories mean twelve places a migration can be pending | Operations and the startup check | `/health/startup` fails on any unapplied migration; the `migrate` service runs once before the hosts start; the command-line tool reports per-module state |
-| Nothing at the engine level stops raw SQL across schemas | Reviewers | Role grants narrow it; `ARCH-006` and the source-scan rules detect it; a genuine need requires an architecture decision record amending this one |
+| Nothing at the engine level stops raw SQL across schemas | Reviewers | Role grants narrow it; `ARCH-005` and the source-scan rules detect it; a genuine need requires an architecture decision record amending this one |
 | A single database is a single point of contention: one module's heavy query can affect another | All users | The connection budget separates transactional and reporting pools; `t360_reporting` runs read-only; statement timeouts and the rate-limit catalogue bound the blast radius; a read replica is an option that requires recomputing the budget |
 | Restoring a single module's data alone is not a native operation | Operations, rarely | Accepted. A single-module restore is a logical restore into a scratch database followed by a targeted, reviewed data fix — a runbook procedure (issue #60), not an everyday one |
 | Two `DbContext` instances in one transaction need care with connection sharing | Backend sessions | Handled once in `Platform.Persistence`, with tests for the confirmation participant hook and the audit interceptor (issue #21) |
@@ -252,7 +252,7 @@ flowchart TD
 
 | Check | Mechanism | Where |
 | --- | --- | --- |
-| No `DbContext` maps another schema's tables | Source-scan architecture test | `ARCH-006` in [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) |
+| No `DbContext` maps another schema's tables | Source-scan architecture test | `ARCH-005` in [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) |
 | Only `Contracts` and `Platform.*` cross a module boundary | Project-graph architecture tests | `ARCH-002`, `ARCH-003`, `ARCH-004` |
 | Each schema has its own migration history and migrates from an empty database and from the previous snapshot | Integration tests over Testcontainers PostgreSQL | Issue #21 |
 | The application role cannot update or delete an append-only row | Integration test asserting the trigger rejects the write | Issue #21, re-verified by #57 |
@@ -280,7 +280,7 @@ Revisit if measurement — not intuition — shows one of the following.
 | [`../architecture/module-ownership.md`](../architecture/module-ownership.md) | Which module owns which schema, storage prefix, event and read contract |
 | [`../architecture/invariants.md`](../architecture/invariants.md) | The invariants that replace cross-schema foreign keys |
 | [`../architecture/conventions.md`](../architecture/conventions.md) | Naming, money, time, identifier and concurrency conventions |
-| [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) | `ARCH-006` and the module-boundary rules |
+| [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) | `ARCH-005` and the module-boundary rules |
 | [`../platform/database.md`](../platform/database.md) | Roles, grants and the operational view of the database |
 | [`../dev/migrations.md`](../dev/migrations.md) | How a migration is written, applied and rolled back |
 | [`0001-modular-monolith.md`](0001-modular-monolith.md) | The code half of module ownership and the extraction criteria |

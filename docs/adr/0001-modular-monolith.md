@@ -258,7 +258,7 @@ cheaper.
 | **X2** | **No invariant spans the boundary.** Every write that today commits with another module's write in one transaction has been re-expressed as an event plus a compensating action, and that eventual-consistency window is acceptable to the business in writing | The invariant is listed in [`../architecture/invariants.md`](../architecture/invariants.md) with its compensating action and the owner's acceptance of the window |
 | **X3** | **A measured resource conflict exists that in-process isolation cannot solve.** Load or production telemetry shows the module starving or being starved, after bulkheads, connection budgeting and query tuning have been applied | A load-test or production report against the targets in `docs/nfr/capacity-and-performance.md` (issue #19), plus the record of what in-process mitigation was tried and why it was insufficient |
 | **X4** | **Independent release cadence is genuinely needed.** Changes to this module have been blocked by, or have blocked, unrelated releases repeatedly over a measured period | A count from the release log over at least one quarter, not an anecdote |
-| **X5** | **Data can be physically separated.** The module's schema has no foreign key, view or query referencing another schema, and no other schema references it | A schema inspection attached to the record; `ARCH-006` (no `DbContext` maps another schema's tables) already green |
+| **X5** | **Data can be physically separated.** The module's schema has no foreign key, view or query referencing another schema, and no other schema references it | A schema inspection attached to the record; `ARCH-005` (no `DbContext` maps another schema's tables) already green |
 | **X6** | **Operations can carry another deployable.** A named owner, a deployment pipeline, health and alerting, distributed tracing across the new boundary, contract tests as a release gate, and a backup and restore procedure that keeps the two datastores mutually consistent | The runbook and the alerting configuration exist before extraction, not after; a rehearsed restore covering both datastores |
 | **X7** | **The cost is justified and funded.** The additional infrastructure, monitoring and staffing cost is quantified against the hosting model and accepted by the business owner | A cost note in the superseding record, consistent with the hosting decision (OD-02) |
 
@@ -278,8 +278,8 @@ Two further rules apply to any extraction:
 | --- | --- | --- |
 | Only `Contracts` and `Platform.*` cross a module boundary | Project-graph architecture test | `ARCH-002`, `ARCH-003`, `ARCH-004` in [`../architecture/architecture-rules.md`](../architecture/architecture-rules.md) |
 | `Domain` references only `Platform.Abstractions` | Project-graph architecture test | `ARCH-001` |
-| No `DbContext` maps another schema's tables | Source-scan architecture test | `ARCH-006` |
-| Hosts reference modules only through registration extensions | Project-graph architecture test | `ARCH-009`…`ARCH-012` |
+| No `DbContext` maps another schema's tables | Source-scan architecture test | `ARCH-005` |
+| Hosts reference modules only through registration extensions | Project-graph architecture test | `ARCH-006` |
 | `Billing` never references `Orders`; `Reporting` references only `Contracts` projects | Project-graph architecture tests | Plan Section 8, issue #18 rule list |
 | Every rule's detector still catches a violation | Negative-control test per source-scan rule | `tests/Tailor360.ArchitectureTests` |
 | The extraction criteria were applied | Review of the superseding record against Section 6 | Pull-request review by the technical reviewer |
