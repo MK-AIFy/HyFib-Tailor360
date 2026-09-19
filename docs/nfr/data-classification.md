@@ -20,7 +20,7 @@ presented as settled anywhere in this documentation set.
 | Status | **Draft — proposed classification**; binding when the stakeholder review of issue #19 is signed and OD-08 is decided |
 | Owner of the document | Technical reviewer, with the Owner as approver, the accountant as co-signer for financial classes and a legal adviser for section 12 |
 | Drafted | 2026-09-04 (issue #19, wave W0) |
-| Blocking decisions | **OD-08** retention periods, **OD-05** statutory GST record retention, **OD-02** hosting model (where the data physically rests), **OD-03** providers (who else processes it), **OD-13** permission matrix (who may read it), **OD-14** telemetry backend — see [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) |
+| Blocking decisions | **OD-08** retention periods, **OD-05** statutory GST record retention, **OD-02** hosting model (where the data physically rests), **OD-03** providers (who else processes it), **OD-14** telemetry backend — see [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) |
 | Implemented by | #24 authorisation and field minimisation, #31 media pipeline and retention, #47 notification body retention, #57 privacy, audit, retention and data-subject requests, #58 telemetry redaction, #60 backups |
 | Review cadence | Every release train, on any new personal-data field (the migration checklist of [`../dev/migrations.md`](../dev/migrations.md) requires it), and immediately after any suspected data exposure |
 
