@@ -87,6 +87,25 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\dev.ps1 doctor
 ```
 
+**Clone somewhere short, or turn long paths on.** The longest path in the repository is 142
+characters, and Windows refuses to create a path over 260 unless Git is told otherwise — so a clone
+target deeper than about 117 characters fails part of the way through:
+
+```
+error: unable to create file src/Modules/Catalog/...: Filename too long
+warning: Clone succeeded, but checkout failed.
+```
+
+That warning is the dangerous part: the clone is reported as a success and leaves a **partial**
+working tree, which then fails to build with errors that never mention the cause. `C:\src\tailor360`
+or a folder in your home directory is comfortably inside the limit. If the repository must live
+somewhere deeper, turn the limit off once per machine **before** cloning, and re-clone if you have
+already hit it:
+
+```powershell
+git config --global core.longpaths true
+```
+
 ## 4. macOS (14 Sonoma or newer, Intel or Apple silicon)
 
 ```bash
