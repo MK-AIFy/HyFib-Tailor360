@@ -99,7 +99,7 @@ that pull request merges.** The reviewer checks this as part of Definition-of-Do
 | Setting | Value | Why |
 | --- | --- | --- |
 | Require a pull request before merging | **On** | P1. This is the setting that makes every other one meaningful |
-| Required approving reviews | **1** — **proposed, to be confirmed** (**BP-OD-01**) | P3. One reviewer is the most a two-person project can sustain; see section 5 for the single-maintainer period |
+| Required approving reviews | **0** while there is one maintainer — **decided 2026-09-19** (**BP-OD-01**); **1** once a second has write access | P3. A sole maintainer is also the sole code owner, and GitHub does not let anyone approve their own pull request — so requiring one review here could only be satisfied by turning bypass on, which would make every other row in this table advisory too. Zero reviews with bypass **off** keeps the checks genuinely enforced and leaves only the human reader missing, which is the thing that is actually absent. See section 5 |
 | Dismiss stale pull-request approvals when new commits are pushed | **On** | An approval describes the commits the reviewer read, not the branch's name |
 | Require review from Code Owners | **On, once section 5.2 is resolved** | P3. Inert until `CODEOWNERS` carries handles GitHub accepts |
 | Require approval of the most recent reviewable push | **On** | Stops "approve, then push the real change" — including by the author themselves |
@@ -110,7 +110,7 @@ that pull request merges.** The reviewer checks this as part of Definition-of-Do
 | Require linear history | **On** | P4, and it pairs with squash-only merging in section 7 so that one merge is one commit is one issue |
 | Allow force pushes | **Off** (blocked) | P4. A force-push to `main` destroys the history every audit, revert and `git bisect` depends on |
 | Allow deletions | **Off** (blocked) | P4 |
-| Do not allow bypassing the above settings | **On** — **proposed** (**BP-OD-01**) | An administrator exemption is the setting that quietly turns every rule above into a suggestion |
+| Do not allow bypassing the above settings | **On** — **decided 2026-09-19** (**BP-OD-01**) | An administrator exemption is the setting that quietly turns every rule above into a suggestion. Kept on precisely because the review count is zero: the checks are what is enforcing anything at all |
 | Restrict who can push to matching branches | Not used | With pull requests required and bypass off, there is nobody left to restrict |
 | Lock branch (read-only) | **Off** | `main` is the integration branch |
 
@@ -124,12 +124,12 @@ The merging person is the author or the reviewer; the *approving* person is neve
 rule, and the honest problem is that this project currently has one maintainer, so applying it literally would stop
 all work.
 
-**The interim arrangement — proposed, to be confirmed as DOD-OD-01 / BP-OD-01:**
+**The interim arrangement — decided 2026-09-19 as DOD-OD-01 / BP-OD-01:**
 
 | Situation | Approval | Merge |
 | --- | --- | --- |
 | Two or more maintainers with write access | One approving review from a person who is not the author, and from a code owner where `CODEOWNERS` claims the path | The author, after the approval |
-| A single maintainer, before a second one is added | The author records the self-review explicitly in the pull request — what they re-read, and what they checked against the Definition of Done — and the bypass setting stays **on** only for the accounts named in the decision | The maintainer |
+| A single maintainer, before a second one is added | The author records the self-review explicitly in the pull request — what they re-read, and what they checked against the Definition of Done. Required approving reviews is **0** and the bypass setting stays **off**, so every status check still has to pass: what is relaxed is the second reader, and nothing else | The maintainer |
 | Any change to `/.github/`, `/infra/` or `/src/Platform/` | The same, plus the code-owner rule of section 5.2 once it is live | The maintainer |
 
 The exception is recorded, not silent, and it ends when a second maintainer is added. A self-approval that is not
@@ -285,8 +285,8 @@ These attempts are part of the deliberately-broken-branch evidence #22 records i
 
 | ID | Question | Blocks | Owner | Status |
 | --- | --- | --- | --- | --- |
-| **BP-OD-01** (= **DOD-OD-01**) | The number of approving reviews on a pull request into `main`, and whether the maintainer may approve their own work during the single-maintainer period — and if so, under what recorded conditions | Section 4's review count and bypass rows; the W1 exit gate | Business owner, with the technical reviewer | **Open** — section 5.1 states the proposed interim arrangement |
-| **BP-OD-02** | Whether the repository moves to a plan (or to an organisation) that can enforce branch protection on a private repository, and by when | Whether P1 to P4 are enforced or merely documented | Business owner | **Open** — section 6 states the degradation until it is answered |
+| **BP-OD-01** (= **DOD-OD-01**) | The number of approving reviews on a pull request into `main`, and whether the maintainer may approve their own work during the single-maintainer period — and if so, under what recorded conditions | Section 4's review count and bypass rows; the W1 exit gate | Business owner, with the technical reviewer | **Decided 2026-09-19** — zero reviews, bypass off, every check required; one review once a second maintainer has write access. Self-approval is never used, because it is never possible |
+| **BP-OD-02** | Whether the repository moves to a plan (or to an organisation) that can enforce branch protection on a private repository, and by when | Whether P1 to P4 are enforced or merely documented | Business owner | **Resolved by fact, 2026-09-19** — the repository is **public**, so branch protection is available on it today and the degradation of section 6 does not apply. The question returns only if it is ever made private |
 | **BP-OD-03** | Personal handles in `CODEOWNERS` now, or an organisation with two teams | Code-owner review; the separation of duties on `/infra/`, `/.github/` and `/src/Platform/` | Business owner | **Open** — section 5.2 |
 | **BP-OD-04** | Whether commits must be signed, and who manages the keys | Section 4's signed-commits row | Technical reviewer | **Proposed** — off for now; artefact signing in #59 is the property releases depend on |
 | **BP-OD-05** | Whether the required set collapses to the single `CI gate` name, or keeps naming every job | Section 3's table, and how much a job added without a table entry can escape. Collapsing makes the setting immune to a job being renamed, and makes it blind to a job being added and left out of the gate's `needs:` — the two halves of section 3.1's failure modes, traded against each other | Technical reviewer | **Open** — raised by #495, which added `CI gate` as an addition rather than a replacement precisely so the question could be answered separately |

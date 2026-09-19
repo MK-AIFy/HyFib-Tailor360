@@ -40,7 +40,7 @@ answer, and the signature blocks, so that the review is conducted against it and
 flowchart TD
     docs[Six NFR documents<br/>every number marked<br/>proposed, to be confirmed] --> review[Stakeholder review]
     risk[risk-review.md<br/>targets that may be<br/>infeasible or costly] --> review
-    ods[Open owner decisions<br/>OD-02, OD-05, OD-07, OD-08,<br/>OD-12, OD-13, OD-14, OD-15] --> review
+    ods[Open owner decisions<br/>OD-02, OD-05, OD-07, OD-08,<br/>OD-12, OD-14, OD-15] --> review
     review --> confirmed[Targets confirmed<br/>or changed with reasons]
     review --> decided[Decisions taken<br/>and dated]
     review --> waived[Targets accepted as<br/>infeasible, with the<br/>alternative recorded]
