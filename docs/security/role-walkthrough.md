@@ -15,11 +15,16 @@ Read it with [`permission-matrix.md`](permission-matrix.md) for the grants being
 
 ## 1. Status
 
-> **Section 3.1 is run and recorded. Sections 3.2 and 4 to 6 are not.** One of the two things blocking them has
-> since landed: #25 shipped the administration surface, so the twenty-four users of section 3.2 can now be created
-> through the screens rather than needing a database client. What is still missing is the other half — endpoints
-> that enforce a permission on business resources, which arrive with #32a — so sections 4 to 6 have almost nothing
-> to exercise yet. The administrative rows are the exception and can be run today; they are also covered by
+> **Section 3.1 is run and recorded. Sections 3.2 and 4 to 6 are not — and both things once blocking them have
+> since landed.** #25 shipped the administration surface, so the twenty-four users of section 3.2 can be created
+> through the screens rather than needing a database client. And the endpoints that enforce a permission on
+> business resources — the thing this status block called "#32a" — are not a future issue either: `#32a` was a
+> plan-section placeholder that was never filed as a GitHub issue, and the routes it named are the 186 permissioned
+> endpoints [`permission-matrix.md`](permission-matrix.md) records today across Billing, Customers, Catalog and
+> Orders, exercised in the wild since #26 (2026-09-11) and documented as a whole in
+> [`threat-models/authorisation.md`](threat-models/authorisation.md) (#578, 2026-09-19). Sections 4 to 6 are
+> **runnable now**; what remains is the run itself, which needs a person at the application, not a fifth
+> engineering issue. The administrative rows are also covered by
 > [`../process/uat-administration.md`](../process/uat-administration.md), which is #25's own acceptance script.
 
 | | |
@@ -27,7 +32,7 @@ Read it with [`permission-matrix.md`](permission-matrix.md) for the grants being
 | **Written by** | Issue #24, on 2026-09-06 |
 | **Last run** | 2026-09-06 — section 3.1 only, on PostgreSQL 16, `Development`, a freshly created database |
 | **Run by** | The #24 review pass, transcript in the pull request |
-| **Blocked on** | Sections 4 to 6: endpoints that enforce a permission on business resources (#32a). Section 3.2 is unblocked — #25 shipped the administration screens on 2026-09-07 |
+| **Blocked on** | Nothing engineering-wise, as of 2026-09-19. Sections 3.2, 4, 5 and 6 wait only on a person's time — see section 1's status paragraph for why the two things previously named here no longer apply |
 | **Evidence expected** | For each step, either a screenshot or the RFC 9457 problem-details body, with the correlation identifier. Personal data is edited out before the evidence is attached — see section 7 |
 
 ---
@@ -78,8 +83,9 @@ did. `seed-synthetic` opens the two branches the rest of this document refers to
 ### 3.2 The twenty-four users
 
 One user per role in each branch, so that every "own branch / other branch" pair below has a subject. Accounts are
-created through the administration screens of issue #25; until those exist, section 3.2 cannot be run — and
-`seed-synthetic` says so in its own output rather than creating them silently.
+created through the administration screens of issue #25, which have shipped and are tested since 2026-09-07;
+`seed-synthetic` deliberately does not create them itself, and says so in its own output, so that this section is
+run against the same invitation-and-enrolment path a real administrator uses rather than against a shortcut.
 
 What *is* verified today, and by a test rather than by hand, is the answer each of these twenty-four people would
 get: [`RoleMatrixTests`](../../tests/Tailor360.IntegrationTests/Authorization/RoleMatrixTests.cs) seeds one

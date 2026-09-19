@@ -760,13 +760,11 @@ cmd_doctor() {
   # Optional: only './scripts/dev docs' needs it, and that check also runs in CI.
   doctor_tool "python3" python3 no python3 --version || true
 
-  local docker_daemon=no
   if have docker; then
     if docker_daemon_available; then
-      docker_daemon=yes
       doctor_row "Docker daemon" "AVAILABLE" "$(docker version --format '{{.Server.Version}}' 2>/dev/null || printf 'reachable')"
     else
-      doctor_row "Docker daemon" "UNAVAILABLE" "CLI present, no daemon — Testcontainers cannot run"
+      doctor_row "Docker daemon" "UNAVAILABLE" "CLI present, no daemon"
     fi
   else
     doctor_row "Docker daemon" "MISSING" "optional — see docs/dev/troubleshooting.md"
@@ -779,13 +777,13 @@ cmd_doctor() {
     # The value itself is never printed: it normally carries a password.
     doctor_row "TAILOR360_TEST_DATABASE_URL" "SET" "${PG_HOST}:${PG_PORT}/${PG_DB} (value not printed)"
   else
-    doctor_row "TAILOR360_TEST_DATABASE_URL" "UNSET" "Integration tier falls back to Testcontainers"
+    doctor_row "TAILOR360_TEST_DATABASE_URL" "UNSET" "Integration tier skips (no Testcontainers fallback exists)"
   fi
   if [ -n "${TAILOR360_TEST_S3_ENDPOINT:-}" ]; then
     storage_url_set=yes
     doctor_row "TAILOR360_TEST_S3_ENDPOINT" "SET" "${TAILOR360_TEST_S3_ENDPOINT}"
   else
-    doctor_row "TAILOR360_TEST_S3_ENDPOINT" "UNSET" "media tests use Testcontainers or skip"
+    doctor_row "TAILOR360_TEST_S3_ENDPOINT" "UNSET" "media tests skip (no Testcontainers fallback exists)"
   fi
 
   local browsers_path browsers=no
@@ -805,10 +803,12 @@ cmd_doctor() {
 
   if [ "$database_url_set" = "yes" ]; then
     doctor_row "Integration" "RUNS" "against TAILOR360_TEST_DATABASE_URL"
-  elif [ "$docker_daemon" = "yes" ]; then
-    doctor_row "Integration" "RUNS" "Testcontainers on the local Docker daemon"
   else
-    doctor_row "Integration" "SKIPPED" "no database and no Docker daemon"
+    # Docker alone is not enough: DatabaseAvailability.Probe() only ever checks the environment
+    # variable above. Testcontainers.PostgreSql is referenced in the test project but nothing calls
+    # it, so a reachable daemon with no TAILOR360_TEST_DATABASE_URL still skips the whole tier —
+    # this used to read "RUNS — Testcontainers on the local Docker daemon", which was never true.
+    doctor_row "Integration" "SKIPPED" "no TAILOR360_TEST_DATABASE_URL (Docker alone does not run this tier — see #580)"
   fi
 
   local e2e_suite="tests/e2e arrives with issue #52"
@@ -820,12 +820,13 @@ cmd_doctor() {
   fi
 
   printf '\n'
-  if [ "$database_url_set" != "yes" ] && [ "$docker_daemon" != "yes" ]; then
+  if [ "$database_url_set" != "yes" ]; then
     info "Integration tests will skip with a visible warning here. Set TAILOR360_TEST_DATABASE_URL"
-    info "(and TAILOR360_TEST_S3_ENDPOINT for media) to run them, or use a machine with Docker."
+    info "(and TAILOR360_TEST_S3_ENDPOINT for media) to run them — a reachable Docker daemon alone"
+    info "does not (#580): nothing in the test project starts a container from it."
     info "CI=true turns that skip into a failure, so the tier is never silently lost on the way to main."
   fi
-  if [ "$storage_url_set" != "yes" ] && [ "$docker_daemon" != "yes" ]; then
+  if [ "$storage_url_set" != "yes" ]; then
     info "Object-storage tests have no endpoint here and will skip for the same reason."
   fi
   if [ "$browsers" != "yes" ]; then
