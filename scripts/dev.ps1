@@ -796,15 +796,13 @@ function Invoke-Doctor {
     }
   }
 
-  $dockerDaemon = $false
   if (Test-Tool 'docker') {
     if (Test-DockerDaemon) {
-      $dockerDaemon = $true
       $serverVersion = (& docker version --format '{{.Server.Version}}' 2>$null | Select-Object -First 1)
       if ([string]::IsNullOrWhiteSpace($serverVersion)) { $serverVersion = 'reachable' }
       Write-DoctorRow 'Docker daemon' 'AVAILABLE' $serverVersion
     } else {
-      Write-DoctorRow 'Docker daemon' 'UNAVAILABLE' 'CLI present, no daemon - Testcontainers cannot run'
+      Write-DoctorRow 'Docker daemon' 'UNAVAILABLE' 'CLI present, no daemon'
     }
   } else {
     Write-DoctorRow 'Docker daemon' 'MISSING' 'optional - see docs/dev/troubleshooting.md'
@@ -816,14 +814,14 @@ function Invoke-Doctor {
     # The value itself is never printed: it normally carries a password.
     Write-DoctorRow 'TAILOR360_TEST_DATABASE_URL' 'SET' "$($target.Host):$($target.Port)/$($target.Database) (value not printed)"
   } else {
-    Write-DoctorRow 'TAILOR360_TEST_DATABASE_URL' 'UNSET' 'Integration tier falls back to Testcontainers'
+    Write-DoctorRow 'TAILOR360_TEST_DATABASE_URL' 'UNSET' 'Integration tier skips (no Testcontainers fallback exists)'
   }
 
   $storageUrlSet = -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('TAILOR360_TEST_S3_ENDPOINT'))
   if ($storageUrlSet) {
     Write-DoctorRow 'TAILOR360_TEST_S3_ENDPOINT' 'SET' ([Environment]::GetEnvironmentVariable('TAILOR360_TEST_S3_ENDPOINT'))
   } else {
-    Write-DoctorRow 'TAILOR360_TEST_S3_ENDPOINT' 'UNSET' 'media tests use Testcontainers or skip'
+    Write-DoctorRow 'TAILOR360_TEST_S3_ENDPOINT' 'UNSET' 'media tests skip (no Testcontainers fallback exists)'
   }
 
   $browsersPath = Get-PlaywrightBrowsersPath
@@ -847,10 +845,12 @@ function Invoke-Doctor {
 
   if ($databaseUrlSet) {
     Write-DoctorRow 'Integration' 'RUNS' 'against TAILOR360_TEST_DATABASE_URL'
-  } elseif ($dockerDaemon) {
-    Write-DoctorRow 'Integration' 'RUNS' 'Testcontainers on the local Docker daemon'
   } else {
-    Write-DoctorRow 'Integration' 'SKIPPED' 'no database and no Docker daemon'
+    # Docker alone is not enough: DatabaseAvailability.Probe() only ever checks the environment
+    # variable above. Testcontainers.PostgreSql is referenced in the test project but nothing calls
+    # it, so a reachable daemon with no TAILOR360_TEST_DATABASE_URL still skips the whole tier -
+    # this used to read "RUNS - Testcontainers on the local Docker daemon", which was never true.
+    Write-DoctorRow 'Integration' 'SKIPPED' 'no TAILOR360_TEST_DATABASE_URL (Docker alone does not run this tier - see #580)'
   }
 
   $e2eSuite = 'tests/e2e arrives with issue #52'
@@ -862,12 +862,13 @@ function Invoke-Doctor {
   }
 
   Write-Host ''
-  if (-not $databaseUrlSet -and -not $dockerDaemon) {
+  if (-not $databaseUrlSet) {
     Write-Info 'Integration tests will skip with a visible warning here. Set TAILOR360_TEST_DATABASE_URL'
-    Write-Info '(and TAILOR360_TEST_S3_ENDPOINT for media) to run them, or use a machine with Docker.'
+    Write-Info '(and TAILOR360_TEST_S3_ENDPOINT for media) to run them - a reachable Docker daemon alone'
+    Write-Info 'does not (#580): nothing in the test project starts a container from it.'
     Write-Info 'CI=true turns that skip into a failure, so the tier is never silently lost on the way to main.'
   }
-  if (-not $storageUrlSet -and -not $dockerDaemon) {
+  if (-not $storageUrlSet) {
     Write-Info 'Object-storage tests have no endpoint here and will skip for the same reason.'
   }
   if (-not $browsers) {
