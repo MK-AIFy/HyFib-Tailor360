@@ -268,7 +268,7 @@ Step by step:
 | Ref | Question | Owner | Status |
 | --- | --- | --- | --- |
 | OD-12 | The authentication strategy behind stage 8, the MFA-required role set, and whether a revocable trusted-device cookie exists for shared counter devices | Business owner, with the technical reviewer | Open, raised 2026-09-03, needed before W1 |
-| OD-13 | The permission catalogue's default role grants, which stage 10 evaluates and the authorisation matrix fixtures assert | Business owner | Open, raised 2026-09-03, needed before W1 exit |
+| OD-13 | The permission catalogue's default role grants, which stage 10 evaluates and the authorisation matrix fixtures assert | Business owner | **Decided 2026-09-19** — approved as shipped, Branch Manager a distinct role |
 | OD-04 | The dispatch payment rule, which decides the semantics Billing's dispatch-eligibility contract returns and who may approve an exception | Business owner | Open, raised 2026-09-03, needed before W4 |
 | — | The numeric limits in the stage 7 rate-limit policy catalogue | Issue #19 | **Proposed, to be confirmed**; the catalogue's shape is fixed, its numbers are not |
 

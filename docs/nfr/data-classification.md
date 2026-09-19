@@ -127,7 +127,7 @@ somebody promises to be careful.
    rehearsal on the staging virtual machine is the single exception and runs under the same access controls as
    production, with the restored environment torn down afterwards (#60).
 7. **A class is not a permission.** These rules say what handling is required; the actual role-to-permission grants
-   are `docs/security/permission-matrix.md` (#24) and are open decision **OD-13**. Permission names used below are
+   are `docs/security/permission-matrix.md` (#24), approved on 2026-09-19 as **OD-13**. Permission names used below are
    the plan's catalogue examples, not an approved grant.
 
 ---

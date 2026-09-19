@@ -18,15 +18,16 @@ Read it with [`../prd/raci.md`](../prd/raci.md) for who is accountable for each 
 
 ## 1. Status
 
-> **Not approved.** This document is the thing owner decision **OD-13** approves, and OD-13 is open. Everything
-> below is the engineering proposal, traced clause by clause to the product documents. Nothing here is a decision
-> the business has taken.
+> **Approved — 2026-09-19.** This document is the thing owner decision **OD-13** approves, and the business owner has
+> approved it as it stands: the default role-to-permission grants below, and Branch Manager as a distinct role.
+> It is no longer a proposal. Changing a grant from here on is a change to an approved document, and follows the
+> review cadence in the table below rather than being edited in passing.
 
 | | |
 | --- | --- |
 | **Delivered by** | Issue #24, on 2026-09-06 |
 | **Approves** | OD-13 in [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) — the default role-to-permission grants and any custom roles required at launch |
-| **Approval state** | **Open.** Not reviewed with the business owner; not signed off |
+| **Approval state** | **Approved 2026-09-19** by the business owner — the grants as shipped, with Branch Manager a distinct role. See OD-13 in [`../prd/assumptions-and-open-decisions.md`](../prd/assumptions-and-open-decisions.md) for what was weighed |
 | **Enforced today** | The catalogue, the twelve roles and their default grants are code and seed data, and the tests in section 8 hold this document equal to them, to the route table and to the answers the application actually gives. **Business endpoints declare permissions across every module** — section 5 lists the 208 routes now published, where on 2026-09-06 there were twenty-eight and they were #23's authentication surface and the host's own. The grants are exercised as real requests: `RoleMatrixTests` asks for each of the 107 permissions as each of the twelve roles, in the caller's own branch and in another, against a real database and a real session |
 | **Review cadence once approved** | Quarterly, and whenever a custom role is created ([`../nfr/security-operations-targets.md`](../nfr/security-operations-targets.md)) |
 

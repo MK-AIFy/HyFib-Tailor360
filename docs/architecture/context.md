@@ -105,7 +105,7 @@ flowchart TD
 ### 3.1 The eight shop-floor and management roles
 
 Roles are **default permission bundles**. Authorisation is always evaluated on permission plus branch scope, never
-on a role name (plan Section 4.4, issue #24). The default grants themselves are an open decision — **OD-13**,
+on a role name (plan Section 4.4, issue #24). The default grants themselves were approved on 2026-09-19 — **OD-13**,
 plan [Section 11](../IMPLEMENTATION_PLAN.md) item 13.
 
 The permission column below quotes **only** permission keys the implementation plan already names. The catalogue
@@ -289,7 +289,7 @@ plan [Section 11](../IMPLEMENTATION_PLAN.md).
 | OD-08 | Retention periods for measurements, images, feedback free text, notification bodies, logs and backups | Business owner, co-signed by the accountant | Open, raised 2026-09-03, needed before W1 exit |
 | OD-09 | Thermal label size and whether a QR code accompanies the Code 128 | Business owner | Open, raised 2026-09-03, needed before W3 |
 | OD-12 | Local staff accounts versus federation, the MFA-required role set, and whether counter devices are shared or personal | Business owner, with the technical reviewer | Open, raised 2026-09-03, needed before W1 |
-| OD-13 | The default role-to-permission grants behind the eight roles in Section 3.1 | Business owner | Open, raised 2026-09-03, needed before W1 exit |
+| OD-13 | The default role-to-permission grants behind the eight roles in Section 3.1 | Business owner | **Decided 2026-09-19** — approved as shipped, Branch Manager a distinct role |
 | OD-14 | Hosted telemetry backend versus the self-hosted stack | Business owner | Open, raised 2026-09-03, needed before W5 |
 | OD-15 | Who receives priority-one pages out of hours, and on which channel | Business owner | Open, raised 2026-09-03, needed before W5 |
 
