@@ -1,0 +1,99 @@
+/*
+ * The customer screens: search, detail and create.
+ *
+ * Every value is a token. `.customers__detailGrid` mirrors `admin.css`'s own detail grid rather than
+ * sharing the class across sections — the `minmax(0, …)` fix and the container query are the same
+ * genuine correctness fix (an unbroken value, such as an email address, must not push the row past
+ * the viewport at 320 px), kept local to this tree rather than coupling two otherwise-unrelated route
+ * groups to one shared class.
+ */
+@layer components {
+  .customers h1,
+  .customers h2 {
+    overflow-wrap: anywhere;
+  }
+
+  .customers__lede {
+    max-inline-size: 60ch;
+    color: var(--colour-ink-muted);
+  }
+
+  .customers__number {
+    color: var(--colour-ink-muted);
+  }
+
+  .customers__hint {
+    max-inline-size: 48ch;
+    color: var(--colour-ink-muted);
+    font-size: var(--font-size-100);
+  }
+
+  /* Not `.customers__hint`: that colour is calibrated against the page background, and the warning
+     alert's own surface does not change with the theme the way the page does — pairing them failed
+     contrast in the dark theme (foreground/background ratio 1.27, against a 4.5:1 floor). `--alert-ink`
+     is the tone-correct colour `Alert` itself already uses for its border and its icon. */
+  .customers__duplicatesHint {
+    max-inline-size: 48ch;
+    color: var(--alert-ink);
+    font-size: var(--font-size-100);
+  }
+
+  .customers__search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+    margin-block-end: var(--space-4);
+  }
+
+  .customers__search > :first-child {
+    flex: 1 1 16rem;
+    min-inline-size: 0;
+  }
+
+  .customers__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-inline-size: 60ch;
+  }
+
+  .customers__results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-block-end: var(--space-4);
+  }
+
+  .customers__createCard {
+    max-inline-size: 60ch;
+  }
+
+  .customers__detailGrid {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
+    margin: var(--space-4) 0;
+    container-type: inline-size;
+    container-name: customers-detail;
+  }
+
+  .customers__detailGrid dt {
+    color: var(--colour-ink-muted);
+  }
+
+  .customers__detailGrid dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  @container customers-detail (width < 22rem) {
+    .customers__detailGrid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .customers__detailGrid dd {
+      margin-block-end: var(--space-2);
+    }
+  }
+}

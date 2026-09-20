@@ -18,6 +18,7 @@ import { adminEn, adminTa } from './admin'
 import { billingEn, billingTa } from './billing'
 import { catalogEn, catalogTa } from './catalog'
 import { authEn, authTa } from './auth'
+import { customersEn, customersTa } from './customers'
 import { dialogsEn, dialogsTa } from './dialogs'
 import { formsEn, formsTa } from './forms'
 import { installEn, installTa } from './install'
@@ -43,6 +44,7 @@ export const messagesEn = {
   ...authEn,
   ...adminEn,
   ...catalogEn,
+  ...customersEn,
   ...measurementsEn,
   ...billingEn,
   ...pricingEn,
@@ -61,6 +63,7 @@ export const messagesTa = {
   ...authTa,
   ...adminTa,
   ...catalogTa,
+  ...customersTa,
   ...measurementsTa,
   ...billingTa,
   ...pricingTa,
