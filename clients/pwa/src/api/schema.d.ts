@@ -3166,6 +3166,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload an image into quarantine.
+         * @description Accepts the raw bytes and writes them straight to the quarantine bucket, undecoded (ADR-0005 §4). 202, not 201: validation, the malware scan, metadata strip, derivative generation and promotion to Ready all happen asynchronously in the worker (issue #593) — nothing here is a finished, resolvable object yet.
+         */
+        post: operations["UploadMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/drafts": {
         parameters: {
             query?: never;
@@ -4445,6 +4465,8 @@ export interface components {
             stateCode: null | string;
             tradeName: null | string;
         };
+        /** Format: binary */
+        IFormFile: string;
         IResult: Record<string, never>;
         InviteStaffMemberPayload: {
             displayName: null | string;
@@ -4806,6 +4828,15 @@ export interface components {
             measurementVersionId: string;
             name: string;
             version: components["schemas"]["TemplateVersionPayload"];
+        };
+        MediaObjectPayload: {
+            contentType: string;
+            /** Format: uuid */
+            id: string;
+            purpose: string;
+            /** Format: int64 */
+            sizeBytes: number | string;
+            status: string;
         };
         MergeCustomerRequest: {
             /** Format: uuid */
@@ -16540,6 +16571,73 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             415: components["responses"]["UnsupportedMediaType"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    UploadMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "altText": null,
+                 *       "customerId": "0199c2f0-0000-7000-8000-0000000000e1",
+                 *       "file": "(binary — the image bytes)",
+                 *       "jobId": null,
+                 *       "orderId": null,
+                 *       "purpose": "Reference"
+                 *     }
+                 */
+                "multipart/form-data": components["schemas"]["IFormFile"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaObjectPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
