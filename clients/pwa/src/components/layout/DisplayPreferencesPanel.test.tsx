@@ -469,9 +469,19 @@ describe('account-backed preferences', () => {
     transport.route('GET /api/v1/me', () => problemResponse(401, 'identity.session-required'))
     const { getByRole } = renderAccountBackedPanel()
 
-    await waitFor(() => {
-      expect(getByRole('radio', { name: 'Dark' })).toBeEnabled()
-    })
+    // This is the only test in the block whose first render resolves through a 401, and reading a
+    // problem-details body (`readProblem`'s `response.json()`) before the catch handler sets
+    // `status: 'anonymous'` is measurably slower than the plain 200 the other tests start from —
+    // occasionally slower than the default 1000ms, seen directly by instrumenting the provider and
+    // confirming the store's `read()` always resolves and is never lost, just later than the default
+    // gives it credit for. A longer timeout here is honest about that extra hop, not a cover for a
+    // hang.
+    await waitFor(
+      () => {
+        expect(getByRole('radio', { name: 'Dark' })).toBeEnabled()
+      },
+      { timeout: 3000 },
+    )
     await user.click(getByRole('radio', { name: 'High contrast — for sunlight' }))
     expect(document.documentElement).toHaveAttribute('data-theme', 'contrast')
 
