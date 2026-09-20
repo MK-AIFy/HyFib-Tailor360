@@ -7079,6 +7079,9 @@
           "reducedMotion": {
             "type": "boolean"
           },
+          "textSize": {
+            "type": "string"
+          },
           "theme": {
             "type": "string"
           },
@@ -7090,6 +7093,7 @@
           "locale",
           "timeZoneId",
           "theme",
+          "textSize",
           "density",
           "reducedMotion",
           "landingRoute"
@@ -10734,6 +10738,59 @@
           "publishedAt",
           "retiredAt",
           "fields"
+        ],
+        "type": "object"
+      },
+      "UpdatePreferencesRequest": {
+        "properties": {
+          "density": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "landingRoute": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locale": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reducedMotion": {
+            "type": "boolean"
+          },
+          "textSize": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "theme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeZoneId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "locale",
+          "timeZoneId",
+          "theme",
+          "textSize",
+          "density",
+          "reducedMotion",
+          "landingRoute"
         ],
         "type": "object"
       },
@@ -28610,6 +28667,76 @@
         ],
         "x-tailor360-authorisation": "session",
         "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/me/preferences": {
+      "put": {
+        "operationId": "UpdateMyPreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "density": "Compact",
+                "landingRoute": "/orders/workboard",
+                "locale": "ta-IN",
+                "reducedMotion": false,
+                "textSize": "Large",
+                "theme": "Dark",
+                "timeZoneId": "Asia/Kolkata"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Replace the caller's own interface preferences.",
+        "tags": [
+          "Authentication"
+        ],
+        "x-tailor360-audit": "identity.preferences.changed",
+        "x-tailor360-authorisation": "session",
+        "x-tailor360-rate-limit": "write"
       }
     },
     "/api/v1/orders/drafts": {

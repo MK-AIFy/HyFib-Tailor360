@@ -56,6 +56,7 @@ public sealed record AccountSecurityPayload(
 /// <param name="Locale">The BCP 47 language tag.</param>
 /// <param name="TimeZoneId">The IANA timezone dates are shown in.</param>
 /// <param name="Theme">Light, dark, high contrast or whatever the device asks for.</param>
+/// <param name="TextSize">100%, 125% or 150%, independently of the device's own zoom.</param>
 /// <param name="Density">How tightly the interface packs information.</param>
 /// <param name="ReducedMotion">True when animation is suppressed beyond what the device reports.</param>
 /// <param name="LandingRoute">Where the holder lands after signing in, when they have chosen.</param>
@@ -63,6 +64,7 @@ public sealed record PreferencesPayload(
     string Locale,
     string TimeZoneId,
     string Theme,
+    string TextSize,
     string Density,
     bool ReducedMotion,
     string? LandingRoute)
@@ -76,11 +78,35 @@ public sealed record PreferencesPayload(
             preferences.Locale,
             preferences.TimeZoneId,
             preferences.Theme.ToString(),
+            preferences.TextSize.ToString(),
             preferences.Density.ToString(),
             preferences.ReducedMotion,
             preferences.LandingRoute);
     }
 }
+
+/// <summary>
+/// What a client sends to replace every one of its own interface preferences. A full replacement, never
+/// a partial update — <c>PUT</c> means all seven members are supplied, including <c>timeZoneId</c>, so
+/// that what <c>GET /api/v1/me</c> returns afterwards is exactly what was sent.
+/// </summary>
+/// <param name="Locale">The BCP 47 language tag.</param>
+/// <param name="TimeZoneId">The IANA timezone identifier.</param>
+/// <param name="Theme">One of the declared theme names.</param>
+/// <param name="TextSize">One of the declared text-size names.</param>
+/// <param name="Density">One of the declared density names.</param>
+/// <param name="ReducedMotion">True to suppress animation beyond what the device already reports.</param>
+/// <param name="LandingRoute">
+/// The in-application path to land on after signing in, or null/empty to clear it.
+/// </param>
+public sealed record UpdatePreferencesRequest(
+    string? Locale,
+    string? TimeZoneId,
+    string? Theme,
+    string? TextSize,
+    string? Density,
+    bool ReducedMotion,
+    string? LandingRoute);
 
 /// <summary>One row of the holder's own session and device inventory.</summary>
 /// <remarks>

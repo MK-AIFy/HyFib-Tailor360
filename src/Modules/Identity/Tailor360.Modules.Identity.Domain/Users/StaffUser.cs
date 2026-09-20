@@ -718,6 +718,18 @@ public sealed class StaffUser
     /// <summary>The account's own text, for the password policy to screen a candidate against.</summary>
     public PasswordContext PasswordContext() => new(UserName, Email, DisplayName);
 
+    /// <summary>
+    /// Returns the account's preferences, materialising the default set first for an account whose row
+    /// predates the field. <see cref="Preferences"/> keeps its private setter because every other write
+    /// to it goes through the returned entity's own methods, never through a replacement here.
+    /// </summary>
+    /// <param name="now">The current instant, from <c>IClock</c>.</param>
+    public UserPreferences EnsurePreferences(DateTimeOffset now)
+    {
+        Preferences ??= UserPreferences.CreateDefault(Id, now);
+        return Preferences;
+    }
+
     private void ClearSecondFactors(DateTimeOffset now)
     {
         Totp = null;

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Identity.Api.Payloads;
 using Tailor360.Modules.Identity.Application.Me;
+using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Platform.Security.Authentication;
 using Tailor360.Platform.Security.Authorisation;
 using Tailor360.Platform.Security.Endpoints;
@@ -88,6 +89,56 @@ public static class MeEndpoints
             .WithName("GetCurrentUser")
             .WithSummary("Return the caller's account, preferences and session expiry.")
             .Produces<CurrentUserResponse>(StatusCodes.Status200OK)
+            .WithTags(IdentityRoutes.AuthTag);
+
+        me.MapPut("/preferences", async Task<IResult> (
+                HttpContext context,
+                UpdatePreferencesRequest request,
+                PreferencesHandler handler,
+                ICurrentUser caller,
+                CancellationToken cancellationToken) =>
+            {
+                if (!EnumText.TryRead<InterfaceTheme>(request.Theme, out var theme))
+                {
+                    return Problems.From(IdentityApiErrors.ThemeNotRecognised, context);
+                }
+
+                if (!EnumText.TryRead<InterfaceTextSize>(request.TextSize, out var textSize))
+                {
+                    return Problems.From(IdentityApiErrors.TextSizeNotRecognised, context);
+                }
+
+                if (!EnumText.TryRead<InterfaceDensity>(request.Density, out var density))
+                {
+                    return Problems.From(IdentityApiErrors.DensityNotRecognised, context);
+                }
+
+                var result = await handler.UpdateAsync(
+                    caller.UserId,
+                    request.Locale,
+                    request.TimeZoneId,
+                    theme,
+                    textSize,
+                    density,
+                    request.ReducedMotion,
+                    request.LandingRoute,
+                    cancellationToken);
+
+                return result.IsSuccess
+                    ? Results.Ok(PreferencesPayload.From(result.Value))
+                    : Problems.From(result.Error, context);
+            })
+            .RequireSignedInHolder(
+                "This changes only the caller's own account, taken from the session and never from the "
+                + "request. A permission gating a person's own text size or theme would have to be held "
+                + "by every role to be useful, which is what makes a self-service level the right "
+                + "control rather than a missing one.",
+                "#50, docs/nfr/accessibility-localisation.md")
+            .RequireRateLimiting(RateLimitPolicyNames.Write)
+            .Audited(PreferencesHandler.ChangedAction)
+            .WithName("UpdateMyPreferences")
+            .WithSummary("Replace the caller's own interface preferences.")
+            .Produces<PreferencesPayload>(StatusCodes.Status200OK)
             .WithTags(IdentityRoutes.AuthTag);
 
         return me;

@@ -241,6 +241,7 @@ public static class IdentityModuleServiceCollectionExtensions
         services.TryAddScoped<IIdentityStore, IdentityStore>();
         services.TryAddScoped<IMfaChallengeService, MfaChallengeService>();
         services.TryAddScoped<TotpEnrolmentHandler>();
+        services.TryAddScoped<PreferencesHandler>();
         services.TryAddScoped<UserAdministrationHandler>();
         services.TryAddScoped<IUserAssignmentStore, UserAssignmentStore>();
         services.TryAddScoped<IStaffDirectory, StaffDirectory>();

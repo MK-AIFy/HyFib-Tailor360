@@ -80,4 +80,22 @@ public static class IdentityApiErrors
         "identity.factor-not-recognised",
         "Choose either an authenticator code or a recovery code.",
         "factor");
+
+    /// <summary>The theme named in a preferences write is not one this interface offers.</summary>
+    public static Error ThemeNotRecognised { get; } = Error.Validation(
+        "identity.theme-not-recognised",
+        "Choose System, Light, Dark or HighContrast.",
+        "theme");
+
+    /// <summary>The text size named in a preferences write is not one this interface offers.</summary>
+    public static Error TextSizeNotRecognised { get; } = Error.Validation(
+        "identity.text-size-not-recognised",
+        "Choose Standard, Large or Larger.",
+        "textSize");
+
+    /// <summary>The density named in a preferences write is not one this interface offers.</summary>
+    public static Error DensityNotRecognised { get; } = Error.Validation(
+        "identity.density-not-recognised",
+        "Choose Comfortable or Compact.",
+        "density");
 }

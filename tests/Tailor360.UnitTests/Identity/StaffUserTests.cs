@@ -57,6 +57,19 @@ public sealed class StaffUserTests
             IdentityTestData.Now).Error.ShouldBe(IdentityErrors.EmailNotUsable);
 
     [Fact]
+    public void EnsuringPreferencesOnAnAccountThatAlreadyHasThemReturnsTheSameInstance()
+    {
+        // Invite already materialises the default set, so this exercises the "return the existing one"
+        // half of the contract. The "materialise a missing row" half needs an account whose row predates
+        // the field, which only a real database row can produce, and is covered at the integration tier.
+        var user = IdentityTestData.Active();
+        var first = user.Preferences;
+
+        first.ShouldNotBeNull();
+        user.EnsurePreferences(IdentityTestData.Now).ShouldBeSameAs(first);
+    }
+
+    [Fact]
     public void ADeactivatedAccountCannotAuthenticate()
     {
         var user = IdentityTestData.Active();

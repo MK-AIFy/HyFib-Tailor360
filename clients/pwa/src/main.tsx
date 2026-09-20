@@ -29,7 +29,7 @@ createRoot(container).render(
     <AppIntlProvider>
       {/* Outside the router, because the theme and the text size belong to the person rather than to
           the screen: they are applied once, to the document, and survive every navigation. The store
-          behind them is a local stub until identity.user_preferences exists (#25). */}
+          behind them is a local stub until identity.user_preferences exists (#351). */}
       <DisplayPreferencesProvider>
         {/* Outside the router, because the session outlives every navigation and because the
             re-authentication dialog it owns has to be able to open over any screen without that

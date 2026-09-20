@@ -43,6 +43,7 @@ public sealed class CurrentUserQuery(ISignInDirectory query)
                 preferences.Locale,
                 preferences.TimeZoneId,
                 preferences.Theme,
+                preferences.TextSize,
                 preferences.Density,
                 preferences.ReducedMotion,
                 preferences.LandingRoute));
@@ -81,6 +82,7 @@ public sealed record CurrentUserProfile(
 /// <param name="Locale">The BCP 47 language tag.</param>
 /// <param name="TimeZoneId">The IANA timezone dates are shown in.</param>
 /// <param name="Theme">Light, dark, high contrast or whatever the device asks for.</param>
+/// <param name="TextSize">100%, 125% or 150%, independently of the device's own zoom.</param>
 /// <param name="Density">How tightly the interface packs information.</param>
 /// <param name="ReducedMotion">True when animation is suppressed beyond what the device reports.</param>
 /// <param name="LandingRoute">Where the holder lands after signing in, when they have chosen.</param>
@@ -88,6 +90,7 @@ public sealed record CurrentUserPreferences(
     string Locale,
     string TimeZoneId,
     InterfaceTheme Theme,
+    InterfaceTextSize TextSize,
     InterfaceDensity Density,
     bool ReducedMotion,
     string? LandingRoute);
