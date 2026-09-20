@@ -180,7 +180,7 @@ public sealed class ModuleBoundaryTests
         // means a vendor package added to the wrong project fails on the first build.
         string[] vendorPrefixes =
         [
-            "Razorpay", "Stripe", "Twilio", "SendGrid", "AWSSDK", "Google.Apis", "Zoho",
+            "Razorpay", "Stripe", "Twilio", "SendGrid", "AWSSDK", "Google.Apis", "Zoho", "ClamAV",
         ];
 
         foreach (var project in RepositoryLayout.Projects)
