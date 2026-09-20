@@ -1,6 +1,7 @@
 using Tailor360.Modules.Identity.Application.Abstractions;
 using Tailor360.Modules.Identity.Domain;
 using Tailor360.Modules.Identity.Domain.Users;
+using Tailor360.Platform.Abstractions.Auditing;
 using Tailor360.Platform.Abstractions.Results;
 using Tailor360.Platform.Abstractions.Time;
 
@@ -18,8 +19,9 @@ namespace Tailor360.Modules.Identity.Application.Me;
 /// rather than the try-and-report variant.
 /// </remarks>
 /// <param name="store">Account reads and writes.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="clock">The clock.</param>
-public sealed class PreferencesHandler(IIdentityStore store, IClock clock)
+public sealed class PreferencesHandler(IIdentityStore store, IAuditWriter audit, IClock clock)
 {
     /// <summary>The audit action recorded when the caller changes their own preferences.</summary>
     public const string ChangedAction = "identity.preferences.changed";
@@ -77,6 +79,11 @@ public sealed class PreferencesHandler(IIdentityStore store, IClock clock)
         }
 
         await store.SaveChangesAsync(cancellationToken);
+
+        // The change is saved first and the trail recorded afterwards, because the change and the
+        // trail are different contexts and therefore different transactions (identity vs. platform) —
+        // see PreferencesAudit's own remarks.
+        await PreferencesAudit.RecordAsync(audit, userId, cancellationToken);
 
         return Result.Success(new CurrentUserPreferences(
             preferences.Locale,

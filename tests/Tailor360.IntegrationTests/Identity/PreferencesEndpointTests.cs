@@ -7,6 +7,7 @@ using Shouldly;
 using Tailor360.Modules.Identity.Api.Payloads;
 using Tailor360.Modules.Identity.Domain.Users;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
+using Tailor360.Platform.Persistence.Contexts;
 
 namespace Tailor360.IntegrationTests.Identity;
 
@@ -61,6 +62,29 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
         var profile = await AuthenticationClient.ReadAsync<CurrentUserResponse>(me);
         profile.ShouldNotBeNull();
         profile.Preferences.ShouldBe(payload);
+    }
+
+    [Fact]
+    public async Task ChangingPreferencesIsAuditedByActorAndResourceOnlyAndCarriesNoValue()
+    {
+        Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
+
+        var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-audit");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.16");
+        (await SignInAsync(client, user.UserName)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        (await client.PutAsync(PreferencesPath, ValidBody())).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var entry = (await AuditEntriesAsync(user.Id))
+            .Single(row => row.Action == "identity.preferences.changed");
+
+        entry.EntityType.ShouldBe("StaffUser");
+
+        // The row proves who changed their preferences and that they did, never what they changed
+        // them to — the values live in the domain table, not in a second copy on the trail.
+        entry.Summary.ShouldNotContain("Dark");
+        entry.Summary.ShouldNotContain("ta-IN");
+        entry.Summary.ShouldNotContain("Large");
     }
 
     [Fact]
@@ -249,5 +273,22 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
                 candidate => candidate.UserId == userId, TestContext.Current.CancellationToken);
     }
 
+    private async Task<IReadOnlyList<AuditRow>> AuditEntriesAsync(Guid userId)
+    {
+        using var scope = fixture.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        return
+        [
+            .. await context.AuditEvents
+                .Where(entry => entry.EntityId == userId)
+                .OrderBy(entry => entry.Sequence)
+                .Select(entry => new AuditRow(entry.Action, entry.EntityType, entry.Summary))
+                .ToListAsync(TestContext.Current.CancellationToken),
+        ];
+    }
+
     private sealed record EnrolmentBody(string ManualEntryKey, int PeriodSeconds, int Digits);
+
+    private sealed record AuditRow(string Action, string EntityType, string Summary);
 }
