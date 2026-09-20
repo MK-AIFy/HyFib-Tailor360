@@ -234,6 +234,11 @@ internal static class AdministrationHarness
             string path, TBody body, params (string Name, string Value)[] headers)
             => client.PutAsync(path, body, headers);
 
+        /// <summary>Sends a multipart command — a file upload.</summary>
+        public Task<HttpResponseMessage> PostMultipartAsync(
+            string path, HttpContent content, params (string Name, string Value)[] headers)
+            => client.PostMultipartAsync(path, content, headers);
+
         /// <inheritdoc />
         public void Dispose() => client.Dispose();
     }

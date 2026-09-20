@@ -1305,6 +1305,17 @@ public static class PayloadExamples
               "landingRoute": "/orders/workboard"
             }
             """,
+
+        ["UploadMedia"] = """
+            {
+              "file": "(binary — the image bytes)",
+              "purpose": "Reference",
+              "customerId": "0199c2f0-0000-7000-8000-0000000000e1",
+              "orderId": null,
+              "jobId": null,
+              "altText": null
+            }
+            """,
     };
 
     /// <summary>The example for an operation, or <see langword="null"/> when none is registered.</summary>

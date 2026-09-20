@@ -11,6 +11,7 @@ using Tailor360.Modules.Billing.Infrastructure.Persistence;
 using Tailor360.Modules.Catalog.Infrastructure.Persistence;
 using Tailor360.Modules.Customers.Infrastructure.Persistence;
 using Tailor360.Modules.Identity.Infrastructure.Persistence;
+using Tailor360.Modules.Media.Infrastructure.Persistence;
 using Tailor360.Modules.Orders.Infrastructure.Persistence;
 using Tailor360.Platform.Persistence.Contexts;
 using Tailor360.Platform.Persistence.Conventions;
@@ -125,8 +126,19 @@ public sealed class WebApplicationFixture : WebApplicationFactory<WebEntryPoint>
             .UseSnakeCaseNamingConvention()
             .Options;
 
-        await using var billing = new BillingDbContext(billingOptions);
-        await billing.Database.MigrateAsync();
+        await using (var billing = new BillingDbContext(billingOptions))
+        {
+            await billing.Database.MigrateAsync();
+        }
+
+        var mediaOptions = new DbContextOptionsBuilder<MediaDbContext>()
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
+                ModuleDbContext.MigrationsHistoryTable, MediaDbContext.SchemaName))
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        await using var media = new MediaDbContext(mediaOptions);
+        await media.Database.MigrateAsync();
     }
 }
 

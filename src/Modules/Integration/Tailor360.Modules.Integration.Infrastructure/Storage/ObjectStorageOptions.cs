@@ -34,6 +34,15 @@ public sealed class ObjectStorageOptions
     [MinLength(3)]
     public string MediaBucket { get; set; } = "tailor360-media";
 
+    /// <summary>
+    /// The bucket an object lives in from upload until issue #593 promotes it (Media). Separate from
+    /// <see cref="MediaBucket"/> so an unvalidated, unscanned upload is never in the same bucket as a
+    /// promoted, Ready one — a bucket-level policy difference a shared bucket could not express.
+    /// </summary>
+    [Required]
+    [MinLength(3)]
+    public string QuarantineBucket { get; set; } = "tailor360-media-quarantine";
+
     /// <summary>The access key; a mounted secret.</summary>
     public string? AccessKey { get; set; }
 
@@ -87,7 +96,12 @@ public sealed class ObjectStorageOptions
             return DocumentsBucket;
         }
 
-        return key.StartsWith("exports/", StringComparison.Ordinal) ? ExportsBucket : MediaBucket;
+        if (key.StartsWith("exports/", StringComparison.Ordinal))
+        {
+            return ExportsBucket;
+        }
+
+        return key.StartsWith("quarantine/", StringComparison.Ordinal) ? QuarantineBucket : MediaBucket;
     }
 }
 

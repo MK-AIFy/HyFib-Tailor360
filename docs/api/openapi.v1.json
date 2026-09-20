@@ -4390,6 +4390,10 @@
         ],
         "type": "object"
       },
+      "IFormFile": {
+        "format": "binary",
+        "type": "string"
+      },
       "IResult": {
         "type": "object"
       },
@@ -5835,6 +5839,39 @@
           "code",
           "name",
           "version"
+        ],
+        "type": "object"
+      },
+      "MediaObjectPayload": {
+        "properties": {
+          "contentType": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "purpose",
+          "status",
+          "contentType",
+          "sizeBytes"
         ],
         "type": "object"
       },
@@ -28739,6 +28776,103 @@
         "x-tailor360-rate-limit": "write"
       }
     },
+    "/api/v1/media": {
+      "post": {
+        "description": "Accepts the raw bytes and writes them straight to the quarantine bucket, undecoded (ADR-0005 §4). 202, not 201: validation, the malware scan, metadata strip, derivative generation and promotion to Ready all happen asynchronously in the worker (issue #593) — nothing here is a finished, resolvable object yet.",
+        "operationId": "UploadMedia",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "example": {
+                "altText": null,
+                "customerId": "0199c2f0-0000-7000-8000-0000000000e1",
+                "file": "(binary — the image bytes)",
+                "jobId": null,
+                "orderId": null,
+                "purpose": "Reference"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/IFormFile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaObjectPayload"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Upload an image into quarantine.",
+        "tags": [
+          "Media"
+        ],
+        "x-tailor360-audit": "media.upload",
+        "x-tailor360-authorisation": "permission:media.upload",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/orders/drafts": {
       "post": {
         "description": "Shared within the branch: every user holding orders.intake sees it and may carry it on. Expires after the branch's configured window, default 72 hours, at which point every further edit is refused. The retention sweep that removes an expired row is separate worker infrastructure, not part of this route.",
@@ -30577,6 +30711,10 @@
     {
       "description": "The customer record: finding one, creating one, correcting it, withdrawing it from use, and recording that a second branch has begun serving the person. A search answers across the whole organisation and returns a masked disambiguation card for a record the caller's branches cannot see, because a revealed last-four is cheaper than the duplicate record it prevents. Contact details are a separate permission from finding the record at all, so a role without `customers.read_contact` receives those fields as null.",
       "name": "Customers"
+    },
+    {
+      "description": "Material and reference images, garment diagrams and QC or delivery evidence. An upload lands in quarantine and is never trusted until the worker has decoded, validated, scanned and re-encoded it, which is why this route answers 202 and not 201 — nothing returned from it is resolvable yet. As the epic lands, this will also cover authorised streaming, the access log and retention.",
+      "name": "Media"
     },
     {
       "description": "Order intake: the counter's own draft, shared within the branch building it, locked per garment section once garment routes land. A draft holds no money and no measurement value — it names a customer, a promised date and notes, and expires to nothing if it is abandoned, because starting one is not an obligation. As the epic lands, this will also cover estimates, confirmed orders, garment jobs, the production workflow, quality control and alterations.",
