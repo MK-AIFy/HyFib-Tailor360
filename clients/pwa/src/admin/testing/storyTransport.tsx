@@ -37,12 +37,18 @@ export function storyJson(body: unknown, version?: string): Response {
   })
 }
 
-/** An RFC 9457 problem, in the shape the API sends. */
-export function storyProblem(status: number, code: string): Response {
-  return new Response(JSON.stringify({ status, code, title: code, correlationId: 'story' }), {
-    status,
-    headers: { 'Content-Type': 'application/problem+json' },
-  })
+/** An RFC 9457 problem, in the shape the API sends. `extra` carries a body-specific field, such as
+ * the duplicate candidates a `409` answers with — the same shape `billing/testing/storyTransport.tsx`
+ * already gives its own `storyProblem`. */
+export function storyProblem(
+  status: number,
+  code: string,
+  extra: Readonly<Record<string, unknown>> = {},
+): Response {
+  return new Response(
+    JSON.stringify({ status, code, title: code, correlationId: 'story', ...extra }),
+    { status, headers: { 'Content-Type': 'application/problem+json' } },
+  )
 }
 
 /** A request that never answers, for the loading state. */

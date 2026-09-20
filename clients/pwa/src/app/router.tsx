@@ -43,6 +43,10 @@ import { TemplateVersionEditorRoute } from '../routes/admin/TemplateVersionEdito
 import { TemplateDetailRoute } from '../routes/admin/TemplateDetailRoute'
 import { TemplateListRoute } from '../routes/admin/TemplateListRoute'
 import { InstallRoute } from '../routes/InstallRoute'
+import { CUSTOMERS_PERMISSIONS } from '../customers/customersPermissions'
+import { CustomerCreateRoute } from '../routes/customers/CustomerCreateRoute'
+import { CustomerDetailRoute } from '../routes/customers/CustomerDetailRoute'
+import { CustomerSearchRoute } from '../routes/customers/CustomerSearchRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
 import { MeasurementCompareRoute } from '../routes/measurements/MeasurementCompareRoute'
 import { MeasurementDraftRoute } from '../routes/measurements/MeasurementDraftRoute'
@@ -186,6 +190,33 @@ export const router = createBrowserRouter([
           { path: 'account/security', element: <SecurityRoute /> },
           { path: 'account/security/authenticator', element: <AuthenticatorEnrolmentRoute /> },
           { path: 'account/sessions', element: <SessionsRoute /> },
+          // Finding or registering a customer (#26, #182 unit 1). `customers/new` is declared before
+          // the dynamic `customers/:customerId` for a human reading the list top to bottom; react
+          // router's own ranking already prefers the static segment regardless of order.
+          {
+            path: 'customers',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
+                <CustomerSearchRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'customers/new',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.create}>
+                <CustomerCreateRoute />
+              </RequirePermission>
+            ),
+          },
+          {
+            path: 'customers/:customerId',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
+                <CustomerDetailRoute />
+              </RequirePermission>
+            ),
+          },
           // Measuring a customer (#123). Three addresses: the destination the shells navigate to,
           // the start screen the phone shell's primary action opens, and the draft itself — which
           // has an address of its own because a draft is shared within the branch and survives an
