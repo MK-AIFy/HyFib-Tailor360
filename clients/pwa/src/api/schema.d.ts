@@ -16595,7 +16595,35 @@ export interface operations {
                  *       "purpose": "Reference"
                  *     }
                  */
-                "multipart/form-data": components["schemas"]["IFormFile"];
+                "multipart/form-data": {
+                    /** @description Describes the image in words. Required for Diagram and Illustration; optional otherwise. */
+                    altText?: null | string;
+                    /**
+                     * Format: uuid
+                     * @description The customer the object is attached to, where it is attached to one.
+                     */
+                    customerId?: null | string;
+                    /**
+                     * Format: binary
+                     * @description The image bytes.
+                     */
+                    file: string;
+                    /**
+                     * Format: uuid
+                     * @description The garment job the object is attached to, where it is attached to one.
+                     */
+                    jobId?: null | string;
+                    /**
+                     * Format: uuid
+                     * @description The order the object is attached to, where it is attached to one.
+                     */
+                    orderId?: null | string;
+                    /**
+                     * @description What the image was captured or supplied for.
+                     * @enum {string}
+                     */
+                    purpose: "Material" | "Reference" | "Diagram" | "Illustration" | "QcEvidence" | "DeliveryEvidence";
+                };
             };
         };
         responses: {

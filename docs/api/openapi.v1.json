@@ -28792,7 +28792,62 @@
                 "purpose": "Reference"
               },
               "schema": {
-                "$ref": "#/components/schemas/IFormFile"
+                "description": "The file, plus the plain form fields the handler reads from the multipart body itself.",
+                "properties": {
+                  "altText": {
+                    "description": "Describes the image in words. Required for Diagram and Illustration; optional otherwise.",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "customerId": {
+                    "description": "The customer the object is attached to, where it is attached to one.",
+                    "format": "uuid",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "file": {
+                    "description": "The image bytes.",
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "jobId": {
+                    "description": "The garment job the object is attached to, where it is attached to one.",
+                    "format": "uuid",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "orderId": {
+                    "description": "The order the object is attached to, where it is attached to one.",
+                    "format": "uuid",
+                    "type": [
+                      "null",
+                      "string"
+                    ]
+                  },
+                  "purpose": {
+                    "description": "What the image was captured or supplied for.",
+                    "enum": [
+                      "Material",
+                      "Reference",
+                      "Diagram",
+                      "Illustration",
+                      "QcEvidence",
+                      "DeliveryEvidence"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "purpose"
+                ],
+                "type": "object"
               }
             }
           },
