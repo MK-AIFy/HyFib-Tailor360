@@ -39,7 +39,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
         Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
 
         var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-rt");
-        using var client = AuthenticationClient.Open(fixture, "203.0.113.10");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.170");
 
         (await SignInAsync(client, user.UserName)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -70,7 +70,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
         Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
 
         var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-audit");
-        using var client = AuthenticationClient.Open(fixture, "203.0.113.16");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.171");
         (await SignInAsync(client, user.UserName)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         (await client.PutAsync(PreferencesPath, ValidBody())).StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -95,7 +95,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
         var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-missing");
         await RemovePreferencesRowAsync(user.Id);
 
-        using var client = AuthenticationClient.Open(fixture, "203.0.113.11");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.172");
         (await SignInAsync(client, user.UserName)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var body = ValidBody();
@@ -116,7 +116,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
     {
         Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
 
-        using var client = AuthenticationClient.Open(fixture, "203.0.113.12");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.173");
 
         var refused = await client.PutAsync(PreferencesPath, ValidBody());
 
@@ -129,7 +129,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
     {
         Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
 
-        using var client = await SignedInWithThePasswordAloneAsync("prefs-half", "203.0.113.13");
+        using var client = await SignedInWithThePasswordAloneAsync("prefs-half", "203.0.113.174");
 
         var refused = await client.PutAsync(PreferencesPath, ValidBody());
 
@@ -156,7 +156,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
         Assert.SkipUnless(Available, DatabaseAvailability.SkipReason);
 
         var user = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-bad");
-        using var client = AuthenticationClient.Open(fixture, "203.0.113.14");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.175");
         (await SignInAsync(client, user.UserName)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var body = ValidBody();
@@ -185,7 +185,7 @@ public sealed class PreferencesEndpointTests(WebApplicationFixture fixture)
         var caller = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-self");
         var other = await AuthenticationTestData.CreateSignInReadyUserAsync(fixture, "prefs-other");
 
-        using var client = AuthenticationClient.Open(fixture, "203.0.113.15");
+        using var client = AuthenticationClient.Open(fixture, "203.0.113.176");
         (await SignInAsync(client, caller.UserName)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var body = ValidBody();
