@@ -155,6 +155,7 @@ export function aCurrentUser(overrides: Partial<CurrentUser> = {}): CurrentUser 
       locale: 'en-IN',
       timeZoneId: 'Asia/Kolkata',
       theme: 'System',
+      textSize: 'Standard',
       density: 'Comfortable',
       reducedMotion: false,
       landingRoute: null,

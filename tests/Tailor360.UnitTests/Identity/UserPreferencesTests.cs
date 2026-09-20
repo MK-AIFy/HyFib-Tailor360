@@ -22,6 +22,7 @@ public sealed class UserPreferencesTests
         preferences.Locale.ShouldBe("en-IN");
         preferences.TimeZoneId.ShouldBe(IndiaTimeZone.Id);
         preferences.Theme.ShouldBe(InterfaceTheme.System);
+        preferences.TextSize.ShouldBe(InterfaceTextSize.Standard);
         preferences.Density.ShouldBe(InterfaceDensity.Comfortable);
     }
 
@@ -57,6 +58,7 @@ public sealed class UserPreferencesTests
 
         preferences.SetPresentation(
             InterfaceTheme.Dark,
+            InterfaceTextSize.Standard,
             InterfaceDensity.Compact,
             reducedMotion: true,
             route,
@@ -70,6 +72,7 @@ public sealed class UserPreferencesTests
 
         preferences.SetPresentation(
             InterfaceTheme.HighContrast,
+            InterfaceTextSize.Larger,
             InterfaceDensity.Compact,
             reducedMotion: true,
             "/orders/workboard",
@@ -77,6 +80,26 @@ public sealed class UserPreferencesTests
 
         preferences.LandingRoute.ShouldBe("/orders/workboard");
         preferences.Theme.ShouldBe(InterfaceTheme.HighContrast);
+        preferences.TextSize.ShouldBe(InterfaceTextSize.Larger);
         preferences.ReducedMotion.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(InterfaceTextSize.Standard)]
+    [InlineData(InterfaceTextSize.Large)]
+    [InlineData(InterfaceTextSize.Larger)]
+    public void SetPresentationStoresEachOfTheThreeTextSizes(InterfaceTextSize textSize)
+    {
+        var preferences = Preferences();
+
+        preferences.SetPresentation(
+            InterfaceTheme.System,
+            textSize,
+            InterfaceDensity.Comfortable,
+            reducedMotion: false,
+            landingRoute: null,
+            IdentityTestData.Now).IsSuccess.ShouldBeTrue();
+
+        preferences.TextSize.ShouldBe(textSize);
     }
 }

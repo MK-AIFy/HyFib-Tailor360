@@ -50,6 +50,9 @@ public sealed class UserPreferences
     /// <summary>Light, dark, high contrast, or whatever the device asks for.</summary>
     public InterfaceTheme Theme { get; private set; }
 
+    /// <summary>100%, 125% or 150%, independently of the device's own zoom.</summary>
+    public InterfaceTextSize TextSize { get; private set; }
+
     /// <summary>How tightly the interface packs information.</summary>
     public InterfaceDensity Density { get; private set; }
 
@@ -101,6 +104,7 @@ public sealed class UserPreferences
     /// <summary>Changes the presentation settings.</summary>
     public Result SetPresentation(
         InterfaceTheme theme,
+        InterfaceTextSize textSize,
         InterfaceDensity density,
         bool reducedMotion,
         string? landingRoute,
@@ -125,6 +129,7 @@ public sealed class UserPreferences
         }
 
         Theme = theme;
+        TextSize = textSize;
         Density = density;
         ReducedMotion = reducedMotion;
         LandingRoute = route is { Length: > 0 } ? route : null;

@@ -1293,6 +1293,18 @@ public static class PayloadExamples
               "categoryKeys": ["blouse"]
             }
             """,
+
+        ["UpdateMyPreferences"] = """
+            {
+              "locale": "ta-IN",
+              "timeZoneId": "Asia/Kolkata",
+              "theme": "Dark",
+              "textSize": "Large",
+              "density": "Compact",
+              "reducedMotion": false,
+              "landingRoute": "/orders/workboard"
+            }
+            """,
     };
 
     /// <summary>The example for an operation, or <see langword="null"/> when none is registered.</summary>

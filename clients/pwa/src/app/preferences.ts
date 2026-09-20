@@ -26,9 +26,9 @@ import type {
  * The identity module does not exist yet — authentication is #23 and the administered user
  * preferences are #25 — and this issue must not invent an endpoint for it. So the shape of the
  * dependency is fixed here, in two methods, and the only implementation today is the local stub
- * below. When #25 lands, a `createServerDisplayPreferencesStore()` implements the same two methods
- * against the real endpoint, `DisplayPreferencesProvider` is handed that instead, and **nothing else
- * in the application changes**.
+ * below. Once #351 lands the endpoint, e12-f01-2's `createServerDisplayPreferencesStore()`
+ * implements the same two methods against it, `DisplayPreferencesProvider` is handed that instead,
+ * and **nothing else in the application changes**.
  *
  * Both methods are asynchronous even though the stub is synchronous, precisely so that swapping in
  * a network-backed store is not a change to every caller.

@@ -102,6 +102,7 @@ export interface AccountPreferences {
   readonly locale: string
   readonly timeZoneId: string
   readonly theme: string
+  readonly textSize: string
   readonly density: string
   readonly reducedMotion: boolean
   readonly landingRoute: string | null

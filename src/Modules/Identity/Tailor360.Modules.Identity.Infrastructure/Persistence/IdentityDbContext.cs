@@ -363,6 +363,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             entity.Property(e => e.Locale).HasMaxLength(16).IsRequired();
             entity.Property(e => e.TimeZoneId).HasMaxLength(64).IsRequired();
             entity.Property(e => e.Theme).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TextSize).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.Density).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.LandingRoute)
                 .HasMaxLength(UserPreferences.MaximumLandingRouteLength);

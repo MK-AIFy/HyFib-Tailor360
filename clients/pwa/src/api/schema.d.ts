@@ -3149,6 +3149,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the caller's own interface preferences. */
+        put: operations["UpdateMyPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/drafts": {
         parameters: {
             query?: never;
@@ -5093,6 +5110,7 @@ export interface components {
             landingRoute: null | string;
             locale: string;
             reducedMotion: boolean;
+            textSize: string;
             theme: string;
             timeZoneId: string;
         };
@@ -5931,6 +5949,15 @@ export interface components {
             templateVersionId: string;
             /** Format: int32 */
             versionNumber: number | string;
+        };
+        UpdatePreferencesRequest: {
+            density: null | string;
+            landingRoute: null | string;
+            locale: null | string;
+            reducedMotion: boolean;
+            textSize: null | string;
+            theme: null | string;
+            timeZoneId: null | string;
         };
         VersionResponse: {
             api: string;
@@ -16471,6 +16498,48 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    UpdateMyPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "density": "Compact",
+                 *       "landingRoute": "/orders/workboard",
+                 *       "locale": "ta-IN",
+                 *       "reducedMotion": false,
+                 *       "textSize": "Large",
+                 *       "theme": "Dark",
+                 *       "timeZoneId": "Asia/Kolkata"
+                 *     }
+                 */
+                "application/json": components["schemas"]["UpdatePreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            415: components["responses"]["UnsupportedMediaType"];
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];
