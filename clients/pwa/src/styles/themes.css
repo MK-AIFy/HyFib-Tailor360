@@ -311,4 +311,11 @@
       --duration-slow: 0ms;
     }
   }
+
+  /* The product's own reduced-motion preference (#374); see the parallel block in global.css. */
+  :root[data-reduced-motion='true'] {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
 }

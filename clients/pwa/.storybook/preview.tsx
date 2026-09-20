@@ -31,6 +31,8 @@ interface StoryGlobals {
   readonly theme?: DisplayPreferences['theme']
   readonly textSize?: DisplayPreferences['textSize']
   readonly density?: DisplayPreferences['density']
+  /** A string, like every other toolbar value: Storybook's toolbar items are URL query parameters. */
+  readonly reducedMotion?: 'false' | 'true'
 }
 
 const withDisplayPreferences: Decorator = (Story, context) => {
@@ -40,6 +42,7 @@ const withDisplayPreferences: Decorator = (Story, context) => {
     theme: globals.theme ?? 'system',
     textSize: globals.textSize ?? '100',
     density: globals.density ?? 'comfortable',
+    reducedMotion: globals.reducedMotion === 'true',
   })
 
   return (
@@ -56,6 +59,7 @@ const preview: Preview = {
     theme: 'system',
     textSize: '100',
     density: 'comfortable',
+    reducedMotion: 'false',
   },
   globalTypes: {
     locale: {
@@ -106,6 +110,18 @@ const preview: Preview = {
         items: [
           { value: 'comfortable', title: 'Comfortable' },
           { value: 'compact', title: 'Compact — desktop' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+    reducedMotion: {
+      description: 'Reduced motion',
+      toolbar: {
+        title: 'Motion',
+        icon: 'accessibility',
+        items: [
+          { value: 'false', title: 'Motion allowed' },
+          { value: 'true', title: 'Reduced' },
         ],
         dynamicTitle: true,
       },

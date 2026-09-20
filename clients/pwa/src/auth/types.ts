@@ -97,7 +97,15 @@ export interface AccountSecurity {
   readonly unusedRecoveryCodes: number
 }
 
-/** How the holder wants the interface to behave. Applied by the shell once #25 lets them change it. */
+/**
+ * How the holder wants the interface to behave.
+ *
+ * `theme`, `textSize`, `density` and `reducedMotion` are applied by `DisplayPreferencesProvider` as
+ * soon as the session resolves, and changed through the panel at `/settings/display` (#374,
+ * e12-f01-2). `locale` reaches `AppIntlProvider` and `<html lang>` separately (e12-f01-2b).
+ * `landingRoute` is read by e12-f01-3 and written by #25, which is also where somebody else's
+ * preferences — as opposed to the holder's own — are administered.
+ */
 export interface AccountPreferences {
   readonly locale: string
   readonly timeZoneId: string

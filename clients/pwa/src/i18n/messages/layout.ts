@@ -71,8 +71,16 @@ export const layoutEn = {
     'Compact fits more rows on a desktop screen. Controls stay full size on a touchscreen.',
   'layout.display.density.comfortable': 'Comfortable',
   'layout.display.density.compact': 'Compact — desktop only',
+  'layout.display.reducedMotion': 'Reduce motion',
+  'layout.display.reducedMotionDescription':
+    'Turns off animation this application controls, on top of what your device already reduces.',
   'layout.display.sample': 'Sample: job J-CBE01-2627-000512-01 is due on 14-09-2026.',
   'layout.display.storage': 'These settings are stored on this device.',
+  'layout.display.account':
+    'These settings are saved to your account and applied wherever you sign in.',
+  'layout.display.saveAction': 'Saving your display settings',
+  'layout.display.saved': 'Saved',
+  'layout.display.notSaved': 'Not saved',
 } as const
 
 export const layoutTa: Record<keyof typeof layoutEn, string> = {
@@ -158,7 +166,21 @@ export const layoutTa: Record<keyof typeof layoutEn, string> = {
   // not translated — awaiting native-speaker review
   'layout.display.density.compact': 'Compact — desktop only',
   // not translated — awaiting native-speaker review
+  'layout.display.reducedMotion': 'Reduce motion',
+  // not translated — awaiting native-speaker review
+  'layout.display.reducedMotionDescription':
+    'Turns off animation this application controls, on top of what your device already reduces.',
+  // not translated — awaiting native-speaker review
   'layout.display.sample': 'Sample: job J-CBE01-2627-000512-01 is due on 14-09-2026.',
   // not translated — awaiting native-speaker review
   'layout.display.storage': 'These settings are stored on this device.',
+  // not translated — awaiting native-speaker review
+  'layout.display.account':
+    'These settings are saved to your account and applied wherever you sign in.',
+  // not translated — awaiting native-speaker review
+  'layout.display.saveAction': 'Saving your display settings',
+  // not translated — awaiting native-speaker review
+  'layout.display.saved': 'Saved',
+  // not translated — awaiting native-speaker review
+  'layout.display.notSaved': 'Not saved',
 }

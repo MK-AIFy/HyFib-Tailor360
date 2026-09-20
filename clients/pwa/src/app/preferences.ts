@@ -1,3 +1,5 @@
+import { apiRequest } from '../auth/apiClient'
+import type { AccountPreferences } from '../auth/types'
 import { DEFAULT_DISPLAY_PREFERENCES } from '../design-system/foundations/displayPreferences'
 import type { DisplayPreferences } from '../design-system/foundations/displayPreferences'
 import {
@@ -14,24 +16,24 @@ import type {
 /**
  * Where a person's display preferences are read from and written to.
  *
- * ## The interface is the point, and the implementation below is not
+ * ## The interface is the point, and the local stub below is only half of it
  *
- * The #50 blueprint is explicit: theme (system, light, dark, high-contrast for sunlight) and text
- * size (100 / 125 / 150%) are stored server-side in `identity.user_preferences` and applied at
- * login, **so that a shared counter or workshop device does not leak one person's settings to the
- * next or lose them at sign-out**. That is not a nicety. Counter and workshop devices are shared by
- * assumption A4 of the plan, and a Tailor who has set 150% text does not want to hand the next
- * person a screen they did not choose, nor to set it again at the start of every shift.
+ * The #50 blueprint is explicit: theme (system, light, dark, high-contrast for sunlight), text size
+ * (100 / 125 / 150%), row density and reduced motion are stored server-side in
+ * `identity.user_preferences` and applied at login, **so that a shared counter or workshop device
+ * does not leak one person's settings to the next or lose them at sign-out**. That is not a nicety.
+ * Counter and workshop devices are shared by assumption A4 of the plan, and a Tailor who has set
+ * 150% text does not want to hand the next person a screen they did not choose, nor to set it again
+ * at the start of every shift.
  *
- * The identity module does not exist yet — authentication is #23 and the administered user
- * preferences are #25 — and this issue must not invent an endpoint for it. So the shape of the
- * dependency is fixed here, in two methods, and the only implementation today is the local stub
- * below. Once #351 lands the endpoint, e12-f01-2's `createServerDisplayPreferencesStore()`
- * implements the same two methods against it, `DisplayPreferencesProvider` is handed that instead,
- * and **nothing else in the application changes**.
+ * `createServerDisplayPreferencesStore()` below is that server-backed implementation, against the
+ * `PUT /api/v1/me/preferences` endpoint #351 (e12-f01-1) published. `DisplayPreferencesProvider`
+ * chooses between it and the local stub by reading the session (#374, e12-f01-2): a signed-in
+ * account always gets its own stored preferences, and an anonymous device gets the local ones — see
+ * that provider's own remarks for exactly how and why.
  *
- * Both methods are asynchronous even though the stub is synchronous, precisely so that swapping in
- * a network-backed store is not a change to every caller.
+ * Both methods are asynchronous even though the local stub is synchronous, precisely so that
+ * swapping in a network-backed store was never a change to any caller.
  */
 export interface DisplayPreferencesStore {
   /** Reads the stored preferences, falling back to the defaults for anything missing or unreadable. */
@@ -75,18 +77,23 @@ export function parseDisplayPreferences(payload: unknown): DisplayPreferences {
   const density: Density = isOneOf(DENSITIES, candidate['density'])
     ? candidate['density']
     : DEFAULT_DISPLAY_PREFERENCES.density
+  const reducedMotion =
+    typeof candidate['reducedMotion'] === 'boolean'
+      ? candidate['reducedMotion']
+      : DEFAULT_DISPLAY_PREFERENCES.reducedMotion
 
-  return { theme, textSize, density }
+  return { theme, textSize, density, reducedMotion }
 }
 
 /**
- * The local stub. **Temporary, and it has a known shortcoming.**
+ * The local stub, used only for an anonymous device.
  *
- * `localStorage` is per-browser-profile, not per-person, so on a shared counter device this store
- * does exactly what the blueprint says must not happen: one person's settings are handed to the
- * next, and they survive sign-out. That is accepted only because there is no session to bind them to
- * yet. It is not a design; it is the smallest thing that lets a person change the theme today, and
- * it is replaced wholesale by the server-backed store at #25 rather than being extended.
+ * `localStorage` is per-browser-profile, not per-person — the exact shortcoming the interface's own
+ * remarks describe, which is why `DisplayPreferencesProvider` (#374, e12-f01-2) never reaches for
+ * this store once somebody is signed in: the server-backed store above replaces it wholesale for
+ * that case, rather than extending it. What is left here is deliberate rather than a leftover — a
+ * device nobody has signed into yet still needs a working theme switch, most of all the
+ * high-contrast one, because somebody may be standing at it trying to read the sign-in screen.
  *
  * Every access is wrapped, because a locked-down kiosk profile and a private-browsing window both
  * throw on `localStorage` — and a theme preference is never worth breaking a shell over.
@@ -126,6 +133,91 @@ export function createInMemoryDisplayPreferencesStore(
     write: (preferences) => {
       current = preferences
       return Promise.resolve()
+    },
+  }
+}
+
+/*
+ * The server vocabulary on one side, the document attributes on the other. An unrecognised server
+ * value falls back to the default rather than throwing, the same rule `parseDisplayPreferences`
+ * applies to a stored one: an account carrying a value from a future release renders, rather than
+ * blanking the screen.
+ */
+const THEME_FROM_SERVER: Readonly<Record<string, ThemePreference>> = {
+  System: 'system',
+  Light: 'light',
+  Dark: 'dark',
+  HighContrast: 'contrast',
+}
+
+const THEME_TO_SERVER: Readonly<Record<ThemePreference, string>> = {
+  system: 'System',
+  light: 'Light',
+  dark: 'Dark',
+  contrast: 'HighContrast',
+}
+
+const TEXT_SIZE_FROM_SERVER: Readonly<Record<string, TextSizePreference>> = {
+  Standard: '100',
+  Large: '125',
+  Larger: '150',
+}
+
+const TEXT_SIZE_TO_SERVER: Readonly<Record<TextSizePreference, string>> = {
+  '100': 'Standard',
+  '125': 'Large',
+  '150': 'Larger',
+}
+
+const DENSITY_FROM_SERVER: Readonly<Record<string, Density>> = {
+  Comfortable: 'comfortable',
+  Compact: 'compact',
+}
+
+const DENSITY_TO_SERVER: Readonly<Record<Density, string>> = {
+  comfortable: 'Comfortable',
+  compact: 'Compact',
+}
+
+function fromAccountPreferences(account: AccountPreferences): DisplayPreferences {
+  return {
+    theme: THEME_FROM_SERVER[account.theme] ?? DEFAULT_DISPLAY_PREFERENCES.theme,
+    textSize: TEXT_SIZE_FROM_SERVER[account.textSize] ?? DEFAULT_DISPLAY_PREFERENCES.textSize,
+    density: DENSITY_FROM_SERVER[account.density] ?? DEFAULT_DISPLAY_PREFERENCES.density,
+    reducedMotion: account.reducedMotion,
+  }
+}
+
+/**
+ * The server-backed store, against the account's already-loaded preferences.
+ *
+ * `read()` never issues a second `GET /api/v1/me` — the caller already has the account from the
+ * session, and this resolves the document shape of what it already holds. `write()` sends the full
+ * replacement `PUT /api/v1/me/preferences` demands, carrying `locale`, `timeZoneId` and
+ * `landingRoute` back **byte-for-byte** from `current`: this slice owns none of the three, and
+ * dropping or defaulting one would silently reset a person's language or landing screen, which
+ * nothing on screen would show.
+ */
+export function createServerDisplayPreferencesStore(
+  current: AccountPreferences,
+): DisplayPreferencesStore {
+  return {
+    read(): Promise<DisplayPreferences> {
+      return Promise.resolve(fromAccountPreferences(current))
+    },
+    async write(preferences: DisplayPreferences): Promise<void> {
+      await apiRequest('/api/v1/me/preferences', {
+        method: 'PUT',
+        body: {
+          locale: current.locale,
+          timeZoneId: current.timeZoneId,
+          theme: THEME_TO_SERVER[preferences.theme],
+          textSize: TEXT_SIZE_TO_SERVER[preferences.textSize],
+          density: DENSITY_TO_SERVER[preferences.density],
+          reducedMotion: preferences.reducedMotion,
+          landingRoute: current.landingRoute,
+        },
+      })
     },
   }
 }
