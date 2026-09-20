@@ -159,6 +159,37 @@ public sealed class AuthenticationClient : IDisposable
         return await SendAsync(request);
     }
 
+    /// <summary>
+    /// Sends a state-changing request carrying a pre-built body — a file upload — and extra headers.
+    /// </summary>
+    /// <param name="path">The route.</param>
+    /// <param name="content">
+    /// The request body, already populated. Typically a <see cref="MultipartFormDataContent"/>, or a
+    /// <see cref="ByteArrayContent"/> snapshot of one when a caller needs the exact same bytes — boundary
+    /// included — sent more than once, which building a fresh <see cref="MultipartFormDataContent"/> a
+    /// second time cannot do: each instance draws its own random boundary.
+    /// </param>
+    /// <param name="headers">Header name and value pairs, added verbatim.</param>
+    public async Task<HttpResponseMessage> PostMultipartAsync(
+        string path,
+        HttpContent content,
+        params (string Name, string Value)[] headers)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(headers);
+
+        await EnsureAntiforgeryAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+
+        foreach (var (name, value) in headers)
+        {
+            request.Headers.TryAddWithoutValidation(name, value);
+        }
+
+        return await SendAsync(request);
+    }
+
     /// <summary>Sends a state-changing request with no body.</summary>
     public async Task<HttpResponseMessage> PostAsync(string path)
     {

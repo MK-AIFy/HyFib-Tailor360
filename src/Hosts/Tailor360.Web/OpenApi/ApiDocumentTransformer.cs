@@ -62,6 +62,12 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             + "abandoned, because starting one is not an obligation. As the epic lands, this will also "
             + "cover estimates, confirmed orders, garment jobs, the production workflow, quality "
             + "control and alterations.",
+        ["Media"] =
+            "Material and reference images, garment diagrams and QC or delivery evidence. An upload "
+            + "lands in quarantine and is never trusted until the worker has decoded, validated, "
+            + "scanned and re-encoded it, which is why this route answers 202 and not 201 — nothing "
+            + "returned from it is resolvable yet. As the epic lands, this will also cover authorised "
+            + "streaming, the access log and retention.",
     };
 
     /// <inheritdoc />

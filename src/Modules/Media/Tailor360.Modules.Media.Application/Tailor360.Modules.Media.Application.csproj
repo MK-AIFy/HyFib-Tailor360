@@ -10,6 +10,10 @@
     <ProjectReference Include="..\Tailor360.Modules.Media.Domain\Tailor360.Modules.Media.Domain.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Security\Tailor360.Platform.Security.csproj" />
+    <!-- Media reads a customer's photo_capture consent across the module boundary (ARCH-004 allows a
+         Contracts reference); see IConsentQuery's own remarks for why this is the one cross-module
+         call this module makes. -->
+    <ProjectReference Include="..\..\Customers\Tailor360.Modules.Customers.Contracts\Tailor360.Modules.Customers.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -106,9 +106,11 @@ services:
 
   createbuckets:
     # One-shot: creates the buckets the modules own and exits. Object-storage ownership is fixed in
-    # Section 4.3 — Media owns tailor360-media, Billing owns tailor360-documents (invoice, estimate,
-    # receipt and credit-note PDFs) and Reporting owns tailor360-exports. No module writes to
-    # another module's bucket. #31 adds the quarantine bucket for the upload pipeline.
+    # Section 4.3 — Media owns tailor360-media and tailor360-media-quarantine, Billing owns
+    # tailor360-documents (invoice, estimate, receipt and credit-note PDFs) and Reporting owns
+    # tailor360-exports. No module writes to another module's bucket. #592 adds the quarantine
+    # bucket for the upload pipeline (#31's own issue text called it "the quarantine bucket" this
+    # service already anticipated).
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: tailor360-createbuckets
     depends_on:
@@ -125,11 +127,13 @@ services:
         mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
         # --ignore-existing keeps the service idempotent, so `up` can be run any number of times.
         mc mb --ignore-existing local/tailor360-media
+        mc mb --ignore-existing local/tailor360-media-quarantine
         mc mb --ignore-existing local/tailor360-documents
         mc mb --ignore-existing local/tailor360-exports
         # Every bucket is private: media and documents are served only through the authorised
         # streaming endpoint (D4), never by an anonymous object URL.
         mc anonymous set none local/tailor360-media
+        mc anonymous set none local/tailor360-media-quarantine
         mc anonymous set none local/tailor360-documents
         mc anonymous set none local/tailor360-exports
         echo "buckets ready"
