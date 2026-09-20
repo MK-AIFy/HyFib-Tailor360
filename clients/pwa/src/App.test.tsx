@@ -1,16 +1,25 @@
 import { render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RouterProvider, createMemoryRouter } from 'react-router'
 import { App } from './App'
 import { DisplaySettingsRoute, HomeRoute, NotFoundRoute } from './app/router'
 import { DisplayPreferencesProvider } from './app/DisplayPreferencesProvider'
-import { createInMemoryDisplayPreferencesStore } from './app/preferences'
 import { AppIntlProvider } from './i18n/IntlProvider'
+import { forgetAntiforgeryToken } from './auth/antiforgery'
+import { setSessionChallengeHandler } from './auth/apiClient'
+import { SessionProvider } from './auth/SessionProvider'
+import { problemResponse, stubFetch } from './auth/testing/fixtures'
+import type { FetchStub } from './auth/testing/fixtures'
 import { versionPayload } from './app/testing/versionFixture'
 
 /**
  * Renders the real shell over an in-memory copy of the route table, so the test can start on any path
  * without a browser history. The route elements are the ones the browser router uses.
+ *
+ * `SessionProvider` sits above `DisplayPreferencesProvider` here exactly as it does in `main.tsx`
+ * (#374) — this shell's own tests never sign in, so `GET /api/v1/me` is stubbed 401 by default and
+ * the preferences provider falls back to its local device store, which is the same behaviour every
+ * one of these tests already asserted against before there was a session in the tree at all.
  *
  * jsdom reports a 1024 px window and implements neither `ResizeObserver` nor `matchMedia`, so the
  * shell measures 1024 and chooses the desktop layout. The phone and tablet layouts are asserted in
@@ -34,28 +43,40 @@ function renderAt(path: string) {
 
   return render(
     <AppIntlProvider locale="en-IN">
-      <DisplayPreferencesProvider store={createInMemoryDisplayPreferencesStore()}>
-        <RouterProvider router={router} />
-      </DisplayPreferencesProvider>
+      <SessionProvider>
+        <DisplayPreferencesProvider>
+          <RouterProvider router={router} />
+        </DisplayPreferencesProvider>
+      </SessionProvider>
     </AppIntlProvider>,
   )
 }
 
+let transport: FetchStub
+
 function stubVersionEndpoint(environment: string) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() =>
-      Promise.resolve(
-        new Response(JSON.stringify(versionPayload({ environment })), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
+  transport.route('GET /api/version', () =>
+    Promise.resolve(
+      new Response(JSON.stringify(versionPayload({ environment })), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     ),
   )
 }
 
+beforeEach(() => {
+  forgetAntiforgeryToken()
+  setSessionChallengeHandler(null)
+  transport = stubFetch()
+  // Nobody signs in on this shell's own tests; a real session is exercised in auth/*.test.tsx and in
+  // the preferences leak test. Overridden per test with `transport.route(...)` where it matters.
+  transport.route('GET /api/v1/me', () => problemResponse(401, 'identity.session-required'))
+})
+
 afterEach(() => {
+  setSessionChallengeHandler(null)
+  forgetAntiforgeryToken()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   document.documentElement.removeAttribute('data-shell')

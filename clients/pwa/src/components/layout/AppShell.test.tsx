@@ -256,7 +256,7 @@ describe('AppShell — text growth', () => {
 
   it.each(['100', '125', '150'] as const)('renders at the %s per cent text size', (textSize) => {
     const { container } = renderShell('phone', <h1>Orders</h1>, {
-      preferences: { theme: 'system', textSize, density: 'comfortable' },
+      preferences: { theme: 'system', textSize, density: 'comfortable', reducedMotion: false },
     })
 
     expect(document.documentElement).toHaveAttribute('data-text-size', textSize)

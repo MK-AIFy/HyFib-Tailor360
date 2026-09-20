@@ -29,13 +29,19 @@ describe('renderWithProviders', () => {
 
   it('applies the display preferences to the document, where the token blocks select on them', () => {
     renderWithProviders(<p>Anything</p>, {
-      preferences: { theme: 'contrast', textSize: '150', density: 'comfortable' },
+      preferences: {
+        theme: 'contrast',
+        textSize: '150',
+        density: 'comfortable',
+        reducedMotion: false,
+      },
     })
 
     expect(readDisplayPreferences(document.documentElement)).toEqual({
       theme: 'contrast',
       textSize: '150',
       density: 'comfortable',
+      reducedMotion: false,
     })
   })
 })

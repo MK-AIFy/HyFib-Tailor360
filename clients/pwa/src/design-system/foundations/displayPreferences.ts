@@ -20,6 +20,12 @@ export interface DisplayPreferences {
   readonly theme: ThemePreference
   readonly textSize: TextSizePreference
   readonly density: Density
+  /**
+   * True to suppress animation this application controls, on top of whatever the operating system
+   * already reduces. It adds a way to ask; it never takes one away — `prefers-reduced-motion: reduce`
+   * still applies when this is false.
+   */
+  readonly reducedMotion: boolean
 }
 
 /** What a person gets before they have chosen anything. */
@@ -27,11 +33,13 @@ export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
   theme: 'system',
   textSize: '100',
   density: 'comfortable',
+  reducedMotion: false,
 }
 
 export const THEME_ATTRIBUTE = 'data-theme'
 export const TEXT_SIZE_ATTRIBUTE = 'data-text-size'
 export const DENSITY_ATTRIBUTE = 'data-density'
+export const REDUCED_MOTION_ATTRIBUTE = 'data-reduced-motion'
 
 /**
  * Writes the preferences onto an element — `document.documentElement` in the application, a story
@@ -48,6 +56,14 @@ export function applyDisplayPreferences(
   }
   element.setAttribute(TEXT_SIZE_ATTRIBUTE, preferences.textSize)
   element.setAttribute(DENSITY_ATTRIBUTE, preferences.density)
+
+  // Absent rather than "false": the operating system's own prefers-reduced-motion still has to win
+  // when this is not explicitly set, and themes.css only has to test for the attribute's presence.
+  if (preferences.reducedMotion) {
+    element.setAttribute(REDUCED_MOTION_ATTRIBUTE, 'true')
+  } else {
+    element.removeAttribute(REDUCED_MOTION_ATTRIBUTE)
+  }
 }
 
 /** Reads back what is currently applied, falling back to the defaults for anything unrecognised. */
@@ -60,6 +76,7 @@ export function readDisplayPreferences(element: Element): DisplayPreferences {
     theme: isThemePreference(theme) ? theme : 'system',
     textSize: isTextSizePreference(textSize) ? textSize : '100',
     density: density === 'compact' ? 'compact' : 'comfortable',
+    reducedMotion: element.getAttribute(REDUCED_MOTION_ATTRIBUTE) === 'true',
   }
 }
 

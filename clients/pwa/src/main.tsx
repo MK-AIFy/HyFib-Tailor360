@@ -27,17 +27,22 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <AppIntlProvider>
-      {/* Outside the router, because the theme and the text size belong to the person rather than to
-          the screen: they are applied once, to the document, and survive every navigation. The store
-          behind them is a local stub until identity.user_preferences exists (#351). */}
-      <DisplayPreferencesProvider>
-        {/* Outside the router, because the session outlives every navigation and because the
-            re-authentication dialog it owns has to be able to open over any screen without that
-            screen unmounting — which is the whole point of re-authenticating in place. */}
-        <SessionProvider>
+      {/* Outside the router, because the session outlives every navigation and because the
+          re-authentication dialog it owns has to be able to open over any screen without that
+          screen unmounting — which is the whole point of re-authenticating in place. */}
+      <SessionProvider>
+        {/* Inside the session and outside the router: the theme, text size, density and reduced
+            motion belong to the person rather than to the screen, so they are applied once, to the
+            document, and survive every navigation. DisplayPreferencesProvider reads the session
+            itself (#374, e12-f01-2) — a signed-in account gets its own stored preferences, and an
+            anonymous device, or the moment before the session resolves, gets the local device stub.
+            See that provider's own remarks for why it reads the session directly rather than
+            through useSession(), which would throw for the standalone tests and stories that render
+            it with no SessionProvider above. */}
+        <DisplayPreferencesProvider>
           <RouterProvider router={router} />
-        </SessionProvider>
-      </DisplayPreferencesProvider>
+        </DisplayPreferencesProvider>
+      </SessionProvider>
     </AppIntlProvider>
   </StrictMode>,
 )
