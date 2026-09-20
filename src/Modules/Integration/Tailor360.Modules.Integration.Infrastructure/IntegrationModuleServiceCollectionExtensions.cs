@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Integration.Infrastructure.Documents;
+using Tailor360.Modules.Integration.Infrastructure.Scanning;
 using Tailor360.Modules.Integration.Infrastructure.Storage;
 using Tailor360.Platform.Abstractions.Health;
 using Tailor360.Platform.Abstractions.Ports;
@@ -75,6 +76,31 @@ public static class IntegrationModuleServiceCollectionExtensions
 
         services.TryAddSingleton<IPdfRenderer, QuestPdfRenderer>();
         services.TryAddSingleton<IBarcodeRenderer, Code128BarcodeRenderer>();
+
+        // The malware scanner (ADR-0012, issue #596): ClamAV when a host is configured, the fake
+        // scanner otherwise — the same real-or-fallback shape object storage uses above, and the
+        // same reason: a developer without the `scanner` compose profile still gets a working loop,
+        // and the environment guard refuses a production start without one configured.
+        services.AddOptions<ClamAvOptions>()
+            .Bind(configuration.GetSection(ClamAvOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<ClamAvOptions>, ClamAvOptionsValidator>();
+        services.TryAddSingleton<FakeMalwareScanner>();
+        services.TryAddSingleton<IMalwareScanner>(provider =>
+        {
+            var clamAvOptions = provider.GetRequiredService<IOptions<ClamAvOptions>>();
+            if (clamAvOptions.Value.IsConfigured)
+            {
+                return new ClamAvMalwareScanner(clamAvOptions);
+            }
+
+            // Development only: the validator has refused every other environment by now.
+            provider.GetRequiredService<ILogger<FakeMalwareScanner>>().LogWarning(
+                "ClamAv is not configured with a host; the fake scanner reports every upload clean, "
+                + "which must never be true anywhere but a developer's own machine or the test host.");
+            return provider.GetRequiredService<FakeMalwareScanner>();
+        });
 
         // IPrintQueue is registered by Platform (DatabasePrintQueue, E07-F01-5): platform.print_jobs is
         // Platform's own table (ARCH-005), and the interim LoggingPrintQueue this module used to bind is
