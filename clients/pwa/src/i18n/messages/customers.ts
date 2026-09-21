@@ -91,6 +91,7 @@ export const customersEn = {
   'customers.edit.loading': 'the customer record',
   'customers.edit.back': 'Back to the record',
   'customers.edit.reason': 'Why this correction',
+  'customers.edit.reasonHint': 'Recorded in the audit trail with your name. A sentence is enough.',
   'customers.edit.action': 'Save the correction',
   'customers.edit.saving': 'Saving…',
   'customers.edit.saved': 'The correction was saved.',
@@ -225,6 +226,8 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.edit.back': 'Back to the record',
   // not translated — awaiting native-speaker review
   'customers.edit.reason': 'Why this correction',
+  // not translated — awaiting native-speaker review
+  'customers.edit.reasonHint': 'Recorded in the audit trail with your name. A sentence is enough.',
   // not translated — awaiting native-speaker review
   'customers.edit.action': 'Save the correction',
   // not translated — awaiting native-speaker review

@@ -11,9 +11,9 @@ import { OfflineBlockedAction } from '../../components/states/OfflineBlockedActi
 import { useNetworkState } from '../../components/states/useNetworkState'
 import { FormErrorSummary } from '../../design-system/components/forms/FormErrorSummary'
 import { Select } from '../../design-system/components/forms/Select'
+import { TextArea } from '../../design-system/components/forms/TextArea'
 import { TextField } from '../../design-system/components/forms/TextField'
 import type { FieldErrorEntry } from '../../design-system/foundations/FieldProps'
-import { AdminReasonField } from '../admin/AdminReasonField'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { correctCustomer, readCustomer } from '../../customers/customersApi'
 import { CUSTOMER_VERSION_CONFLICT_CODE } from '../../customers/types'
@@ -360,10 +360,14 @@ export function CustomerEditRoute() {
           value={details.language ?? 'en-IN'}
         />
 
-        <AdminReasonField
+        <TextArea
+          description={intl.formatMessage({ id: 'customers.edit.reasonHint' })}
           id="customer-reason"
           label={intl.formatMessage({ id: 'customers.edit.reason' })}
-          onChange={setReason}
+          name="reason"
+          onValueChange={setReason}
+          required
+          rows={2}
           value={reason}
           {...(reasonError === undefined ? {} : { error: reasonError })}
         />
