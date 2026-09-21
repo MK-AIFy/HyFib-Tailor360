@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -293,6 +293,113 @@ it('keeps the consent record readable when the preferences alone fail', async ()
 
   expect(await screen.findByRole('heading', { name: 'Appointment reminders' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'How to reach her' })).toBeInTheDocument()
+})
+
+// A second decision while the first is in flight would be a second *answer* under the first's retry
+// key — "same key, different body" on a consent record. The siblings go unavailable, and the handler
+// refuses re-entry as well, because a key is cheap and a lost decision is not.
+it('takes one decision at a time, and does not send a second under the first key', async () => {
+  transport.route(RECORD, () => new Promise<Response>(() => {}))
+  renderConsent()
+  await screen.findByRole('heading', { name: 'Appointment reminders' })
+
+  await userEvent.type(screen.getByRole('textbox', { name: 'Where she said it' }), 'At the counter')
+  await userEvent.click(screen.getByRole('button', { name: 'She agreed' }))
+  await waitFor(() => {
+    expect(transport.callsTo(RECORD)).toHaveLength(1)
+  })
+
+  // The other decisions say they cannot be used, rather than quietly doing nothing.
+  expect(screen.getByRole('button', { name: 'She said no' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'She said no' }))
+
+  expect(transport.callsTo(RECORD)).toHaveLength(1)
+})
+
+it('announces that the answer was taken, since the card is only redrawn', async () => {
+  transport.route(RECORD, () => jsonResponse(aConsentAnswer()))
+  renderConsent()
+  await screen.findByRole('heading', { name: 'Appointment reminders' })
+
+  // Mounted empty, so the sentence arrives into a region that already exists.
+  expect(screen.getAllByRole('status')[0]).toHaveTextContent('')
+
+  await userEvent.type(screen.getByRole('textbox', { name: 'Where she said it' }), 'At the counter')
+  await userEvent.click(screen.getByRole('button', { name: 'She said no' }))
+
+  expect(await screen.findByText('Recorded: She said no.')).toBeInTheDocument()
+})
+
+// A genuine server refusal must not be reported as "say where she said it" just because the field
+// happens to be empty — which is what reading the validation state out of the failure would do.
+it('reports a server refusal as itself, not as a missing source', async () => {
+  transport.route(RECORD, () => problemResponse(400, 'customers.consent-decision-not-understood'))
+  renderConsent()
+  await screen.findByRole('heading', { name: 'Appointment reminders' })
+
+  const source = screen.getByRole('textbox', { name: 'Where she said it' })
+  await userEvent.type(source, 'At the counter')
+  await userEvent.click(screen.getByRole('button', { name: 'She agreed' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(RECORD)).toHaveLength(1)
+  })
+  expect(source).not.toHaveAttribute('aria-invalid', 'true')
+  expect(screen.queryByText(/Say where she said it/)).not.toBeInTheDocument()
+})
+
+// The connection goes *after* the screen is up, which is both the real case and the only one the
+// store can see: `useNetworkState` reads `navigator.onLine` once, and attaches its window listeners
+// when the first component subscribes — so an event fired before anything rendered is missed.
+it('blocks both writes with an explanation when the connection goes', async () => {
+  renderConsent()
+  await screen.findByRole('heading', { name: 'Appointment reminders' })
+  expect(screen.getByRole('button', { name: 'She agreed' })).toBeInTheDocument()
+
+  try {
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+
+    expect(screen.queryByRole('button', { name: 'She agreed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save how to reach her' })).not.toBeInTheDocument()
+    // The wording the blueprint fixes: a write is refused, never quietly queued.
+    expect(screen.getAllByText(/Needs connection — this will not be queued/).length).toBe(2)
+  } finally {
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+  }
+})
+
+// The form must not fall back to the pre-save preference while the reload is in flight: a toggle in
+// that window would build the next draft on the state that was just replaced, putting back a channel
+// she had only just been taken off.
+it('keeps showing what was saved while the record is read again', async () => {
+  let reads = 0
+  transport.route(PREFS, () => {
+    reads += 1
+    // The second read never answers, so the whole test sits inside the reload window.
+    return reads === 1
+      ? jsonResponse(aCommunicationPreference({ allowedChannels: ['Sms'] }))
+      : new Promise<Response>(() => {})
+  })
+  transport.route(SAVE_PREFS, () =>
+    versionedResponse(aCommunicationPreference({ allowedChannels: [] }), 'W/"5"'),
+  )
+  renderConsent()
+
+  const sms = await screen.findByRole('checkbox', { name: 'Text message' })
+  await userEvent.click(sms)
+  await userEvent.click(screen.getByRole('button', { name: 'Save how to reach her' }))
+
+  await screen.findByText('Saved.')
+
+  // Still off, because that is what the server now holds — not on, which is what the stale read says.
+  expect(screen.getByRole('checkbox', { name: 'Text message' })).not.toBeChecked()
 })
 
 it('has no accessibility violations', async () => {

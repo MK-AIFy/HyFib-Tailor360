@@ -183,7 +183,15 @@ export interface ConsentAnswer {
   readonly purposeKey: string
   /** `Granted`, `Declined` or `Withdrawn`. */
   readonly decision: string
-  /** The wording version she was asked under. Read from the register by the server, never sent. */
+  /**
+   * The wording version she was asked under. Read from the register by the server, never sent.
+   *
+   * `number`, although the generated contract says `number | string`: the document types every
+   * `int32` as a union with a string (74 of them — #612), which the server never actually emits.
+   * Widening this to match would push the union into every reader of the value to describe a shape
+   * that does not occur, so the narrower, true type is kept here and the document is the thing to
+   * fix.
+   */
   readonly wordingVersion: number
   readonly recordedAt: string
   /** Where it was taken, in the words whoever took it wrote. Free text, not a code. */

@@ -182,6 +182,7 @@ export const customersEn = {
   'customers.consent.decline': 'She said no',
   'customers.consent.withdraw': 'She withdrew it',
   'customers.consent.offlineAction': 'Recording what she said',
+  'customers.consent.recorded': 'Recorded: {decision}.',
   'customers.preferences.title': 'How to reach her',
   'customers.preferences.body':
     'This replaces what was there, so it always reads as one answer to “which channels does she accept”.',
@@ -475,6 +476,8 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.consent.withdraw': 'She withdrew it',
   // not translated — awaiting native-speaker review
   'customers.consent.offlineAction': 'Recording what she said',
+  // not translated — awaiting native-speaker review
+  'customers.consent.recorded': 'Recorded: {decision}.',
   // not translated — awaiting native-speaker review
   'customers.preferences.title': 'How to reach her',
   // not translated — awaiting native-speaker review

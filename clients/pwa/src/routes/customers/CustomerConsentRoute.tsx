@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { IntlShape } from 'react-intl'
 import { Link, useParams } from 'react-router'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
-import { ApiError } from '../../auth/apiClient'
 import { useSession } from '../../auth/useSession'
 import { Alert } from '../../components/primitives/Alert'
 import { Button } from '../../components/primitives/Button'
@@ -153,15 +152,38 @@ function PurposeCard({
   const [source, setSource] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [failure, setFailure] = useState<unknown>(null)
+  // Its own state, not read back out of a synthetic `ApiError`: a genuine server 400 — a source too
+  // long, a decision the register no longer accepts — would otherwise be reported as "say where she
+  // said it" whenever the field happened to be empty, which is how a real refusal gets hidden.
+  const [sourceMissing, setSourceMissing] = useState(false)
+  const [announcement, setAnnouncement] = useState('')
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+
+  // Recording an answer is a write the server has already taken by the time it resolves, so it is
+  // never abandoned — only this card's own state updates are guarded.
+  const live = useRef(true)
+  useEffect(() => {
+    live.current = true
+    return () => {
+      live.current = false
+    }
+  }, [])
 
   const record = (decision: string) => {
     if (source.trim() === '') {
-      setFailure(new ApiError('A source is required.', { status: 400 }))
+      setSourceMissing(true)
+      return
+    }
+
+    // A second decision is a second answer, not a retry of the first, so it must not carry the
+    // first's key. The buttons make this hard to reach — the siblings go unavailable while one is
+    // in flight — but a key is cheap and "same key, different body" on a consent record is not.
+    if (busy !== null) {
       return
     }
 
     setBusy(decision)
+    setSourceMissing(false)
     setFailure(null)
 
     void recordConsent({
@@ -172,27 +194,50 @@ function PurposeCard({
       idempotencyKey,
     })
       .then(() => {
+        if (!live.current) {
+          return
+        }
         setSource('')
         // A new key for the next, separate answer. The guarantee is that a resend of *this* answer
         // replays, not that two different answers collapse into one.
         setIdempotencyKey(crypto.randomUUID())
+        // The card is redrawn from the reloaded record, and nothing about a redraw is announced —
+        // so without this a screen-reader user gets no confirmation that the answer was taken.
+        setAnnouncement(
+          intl.formatMessage(
+            { id: 'customers.consent.recorded' },
+            { decision: intl.formatMessage({ id: statusMessage(decision) }) },
+          ),
+        )
         onRecorded()
       })
       .catch((cause: unknown) => {
-        setFailure(cause)
+        if (live.current) {
+          setFailure(cause)
+        }
       })
       .finally(() => {
-        setBusy(null)
+        if (live.current) {
+          setBusy(null)
+        }
       })
   }
 
-  const sourceError =
-    failure instanceof ApiError && failure.status === 400 && source.trim() === ''
-      ? intl.formatMessage({ id: 'customers.consent.sourceRequired' })
-      : undefined
+  const sourceError = sourceMissing
+    ? intl.formatMessage({ id: 'customers.consent.sourceRequired' })
+    : undefined
 
   return (
     <Card headingLevel={2} title={purpose.name}>
+      {/*
+       * Mounted empty and given its sentence when an answer is taken, which is the case a polite
+       * region is reliably announced in. The status line below is redrawn rather than added to, and
+       * a redraw announces nothing.
+       */}
+      <span aria-live="polite" className="visually-hidden" role="status">
+        {announcement}
+      </span>
+
       <p className="customers__consentStatus">
         <Icon name={statusIcon(purpose.status)} />{' '}
         {intl.formatMessage({ id: statusMessage(purpose.status) })}
@@ -233,7 +278,7 @@ function PurposeCard({
 
       {!mayRecord || !purpose.canBeAnswered ? null : (
         <>
-          <AuthProblemAlert failure={sourceError === undefined ? failure : null} />
+          <AuthProblemAlert failure={failure} />
 
           <TextField
             autoComplete="off"
@@ -243,6 +288,7 @@ function PurposeCard({
             name="source"
             onValueChange={(value) => {
               setSource(value)
+              setSourceMissing(false)
               setFailure(null)
             }}
             required
@@ -258,6 +304,7 @@ function PurposeCard({
                 onClick={() => {
                   record('Granted')
                 }}
+                unavailable={busy !== null && busy !== 'Granted'}
                 variant="primary"
               >
                 {intl.formatMessage({ id: 'customers.consent.grant' })}
@@ -268,6 +315,7 @@ function PurposeCard({
                 onClick={() => {
                   record('Declined')
                 }}
+                unavailable={busy !== null && busy !== 'Declined'}
                 variant="secondary"
               >
                 {intl.formatMessage({ id: 'customers.consent.decline' })}
@@ -279,6 +327,7 @@ function PurposeCard({
                   onClick={() => {
                     record('Withdrawn')
                   }}
+                  unavailable={busy !== null && busy !== 'Withdrawn'}
                   variant="secondary"
                 >
                   {intl.formatMessage({ id: 'customers.consent.withdraw' })}
@@ -323,6 +372,16 @@ function PreferencesForm({
   const [failure, setFailure] = useState<unknown>(null)
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
 
+  // As in `PurposeCard`: the write is already with the server when it resolves, so it is never
+  // abandoned — only this form's own state updates are guarded.
+  const live = useRef(true)
+  useEffect(() => {
+    live.current = true
+    return () => {
+      live.current = false
+    }
+  }, [])
+
   if (current === null) {
     return (
       <>
@@ -345,7 +404,11 @@ function PreferencesForm({
     end: (current.quietHoursEnd ?? '').slice(0, 5),
   }
 
-  const halfAnHour = (values.start === '') !== (values.end === '')
+  // Named rather than written inline: the rule is the server's, and "one end without the other is
+  // not a preference" is worth being able to check by eye on the screen that enforces it.
+  const hasStart = values.start !== ''
+  const hasEnd = values.end !== ''
+  const halfAnHour = hasStart !== hasEnd
   const quietError = halfAnHour
     ? intl.formatMessage({ id: 'customers.preferences.quietHoursBothEnds' })
     : undefined
@@ -363,24 +426,53 @@ function PreferencesForm({
       customerId,
       allowedChannels: values.channels,
       language: values.language,
-      quietHoursStart: values.start === '' ? null : `${values.start}:00`,
-      quietHoursEnd: values.end === '' ? null : `${values.end}:00`,
-      // Omitted, not `*`, when no preference exists yet: there is no version of a row that does not
-      // exist, and the server requires the header's absence rather than a wildcard.
+      quietHoursStart: wireTime(values.start, current.quietHoursStart),
+      quietHoursEnd: wireTime(values.end, current.quietHoursEnd),
+      /*
+       * Omitted, not `*`, when no preference exists yet: there is no version of a row that does not
+       * exist, and the server requires the header's absence rather than a wildcard.
+       *
+       * `hasBeenRecorded` true with a null version is unreachable today — the server always sends a
+       * tag with a recorded preference — and if it ever became reachable this omits the precondition
+       * and the server refuses. That is the safe direction: a refusal, never a blind overwrite of a
+       * row somebody else may have changed.
+       */
       version: current.hasBeenRecorded ? (current.version ?? undefined) : undefined,
       idempotencyKey,
     })
-      .then(() => {
+      .then((result) => {
+        if (!live.current) {
+          return
+        }
         setSaved(true)
-        setDraft(null)
+        /*
+         * The draft is set to what the server just stored, not cleared to null.
+         *
+         * `useAdminResource` deliberately keeps the old value on screen while a reload is in
+         * flight, so clearing the draft would make `values` fall back to the *pre-save* preference
+         * for the whole round trip — the form would visibly revert, and a toggle during that window
+         * would build the next draft on the state that was just replaced, quietly putting back a
+         * channel she had just been taken off. Holding the saved values keeps the screen truthful
+         * until the reload lands with the new version.
+         */
+        setDraft({
+          channels: result.value.allowedChannels,
+          language: result.value.language,
+          start: (result.value.quietHoursStart ?? '').slice(0, 5),
+          end: (result.value.quietHoursEnd ?? '').slice(0, 5),
+        })
         setIdempotencyKey(crypto.randomUUID())
         preferences.reload()
       })
       .catch((cause: unknown) => {
-        setFailure(cause)
+        if (live.current) {
+          setFailure(cause)
+        }
       })
       .finally(() => {
-        setBusy(false)
+        if (live.current) {
+          setBusy(false)
+        }
       })
   }
 
@@ -500,6 +592,21 @@ function PreferencesForm({
       )}
     </>
   )
+}
+
+/**
+ * The wire value for a quiet-hours end, keeping what was stored when the field was not touched.
+ *
+ * The control is minute-granularity, so rebuilding `HH:mm:00` from it would zero the seconds of a
+ * stored value on *any* save — including one that only toggled a channel. Nothing writes seconds
+ * today, so this changes no behaviour now; it means that when something does, this screen stops
+ * being a place where they quietly disappear.
+ */
+function wireTime(typed: string, stored: string | null): string | null {
+  if (typed === '') {
+    return null
+  }
+  return stored !== null && stored.slice(0, 5) === typed ? stored : `${typed}:00`
 }
 
 /** The glyph for a consent status. Shapes differ, so the row reads in greyscale. */
