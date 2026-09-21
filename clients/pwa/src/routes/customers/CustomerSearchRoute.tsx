@@ -84,6 +84,15 @@ export function CustomerSearchRoute() {
           void search()
         }}
       >
+        {/*
+          No `inputMode`, deliberately, and #614 records the decision as still open.
+
+          This field matches a name, a native-script name, a customer number *or* the tail of a
+          telephone number — which is what the hint above it says. #182 asks for it to be "phone
+          keypad optimised", and a `tel` keypad on a field whose commonest input is a name would make
+          most searches worse to serve the one that the server already makes cheap by matching a
+          partial number. `autoComplete` stays off because this is a shared counter device.
+        */}
         <TextField
           autoComplete="off"
           description={intl.formatMessage(
