@@ -343,6 +343,13 @@ export const EditContactWithheld: Story = {
     }),
 }
 
+/**
+ * Press Save without writing a reason, to see the error summary take focus, list the sentence, and
+ * point at the field — the endpoint records a reason against every correction, so an empty one is a
+ * refusal the screen has to explain rather than a save that quietly does nothing.
+ */
+export const EditValidation: Story = { render: () => edit({}) }
+
 /** Correcting a record needs a connection; the screen says so and keeps every value typed. */
 export const EditOffline: Story = { render: () => edit({}, false) }
 

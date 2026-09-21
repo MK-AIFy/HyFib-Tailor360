@@ -95,8 +95,8 @@ export const customersEn = {
   'customers.edit.saving': 'Saving…',
   'customers.edit.saved': 'The correction was saved.',
   'customers.edit.offlineAction': 'Correcting a customer record',
-  'customers.edit.nameRequired': 'A name is required.',
-  'customers.edit.reasonRequired': 'A reason is required.',
+  'customers.edit.nameRequired': 'A customer record must have a name.',
+  'customers.edit.reasonRequired': 'Say why this record is being corrected.',
   'customers.edit.conflict.title': 'Somebody else changed this record',
   'customers.edit.conflict.body':
     'It was corrected by somebody else while you were typing. Reload it to see their version — what you typed is kept, so you can check it against theirs before saving again.',
@@ -234,9 +234,9 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.edit.offlineAction': 'Correcting a customer record',
   // not translated — awaiting native-speaker review
-  'customers.edit.nameRequired': 'A name is required.',
+  'customers.edit.nameRequired': 'A customer record must have a name.',
   // not translated — awaiting native-speaker review
-  'customers.edit.reasonRequired': 'A reason is required.',
+  'customers.edit.reasonRequired': 'Say why this record is being corrected.',
   // not translated — awaiting native-speaker review
   'customers.edit.conflict.title': 'Somebody else changed this record',
   // not translated — awaiting native-speaker review

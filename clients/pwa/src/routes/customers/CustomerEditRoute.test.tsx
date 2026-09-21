@@ -98,7 +98,10 @@ it('sends the whole record against the version it was read at, with the reason',
   })
 })
 
-it('will not save without a reason, because the endpoint records one against the change', async () => {
+// Both validation tests assert the *field* is marked, not just that the save was withheld. A screen
+// that silently does nothing on a failed submit is the failure mode these replaced: the endpoint
+// records a reason against every correction, so an empty one has to say which box is empty.
+it('will not save without a reason, and says so on the reason field', async () => {
   transport.route(READ, () => versionedResponse(aCustomer(), 'W/"7"'))
 
   const name = await aLoadedForm()
@@ -107,9 +110,18 @@ it('will not save without a reason, because the endpoint records one against the
   await userEvent.click(screen.getByRole('button', { name: 'Save the correction' }))
 
   expect(transport.callsTo(CORRECT)).toHaveLength(0)
+
+  const reason = screen.getByRole('textbox', { name: 'Why this correction' })
+  expect(reason).toHaveAttribute('aria-invalid', 'true')
+  expect(reason).toHaveAccessibleDescription(/Say why this record is being corrected/)
+  // And the same sentence is listed at the top of the form, as the control that takes focus — the
+  // summary's entries are buttons, because they move focus rather than navigate.
+  expect(
+    screen.getByRole('button', { name: 'Say why this record is being corrected.' }),
+  ).toBeInTheDocument()
 })
 
-it('will not save a record with no name at all', async () => {
+it('will not save a record with no name at all, and says so on the name field', async () => {
   transport.route(READ, () => versionedResponse(aCustomer(), 'W/"7"'))
 
   const name = await aLoadedForm()
@@ -118,6 +130,10 @@ it('will not save a record with no name at all', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Save the correction' }))
 
   expect(transport.callsTo(CORRECT)).toHaveLength(0)
+  expect(screen.getByRole('textbox', { name: 'Name' })).toHaveAttribute('aria-invalid', 'true')
+  expect(
+    screen.getByRole('button', { name: 'A customer record must have a name.' }),
+  ).toBeInTheDocument()
 })
 
 it('offers a reload on a stale version, keeps what was typed, and saves against the new one', async () => {

@@ -9,8 +9,10 @@ import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { OfflineBlockedAction } from '../../components/states/OfflineBlockedAction'
 import { useNetworkState } from '../../components/states/useNetworkState'
+import { FormErrorSummary } from '../../design-system/components/forms/FormErrorSummary'
 import { Select } from '../../design-system/components/forms/Select'
 import { TextField } from '../../design-system/components/forms/TextField'
+import type { FieldErrorEntry } from '../../design-system/foundations/FieldProps'
 import { AdminReasonField } from '../admin/AdminReasonField'
 import { useAdminResource } from '../../admin/useAdminResource'
 import { correctCustomer, readCustomer } from '../../customers/customersApi'
@@ -37,6 +39,17 @@ import './customers.css'
  * can make the correction instead of offering a form that cannot work. Widening this — a sparse
  * `PATCH`, or a `PUT` the server reads as "leave withheld fields alone" — is a server change and a
  * contract change, tracked separately rather than worked around here.
+ *
+ * ## Why the two required fields are checked here and not left to the server
+ *
+ * A name and a reason are the two things the endpoint refuses without, and both are things a person
+ * can see is missing before a round trip. They are reported as `FieldErrorEntry`s through
+ * `FormErrorSummary` and the fields' own `error` prop — the house pattern, and `LoginRoute`'s — so
+ * the summary takes focus, names which box is empty and moves focus to it. What they are *not* is a
+ * synthetic `ApiError`: `AuthProblemAlert` chooses its sentence from the status and never from the
+ * message, so a hand-made 400 would reach the counter as "something went wrong" with nothing
+ * attached to the empty field. Everything beyond "this is required" stays the server's opinion —
+ * what a name may contain belongs to `CustomerNameNormaliser`, not to a form.
  *
  * ## Why the typed draft survives a conflict reload
  *
@@ -68,6 +81,10 @@ export function CustomerEditRoute() {
   const [saved, setSaved] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  const [errors, setErrors] = useState<readonly FieldErrorEntry[]>([])
+  // Counts submit attempts rather than tracking a boolean, so a second failed submit moves focus
+  // back to the summary instead of leaving somebody in the field they just fixed the wrong way.
+  const [attempt, setAttempt] = useState(0)
 
   if (record.value === null && record.loading) {
     return <LoadingState what={intl.formatMessage({ id: 'customers.edit.loading' })} />
@@ -114,14 +131,38 @@ export function CustomerEditRoute() {
     setSaved(false)
   }
 
+  const nameError = errors.find((entry) => entry.name === 'displayName')?.message
+  const reasonError = errors.find((entry) => entry.name === 'reason')?.message
+
   const save = () => {
+    /*
+     * The only client-side validation is "this is required", for the two fields the server refuses
+     * without — `LoginRoute`'s rule and for its reason: anything more would be this screen having an
+     * opinion about a name, and a name's rules belong to `CustomerNameNormaliser`, not here.
+     *
+     * They are `FieldErrorEntry`s and not a thrown `ApiError`, because `AuthProblemAlert` renders a
+     * sentence chosen from the *status* and never the message — so a synthetic 400 would reach the
+     * counter as "something went wrong" with nothing attached to the field that is actually empty.
+     */
+    const missing: FieldErrorEntry[] = []
     if ((details.displayName ?? '').trim() === '') {
-      setFailure(new ApiError('A name is required.', { status: 400 }))
-      return
+      missing.push({
+        name: 'displayName',
+        message: intl.formatMessage({ id: 'customers.edit.nameRequired' }),
+        controlId: 'customer-name',
+      })
+    }
+    if (reason.trim() === '') {
+      missing.push({
+        name: 'reason',
+        message: intl.formatMessage({ id: 'customers.edit.reasonRequired' }),
+        controlId: 'customer-reason',
+      })
     }
 
-    if (reason.trim() === '') {
-      setFailure(new ApiError('A reason is required.', { status: 400 }))
+    setAttempt((previous) => previous + 1)
+    setErrors(missing)
+    if (missing.length > 0) {
       return
     }
 
@@ -139,6 +180,7 @@ export function CustomerEditRoute() {
       .then(() => {
         setSaved(true)
         setReason('')
+        setErrors([])
         // The record is authoritative again, so the fields render from it rather than from a draft
         // that is now a copy of it — which is also what makes a second, different correction start
         // from what was actually saved.
@@ -202,6 +244,8 @@ export function CustomerEditRoute() {
         <AuthProblemAlert failure={failure} />
       )}
 
+      <FormErrorSummary errors={errors} submissionId={attempt} />
+
       <form
         className="customers__form"
         noValidate
@@ -220,6 +264,7 @@ export function CustomerEditRoute() {
           }}
           required
           value={details.displayName ?? ''}
+          {...(nameError === undefined ? {} : { error: nameError })}
         />
         <TextField
           autoComplete="off"
@@ -320,6 +365,7 @@ export function CustomerEditRoute() {
           label={intl.formatMessage({ id: 'customers.edit.reason' })}
           onChange={setReason}
           value={reason}
+          {...(reasonError === undefined ? {} : { error: reasonError })}
         />
 
         {network.online ? (
