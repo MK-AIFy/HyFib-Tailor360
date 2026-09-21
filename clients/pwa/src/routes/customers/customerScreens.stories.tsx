@@ -10,9 +10,10 @@ import {
 import { PSEUDO_LOCALE } from '../../i18n/pseudo'
 import { CUSTOMERS_PERMISSIONS } from '../../customers/customersPermissions'
 import { aCustomer, aCustomerCard, aDuplicateCandidate } from '../../customers/testing/fixtures'
-import { CUSTOMER_DUPLICATES_CODE } from '../../customers/types'
+import { CUSTOMER_DUPLICATES_CODE, CUSTOMER_VERSION_CONFLICT_CODE } from '../../customers/types'
 import { CustomerCreateRoute } from './CustomerCreateRoute'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
+import { CustomerEditRoute } from './CustomerEditRoute'
 import { CustomerSearchRoute } from './CustomerSearchRoute'
 import './customers.css'
 
@@ -25,9 +26,10 @@ import './customers.css'
  *
  * ## Search and detail have no offline story
  *
- * Neither screen makes a write: search only reads, and the detail screen is #582's edit affordance
- * away from having anything to guard. Registering does write, so `CustomerCreateRoute` gates on
- * `useNetworkState` the same way a counter payment does, and that is the one offline story here.
+ * Neither screen makes a write: search only reads, and the detail screen's one action is a link to
+ * the correction form rather than a write of its own. Registering and correcting do write, so
+ * `CustomerCreateRoute` and `CustomerEditRoute` gate on `useNetworkState` the same way a counter
+ * payment does, and those are the two offline stories here.
  *
  * ## Why the search stories say what to type
  *
@@ -64,6 +66,7 @@ const CUSTOMERS_USER = {
     CUSTOMERS_PERMISSIONS.read,
     CUSTOMERS_PERMISSIONS.create,
     CUSTOMERS_PERMISSIONS.readContact,
+    CUSTOMERS_PERMISSIONS.update,
   ],
 }
 
@@ -118,6 +121,24 @@ const detail = (routes: Parameters<typeof withAdminApi>[1]) =>
       ...routes,
     },
     { path: '/customers/:customerId', at: DETAIL_AT },
+  )
+
+const EDIT_AT = `/customers/${CUSTOMER.customerId}/edit`
+
+const edit = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+  link(online, () =>
+    withAdminApi(
+      <RequirePermission permission={CUSTOMERS_PERMISSIONS.update}>
+        <CustomerEditRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
+        [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () => storyJson(CUSTOMER, 'W/"1"'),
+        [`PUT ${CUSTOMERS}${CUSTOMER.customerId}`]: () => storyJson(CUSTOMER, 'W/"2"'),
+        ...routes,
+      },
+      { path: '/customers/:customerId/edit', at: EDIT_AT },
+    ),
   )
 
 /* Search ----------------------------------------------------------------------------------- */
@@ -257,4 +278,81 @@ export const DetailForbidden: Story = {
 export const DetailPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => detail({}),
+}
+
+/* Correcting one record ------------------------------------------------------------------------ */
+
+/** The form as the record fills it. Change a field, write a reason, and save. */
+export const Edit: Story = { render: () => edit({}) }
+
+/** This screen's loading state: the record it is about to become a form for. */
+export const EditLoading: Story = {
+  render: () => edit({ [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: storyPending }),
+}
+
+/** Write a reason and save, to see the busy button before the record is read again. */
+export const EditSaving: Story = {
+  render: () => edit({ [`PUT ${CUSTOMERS}${CUSTOMER.customerId}`]: storyPending }),
+}
+
+/**
+ * Write a reason and save, to meet the conflict: somebody else corrected the record first. The
+ * reload is offered as a control, and what was typed stays in the fields — a correction is somebody
+ * reading a document aloud, and throwing that away to show them the spelling they just rejected is
+ * the failure the client guide's "never discards typed input" rule names.
+ */
+export const EditVersionConflict: Story = {
+  render: () =>
+    edit({
+      [`PUT ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyProblem(409, CUSTOMER_VERSION_CONFLICT_CODE),
+    }),
+}
+
+/** Save, for a refusal that is not the conflict — rendered as itself, with no reload offered. */
+export const EditError: Story = {
+  render: () =>
+    edit({
+      [`PUT ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyProblem(403, 'security.permission-denied'),
+    }),
+}
+
+/** Not found, or not one this caller can reach — this screen's empty state. */
+export const EditNotFound: Story = {
+  render: () =>
+    edit({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyProblem(404, 'customers.customer-not-found'),
+    }),
+}
+
+/**
+ * A caller without `customers.read_contact`, who therefore cannot correct this record at all.
+ *
+ * The screen offers no form. A correction is a whole-record `PUT`, so one built from a record whose
+ * contact fields were withheld would ask the server to clear the customer's telephone number — the
+ * server refuses it, and a form whose save is guaranteed to fail is a broken screen rather than a
+ * boundary. See `CustomerEditRoute`'s own doc comment.
+ */
+export const EditContactWithheld: Story = {
+  render: () =>
+    edit({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyJson({ ...CUSTOMER, contactIncluded: false, phone: null }, 'W/"1"'),
+    }),
+}
+
+/** Correcting a record needs a connection; the screen says so and keeps every value typed. */
+export const EditOffline: Story = { render: () => edit({}, false) }
+
+/** Somebody without `customers.update`: a sentence and who to ask, never a redirect. */
+export const EditForbidden: Story = {
+  render: () => edit({ 'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }) }),
+}
+
+/** The 40% growth tolerance, on the screen that now has the most labels per page in this module. */
+export const EditPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => edit({}),
 }

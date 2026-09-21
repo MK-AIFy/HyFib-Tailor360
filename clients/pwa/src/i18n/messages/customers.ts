@@ -82,6 +82,27 @@ export const customersEn = {
   'customers.create.duplicates.reviewed': "I've checked — this is somebody new",
   'customers.create.duplicates.reviewedHint':
     'This is kept on record as your decision that the two are different people.',
+
+  /* Correct. ----------------------------------------------------------------------------------- */
+  'customers.detail.correct': 'Correct this record',
+  'customers.edit.title': 'Correct a customer record',
+  'customers.edit.body':
+    'Change what the record says about the person. A changed name is kept as an alias, so she is still found under the name on her old receipts.',
+  'customers.edit.loading': 'the customer record',
+  'customers.edit.back': 'Back to the record',
+  'customers.edit.reason': 'Why this correction',
+  'customers.edit.action': 'Save the correction',
+  'customers.edit.saving': 'Saving…',
+  'customers.edit.saved': 'The correction was saved.',
+  'customers.edit.offlineAction': 'Correcting a customer record',
+  'customers.edit.nameRequired': 'A name is required.',
+  'customers.edit.reasonRequired': 'A reason is required.',
+  'customers.edit.conflict.title': 'Somebody else changed this record',
+  'customers.edit.conflict.body':
+    'It was corrected by somebody else while you were typing. Reload it to see their version — what you typed is kept, so you can check it against theirs before saving again.',
+  'customers.edit.conflict.reload': 'Reload the record',
+  'customers.edit.contactWithheld':
+    'Correcting a record sends every field back, contact details included — and those are shown to holders of a permission you do not have. Ask somebody who holds it to make this correction.',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -191,4 +212,39 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.create.duplicates.reviewedHint':
     'This is kept on record as your decision that the two are different people.',
+  // not translated — awaiting native-speaker review
+  'customers.detail.correct': 'Correct this record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.title': 'Correct a customer record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.body':
+    'Change what the record says about the person. A changed name is kept as an alias, so she is still found under the name on her old receipts.',
+  // not translated — awaiting native-speaker review
+  'customers.edit.loading': 'the customer record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.back': 'Back to the record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.reason': 'Why this correction',
+  // not translated — awaiting native-speaker review
+  'customers.edit.action': 'Save the correction',
+  // not translated — awaiting native-speaker review
+  'customers.edit.saving': 'Saving…',
+  // not translated — awaiting native-speaker review
+  'customers.edit.saved': 'The correction was saved.',
+  // not translated — awaiting native-speaker review
+  'customers.edit.offlineAction': 'Correcting a customer record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.nameRequired': 'A name is required.',
+  // not translated — awaiting native-speaker review
+  'customers.edit.reasonRequired': 'A reason is required.',
+  // not translated — awaiting native-speaker review
+  'customers.edit.conflict.title': 'Somebody else changed this record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.conflict.body':
+    'It was corrected by somebody else while you were typing. Reload it to see their version — what you typed is kept, so you can check it against theirs before saving again.',
+  // not translated — awaiting native-speaker review
+  'customers.edit.conflict.reload': 'Reload the record',
+  // not translated — awaiting native-speaker review
+  'customers.edit.contactWithheld':
+    'Correcting a record sends every field back, contact details included — and those are shown to holders of a permission you do not have. Ask somebody who holds it to make this correction.',
 }

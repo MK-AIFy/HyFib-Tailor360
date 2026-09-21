@@ -12,4 +12,6 @@ export const CUSTOMERS_PERMISSIONS = {
   readContact: 'customers.read_contact',
   /** Creating a customer record at the branch the caller is working in. */
   create: 'customers.create',
+  /** Correcting what a customer record says about the person. */
+  update: 'customers.update',
 } as const

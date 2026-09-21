@@ -6,6 +6,8 @@ import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { StatusBadge } from '../../components/primitives/StatusBadge'
 import { readCustomer } from '../../customers/customersApi'
+import { CUSTOMERS_PERMISSIONS } from '../../customers/customersPermissions'
+import { useSession } from '../../auth/useSession'
 import { customerStatusKind } from '../../customers/customerStatus'
 import { useAdminResource } from '../../admin/useAdminResource'
 import './customers.css'
@@ -14,10 +16,20 @@ import './customers.css'
  * One customer record, read-only (#26, #182).
  *
  * Correcting a record, and the optimistic-concurrency conflict that comes with it, is #582's own
- * screen — reusing `useAdminResource`'s reload here is what lets that unit add an edit affordance
- * later without this one changing. The timeline (#583), the duplicate-review and merge screen (#584)
+ * screen (`CustomerEditRoute`); this one links to it for a caller holding `customers.update`, and
+ * shows no link to a screen that would only refuse the person who opened it. The timeline (#583),
+ * the duplicate-review and merge screen (#584)
  * and consent (#585) are separate units for the same reason: each is real complexity of its own, and
  * none of it is needed to answer "is this the record I found."
+ *
+ * ## Why the edit link reads the session rather than requiring one
+ *
+ * `useSession` and not `useCurrentUser`: this screen reads a record, and a link to the correction
+ * form is an affordance on top of that, not the reason the screen exists. `useCurrentUser` throws
+ * when no account has arrived yet, which would turn a session still in flight into a blank screen
+ * for the record underneath — so the link is simply absent until the permissions are known, which is
+ * also the right default if they never are. The server re-checks `customers.update` on the request
+ * regardless; this only decides whether somebody is offered a door they cannot open.
  *
  * ## Why the contact fields are shown exactly as the server sent them
  *
@@ -29,6 +41,7 @@ import './customers.css'
 export function CustomerDetailRoute() {
   const intl = useIntl()
   const { customerId = '' } = useParams()
+  const { user } = useSession()
 
   const record = useAdminResource(customerId, (signal) => readCustomer(customerId, signal))
   const customer = record.value?.value ?? null
@@ -69,6 +82,14 @@ export function CustomerDetailRoute() {
         {' · '}
         <StatusBadge status={customerStatusKind(customer.status)} />
       </p>
+
+      {user?.permissions.includes(CUSTOMERS_PERMISSIONS.update) === true ? (
+        <p>
+          <Link to={`/customers/${customer.customerId}/edit`}>
+            <FormattedMessage id="customers.detail.correct" />
+          </Link>
+        </p>
+      ) : null}
 
       <dl className="customers__detailGrid">
         <dt>

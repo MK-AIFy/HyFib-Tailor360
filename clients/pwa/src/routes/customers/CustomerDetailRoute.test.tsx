@@ -122,6 +122,33 @@ it('links back to the search screen', async () => {
   expect(back).toHaveAttribute('href', '/customers')
 })
 
+it('offers the correction form to a caller who holds customers.update', async () => {
+  transport.route('GET /api/v1/me', () =>
+    jsonResponse(aCurrentUser({ permissions: ['customers.read', 'customers.update'] })),
+  )
+  transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
+    versionedResponse(aCustomer(), 'W/"1"'),
+  )
+  renderDetail()
+
+  const correct = await screen.findByRole('link', { name: 'Correct this record' })
+  expect(correct).toHaveAttribute('href', `/customers/${CUSTOMER_ID}/edit`)
+})
+
+// The server re-checks the permission on the request either way; what this asserts is that nobody is
+// offered a door that would only refuse them. The default `beforeEach` caller holds `customers.read`
+// alone, so this is the ordinary receptionist's view of somebody else's correction.
+it('offers no correction link to a caller who may not correct the record', async () => {
+  transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
+    versionedResponse(aCustomer(), 'W/"1"'),
+  )
+  renderDetail()
+
+  await screen.findByRole('heading', { name: 'Priya Selvam' })
+
+  expect(screen.queryByRole('link', { name: 'Correct this record' })).not.toBeInTheDocument()
+})
+
 it('has no accessibility violations', async () => {
   transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
     versionedResponse(aCustomer(), 'W/"1"'),

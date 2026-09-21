@@ -86,3 +86,12 @@ export interface DuplicateCandidate {
 
 /** The stable code a creation attempt is refused with when it resembles an existing record. */
 export const CUSTOMER_DUPLICATES_CODE = 'customers.duplicates-not-reviewed'
+
+/**
+ * The stable code a correction is refused with when the record moved on since it was read.
+ *
+ * Named because the edit screen tells this refusal apart from every other 409 it could meet: this
+ * one is answered by reloading and reapplying the edit, and answering the others that way would
+ * silently retry something the server refused for a different reason.
+ */
+export const CUSTOMER_VERSION_CONFLICT_CODE = 'customers.version-conflict'
