@@ -96,4 +96,26 @@
       margin-block-end: var(--space-2);
     }
   }
+
+  /*
+   * The history tab. The gap is what separates the "part of this could not be loaded" alert, the
+   * rail itself and the "Show older" control — all three are siblings, and a rail that touched the
+   * warning above it would read as part of the warning.
+   */
+  .customers__timeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+
+  /*
+   * A reason is quoted evidence, so it is set apart from the entry's own description rather than
+   * running on from it — but it is never dimmer than body text, because "reading it needs a
+   * permission you do not have" is a sentence somebody has to be able to read.
+   */
+  .customers__timelineReason {
+    margin-block-start: var(--space-1);
+    font-style: italic;
+  }
 }

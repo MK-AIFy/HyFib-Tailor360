@@ -27,7 +27,7 @@ import type {
   ServiceTypeRequest,
   StartDesignSelectionDraftRequest,
 } from '../catalog/types'
-import type { Customer, CustomerCard, CustomerPage } from '../customers/types'
+import type { Customer, CustomerCard, CustomerPage, CustomerTimelinePage } from '../customers/types'
 import type {
   ConfirmMeasurementsRequest,
   MeasurementCaptureTemplate,
@@ -455,6 +455,19 @@ export type CustomerPageConforms = Conforms<CustomerPage, Immutable<Response200<
 export type CustomerConforms = Conforms<
   Customer,
   Omit<Immutable<Response200<'CorrectCustomer'>>, 'version'>
+>
+
+/**
+ * The merged history, pinned whole.
+ *
+ * Worth pinning even though no screen writes to it, because this is the one response in the module
+ * the *host* composes rather than a module: its shape is decided in `Tailor360.Web`, away from the
+ * Customers project the rest of these types track, so a field renamed there would otherwise reach
+ * the client with nothing between the two to notice.
+ */
+export type CustomerTimelineConforms = Conforms<
+  CustomerTimelinePage,
+  Immutable<Response200<'GetCustomerTimeline'>>
 >
 
 export type MeasurementDraftConforms = Conforms<

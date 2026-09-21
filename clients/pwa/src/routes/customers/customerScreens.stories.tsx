@@ -9,7 +9,13 @@ import {
 } from '../../admin/testing/storyTransport'
 import { PSEUDO_LOCALE } from '../../i18n/pseudo'
 import { CUSTOMERS_PERMISSIONS } from '../../customers/customersPermissions'
-import { aCustomer, aCustomerCard, aDuplicateCandidate } from '../../customers/testing/fixtures'
+import {
+  aCustomer,
+  aCustomerCard,
+  aDuplicateCandidate,
+  aTimelineEntry,
+  aTimelinePage,
+} from '../../customers/testing/fixtures'
 import { CUSTOMER_DUPLICATES_CODE, CUSTOMER_VERSION_CONFLICT_CODE } from '../../customers/types'
 import { CustomerCreateRoute } from './CustomerCreateRoute'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
@@ -118,11 +124,13 @@ const detail = (routes: Parameters<typeof withAdminApi>[1]) =>
     {
       'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
       [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () => storyJson(CUSTOMER, 'W/"1"'),
+      [TIMELINE]: () => storyJson(aTimelinePage()),
       ...routes,
     },
     { path: '/customers/:customerId', at: DETAIL_AT },
   )
 
+const TIMELINE = `GET ${CUSTOMERS}${CUSTOMER.customerId}/timeline`
 const EDIT_AT = `/customers/${CUSTOMER.customerId}/edit`
 
 const edit = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
@@ -362,4 +370,120 @@ export const EditForbidden: Story = {
 export const EditPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => edit({}),
+}
+
+/* The history tab ------------------------------------------------------------------------------- */
+
+/** Open History to see the merged rail: what happened, when, who did it and why. */
+export const DetailHistory: Story = {
+  render: () =>
+    detail({
+      [TIMELINE]: () =>
+        storyJson(
+          aTimelinePage({
+            entries: [
+              aTimelineEntry(),
+              aTimelineEntry({
+                entryId: '0199cc00-0000-7000-8000-00000000e002',
+                kind: 'customers.consent.recorded',
+                title: 'Consent recorded for appointment reminders',
+                detail: null,
+                reason: null,
+                reasonPermission: null,
+                occurredAt: '2026-08-20T09:15:00Z',
+              }),
+              aTimelineEntry({
+                entryId: '0199cc00-0000-7000-8000-00000000e003',
+                kind: 'customers.record.registered',
+                title: 'Customer registered',
+                detail: null,
+                reason: null,
+                reasonPermission: null,
+                actorDisplayName: null,
+                occurredAt: '2026-01-04T05:00:00Z',
+              }),
+            ],
+          }),
+        ),
+    }),
+}
+
+/** Open History for this screen's loading state — the request never answers. */
+export const DetailHistoryLoading: Story = {
+  render: () => detail({ [TIMELINE]: storyPending }),
+}
+
+/** Open History for a customer nothing has been recorded against yet. */
+export const DetailHistoryEmpty: Story = {
+  render: () => detail({ [TIMELINE]: () => storyJson(aTimelinePage({ entries: [] })) }),
+}
+
+/**
+ * Open History to meet the case this tab exists to get right: two modules could not answer, so the
+ * rail below is incomplete and says so *before* anything a reader could mistake for completeness.
+ * A gap read as "nothing happened" is a worse answer than no answer.
+ */
+export const DetailHistoryPartial: Story = {
+  render: () =>
+    detail({
+      [TIMELINE]: () => storyJson(aTimelinePage({ unavailableSources: ['orders', 'billing'] })),
+    }),
+}
+
+/**
+ * Open History to see a reason that was given and withheld, beside one that was never given at all.
+ * The two must not read alike: `reasonPermission` is what tells them apart.
+ */
+export const DetailHistoryReasonWithheld: Story = {
+  render: () =>
+    detail({
+      [TIMELINE]: () =>
+        storyJson(
+          aTimelinePage({
+            entries: [
+              aTimelineEntry({ reason: null, reasonPermission: 'customers.read_notes' }),
+              aTimelineEntry({
+                entryId: '0199cc00-0000-7000-8000-00000000e004',
+                title: 'Customer deactivated',
+                detail: null,
+                reason: null,
+                reasonPermission: null,
+              }),
+            ],
+          }),
+        ),
+    }),
+}
+
+/** Open History, then "Show older" — pages are appended, and nothing moves under the reader. */
+export const DetailHistoryMorePages: Story = {
+  render: () =>
+    detail({
+      [TIMELINE]: () => storyJson(aTimelinePage({ nextCursor: 'cursor-2' })),
+      [`${TIMELINE}?cursor=cursor-2`]: () =>
+        storyJson(
+          aTimelinePage({
+            entries: [
+              aTimelineEntry({
+                entryId: '0199cc00-0000-7000-8000-00000000e005',
+                title: 'Customer registered',
+                detail: null,
+                reason: null,
+                reasonPermission: null,
+              }),
+            ],
+          }),
+        ),
+    }),
+}
+
+/** Open History for a read that failed — a problem, never an empty history. */
+export const DetailHistoryError: Story = {
+  render: () => detail({ [TIMELINE]: () => storyProblem(503, 'platform.unavailable') }),
+}
+
+/** The 40% growth tolerance on the rail, where the metadata line is tightest. */
+export const DetailHistoryPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => detail({ [TIMELINE]: () => storyJson(aTimelinePage()) }),
 }
