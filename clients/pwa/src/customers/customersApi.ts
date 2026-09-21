@@ -1,7 +1,13 @@
 import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 import { CUSTOMER_DUPLICATES_CODE } from './types'
-import type { Customer, CustomerDetailsInput, CustomerPage, DuplicateCandidate } from './types'
+import type {
+  Customer,
+  CustomerDetailsInput,
+  CustomerPage,
+  CustomerTimelinePage,
+  DuplicateCandidate,
+} from './types'
 
 const CUSTOMERS = '/api/v1/customers/'
 
@@ -129,4 +135,32 @@ export async function correctCustomer(input: {
     ifMatch: input.version,
     idempotencyKey: input.idempotencyKey,
   })
+}
+
+/** The page size the server uses when the client names none. Matches `TimelineQuery.DefaultLimit`. */
+export const CUSTOMER_TIMELINE_PAGE_SIZE = 25
+
+/**
+ * Reads one page of a customer's history, merged across every module that holds part of it.
+ *
+ * Newest first and cursor-paged: `nextCursor` is opaque and is sent back verbatim for the next page,
+ * never decoded or constructed here. The composition happens in the web host rather than in any one
+ * module — no module may read another's tables — which is why this route hangs off the customer and
+ * not off a module of its own.
+ *
+ * What comes back is already filtered to what the caller may see: a module withholds the entries the
+ * caller's permissions do not reach, and the approved response view decides which fields of the ones
+ * that survive are populated. The client filters nothing and unmasks nothing.
+ */
+export async function readCustomerTimeline(
+  input: { readonly customerId: string; readonly cursor?: string | undefined },
+  signal?: AbortSignal,
+): Promise<CustomerTimelinePage> {
+  const query = new URLSearchParams(input.cursor === undefined ? {} : { cursor: input.cursor })
+  const suffix = query.size === 0 ? '' : `?${query.toString()}`
+
+  return await apiRequest<CustomerTimelinePage>(
+    `${CUSTOMERS}${input.customerId}/timeline${suffix}`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
 }

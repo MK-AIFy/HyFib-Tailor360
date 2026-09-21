@@ -95,3 +95,51 @@ export const CUSTOMER_DUPLICATES_CODE = 'customers.duplicates-not-reviewed'
  * silently retry something the server refused for a different reason.
  */
 export const CUSTOMER_VERSION_CONFLICT_CODE = 'customers.version-conflict'
+
+/**
+ * One thing that happened to a customer, from whichever module recorded it.
+ *
+ * The host composes these from every module that holds part of the history, so a screen reads one
+ * list rather than joining several. Two fields are pairs rather than values, and both distinctions
+ * are the point of the shape:
+ *
+ *  - `reason` with `reasonPermission` — a null reason and a null permission means nobody gave a
+ *    reason; a null reason with a permission named means one was given and this caller may not read
+ *    it. Rendering both as blank is the thing `field-visibility.md` says a client must not do.
+ *  - `referenceId` with `expandPermission` — what the entry points at, and what a caller must hold
+ *    to open it. A reference the caller cannot expand is still worth naming; it is just not a link.
+ */
+export interface CustomerTimelineEntry {
+  readonly entryId: string
+  /** UTC, by the server's clock. Formatted for display through the shared `formatters` module. */
+  readonly occurredAt: string
+  /** The module that contributed it — `customers`, and later `orders`, `billing`, `custody`. */
+  readonly source: string
+  /** The stable dotted kind, `customers.consent.recorded`, which this screen turns into an icon. */
+  readonly kind: string
+  /** What happened, already in the shop's words. Never built from `kind` on the client. */
+  readonly title: string
+  readonly detail: string | null
+  /** Null with a `reasonPermission` means withheld; null with neither means none was given. */
+  readonly reason: string | null
+  readonly reasonPermission: string | null
+  readonly referenceType: string | null
+  readonly referenceId: string | null
+  readonly expandPermission: string | null
+  readonly branchId: string | null
+  /** Who did it, as their name was at the time, or null for the system. Staff, never the customer. */
+  readonly actorDisplayName: string | null
+}
+
+/**
+ * One page of a customer's merged history, newest first.
+ *
+ * `unavailableSources` is the field that makes this safe to read: a module that could not answer is
+ * named, so a gap in somebody's history is visible rather than looking like nothing happened. A
+ * screen that ignored it would quietly tell a manager a customer had never complained.
+ */
+export interface CustomerTimelinePage {
+  readonly entries: readonly CustomerTimelineEntry[]
+  readonly nextCursor: string | null
+  readonly unavailableSources: readonly string[]
+}

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AppIntlProvider } from '../../i18n/IntlProvider'
@@ -8,7 +9,7 @@ import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { SessionProvider } from '../../auth/SessionProvider'
 import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
-import { aCustomer, versionedResponse } from '../../customers/testing/fixtures'
+import { aCustomer, aTimelinePage, versionedResponse } from '../../customers/testing/fixtures'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
 
 const CUSTOMER_ID = '0199cc00-0000-7000-8000-000000000001'
@@ -147,6 +148,40 @@ it('offers no correction link to a caller who may not correct the record', async
   await screen.findByRole('heading', { name: 'Priya Selvam' })
 
   expect(screen.queryByRole('link', { name: 'Correct this record' })).not.toBeInTheDocument()
+})
+
+it('offers the record and its history as two tabs, with the record first', async () => {
+  transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
+    versionedResponse(aCustomer(), 'W/"1"'),
+  )
+  renderDetail()
+
+  await screen.findByRole('heading', { name: 'Priya Selvam' })
+
+  expect(screen.getByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: 'History', selected: false })).toBeInTheDocument()
+})
+
+// `Tabs` mounts only the selected panel, and that is load-bearing here rather than incidental: the
+// history is a separate request across every module that holds part of it, and making it on a screen
+// somebody opened to check a telephone number would be a cost paid by everybody for a few people.
+it('does not ask for the history until the history tab is opened', async () => {
+  const timeline = `GET /api/v1/customers/${CUSTOMER_ID}/timeline`
+  transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
+    versionedResponse(aCustomer(), 'W/"1"'),
+  )
+  transport.route(timeline, () => jsonResponse(aTimelinePage()))
+  renderDetail()
+
+  await screen.findByRole('heading', { name: 'Priya Selvam' })
+  expect(transport.callsTo(timeline)).toHaveLength(0)
+
+  await userEvent.click(screen.getByRole('tab', { name: 'History' }))
+
+  expect(await screen.findByText('Customer record corrected')).toBeInTheDocument()
+  expect(transport.callsTo(timeline)).toHaveLength(1)
+  // And the person's name stays above the tabs, because it is what the screen is about.
+  expect(screen.getByRole('heading', { name: 'Priya Selvam' })).toBeInTheDocument()
 })
 
 it('has no accessibility violations', async () => {

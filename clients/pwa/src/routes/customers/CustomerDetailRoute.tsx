@@ -5,22 +5,33 @@ import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { StatusBadge } from '../../components/primitives/StatusBadge'
+import { Tabs } from '../../components/navigation/Tabs'
 import { readCustomer } from '../../customers/customersApi'
 import { CUSTOMERS_PERMISSIONS } from '../../customers/customersPermissions'
 import { useSession } from '../../auth/useSession'
 import { customerStatusKind } from '../../customers/customerStatus'
+import type { Customer } from '../../customers/types'
+import { CustomerTimelineTab } from './CustomerTimelineTab'
 import { useAdminResource } from '../../admin/useAdminResource'
 import './customers.css'
 
 /**
- * One customer record, read-only (#26, #182).
+ * One customer record: the details, and the history behind them (#26, #182, #583).
  *
  * Correcting a record, and the optimistic-concurrency conflict that comes with it, is #582's own
  * screen (`CustomerEditRoute`); this one links to it for a caller holding `customers.update`, and
- * shows no link to a screen that would only refuse the person who opened it. The timeline (#583),
- * the duplicate-review and merge screen (#584)
- * and consent (#585) are separate units for the same reason: each is real complexity of its own, and
- * none of it is needed to answer "is this the record I found."
+ * shows no link to a screen that would only refuse the person who opened it. The duplicate-review
+ * and merge screen (#584) and consent (#585) are separate units for the same reason: each is real
+ * complexity of its own, and none of it is needed to answer "is this the record I found."
+ *
+ * ## The history is a tab, and it is fetched when the tab is opened
+ *
+ * `Tabs` mounts only the selected panel, so opening "History" is what asks for the timeline. Its own
+ * doc comment argues for activation-follows-focus on the grounds that "nothing is fetched by
+ * arrowing across", which this screen is the first to make untrue — with two tabs, arrowing costs at
+ * most the one request that clicking would have made anyway, and paying it on the arrow rather than
+ * on a second keypress is not a bargain worth an extra keystroke for every keyboard user. If a third
+ * tab arrives that is expensive to load, that is the point to revisit, not this one.
  *
  * ## Why the edit link reads the session rather than requiring one
  *
@@ -91,6 +102,45 @@ export function CustomerDetailRoute() {
         </p>
       ) : null}
 
+      <Tabs
+        items={[
+          {
+            id: 'record',
+            label: intl.formatMessage({ id: 'customers.detail.tab.record' }),
+            icon: 'users',
+            panel: <RecordPanel customer={customer} intl={intl} />,
+          },
+          {
+            id: 'history',
+            label: intl.formatMessage({ id: 'customers.detail.tab.history' }),
+            icon: 'clock',
+            panel: <CustomerTimelineTab customerId={customer.customerId} />,
+          },
+        ]}
+        label={intl.formatMessage({ id: 'customers.detail.tabs' })}
+      />
+    </section>
+  )
+}
+
+/**
+ * The record itself, as the first tab's panel.
+ *
+ * Split out when the history tab arrived (#583), not because this screen grew too long but because
+ * `Tabs` mounts only the selected panel — so the panel has to be a component for the unselected one
+ * to cost nothing. The header above the tabs is deliberately not part of either panel: the person's
+ * name, number and status are what the screen is about, and they should not disappear when somebody
+ * looks at the history.
+ */
+function RecordPanel({
+  customer,
+  intl,
+}: {
+  readonly customer: Customer
+  readonly intl: IntlShape
+}) {
+  return (
+    <>
       <dl className="customers__detailGrid">
         <dt>
           <FormattedMessage id="customers.create.field.phone" />
@@ -162,7 +212,7 @@ export function CustomerDetailRoute() {
           </ul>
         </>
       )}
-    </section>
+    </>
   )
 }
 

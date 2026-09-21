@@ -1,4 +1,10 @@
-import type { Customer, CustomerCard, DuplicateCandidate } from '../types'
+import type {
+  Customer,
+  CustomerCard,
+  CustomerTimelineEntry,
+  CustomerTimelinePage,
+  DuplicateCandidate,
+} from '../types'
 
 /**
  * Fixtures for the customer screens.
@@ -68,6 +74,38 @@ export function aDuplicateCandidate(
     customer: aCustomerCard(),
     confidence: 'High',
     reasons: ['Same telephone number'],
+    ...overrides,
+  }
+}
+
+/** One timeline entry. Defaults to the plainest case: a correction, with a reason anyone may read. */
+export function aTimelineEntry(
+  overrides: Partial<CustomerTimelineEntry> = {},
+): CustomerTimelineEntry {
+  return {
+    entryId: '0199cc00-0000-7000-8000-00000000e001',
+    occurredAt: '2026-09-01T10:00:00Z',
+    source: 'customers',
+    kind: 'customers.record.corrected',
+    title: 'Customer record corrected',
+    detail: 'Name changed.',
+    reason: 'Spelling on her identity document',
+    reasonPermission: 'customers.read_notes',
+    referenceType: null,
+    referenceId: null,
+    expandPermission: null,
+    branchId: '0199a000-0000-7000-8000-000000000001',
+    actorDisplayName: 'Kavitha R',
+    ...overrides,
+  }
+}
+
+/** One page of history. Newest first, one entry, nothing missing and nothing more to fetch. */
+export function aTimelinePage(overrides: Partial<CustomerTimelinePage> = {}): CustomerTimelinePage {
+  return {
+    entries: [aTimelineEntry()],
+    nextCursor: null,
+    unavailableSources: [],
     ...overrides,
   }
 }

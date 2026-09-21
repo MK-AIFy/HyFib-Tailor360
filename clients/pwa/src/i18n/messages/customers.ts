@@ -104,6 +104,27 @@ export const customersEn = {
   'customers.edit.conflict.reload': 'Reload the record',
   'customers.edit.contactWithheld':
     'Correcting a record sends every field back, contact details included — and those are shown to holders of a permission you do not have. Ask somebody who holds it to make this correction.',
+
+  /* History. ------------------------------------------------------------------------------- */
+  'customers.detail.tabs': 'Sections of this record',
+  'customers.detail.tab.record': 'Details',
+  'customers.detail.tab.history': 'History',
+  'customers.timeline.label': 'What has happened to this customer',
+  'customers.timeline.loading': 'this customer’s history',
+  'customers.timeline.empty': 'Nothing has been recorded against this customer yet.',
+  'customers.timeline.older': 'Show older',
+  'customers.timeline.loadingOlder': 'Loading…',
+  'customers.timeline.actor.system': 'the system',
+  'customers.timeline.reason': 'Reason: {reason}',
+  'customers.timeline.reasonWithheld':
+    'A reason was given. Reading it needs a permission you do not have.',
+  'customers.timeline.partial.title': 'Part of this history could not be loaded',
+  'customers.timeline.partial.body':
+    '{count, plural, one {# part of the record} other {# parts of the record}} did not answer ({sources}), so this history is incomplete. Do not read a gap below as nothing having happened.',
+  'customers.timeline.source.customers': 'customer records',
+  'customers.timeline.source.orders': 'orders',
+  'customers.timeline.source.billing': 'billing',
+  'customers.timeline.source.custody': 'garment tracking',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -250,4 +271,40 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.edit.contactWithheld':
     'Correcting a record sends every field back, contact details included — and those are shown to holders of a permission you do not have. Ask somebody who holds it to make this correction.',
+  // not translated — awaiting native-speaker review
+  'customers.detail.tabs': 'Sections of this record',
+  // not translated — awaiting native-speaker review
+  'customers.detail.tab.record': 'Details',
+  // not translated — awaiting native-speaker review
+  'customers.detail.tab.history': 'History',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.label': 'What has happened to this customer',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.loading': 'this customer’s history',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.empty': 'Nothing has been recorded against this customer yet.',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.older': 'Show older',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.loadingOlder': 'Loading…',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.actor.system': 'the system',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.reason': 'Reason: {reason}',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.reasonWithheld':
+    'A reason was given. Reading it needs a permission you do not have.',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.partial.title': 'Part of this history could not be loaded',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.partial.body':
+    '{count, plural, one {# part of the record} other {# parts of the record}} did not answer ({sources}), so this history is incomplete. Do not read a gap below as nothing having happened.',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.source.customers': 'customer records',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.source.orders': 'orders',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.source.billing': 'billing',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.source.custody': 'garment tracking',
 }
