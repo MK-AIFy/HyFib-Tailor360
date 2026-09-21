@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { AppIntlProvider } from '../../i18n/IntlProvider'
 import { expectNoAccessibilityViolations } from '../../design-system/testing/axe'
 import { forgetAntiforgeryToken } from '../../auth/antiforgery'
@@ -9,7 +9,12 @@ import { setSessionChallengeHandler } from '../../auth/apiClient'
 import { SessionProvider } from '../../auth/SessionProvider'
 import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
-import { aCustomer, aTimelinePage, versionedResponse } from '../../customers/testing/fixtures'
+import {
+  aCustomer,
+  aTimelineEntry,
+  aTimelinePage,
+  versionedResponse,
+} from '../../customers/testing/fixtures'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
 
 const CUSTOMER_ID = '0199cc00-0000-7000-8000-000000000001'
@@ -32,11 +37,33 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderDetail() {
+/**
+ * A control that moves to another customer, so a test can do what a person does: open one record and
+ * then another. `MemoryRouter` reads `initialEntries` on mount alone, so re-rendering it with a new
+ * address changes nothing — the navigation has to happen inside the router that is already there,
+ * which is also the only version of this that exercises what React Router actually does to the route
+ * element when the parameter changes: it re-renders it in place rather than remounting it.
+ */
+function GoToCustomer({ customerId }: { readonly customerId: string }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      onClick={() => {
+        void navigate(`/customers/${customerId}`)
+      }}
+      type="button"
+    >
+      open the other customer
+    </button>
+  )
+}
+
+function renderDetail(alsoRender?: React.ReactNode) {
   return render(
     <AppIntlProvider locale="en-IN">
       <SessionProvider>
         <MemoryRouter initialEntries={[`/customers/${CUSTOMER_ID}`]}>
+          {alsoRender}
           <Routes>
             <Route path="/customers" element={<p>the search screen</p>} />
             <Route path="/customers/:customerId" element={<CustomerDetailRoute />} />
@@ -182,6 +209,66 @@ it('does not ask for the history until the history tab is opened', async () => {
   expect(transport.callsTo(timeline)).toHaveLength(1)
   // And the person's name stays above the tabs, because it is what the screen is about.
   expect(screen.getByRole('heading', { name: 'Priya Selvam' })).toBeInTheDocument()
+})
+
+// React Router re-renders this route in place when the identifier changes rather than remounting it,
+// so without a key on the panel the previous customer's followed pages would still be on screen
+// under this customer's name — which is the worst kind of wrong answer an audit trail can give.
+it('starts a fresh history when the record changes underneath it', async () => {
+  const SECOND = '0199cc00-0000-7000-8000-000000000002'
+  const firstTimeline = `GET /api/v1/customers/${CUSTOMER_ID}/timeline`
+  const secondTimeline = `GET /api/v1/customers/${SECOND}/timeline`
+
+  transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
+    versionedResponse(aCustomer(), 'W/"1"'),
+  )
+  transport.route(`GET /api/v1/customers/${SECOND}`, () =>
+    versionedResponse(aCustomer({ customerId: SECOND, displayName: 'Anitha K' }), 'W/"1"'),
+  )
+  // The first customer's history must have a page *followed* before the move, because the state that
+  // would leak is the followed pages — a test that only opens the tab proves nothing.
+  transport.route(firstTimeline, () => jsonResponse(aTimelinePage({ nextCursor: 'cursor-2' })))
+  transport.route(`${firstTimeline}?cursor=cursor-2`, () =>
+    jsonResponse(
+      aTimelinePage({
+        entries: [
+          aTimelineEntry({
+            entryId: '0199cc00-0000-7000-8000-00000000f009',
+            title: 'Priya was registered',
+          }),
+        ],
+      }),
+    ),
+  )
+  transport.route(secondTimeline, () =>
+    jsonResponse(
+      aTimelinePage({
+        entries: [
+          aTimelineEntry({
+            entryId: '0199cc00-0000-7000-8000-00000000f001',
+            title: 'Customer registered',
+          }),
+        ],
+      }),
+    ),
+  )
+
+  renderDetail(<GoToCustomer customerId={SECOND} />)
+  await screen.findByRole('heading', { name: 'Priya Selvam' })
+  await userEvent.click(screen.getByRole('tab', { name: 'History' }))
+  await screen.findByText('Customer record corrected')
+  await userEvent.click(screen.getByRole('button', { name: 'Show older' }))
+  await screen.findByText('Priya was registered')
+
+  await userEvent.click(screen.getByRole('button', { name: 'open the other customer' }))
+
+  expect(await screen.findByRole('heading', { name: 'Anitha K' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: 'History' }))
+
+  expect(await screen.findByText('Customer registered')).toBeInTheDocument()
+  expect(screen.queryByText('Customer record corrected')).not.toBeInTheDocument()
+  // The followed page is what would leak, so it is what this asserts is gone.
+  expect(screen.queryByText('Priya was registered')).not.toBeInTheDocument()
 })
 
 it('has no accessibility violations', async () => {

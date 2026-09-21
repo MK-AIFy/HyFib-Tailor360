@@ -114,6 +114,8 @@ export const customersEn = {
   'customers.timeline.empty': 'Nothing has been recorded against this customer yet.',
   'customers.timeline.older': 'Show older',
   'customers.timeline.loadingOlder': 'Loading…',
+  'customers.timeline.olderAdded':
+    '{count, plural, one {# older entry added below} other {# older entries added below}}',
   'customers.timeline.actor.system': 'the system',
   'customers.timeline.reason': 'Reason: {reason}',
   'customers.timeline.reasonWithheld':
@@ -287,6 +289,9 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.timeline.older': 'Show older',
   // not translated — awaiting native-speaker review
   'customers.timeline.loadingOlder': 'Loading…',
+  // not translated — awaiting native-speaker review
+  'customers.timeline.olderAdded':
+    '{count, plural, one {# older entry added below} other {# older entries added below}}',
   // not translated — awaiting native-speaker review
   'customers.timeline.actor.system': 'the system',
   // not translated — awaiting native-speaker review

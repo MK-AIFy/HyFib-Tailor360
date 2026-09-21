@@ -188,6 +188,79 @@ it('names the list, so a screen reader meets a history and not an unlabelled lis
   expect(within(list).getAllByRole('listitem')).toHaveLength(1)
 })
 
+// Pages are appended, so a duplicate request is a permanently duplicated page rather than a flicker.
+it('asks for an older page once, however many times the control is pressed', async () => {
+  transport.route(TIMELINE, () => jsonResponse(aTimelinePage({ nextCursor: 'cursor-2' })))
+  transport.route(OLDER, () => new Promise<Response>(() => {}))
+  renderTimeline()
+
+  await screen.findByText('Customer record corrected')
+  const control = screen.getByRole('button', { name: 'Show older' })
+  await userEvent.click(control)
+  await userEvent.click(control)
+  await userEvent.click(control)
+
+  expect(transport.callsTo(OLDER)).toHaveLength(1)
+})
+
+// `Tabs` mounts only the selected panel, so leaving the history tears this component down. The first
+// page is cancelled by `useAdminResource`; this asserts the pages after it are cancelled too.
+it('abandons an older page that is still in flight when it is unmounted', async () => {
+  transport.route(TIMELINE, () => jsonResponse(aTimelinePage({ nextCursor: 'cursor-2' })))
+  transport.route(OLDER, () => new Promise<Response>(() => {}))
+  const { unmount } = renderTimeline()
+
+  await screen.findByText('Customer record corrected')
+  await userEvent.click(screen.getByRole('button', { name: 'Show older' }))
+
+  const lastCall = transport.fetch.mock.calls.at(-1)
+  const signal = (lastCall?.[1] as RequestInit | undefined)?.signal
+  expect(signal?.aborted).toBe(false)
+
+  unmount()
+
+  expect(signal?.aborted).toBe(true)
+})
+
+// The rail itself is deliberately not live — an audit trail must hold still — so this is the only
+// confirmation a screen-reader user gets that pressing the control did anything.
+it('announces that older entries were added', async () => {
+  transport.route(TIMELINE, () => jsonResponse(aTimelinePage({ nextCursor: 'cursor-2' })))
+  transport.route(OLDER, () =>
+    jsonResponse(
+      aTimelinePage({
+        entries: [
+          aTimelineEntry({ entryId: '0199cc00-0000-7000-8000-00000000e00a', title: 'One' }),
+          aTimelineEntry({ entryId: '0199cc00-0000-7000-8000-00000000e00b', title: 'Two' }),
+        ],
+        nextCursor: null,
+      }),
+    ),
+  )
+  renderTimeline()
+
+  await screen.findByText('Customer record corrected')
+  const status = screen.getByRole('status')
+  // Mounted empty, so the text arrives *into* an existing region — which is the only case a polite
+  // region is reliably announced in.
+  expect(status).toHaveTextContent('')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Show older' }))
+
+  expect(await screen.findByText('2 older entries added below')).toBeInTheDocument()
+})
+
+// `Alert`'s own guidance: anything present when the screen renders is read in document order, and a
+// live region would announce it twice. The warning reaches a reader by being above the rail.
+it('states the gap in document order rather than as a live region', async () => {
+  transport.route(TIMELINE, () => jsonResponse(aTimelinePage({ unavailableSources: ['orders'] })))
+  renderTimeline()
+
+  const warning = await screen.findByText('Part of this history could not be loaded')
+  expect(warning.closest('[aria-live]')).toBeNull()
+  expect(warning.closest('[role="alert"]')).toBeNull()
+})
+
 it('has no accessibility violations', async () => {
   transport.route(TIMELINE, () =>
     jsonResponse(aTimelinePage({ nextCursor: 'cursor-2', unavailableSources: ['orders'] })),

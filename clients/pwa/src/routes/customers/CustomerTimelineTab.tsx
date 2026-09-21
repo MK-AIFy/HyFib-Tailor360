@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import type { IntlShape } from 'react-intl'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
@@ -27,6 +27,11 @@ import './customers.css'
  * stretch that is actually a failed source tells them "no, it is the first", which is a worse answer
  * than no answer. So the gap is stated before anything that could be misread as completeness.
  *
+ * It is `live="off"`, which is the default and is the point: the gap is known before the screen has
+ * rendered, so it is read in document order like any other heading, and `Alert`'s own guidance is
+ * that a live region here would announce it a second time. Being *above* the list is what makes it
+ * reach a screen-reader user, not an `aria-live` attribute.
+ *
  * ## Why paging is a button and never a scroll
  *
  * `nextCursor` is followed only when somebody presses "Show older". The client guide's rule is that
@@ -52,6 +57,30 @@ export function CustomerTimelineTab({ customerId }: { readonly customerId: strin
   const [followed, setFollowed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
+  // Empty until a page has actually been appended, so the region is mounted and *then* given its
+  // text — which is the only way a polite region is announced reliably. See the note below.
+  const [announcement, setAnnouncement] = useState('')
+
+  /*
+   * The request "Show older" has in flight, or null.
+   *
+   * It does two jobs that `busy` cannot. It is the re-entrancy guard: `busy` is state, so a second
+   * call in the same tick would see the old value and start a duplicate request, and because pages
+   * are *appended* a duplicate request is a permanently duplicated page rather than a flicker. And
+   * it is what aborts on unmount — `Tabs` mounts only the selected panel, so switching back to the
+   * record while a page is loading tears this component down mid-request. `useAdminResource` does
+   * both of these for the first page; this is the same discipline for the ones after it, rather
+   * than a hand-rolled fetch that quietly reintroduces what that hook exists to prevent.
+   */
+  const inFlight = useRef<AbortController | null>(null)
+
+  useEffect(
+    () => () => {
+      inFlight.current?.abort()
+      inFlight.current = null
+    },
+    [],
+  )
 
   const first = useAdminResource(customerId, (signal) =>
     readCustomerTimeline({ customerId }, signal),
@@ -71,23 +100,38 @@ export function CustomerTimelineTab({ customerId }: { readonly customerId: strin
   const next = followed ? cursor : page.nextCursor
 
   const showOlder = () => {
-    if (next === null) {
+    if (next === null || inFlight.current !== null) {
       return
     }
 
+    const controller = new AbortController()
+    inFlight.current = controller
     setBusy(true)
     setFailure(null)
 
-    void readCustomerTimeline({ customerId, cursor: next })
+    void readCustomerTimeline({ customerId, cursor: next }, controller.signal)
       .then((result) => {
         setOlder((previous) => [...previous, ...result.entries])
         setCursor(result.nextCursor)
         setFollowed(true)
+        setAnnouncement(
+          intl.formatMessage(
+            { id: 'customers.timeline.olderAdded' },
+            { count: result.entries.length },
+          ),
+        )
       })
       .catch((cause: unknown) => {
-        setFailure(cause)
+        // An abort is this component being torn down, not a failure to report to somebody who is no
+        // longer looking at the screen.
+        if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
+          setFailure(cause)
+        }
       })
       .finally(() => {
+        if (inFlight.current === controller) {
+          inFlight.current = null
+        }
         setBusy(false)
       })
   }
@@ -96,7 +140,7 @@ export function CustomerTimelineTab({ customerId }: { readonly customerId: strin
     <div className="customers__timeline">
       {page.unavailableSources.length === 0 ? null : (
         <Alert
-          live="polite"
+          live="off"
           tone="warning"
           title={intl.formatMessage({ id: 'customers.timeline.partial.title' })}
         >
@@ -122,6 +166,18 @@ export function CustomerTimelineTab({ customerId }: { readonly customerId: strin
           label={intl.formatMessage({ id: 'customers.timeline.label' })}
         />
       )}
+
+      {/*
+       * The one live region on this screen, and it is empty on first paint deliberately: a polite
+       * region that mounts already holding its text is announced inconsistently, which is the same
+       * reasoning `FormErrorSummary` records for not using one at all. This one is created empty and
+       * given its sentence when a page is appended, which is the case `aria-live` is actually
+       * reliable for — and it is the only confirmation a screen-reader user gets that "Show older"
+       * did anything, since the rail itself is deliberately not live (an audit trail must hold still).
+       */}
+      <span aria-live="polite" className="visually-hidden" role="status">
+        {announcement}
+      </span>
 
       {next === null ? null : (
         <Button busy={busy} iconName="chevron-down" onClick={showOlder} variant="secondary">

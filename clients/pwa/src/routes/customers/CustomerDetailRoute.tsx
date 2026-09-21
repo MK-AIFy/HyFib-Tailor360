@@ -114,7 +114,16 @@ export function CustomerDetailRoute() {
             id: 'history',
             label: intl.formatMessage({ id: 'customers.detail.tab.history' }),
             icon: 'clock',
-            panel: <CustomerTimelineTab customerId={customer.customerId} />,
+            /*
+             * Keyed on the customer, so moving from one record to another with the history open
+             * starts a fresh one. React Router re-renders this route in place when `:customerId`
+             * changes rather than remounting it, and the history tab holds the pages it has already
+             * followed — without the key those pages would survive the change and this person's
+             * record would be shown above the last person's history.
+             */
+            panel: (
+              <CustomerTimelineTab key={customer.customerId} customerId={customer.customerId} />
+            ),
           },
         ]}
         label={intl.formatMessage({ id: 'customers.detail.tabs' })}
