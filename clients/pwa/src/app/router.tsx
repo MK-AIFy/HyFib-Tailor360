@@ -47,6 +47,7 @@ import { CUSTOMERS_PERMISSIONS } from '../customers/customersPermissions'
 import { CustomerCreateRoute } from '../routes/customers/CustomerCreateRoute'
 import { CustomerDetailRoute } from '../routes/customers/CustomerDetailRoute'
 import { CustomerEditRoute } from '../routes/customers/CustomerEditRoute'
+import { CustomerConsentRoute } from '../routes/customers/CustomerConsentRoute'
 import { CustomerMergeRoute } from '../routes/customers/CustomerMergeRoute'
 import { CustomerSearchRoute } from '../routes/customers/CustomerSearchRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
@@ -238,6 +239,18 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
                 <CustomerMergeRoute />
+              </RequirePermission>
+            ),
+          },
+          // Consent and communication preferences (#585). Reading either needs
+          // `customers.read_consent`; recording an answer or replacing the preferences needs
+          // `customers.update`, which the screen checks before offering a control and the server
+          // checks on the request.
+          {
+            path: 'customers/:customerId/consent',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.readConsent}>
+                <CustomerConsentRoute />
               </RequirePermission>
             ),
           },

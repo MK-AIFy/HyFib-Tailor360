@@ -37,6 +37,7 @@ export const formsEn = {
   // Date
   // ---------------------------------------------------------------------------------------------
   'forms.date.hint': 'Day, month and year — for example {example}.',
+  'forms.time.hint': 'Hour and minute — for example {example}.',
 
   // ---------------------------------------------------------------------------------------------
   // Numeric stepper
@@ -105,6 +106,7 @@ export const formsTa: Record<keyof typeof formsEn, string> = {
   'forms.select.choose': 'ஒன்றைத் தேர்ந்தெடுக்கவும்',
   // not translated — awaiting native-speaker review
   'forms.date.hint': 'Day, month and year — for example {example}.',
+  'forms.time.hint': 'Hour and minute — for example {example}.',
   // not translated — awaiting native-speaker review
   'forms.stepper.decrease': 'Decrease {label}',
   // not translated — awaiting native-speaker review

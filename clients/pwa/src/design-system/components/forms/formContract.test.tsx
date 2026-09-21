@@ -9,6 +9,7 @@ import { PSEUDO_LOCALE } from '../../../i18n/pseudo'
 import type { FieldAriaSource } from '../../foundations/FieldProps'
 import { Checkbox } from './Checkbox'
 import { DateField } from './DateField'
+import { TimeField } from './TimeField'
 import { FractionInput } from './FractionInput'
 import { MeasurementField } from './MeasurementField'
 import { NumericStepper } from './NumericStepper'
@@ -228,6 +229,28 @@ function makeCase(
       expectedValue: '2026-09-04',
     },
     {
+      name: 'TimeField',
+      render: (props) => (
+        <TimeField
+          label={LABEL}
+          name={NAME}
+          onValueChange={change}
+          showFormatHint={false}
+          {...props}
+        />
+      ),
+      host: () => screen.getByLabelText(LABEL),
+      assertAccessibleName: () => {
+        expect(screen.getByLabelText(LABEL)).toBeInTheDocument()
+      },
+      acceptsUnit: false,
+      nativeReadOnly: true,
+      interact: async (user) => {
+        await user.type(screen.getByLabelText(LABEL), '21:00')
+      },
+      expectedValue: '21:00',
+    },
+    {
       name: 'NumericStepper',
       render: (props) => (
         <NumericStepper label={LABEL} name={NAME} onValueChange={change} value={4} {...props} />
@@ -297,6 +320,7 @@ const CONTROL_NAMES = [
   'RadioGroup',
   'SegmentedControl',
   'DateField',
+  'TimeField',
   'NumericStepper',
   'FractionInput',
   'MeasurementField',

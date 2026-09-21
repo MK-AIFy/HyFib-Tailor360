@@ -27,7 +27,14 @@ import type {
   ServiceTypeRequest,
   StartDesignSelectionDraftRequest,
 } from '../catalog/types'
-import type { Customer, CustomerCard, CustomerPage, CustomerTimelinePage } from '../customers/types'
+import type {
+  CommunicationPreferences,
+  Customer,
+  CustomerCard,
+  CustomerConsent,
+  CustomerPage,
+  CustomerTimelinePage,
+} from '../customers/types'
 import type {
   ConfirmMeasurementsRequest,
   MeasurementCaptureTemplate,
@@ -468,6 +475,24 @@ export type CustomerConforms = Conforms<
 export type CustomerTimelineConforms = Conforms<
   CustomerTimelinePage,
   Immutable<Response200<'GetCustomerTimeline'>>
+>
+
+/** Consent, whole. The purposes and every answer under them (#585). */
+export type CustomerConsentConforms = Conforms<
+  CustomerConsent,
+  Immutable<Response200<'GetCustomerConsent'>>
+>
+
+/**
+ * How a customer wants to be reached.
+ *
+ * Pinned including `version`, unlike `Customer` — here the body's version is the one the client
+ * actually reads, because the precondition on this endpoint is *conditional* and `hasBeenRecorded`
+ * and `version` have to be read together to decide whether `If-Match` is sent at all.
+ */
+export type CommunicationPreferencesConforms = Conforms<
+  CommunicationPreferences,
+  Immutable<Response200<'GetCustomerCommunicationPreferences'>>
 >
 
 export type MeasurementDraftConforms = Conforms<

@@ -113,6 +113,14 @@ export function CustomerDetailRoute() {
         </Link>
       </p>
 
+      {user?.permissions.includes(CUSTOMERS_PERMISSIONS.readConsent) === true ? (
+        <p>
+          <Link to={`/customers/${customer.customerId}/consent`}>
+            <FormattedMessage id="customers.detail.consent" />
+          </Link>
+        </p>
+      ) : null}
+
       <Tabs
         items={[
           {

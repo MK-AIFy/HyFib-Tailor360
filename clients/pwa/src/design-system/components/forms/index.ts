@@ -30,6 +30,8 @@ export { Switch } from './Switch'
 export type { SwitchProps } from './Switch'
 export { DateField } from './DateField'
 export type { DateFieldProps } from './DateField'
+export { TimeField } from './TimeField'
+export type { TimeFieldProps } from './TimeField'
 
 export { NumericStepper } from './NumericStepper'
 export type { NumericStepperProps } from './NumericStepper'

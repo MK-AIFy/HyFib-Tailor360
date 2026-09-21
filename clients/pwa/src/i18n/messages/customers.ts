@@ -156,6 +156,50 @@ export const customersEn = {
     '{count, plural, one {# record re-pointed} other {# records re-pointed}} to the surviving customer',
   'customers.merge.done.branches':
     '{count, plural, one {# branch added} other {# branches added}} to what the surviving record is visible to',
+
+  /* Consent and communication preferences. --------------------------------------------------- */
+  'customers.detail.consent': 'Consent and how to reach her',
+  'customers.consent.title': 'Consent and communication',
+  'customers.consent.body':
+    'What she has agreed to, and how she wants to be reached. An answer is added to the record rather than replacing the last one, so what she said before is still there.',
+  'customers.consent.loading': 'her consent record',
+  'customers.consent.empty': 'The shop asks about nothing that needs consent.',
+  'customers.consent.status.Granted': 'She agreed',
+  'customers.consent.status.Declined': 'She said no',
+  'customers.consent.status.Withdrawn': 'She withdrew',
+  'customers.consent.status.NeverAsked': 'Nobody has asked her',
+  'customers.consent.retired': 'This is no longer asked about, so no answer can be recorded.',
+  'customers.consent.noWording':
+    'No wording has been published for this yet. An answer names the words she was read, and there are none to name.',
+  'customers.consent.answers': 'What she has said',
+  'customers.consent.answer': '{decision} — {when}, wording version {version} — {source}',
+  'customers.consent.source': 'Where she said it',
+  'customers.consent.sourceHint':
+    'At the counter, over the telephone, on a signed form. Kept on the record exactly as you write it.',
+  'customers.consent.sourceRequired': 'Say where she said it.',
+  'customers.consent.grant': 'She agreed',
+  'customers.consent.decline': 'She said no',
+  'customers.consent.withdraw': 'She withdrew it',
+  'customers.consent.offlineAction': 'Recording what she said',
+  'customers.consent.recorded': 'Recorded: {decision}.',
+  'customers.preferences.title': 'How to reach her',
+  'customers.preferences.body':
+    'This replaces what was there, so it always reads as one answer to “which channels does she accept”.',
+  'customers.preferences.loading': 'how she wants to be reached',
+  'customers.preferences.channels': 'Channels she accepts',
+  'customers.preferences.channel.Sms': 'Text message',
+  'customers.preferences.channel.WhatsApp': 'WhatsApp',
+  'customers.preferences.channel.Email': 'Email',
+  'customers.preferences.noChannels':
+    'No channels chosen, which is how she says do not message me. It does not withdraw any consent.',
+  'customers.preferences.quietHoursStart': 'Do not message after',
+  'customers.preferences.quietHoursEnd': 'Message again from',
+  'customers.preferences.quietHoursHint':
+    'Branch time. It may run across midnight — 9 pm to 8 am is an ordinary quiet night.',
+  'customers.preferences.quietHoursBothEnds': 'Give both ends of the quiet hours, or neither.',
+  'customers.preferences.save': 'Save how to reach her',
+  'customers.preferences.saved': 'Saved.',
+  'customers.preferences.offlineAction': 'Saving how to reach her',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -387,4 +431,82 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.merge.done.branches':
     '{count, plural, one {# branch added} other {# branches added}} to what the surviving record is visible to',
+  // not translated — awaiting native-speaker review
+  'customers.detail.consent': 'Consent and how to reach her',
+  // not translated — awaiting native-speaker review
+  'customers.consent.title': 'Consent and communication',
+  // not translated — awaiting native-speaker review
+  'customers.consent.body':
+    'What she has agreed to, and how she wants to be reached. An answer is added to the record rather than replacing the last one, so what she said before is still there.',
+  // not translated — awaiting native-speaker review
+  'customers.consent.loading': 'her consent record',
+  // not translated — awaiting native-speaker review
+  'customers.consent.empty': 'The shop asks about nothing that needs consent.',
+  // not translated — awaiting native-speaker review
+  'customers.consent.status.Granted': 'She agreed',
+  // not translated — awaiting native-speaker review
+  'customers.consent.status.Declined': 'She said no',
+  // not translated — awaiting native-speaker review
+  'customers.consent.status.Withdrawn': 'She withdrew',
+  // not translated — awaiting native-speaker review
+  'customers.consent.status.NeverAsked': 'Nobody has asked her',
+  // not translated — awaiting native-speaker review
+  'customers.consent.retired': 'This is no longer asked about, so no answer can be recorded.',
+  // not translated — awaiting native-speaker review
+  'customers.consent.noWording':
+    'No wording has been published for this yet. An answer names the words she was read, and there are none to name.',
+  // not translated — awaiting native-speaker review
+  'customers.consent.answers': 'What she has said',
+  // not translated — awaiting native-speaker review
+  'customers.consent.answer': '{decision} — {when}, wording version {version} — {source}',
+  // not translated — awaiting native-speaker review
+  'customers.consent.source': 'Where she said it',
+  // not translated — awaiting native-speaker review
+  'customers.consent.sourceHint':
+    'At the counter, over the telephone, on a signed form. Kept on the record exactly as you write it.',
+  // not translated — awaiting native-speaker review
+  'customers.consent.sourceRequired': 'Say where she said it.',
+  // not translated — awaiting native-speaker review
+  'customers.consent.grant': 'She agreed',
+  // not translated — awaiting native-speaker review
+  'customers.consent.decline': 'She said no',
+  // not translated — awaiting native-speaker review
+  'customers.consent.withdraw': 'She withdrew it',
+  // not translated — awaiting native-speaker review
+  'customers.consent.offlineAction': 'Recording what she said',
+  // not translated — awaiting native-speaker review
+  'customers.consent.recorded': 'Recorded: {decision}.',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.title': 'How to reach her',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.body':
+    'This replaces what was there, so it always reads as one answer to “which channels does she accept”.',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.loading': 'how she wants to be reached',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.channels': 'Channels she accepts',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.channel.Sms': 'Text message',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.channel.WhatsApp': 'WhatsApp',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.channel.Email': 'Email',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.noChannels':
+    'No channels chosen, which is how she says do not message me. It does not withdraw any consent.',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.quietHoursStart': 'Do not message after',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.quietHoursEnd': 'Message again from',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.quietHoursHint':
+    'Branch time. It may run across midnight — 9 pm to 8 am is an ordinary quiet night.',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.quietHoursBothEnds': 'Give both ends of the quiet hours, or neither.',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.save': 'Save how to reach her',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.saved': 'Saved.',
+  // not translated — awaiting native-speaker review
+  'customers.preferences.offlineAction': 'Saving how to reach her',
 }

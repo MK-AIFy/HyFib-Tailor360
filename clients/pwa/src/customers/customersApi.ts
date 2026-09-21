@@ -5,6 +5,9 @@ import type {
   Customer,
   CustomerDetailsInput,
   CustomerPage,
+  CommunicationPreferences,
+  ConsentAnswer,
+  CustomerConsent,
   CustomerMergeOutcome,
   CustomerTimelinePage,
   DuplicateCandidate,
@@ -240,4 +243,91 @@ export async function mergeCustomers(input: {
   )
 
   return merged.value
+}
+
+/** Reads where a customer stands on every purpose the shop asks about. */
+export async function readConsent(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<CustomerConsent> {
+  return await apiRequest<CustomerConsent>(`${CUSTOMERS}${customerId}/consent`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/**
+ * Records what a customer said about one purpose.
+ *
+ * It appends an answer and never edits one: withdrawing is a `Withdrawn` answer and agreeing again is
+ * another `Granted` one, so the evidence that she once withdrew survives her changing her mind.
+ *
+ * The wording version is **not sent**. The server reads it from the register, because a client that
+ * could name a version could record an answer against words she was never read — and a purpose with
+ * no published wording is refused for the same reason, which is what `canBeAnswered` reports.
+ */
+export async function recordConsent(input: {
+  readonly customerId: string
+  readonly purposeKey: string
+  /** `Granted`, `Declined` or `Withdrawn`. */
+  readonly decision: string
+  /** Where it was taken, in words. Free text the trail keeps. */
+  readonly source: string
+  readonly idempotencyKey: string
+}): Promise<ConsentAnswer> {
+  return await apiRequest<ConsentAnswer>(`${CUSTOMERS}${input.customerId}/consent`, {
+    method: 'POST',
+    body: { purposeKey: input.purposeKey, decision: input.decision, source: input.source },
+    idempotencyKey: input.idempotencyKey,
+  })
+}
+
+/** Reads how a customer wants to be reached, with the version a change must be made against. */
+export async function readCommunicationPreferences(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<CommunicationPreferences> {
+  return await apiRequest<CommunicationPreferences>(
+    `${CUSTOMERS}${customerId}/communication-preferences`,
+    { ...(signal === undefined ? {} : { signal }) },
+  )
+}
+
+/**
+ * Replaces how a customer wants to be reached.
+ *
+ * Whole-state and not a patch, so the trail reads as a state and "which channels does she accept"
+ * has one answer. An empty `allowedChannels` is how she says do not message me.
+ *
+ * ## Why `version` is optional here and required everywhere else
+ *
+ * `If-Match` is required once a preference exists and **must be omitted before then**, because there
+ * is no version of a row that does not exist. `hasBeenRecorded` on the read is what tells the two
+ * apart, and sending `*` instead would be asking the server to accept any version of something that
+ * has none. So the caller passes the version it read, or nothing, and this function sends exactly
+ * what it was given.
+ */
+export async function replaceCommunicationPreferences(input: {
+  readonly customerId: string
+  readonly allowedChannels: readonly string[]
+  readonly language: string
+  readonly quietHoursStart: string | null
+  readonly quietHoursEnd: string | null
+  /** The version read, or undefined when no preference exists yet. */
+  readonly version: string | undefined
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<CommunicationPreferences>> {
+  return await apiRequestVersioned<CommunicationPreferences>(
+    `${CUSTOMERS}${input.customerId}/communication-preferences`,
+    {
+      method: 'PUT',
+      body: {
+        allowedChannels: input.allowedChannels,
+        language: input.language,
+        quietHoursStart: input.quietHoursStart,
+        quietHoursEnd: input.quietHoursEnd,
+      },
+      ...(input.version === undefined ? {} : { ifMatch: input.version }),
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
 }

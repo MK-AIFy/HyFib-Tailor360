@@ -1,4 +1,7 @@
 import type {
+  CommunicationPreferences,
+  ConsentAnswer,
+  ConsentPurpose,
   Customer,
   CustomerCard,
   CustomerTimelineEntry,
@@ -106,6 +109,58 @@ export function aTimelinePage(overrides: Partial<CustomerTimelinePage> = {}): Cu
     entries: [aTimelineEntry()],
     nextCursor: null,
     unavailableSources: [],
+    ...overrides,
+  }
+}
+
+/** One consent answer. Defaults to the plainest case: she agreed, at the counter. */
+export function aConsentAnswer(overrides: Partial<ConsentAnswer> = {}): ConsentAnswer {
+  return {
+    recordId: '0199cc00-0000-7000-8000-00000000c001',
+    purposeKey: 'appointment-reminders',
+    decision: 'Granted',
+    wordingVersion: 2,
+    recordedAt: '2026-09-01T10:00:00Z',
+    source: 'At the counter',
+    recordedBy: '0199b000-0000-7000-8000-000000000001',
+    branchId: '0199a000-0000-7000-8000-000000000001',
+    ...overrides,
+  }
+}
+
+/** One consent purpose, answerable and agreed to. */
+export function aConsentPurpose(overrides: Partial<ConsentPurpose> = {}): ConsentPurpose {
+  return {
+    key: 'appointment-reminders',
+    name: 'Appointment reminders',
+    description: 'We may message you when your garment is ready.',
+    isRetired: false,
+    currentWordingVersion: 2,
+    canBeAnswered: true,
+    status: 'Granted',
+    answers: [aConsentAnswer()],
+    ...overrides,
+  }
+}
+
+/**
+ * How a customer wants to be reached.
+ *
+ * Defaults to a preference that **has** been recorded, so a test has to opt into the
+ * never-recorded case — which is the one where `If-Match` must be omitted rather than sent.
+ */
+export function aCommunicationPreference(
+  overrides: Partial<CommunicationPreferences> = {},
+): CommunicationPreferences {
+  return {
+    customerId: '0199cc00-0000-7000-8000-000000000001',
+    hasBeenRecorded: true,
+    allowedChannels: ['Sms'],
+    language: 'en-IN',
+    quietHoursStart: '21:00:00',
+    quietHoursEnd: '08:00:00',
+    updatedAt: '2026-09-01T10:00:00Z',
+    version: 'W/"4"',
     ...overrides,
   }
 }

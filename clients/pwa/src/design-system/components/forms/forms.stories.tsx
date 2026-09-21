@@ -4,6 +4,7 @@ import { PSEUDO_LOCALE } from '../../../i18n/pseudo'
 import { AUTOCOMPLETE } from './autocomplete'
 import { Checkbox } from './Checkbox'
 import { DateField } from './DateField'
+import { TimeField } from './TimeField'
 import { RadioGroup } from './RadioGroup'
 import { Select } from './Select'
 import { Switch } from './Switch'
@@ -48,6 +49,7 @@ function ControlGallery({ invalid, required, disabled, readOnly }: GalleryProps)
   const [reuse, setReuse] = useState(false)
   const [diagrams, setDiagrams] = useState(true)
   const [due, setDue] = useState('2026-09-18')
+  const [quietFrom, setQuietFrom] = useState('21:00')
 
   const state = {
     ...(required === true ? { required: true } : {}),
@@ -121,6 +123,13 @@ function ControlGallery({ invalid, required, disabled, readOnly }: GalleryProps)
         onValueChange={setDue}
         value={due}
         {...(invalid === true ? { error: 'The promised date cannot be in the past.' } : {})}
+      />
+      <TimeField
+        {...state}
+        label="Do not message after"
+        name="quiet_hours_start"
+        onValueChange={setQuietFrom}
+        value={quietFrom}
       />
     </div>
   )
