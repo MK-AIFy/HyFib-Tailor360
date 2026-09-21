@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useParams } from 'react-router'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
@@ -73,6 +73,21 @@ export function CustomerMergeRoute() {
   const [outcome, setOutcome] = useState<CustomerMergeOutcome | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
 
+  /*
+   * A merge can finish after the person has left the screen, and it must not be abandoned when it
+   * does: the request is already with the server, the operation is irreversible, and aborting it
+   * would leave nobody knowing whether it happened. So the request is never cancelled — only this
+   * component's own `setState` calls are guarded, which is the difference between "the screen is
+   * gone" and "the merge is gone".
+   */
+  const live = useRef(true)
+  useEffect(() => {
+    live.current = true
+    return () => {
+      live.current = false
+    }
+  }, [])
+
   const record = survivor.value?.value ?? null
   const version = survivor.value?.version
 
@@ -93,6 +108,23 @@ export function CustomerMergeRoute() {
 
   const mayMerge = user?.permissions.includes(CUSTOMERS_PERMISSIONS.merge) === true
   const candidates = review.value?.candidates ?? []
+
+  /**
+   * Picks the record to fold in, minting a new retry key whenever it is a *different* record.
+   *
+   * The key must survive a retry of the same merge — that is what makes a resend replay the first
+   * outcome instead of merging a second time — and must not survive a change of mind. Sending one
+   * candidate's key with another candidate's body is "same key, different body", which the repository's
+   * idempotency rule requires to have defined behaviour and which, on an irreversible operation, is
+   * the worst possible thing to leave to whatever the store happens to do: a replay of the *first*
+   * merge would report success for a pair nobody merged.
+   */
+  const choose = (candidate: DuplicateCandidate) => {
+    if (chosen?.customer.customerId !== candidate.customer.customerId) {
+      setIdempotencyKey(crypto.randomUUID())
+    }
+    setChosen(candidate)
+  }
 
   const merge = (candidate: DuplicateCandidate, reason: string) => {
     setBusy(true)
@@ -124,6 +156,9 @@ export function CustomerMergeRoute() {
         })
       })
       .then((result) => {
+        if (!live.current) {
+          return
+        }
         setOutcome(result)
         setChosen(null)
         // A new key for the next, separate decision — not for a retry of this one, which must
@@ -133,10 +168,14 @@ export function CustomerMergeRoute() {
         review.reload()
       })
       .catch((cause: unknown) => {
-        setFailure(cause)
+        if (live.current) {
+          setFailure(cause)
+        }
       })
       .finally(() => {
-        setBusy(false)
+        if (live.current) {
+          setBusy(false)
+        }
       })
   }
 
@@ -173,46 +212,51 @@ export function CustomerMergeRoute() {
         </EmptyState>
       ) : null}
 
-      {candidates.map((candidate) => (
-        <Card
-          key={candidate.customer.customerId}
-          headingLevel={2}
-          title={candidate.customer.displayName}
-          meta={intl.formatMessage({
-            id: `customers.create.duplicates.confidence.${candidate.confidence}`,
-          })}
-        >
-          <p>{candidate.customer.customerNumber}</p>
-          <ul>
-            {candidate.reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-          <Link to={`/customers/${candidate.customer.customerId}`}>
-            <FormattedMessage id="customers.merge.open" />
-          </Link>
+      {candidates
+        // Defence in depth. The server does not offer the subject record as its own duplicate, and
+        // would refuse the merge if it did; but the cost of the check is a line, and the cost of
+        // being wrong is a record folded into itself.
+        .filter((candidate) => candidate.customer.customerId !== customerId)
+        .map((candidate) => (
+          <Card
+            key={candidate.customer.customerId}
+            headingLevel={2}
+            title={candidate.customer.displayName}
+            meta={intl.formatMessage({
+              id: `customers.create.duplicates.confidence.${candidate.confidence}`,
+            })}
+          >
+            <p>{candidate.customer.customerNumber}</p>
+            <ul>
+              {candidate.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+            <Link to={`/customers/${candidate.customer.customerId}`}>
+              <FormattedMessage id="customers.merge.open" />
+            </Link>
 
-          {!mayMerge ? null : network.online ? (
-            <Button
-              iconName="users"
-              onClick={() => {
-                setFailure(null)
-                setChosen(candidate)
-              }}
-              variant="secondary"
-            >
-              {intl.formatMessage(
-                { id: 'customers.merge.action' },
-                { number: candidate.customer.customerNumber, name: record.displayName },
-              )}
-            </Button>
-          ) : (
-            <OfflineBlockedAction
-              action={intl.formatMessage({ id: 'customers.merge.offlineAction' })}
-            />
-          )}
-        </Card>
-      ))}
+            {!mayMerge ? null : network.online ? (
+              <Button
+                iconName="users"
+                onClick={() => {
+                  setFailure(null)
+                  choose(candidate)
+                }}
+                variant="secondary"
+              >
+                {intl.formatMessage(
+                  { id: 'customers.merge.action' },
+                  { number: candidate.customer.customerNumber, name: record.displayName },
+                )}
+              </Button>
+            ) : (
+              <OfflineBlockedAction
+                action={intl.formatMessage({ id: 'customers.merge.offlineAction' })}
+              />
+            )}
+          </Card>
+        ))}
 
       {chosen === null ? null : (
         <ConfirmDialog

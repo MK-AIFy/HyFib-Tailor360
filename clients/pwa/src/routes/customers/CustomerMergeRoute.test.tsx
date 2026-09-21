@@ -39,6 +39,25 @@ const CANDIDATE = aDuplicateCandidate({
   reasons: ['Same telephone number'],
 })
 
+const OTHER_ID = '0199cc00-0000-7000-8000-000000000003'
+const READ_OTHER = `GET /api/v1/customers/${OTHER_ID}`
+
+/** A second candidate, so a test can change its mind about which record to destroy. */
+const OTHER_CANDIDATE = aDuplicateCandidate({
+  customer: {
+    customerId: OTHER_ID,
+    customerNumber: 'C-000777',
+    displayName: 'P Selvam',
+    nativeName: null,
+    maskedPhone: '••••••5678',
+    owningBranchId: '0199a000-0000-7000-8000-000000000001',
+    visibleToCaller: true,
+    status: 'Active',
+    lastSeenAt: '2026-09-01T10:00:00Z',
+  },
+  reasons: ['Similar name'],
+})
+
 let transport: FetchStub
 
 /**
@@ -290,6 +309,10 @@ it('substitutes a second press for the typed phrase on a phone', async () => {
 
   // The first press arms rather than merges.
   expect(transport.callsTo(MERGE)).toHaveLength(0)
+  // "…to folding…" is the shared catalogue's `Tap Confirm once more to {action}.` meeting the gerund
+  // the `action` prop is documented to take. Ungrammatical, and the same for the component's own
+  // documented examples; #610 tracks the wording, which is a catalogue fix rather than a per-screen
+  // workaround. Asserting what it actually says is what makes this test fail when #610 lands.
   expect(
     screen.getByText(/Tap Confirm once more to folding C-000999 into Priya Selvam/),
   ).toBeInTheDocument()
@@ -298,6 +321,88 @@ it('substitutes a second press for the typed phrase on a phone', async () => {
   await waitFor(() => {
     expect(transport.callsTo(MERGE)).toHaveLength(1)
   })
+})
+
+/*
+ * The retry key must survive a retry of the *same* merge and must not survive a change of mind.
+ * Sending one candidate's key with another candidate's body is "same key, different body", which on
+ * an irreversible operation is the worst thing to leave to the idempotency store: a replay of the
+ * first merge would report success for a pair nobody merged.
+ */
+it('reuses the retry key when the same merge is attempted again', async () => {
+  transport.route(MERGE, () => problemResponse(503, 'platform.unavailable'))
+  onADesktop()
+  renderMerge()
+  await screen.findByRole('button', { name: 'Fold C-000999 into Priya Selvam' })
+
+  await confirmTheMerge()
+  await waitFor(() => {
+    expect(transport.callsTo(MERGE)).toHaveLength(1)
+  })
+  await userEvent.click(screen.getByRole('button', { name: 'Fold C-000999 in' }))
+  await waitFor(() => {
+    expect(transport.callsTo(MERGE)).toHaveLength(2)
+  })
+
+  const sent = transport.callsTo(MERGE)
+  expect(sent[0]?.headers.get('Idempotency-Key')).toBe(sent[1]?.headers.get('Idempotency-Key'))
+})
+
+it('mints a new retry key when a different record is chosen to fold in', async () => {
+  transport.route(DUPLICATES, () => jsonResponse({ candidates: [CANDIDATE, OTHER_CANDIDATE] }))
+  transport.route(READ_OTHER, () =>
+    versionedResponse(aCustomer({ customerId: OTHER_ID, customerNumber: 'C-000777' }), 'W/"5"'),
+  )
+  transport.route(MERGE, () => problemResponse(503, 'platform.unavailable'))
+  onADesktop()
+  renderMerge()
+  await screen.findByRole('button', { name: 'Fold C-000999 into Priya Selvam' })
+
+  await confirmTheMerge()
+  await waitFor(() => {
+    expect(transport.callsTo(MERGE)).toHaveLength(1)
+  })
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+  // A different record, and therefore a different decision.
+  await userEvent.click(screen.getByRole('button', { name: 'Fold C-000777 into Priya Selvam' }))
+  await screen.findByRole('dialog')
+  await userEvent.type(screen.getByRole('textbox', { name: 'Reason' }), 'Actually this one')
+  await userEvent.type(
+    screen.getByRole('textbox', { name: 'Type C-000777 to confirm' }),
+    'C-000777',
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Fold C-000777 in' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(MERGE)).toHaveLength(2)
+  })
+  const sent = transport.callsTo(MERGE)
+  expect(sent[1]?.body).toMatchObject({ mergedCustomerId: OTHER_ID })
+  expect(sent[0]?.headers.get('Idempotency-Key')).not.toBe(sent[1]?.headers.get('Idempotency-Key'))
+})
+
+// The request is already with the server and the operation is irreversible, so it is never aborted —
+// only this component's own state updates are guarded. Abandoning the request would leave nobody
+// knowing whether the merge happened.
+it('does not abandon a merge that is still in flight when the screen goes away', async () => {
+  let settle: ((response: Response) => void) | undefined
+  transport.route(MERGE, () => new Promise<Response>((resolve) => (settle = resolve)))
+  onADesktop()
+  const { unmount } = renderMerge()
+  await screen.findByRole('button', { name: 'Fold C-000999 into Priya Selvam' })
+  await confirmTheMerge()
+
+  await waitFor(() => {
+    expect(transport.callsTo(MERGE)).toHaveLength(1)
+  })
+  const signal = (transport.fetch.mock.calls.at(-1)?.[1] as RequestInit | undefined)?.signal
+
+  unmount()
+
+  // Not aborted: the merge carries on, because stopping it is worse than letting it finish.
+  expect(signal?.aborted ?? false).toBe(false)
+  settle?.(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }))
 })
 
 it('shows the duplicates to a caller who may read but offers no merge control', async () => {
