@@ -10,6 +10,9 @@ import {
 import { PSEUDO_LOCALE } from '../../i18n/pseudo'
 import { CUSTOMERS_PERMISSIONS } from '../../customers/customersPermissions'
 import {
+  aCommunicationPreference,
+  aConsentAnswer,
+  aConsentPurpose,
   aCustomer,
   aCustomerCard,
   aDuplicateCandidate,
@@ -20,6 +23,7 @@ import { CUSTOMER_DUPLICATES_CODE, CUSTOMER_VERSION_CONFLICT_CODE } from '../../
 import { CustomerCreateRoute } from './CustomerCreateRoute'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
 import { CustomerEditRoute } from './CustomerEditRoute'
+import { CustomerConsentRoute } from './CustomerConsentRoute'
 import { CustomerMergeRoute } from './CustomerMergeRoute'
 import { CustomerSearchRoute } from './CustomerSearchRoute'
 import './customers.css'
@@ -75,6 +79,7 @@ const CUSTOMERS_USER = {
     CUSTOMERS_PERMISSIONS.readContact,
     CUSTOMERS_PERMISSIONS.update,
     CUSTOMERS_PERMISSIONS.merge,
+    CUSTOMERS_PERMISSIONS.readConsent,
   ],
 }
 
@@ -169,6 +174,26 @@ const merge = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
       { path: '/customers/:customerId/duplicates', at: DUPLICATES_AT },
     ),
   )
+const CONSENT = `GET ${CUSTOMERS}${CUSTOMER.customerId}/consent`
+const PREFS = `GET ${CUSTOMERS}${CUSTOMER.customerId}/communication-preferences`
+const CONSENT_AT = `/customers/${CUSTOMER.customerId}/consent`
+
+const consent = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+  link(online, () =>
+    withAdminApi(
+      <RequirePermission permission={CUSTOMERS_PERMISSIONS.readConsent}>
+        <CustomerConsentRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
+        [CONSENT]: () => storyJson({ purposes: [aConsentPurpose()] }),
+        [PREFS]: () => storyJson(aCommunicationPreference()),
+        ...routes,
+      },
+      { path: '/customers/:customerId/consent', at: CONSENT_AT },
+    ),
+  )
+
 const EDIT_AT = `/customers/${CUSTOMER.customerId}/edit`
 
 const edit = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
@@ -616,4 +641,121 @@ export const DuplicatesOffline: Story = { render: () => merge({}, false) }
 export const DuplicatesPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => merge({}),
+}
+
+/* Consent and how to reach her -------------------------------------------------------------------- */
+
+/** Where she stands, what she has said before, and the controls for recording a new answer. */
+export const Consent: Story = {
+  render: () =>
+    consent({
+      [CONSENT]: () =>
+        storyJson({
+          purposes: [
+            aConsentPurpose({
+              answers: [
+                aConsentAnswer(),
+                aConsentAnswer({
+                  recordId: '0199cc00-0000-7000-8000-00000000c002',
+                  decision: 'Withdrawn',
+                  recordedAt: '2026-06-01T10:00:00Z',
+                  source: 'Over the telephone',
+                }),
+              ],
+            }),
+            aConsentPurpose({
+              key: 'marketing',
+              name: 'Offers and new arrivals',
+              description: 'We may tell you about a sale or a new fabric.',
+              status: 'NeverAsked',
+              answers: [],
+            }),
+          ],
+        }),
+    }),
+}
+
+export const ConsentLoading: Story = { render: () => consent({ [CONSENT]: storyPending }) }
+
+/** The shop asks about nothing that needs consent — this screen's empty state. */
+export const ConsentEmpty: Story = {
+  render: () => consent({ [CONSENT]: () => storyJson({ purposes: [] }) }),
+}
+
+/**
+ * Two purposes that cannot be answered, for two different reasons — and the screen says which.
+ * `canBeAnswered` is one flag; recomputing it from `isRetired` would silently merge the two.
+ */
+export const ConsentUnanswerable: Story = {
+  render: () =>
+    consent({
+      [CONSENT]: () =>
+        storyJson({
+          purposes: [
+            aConsentPurpose({ canBeAnswered: false, isRetired: true, name: 'A retired purpose' }),
+            aConsentPurpose({
+              key: 'new-thing',
+              name: 'A purpose with no wording yet',
+              canBeAnswered: false,
+              currentWordingVersion: 0,
+              status: 'NeverAsked',
+              answers: [],
+            }),
+          ],
+        }),
+    }),
+}
+
+/** A caller who may read the record and not change it — no controls at all. */
+export const ConsentReadOnly: Story = {
+  render: () =>
+    consent({
+      'GET /api/v1/me': () =>
+        storyJson({ ...CUSTOMERS_USER, permissions: [CUSTOMERS_PERMISSIONS.readConsent] }),
+    }),
+}
+
+/** Press an answer with the source empty, to see the field say which box it wants. */
+export const ConsentSourceMissing: Story = { render: () => consent({}) }
+
+/** A read that failed. */
+export const ConsentError: Story = {
+  render: () => consent({ [CONSENT]: () => storyProblem(503, 'platform.unavailable') }),
+}
+
+/**
+ * No preference has ever been recorded for her.
+ *
+ * The case worth looking at: the save carries **no** `If-Match` at all, because there is no version
+ * of a row that does not exist, and the server requires the header's absence rather than a wildcard.
+ */
+export const ConsentPreferencesNeverRecorded: Story = {
+  render: () =>
+    consent({
+      [PREFS]: () =>
+        storyJson(
+          aCommunicationPreference({
+            hasBeenRecorded: false,
+            version: null,
+            allowedChannels: [],
+            quietHoursStart: null,
+            quietHoursEnd: null,
+            updatedAt: null,
+          }),
+        ),
+    }),
+}
+
+/** The consent record still reads when the preferences alone could not be loaded. */
+export const ConsentPreferencesError: Story = {
+  render: () => consent({ [PREFS]: () => storyProblem(503, 'platform.unavailable') }),
+}
+
+/** Recording an answer needs a connection; the screen says so and keeps what was typed. */
+export const ConsentOffline: Story = { render: () => consent({}, false) }
+
+/** The 40% growth tolerance, on the screen with the longest sentences in this module. */
+export const ConsentPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => consent({}),
 }

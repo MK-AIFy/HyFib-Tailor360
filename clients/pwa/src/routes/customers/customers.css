@@ -118,4 +118,35 @@
     margin-block-start: var(--space-1);
     font-style: italic;
   }
+
+  /*
+   * A consent status line: a glyph and a word, side by side. The glyph shapes differ from one
+   * another so the line reads in greyscale, which is the rule colour alone can never satisfy.
+   */
+  .customers__consentStatus {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    font-weight: var(--weight-medium);
+  }
+
+  /*
+   * The answer controls. They wrap rather than shrink: "She agreed", "She said no" and "She withdrew
+   * it" are three different decisions, and a row that squeezed them together at 320 px would be
+   * three adjacent targets for an irreversible-sounding choice taken at a counter.
+   */
+  .customers__consentActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .customers__channels {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
 }

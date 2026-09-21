@@ -176,3 +176,70 @@ export interface CustomerMergeOutcome {
  * no `ETag` with this one because an `ETag` would describe the survivor — which is not what changed.
  */
 export const CUSTOMER_MERGED_RECORD_CHANGED_CODE = 'customers.merged-record-changed'
+
+/** One answer a customer gave about one purpose, against the wording she was read at the time. */
+export interface ConsentAnswer {
+  readonly recordId: string
+  readonly purposeKey: string
+  /** `Granted`, `Declined` or `Withdrawn`. */
+  readonly decision: string
+  /** The wording version she was asked under. Read from the register by the server, never sent. */
+  readonly wordingVersion: number
+  readonly recordedAt: string
+  /** Where it was taken, in the words whoever took it wrote. Free text, not a code. */
+  readonly source: string
+  readonly recordedBy: string | null
+  readonly branchId: string | null
+}
+
+/**
+ * One purpose and where the customer stands on it.
+ *
+ * `canBeAnswered` is the server's answer to "may an answer be recorded now", and it is false for two
+ * different reasons — the purpose is retired, or it has no published wording for an answer to name.
+ * A screen must not recompute it from `isRetired` alone: a consent record names the version the
+ * customer was read, and there would be nothing to name.
+ */
+export interface ConsentPurpose {
+  readonly key: string
+  readonly name: string
+  readonly description: string | null
+  readonly isRetired: boolean
+  readonly currentWordingVersion: number
+  readonly canBeAnswered: boolean
+  /** `NeverAsked`, `Granted`, `Declined` or `Withdrawn`. */
+  readonly status: string
+  /** Every answer, newest first, so `answers[0]` is the one that stands. */
+  readonly answers: readonly ConsentAnswer[]
+}
+
+/** Where a customer stands on every purpose the shop asks about. */
+export interface CustomerConsent {
+  readonly purposes: readonly ConsentPurpose[]
+}
+
+/**
+ * How a customer wants to be reached.
+ *
+ * `hasBeenRecorded` is what decides whether a `PUT` carries `If-Match`: the precondition is required
+ * once a preference exists and must be *omitted* before then, because there is no version of a row
+ * that does not exist. `version` is null in exactly that case.
+ */
+export interface CommunicationPreferences {
+  readonly customerId: string
+  readonly hasBeenRecorded: boolean
+  /** `Sms`, `WhatsApp`, `Email`. Empty is how she says do not message me. */
+  readonly allowedChannels: readonly string[]
+  readonly language: string
+  /** Wall-clock at the branch, `HH:mm:ss`. Both ends or neither; may run backwards over midnight. */
+  readonly quietHoursStart: string | null
+  readonly quietHoursEnd: string | null
+  readonly updatedAt: string | null
+  readonly version: string | null
+}
+
+/** The three channels the shop can send on. Named once, in the order the counter screen shows them. */
+export const COMMUNICATION_CHANNELS = ['Sms', 'WhatsApp', 'Email'] as const
+
+/** The three answers a customer can give. `NeverAsked` is a status, never a decision. */
+export const CONSENT_DECISIONS = ['Granted', 'Declined', 'Withdrawn'] as const

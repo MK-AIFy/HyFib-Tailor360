@@ -16,4 +16,6 @@ export const CUSTOMERS_PERMISSIONS = {
   update: 'customers.update',
   /** Folding one customer record into another. Irreversible, and needs a fresh proof of identity. */
   merge: 'customers.merge',
+  /** Reading a customer's consent record and her communication preferences. */
+  readConsent: 'customers.read_consent',
 } as const
