@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { AppIntlProvider } from '../../i18n/IntlProvider'
 import { expectNoAccessibilityViolations } from '../../design-system/testing/axe'
 import { forgetAntiforgeryToken } from '../../auth/antiforgery'
-import { setSessionChallengeHandler } from '../../auth/apiClient'
+import { STEP_UP_REQUIRED_CODE, setSessionChallengeHandler } from '../../auth/apiClient'
 import { SessionProvider } from '../../auth/SessionProvider'
 import { aCurrentUser, jsonResponse, problemResponse, stubFetch } from '../../auth/testing/fixtures'
 import type { FetchStub } from '../../auth/testing/fixtures'
@@ -433,6 +433,76 @@ it('shows an empty state when the surviving record cannot be reached', async () 
   expect(
     await screen.findByText('This record could not be found, or is not one you can reach.'),
   ).toBeInTheDocument()
+})
+
+/*
+ * #182's third acceptance criterion: a merge cannot be completed without the step-up challenge
+ * succeeding.
+ *
+ * The enforcement is the server's — `RequireStepUp()` on the endpoint — and the client's part is to
+ * meet the refusal as a question rather than as an error. These two tests are the client half of
+ * that: refused and the merge does not happen, satisfied and the *identical* request goes again.
+ */
+it('does not merge when the step-up challenge is refused', async () => {
+  transport.route(MERGE, () => problemResponse(403, STEP_UP_REQUIRED_CODE))
+  onADesktop()
+  renderMerge()
+  await screen.findByRole('button', { name: 'Fold C-000999 into Priya Selvam' })
+  // After the render, not before: `SessionProvider` installs its own handler on mount — the one that
+  // raises the re-authentication dialog — so a handler set earlier is the one that gets replaced.
+  setSessionChallengeHandler(() => Promise.resolve(false))
+  await confirmTheMerge()
+
+  await waitFor(() => {
+    expect(transport.callsTo(MERGE)).toHaveLength(1)
+  })
+  // One attempt, refused. Nothing was folded into anything.
+  expect(transport.callsTo(MERGE)).toHaveLength(1)
+  expect(screen.queryByText('The records were merged')).not.toBeInTheDocument()
+})
+
+it('replays the identical merge once the step-up challenge is satisfied', async () => {
+  let asked = 0
+  transport.route(MERGE, () => {
+    asked += 1
+    return asked === 1
+      ? problemResponse(403, STEP_UP_REQUIRED_CODE)
+      : versionedResponse(
+          {
+            customer: aCustomer(),
+            mergeId: '0199cc00-0000-7000-8000-00000000d001',
+            mergedCustomerId: FOLDED,
+            mergedCustomerNumber: 'C-000999',
+            aliasesRecorded: 1,
+            visibilityBranchesAdded: 0,
+            recordsRepointed: 0,
+            mergedAt: '2026-09-21T10:00:00Z',
+          },
+          'W/"8"',
+        )
+  })
+  onADesktop()
+  renderMerge()
+  await screen.findByRole('button', { name: 'Fold C-000999 into Priya Selvam' })
+  setSessionChallengeHandler(() => Promise.resolve(true))
+  await confirmTheMerge()
+
+  // The replay goes through the antiforgery refresh the transport forces after a challenge, so it
+  // is two more round trips than an ordinary save — waited on explicitly rather than by timeout.
+  await waitFor(
+    () => {
+      expect(transport.callsTo(MERGE)).toHaveLength(2)
+    },
+    { timeout: 5000 },
+  )
+  expect(await screen.findByText('The records were merged')).toBeInTheDocument()
+
+  const sent = transport.callsTo(MERGE)
+  // Identical: same preconditions, same retry key, same body. A replay that sent anything else
+  // would be merging a pair the person never approved.
+  expect(sent[0]?.headers.get('If-Match')).toBe(sent[1]?.headers.get('If-Match'))
+  expect(sent[0]?.headers.get('Idempotency-Key')).toBe(sent[1]?.headers.get('Idempotency-Key'))
+  expect(sent[0]?.body).toEqual(sent[1]?.body)
 })
 
 it('has no accessibility violations', async () => {

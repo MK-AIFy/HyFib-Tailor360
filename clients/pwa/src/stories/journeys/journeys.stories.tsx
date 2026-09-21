@@ -5,7 +5,7 @@ import { InventoryStockEntryScreen } from './InventoryStockEntry'
 import { JourneyFrame } from './JourneyFrame'
 import { MeasurementWizardScreen } from './MeasurementWizard'
 import { OwnerDashboardScreen } from './OwnerDashboard'
-import { ReceptionIntakeScreen } from './ReceptionIntake'
+import { OrderDraftConfirmationScreen } from './OrderDraftConfirmation'
 import { TailorMasterWorkboardScreen } from './TailorMasterWorkboard'
 import { TailorQueueScreen } from './TailorQueue'
 import './journeys.css'
@@ -59,11 +59,23 @@ type Story = StoryObj<typeof meta>
  *
  * Walked as `A11Y-PZ-01` (order confirmation), whose steps 1 to 8 are this journey. A counter
  * tablet, because Reception has both hands and a customer in front of them.
+ *
+ * ## This story is now only half of that journey, and the better half is elsewhere
+ *
+ * Steps 1 and 2 — find the customer, record consent — are walked against the **real** screens as of
+ * #586: `Customers/Screens` → `Search` and `Consent`, which are wired into the router, talk to the
+ * API and carry their own loading, empty, error, offline, forbidden and pseudo-locale stories. The
+ * mock that used to stand in for them here is gone, because an accessibility walkthrough that passes
+ * against a screen nobody can reach proves nothing — and a mock is the easier of the two to keep
+ * green, which is what makes it the dangerous one to leave lying about.
+ *
+ * What is left is steps 7 and 8, the draft order and its confirmation, which have no real screen:
+ * Orders' client surface (#23 onward) is not built. They stay as a walkthrough target until it is.
  */
 export const ReceptionIntake: Story = {
   render: () => (
     <JourneyFrame role="reception" route="/orders/new" shellKind="tablet" width="768">
-      <ReceptionIntakeScreen />
+      <OrderDraftConfirmationScreen />
     </JourneyFrame>
   ),
 }
