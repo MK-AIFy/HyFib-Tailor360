@@ -172,8 +172,7 @@ export const customersEn = {
   'customers.consent.noWording':
     'No wording has been published for this yet. An answer names the words she was read, and there are none to name.',
   'customers.consent.answers': 'What she has said',
-  'customers.consent.answer':
-    '{decision} — {when}, wording version {version}, recorded at {source}',
+  'customers.consent.answer': '{decision} — {when}, wording version {version} — {source}',
   'customers.consent.source': 'Where she said it',
   'customers.consent.sourceHint':
     'At the counter, over the telephone, on a signed form. Kept on the record exactly as you write it.',
@@ -459,8 +458,7 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.consent.answers': 'What she has said',
   // not translated — awaiting native-speaker review
-  'customers.consent.answer':
-    '{decision} — {when}, wording version {version}, recorded at {source}',
+  'customers.consent.answer': '{decision} — {when}, wording version {version} — {source}',
   // not translated — awaiting native-speaker review
   'customers.consent.source': 'Where she said it',
   // not translated — awaiting native-speaker review
