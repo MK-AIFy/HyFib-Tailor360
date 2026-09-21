@@ -102,6 +102,17 @@ export function CustomerDetailRoute() {
         </p>
       ) : null}
 
+      {/*
+       * Offered on `customers.read`, because reading who might be a duplicate is what Reception does
+       * before asking a manager to merge — the merge control itself lives on that screen and appears
+       * only for `customers.merge`.
+       */}
+      <p>
+        <Link to={`/customers/${customer.customerId}/duplicates`}>
+          <FormattedMessage id="customers.detail.duplicates" />
+        </Link>
+      </p>
+
       <Tabs
         items={[
           {

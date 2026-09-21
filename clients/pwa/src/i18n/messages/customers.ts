@@ -127,6 +127,35 @@ export const customersEn = {
   'customers.timeline.source.orders': 'orders',
   'customers.timeline.source.billing': 'billing',
   'customers.timeline.source.custody': 'garment tracking',
+
+  /* Duplicates and the merge. ---------------------------------------------------------------- */
+  'customers.detail.duplicates': 'Check for duplicate records',
+  'customers.merge.title': 'Possible duplicates of {name}',
+  'customers.merge.body':
+    '{name} ({number}) is the record that will survive. Anything you fold in here is merged into it and cannot be separated again.',
+  'customers.merge.loading': 'the possible duplicates',
+  'customers.merge.empty':
+    'No other record resembles this one closely enough to be worth reviewing.',
+  'customers.merge.open': 'Open this record',
+  'customers.merge.action': 'Fold {number} into {name}',
+  'customers.merge.offlineAction': 'Merging two customer records',
+  'customers.merge.confirm.title': 'Fold {merged} into {survivor}?',
+  'customers.merge.confirm.body':
+    '{merged} ({mergedNumber}) will stop being used. {survivor} ({survivorNumber}) carries on, keeps {mergedNumber} searchable as an alias, and becomes visible to every branch that could see {mergedNumber}. Measurements and orders move across; anything already printed on an invoice or a job card is left exactly as it was.',
+  'customers.merge.confirm.action': 'folding {number} into {name}',
+  'customers.merge.confirm.label': 'Fold {number} in',
+  'customers.merge.conflict.survivor':
+    'The record that would survive has been corrected since you opened this screen. Close this, read it again, and decide once more — the pair you approved is not the pair that would be merged.',
+  'customers.merge.conflict.merged':
+    'The record you are folding in has been corrected since you opened this screen. Close this and read it again before deciding — this is the record that would stop existing.',
+  'customers.merge.done.title': 'The records were merged',
+  'customers.merge.done.body': '{number} was folded into {survivor}.',
+  'customers.merge.done.aliases':
+    '{count, plural, one {# alias recorded} other {# aliases recorded}} on the surviving record',
+  'customers.merge.done.repointed':
+    '{count, plural, one {# record re-pointed} other {# records re-pointed}} to the surviving customer',
+  'customers.merge.done.branches':
+    '{count, plural, one {# branch added} other {# branches added}} to what the surviving record is visible to',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -312,4 +341,50 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.timeline.source.billing': 'billing',
   // not translated — awaiting native-speaker review
   'customers.timeline.source.custody': 'garment tracking',
+  // not translated — awaiting native-speaker review
+  'customers.detail.duplicates': 'Check for duplicate records',
+  // not translated — awaiting native-speaker review
+  'customers.merge.title': 'Possible duplicates of {name}',
+  // not translated — awaiting native-speaker review
+  'customers.merge.body':
+    '{name} ({number}) is the record that will survive. Anything you fold in here is merged into it and cannot be separated again.',
+  // not translated — awaiting native-speaker review
+  'customers.merge.loading': 'the possible duplicates',
+  // not translated — awaiting native-speaker review
+  'customers.merge.empty':
+    'No other record resembles this one closely enough to be worth reviewing.',
+  // not translated — awaiting native-speaker review
+  'customers.merge.open': 'Open this record',
+  // not translated — awaiting native-speaker review
+  'customers.merge.action': 'Fold {number} into {name}',
+  // not translated — awaiting native-speaker review
+  'customers.merge.offlineAction': 'Merging two customer records',
+  // not translated — awaiting native-speaker review
+  'customers.merge.confirm.title': 'Fold {merged} into {survivor}?',
+  // not translated — awaiting native-speaker review
+  'customers.merge.confirm.body':
+    '{merged} ({mergedNumber}) will stop being used. {survivor} ({survivorNumber}) carries on, keeps {mergedNumber} searchable as an alias, and becomes visible to every branch that could see {mergedNumber}. Measurements and orders move across; anything already printed on an invoice or a job card is left exactly as it was.',
+  // not translated — awaiting native-speaker review
+  'customers.merge.confirm.action': 'folding {number} into {name}',
+  // not translated — awaiting native-speaker review
+  'customers.merge.confirm.label': 'Fold {number} in',
+  // not translated — awaiting native-speaker review
+  'customers.merge.conflict.survivor':
+    'The record that would survive has been corrected since you opened this screen. Close this, read it again, and decide once more — the pair you approved is not the pair that would be merged.',
+  // not translated — awaiting native-speaker review
+  'customers.merge.conflict.merged':
+    'The record you are folding in has been corrected since you opened this screen. Close this and read it again before deciding — this is the record that would stop existing.',
+  // not translated — awaiting native-speaker review
+  'customers.merge.done.title': 'The records were merged',
+  // not translated — awaiting native-speaker review
+  'customers.merge.done.body': '{number} was folded into {survivor}.',
+  // not translated — awaiting native-speaker review
+  'customers.merge.done.aliases':
+    '{count, plural, one {# alias recorded} other {# aliases recorded}} on the surviving record',
+  // not translated — awaiting native-speaker review
+  'customers.merge.done.repointed':
+    '{count, plural, one {# record re-pointed} other {# records re-pointed}} to the surviving customer',
+  // not translated — awaiting native-speaker review
+  'customers.merge.done.branches':
+    '{count, plural, one {# branch added} other {# branches added}} to what the surviving record is visible to',
 }

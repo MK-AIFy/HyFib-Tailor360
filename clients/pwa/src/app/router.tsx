@@ -47,6 +47,7 @@ import { CUSTOMERS_PERMISSIONS } from '../customers/customersPermissions'
 import { CustomerCreateRoute } from '../routes/customers/CustomerCreateRoute'
 import { CustomerDetailRoute } from '../routes/customers/CustomerDetailRoute'
 import { CustomerEditRoute } from '../routes/customers/CustomerEditRoute'
+import { CustomerMergeRoute } from '../routes/customers/CustomerMergeRoute'
 import { CustomerSearchRoute } from '../routes/customers/CustomerSearchRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
 import { MeasurementCompareRoute } from '../routes/measurements/MeasurementCompareRoute'
@@ -226,6 +227,17 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={CUSTOMERS_PERMISSIONS.update}>
                 <CustomerEditRoute />
+              </RequirePermission>
+            ),
+          },
+          // Reviewing duplicates and merging (#584). Gated on `customers.read`, not
+          // `customers.merge`: preparing the decision is what Reception does before asking a manager
+          // to take it, and the screen shows the merge control only to somebody who may take it.
+          {
+            path: 'customers/:customerId/duplicates',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
+                <CustomerMergeRoute />
               </RequirePermission>
             ),
           },

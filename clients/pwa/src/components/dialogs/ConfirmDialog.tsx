@@ -129,7 +129,18 @@ export function ConfirmDialog({
   const [typedError, setTypedError] = useState<string | undefined>(undefined)
   const [armed, setArmed] = useState(false)
 
-  const needsReason = resolved.tier === 'reason'
+  /*
+   * The reason is asked for by both of the upper tiers, not only by the middle one.
+   *
+   * The tiers escalate, and it would be perverse for the strongest of them to record *less* about
+   * why somebody acted than the one below it. `resolveConfirmTier` already says as much: the phone
+   * substitute for the typed tier is "confirm with a reason, plus a second explicit press", so a
+   * typed-tier action taken on a phone has always produced an audit reason. Asking only on the phone
+   * would mean the same action left a reason when taken one-handed in a workshop and none when taken
+   * at a desk — and it would make the typed tier unusable for any endpoint that requires a reason,
+   * which is most of the endpoints strong enough to want it (`customers.merge` is the first).
+   */
+  const needsReason = resolved.tier === 'reason' || resolved.tier === 'typed'
   const needsTyped = resolved.tier === 'typed'
   const phrase = typedPhrase ?? confirmLabel
 

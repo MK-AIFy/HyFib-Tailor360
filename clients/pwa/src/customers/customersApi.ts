@@ -5,8 +5,10 @@ import type {
   Customer,
   CustomerDetailsInput,
   CustomerPage,
+  CustomerMergeOutcome,
   CustomerTimelinePage,
   DuplicateCandidate,
+  DuplicateReview,
 } from './types'
 
 const CUSTOMERS = '/api/v1/customers/'
@@ -163,4 +165,79 @@ export async function readCustomerTimeline(
     `${CUSTOMERS}${input.customerId}/timeline${suffix}`,
     { ...(signal === undefined ? {} : { signal }) },
   )
+}
+
+/**
+ * Lists the records that may be the same person as this one.
+ *
+ * Scored as the records stand, not read back from the suspicions raised when either was created: a
+ * correction to either can create a resemblance or remove one, and a merge is too final to take on a
+ * score somebody computed months ago.
+ *
+ * Gated on `customers.read` and not `customers.merge`, deliberately — reading who might be a
+ * duplicate is what Reception does *before* asking a manager to merge, and demanding the merge
+ * permission to look would mean nobody could prepare the decision.
+ */
+export async function readDuplicateReview(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<DuplicateReview> {
+  return await apiRequest<DuplicateReview>(`${CUSTOMERS}${customerId}/duplicates`, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
+
+/**
+ * Folds one customer record into another. This cannot be undone.
+ *
+ * The record in the path **survives**; the one named in the body is folded into it. The direction is
+ * decided by which identifier goes where, which is why it is two named fields here rather than a
+ * pair of positional arguments a call site could transpose.
+ *
+ * ## Both records are preconditions, and they are not the same kind of precondition
+ *
+ * `If-Match` carries the survivor's version, and `mergedCustomerVersion` carries the folded record's.
+ * What a manager approves is a *pair* — these two records, as they read on the screen, are one
+ * person — and an `If-Match` alone protects only one half of that. The half it leaves open is the
+ * record about to stop existing, so a correction to its name or number would otherwise be merged
+ * away with no undo.
+ *
+ * `mergedCustomerVersion` is always a concrete version and never `*`: there is no such thing as "any
+ * version" of a record somebody approved destroying.
+ *
+ * ## The step-up is the transport's job
+ *
+ * The endpoint demands a fresh proof of identity, and `apiClient` answers a
+ * `403 security.step-up-required` by raising the re-authentication dialog and replaying this exact
+ * request — same body, same version, same retry key. So this function does not ask first: doing so
+ * would put a second dialog over the confirmation, and would still not remove the case where the
+ * proof goes stale between the asking and the sending.
+ */
+export async function mergeCustomers(input: {
+  /** The record that survives. */
+  readonly customerId: string
+  /** The record that does not. */
+  readonly mergedCustomerId: string
+  /** That record's version, from its own `GET`. Never `*`. */
+  readonly mergedCustomerVersion: string
+  readonly reason: string
+  /** The survivor's version, from its own `GET`. */
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<CustomerMergeOutcome> {
+  const merged = await apiRequestVersioned<CustomerMergeOutcome>(
+    `${CUSTOMERS}${input.customerId}/merge`,
+    {
+      method: 'POST',
+      body: {
+        mergedCustomerId: input.mergedCustomerId,
+        mergedCustomerVersion: input.mergedCustomerVersion,
+        reason: input.reason,
+      },
+      ifMatch: input.version,
+      idempotencyKey: input.idempotencyKey,
+    },
+  )
+
+  return merged.value
 }

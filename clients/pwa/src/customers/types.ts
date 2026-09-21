@@ -143,3 +143,36 @@ export interface CustomerTimelinePage {
   readonly nextCursor: string | null
   readonly unavailableSources: readonly string[]
 }
+
+/** What `GET /api/v1/customers/{id}/duplicates` answers: who might be this same person. */
+export interface DuplicateReview {
+  readonly candidates: readonly DuplicateCandidate[]
+}
+
+/**
+ * What a completed merge did, in numbers a person can check against what they expected.
+ *
+ * It is reported rather than assumed because a merge cannot be undone: "3 records re-pointed" is the
+ * only chance anybody gets to notice that the wrong pair was folded together, and a screen that just
+ * said "Merged" would take that chance away.
+ */
+export interface CustomerMergeOutcome {
+  readonly customer: Customer
+  readonly mergeId: string
+  readonly mergedCustomerId: string
+  /** The folded record's number, which stays searchable as an alias on the survivor. */
+  readonly mergedCustomerNumber: string
+  readonly aliasesRecorded: number
+  readonly visibilityBranchesAdded: number
+  readonly recordsRepointed: number
+  readonly mergedAt: string
+}
+
+/**
+ * The code a merge is refused with when the record being *folded in* moved on since it was read.
+ *
+ * Distinct from `CUSTOMER_VERSION_CONFLICT_CODE`, which is the survivor going stale, and the two are
+ * never treated alike: they send the reader to different records, and the server deliberately sends
+ * no `ETag` with this one because an `ETag` would describe the survivor — which is not what changed.
+ */
+export const CUSTOMER_MERGED_RECORD_CHANGED_CODE = 'customers.merged-record-changed'

@@ -14,4 +14,6 @@ export const CUSTOMERS_PERMISSIONS = {
   create: 'customers.create',
   /** Correcting what a customer record says about the person. */
   update: 'customers.update',
+  /** Folding one customer record into another. Irreversible, and needs a fresh proof of identity. */
+  merge: 'customers.merge',
 } as const

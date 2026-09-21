@@ -20,6 +20,7 @@ import { CUSTOMER_DUPLICATES_CODE, CUSTOMER_VERSION_CONFLICT_CODE } from '../../
 import { CustomerCreateRoute } from './CustomerCreateRoute'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
 import { CustomerEditRoute } from './CustomerEditRoute'
+import { CustomerMergeRoute } from './CustomerMergeRoute'
 import { CustomerSearchRoute } from './CustomerSearchRoute'
 import './customers.css'
 
@@ -73,6 +74,7 @@ const CUSTOMERS_USER = {
     CUSTOMERS_PERMISSIONS.create,
     CUSTOMERS_PERMISSIONS.readContact,
     CUSTOMERS_PERMISSIONS.update,
+    CUSTOMERS_PERMISSIONS.merge,
   ],
 }
 
@@ -131,6 +133,42 @@ const detail = (routes: Parameters<typeof withAdminApi>[1]) =>
   )
 
 const TIMELINE = `GET ${CUSTOMERS}${CUSTOMER.customerId}/timeline`
+const DUPLICATES = `GET ${CUSTOMERS}${CUSTOMER.customerId}/duplicates`
+const DUPLICATES_AT = `/customers/${CUSTOMER.customerId}/duplicates`
+const FOLDED_ID = '0199cc00-0000-7000-8000-000000000002'
+
+/** The record that would be folded in — a different person's record, deliberately obviously so. */
+const FOLDED = aCustomerCard({
+  customerId: FOLDED_ID,
+  customerNumber: 'C-000999',
+  displayName: 'Priya S',
+})
+
+const merge = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+  link(online, () =>
+    withAdminApi(
+      <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
+        <CustomerMergeRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
+        [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () => storyJson(CUSTOMER, 'W/"7"'),
+        [`GET ${CUSTOMERS}${FOLDED_ID}`]: () =>
+          storyJson({ ...CUSTOMER, customerId: FOLDED_ID, customerNumber: 'C-000999' }, 'W/"3"'),
+        [DUPLICATES]: () =>
+          storyJson({
+            candidates: [
+              aDuplicateCandidate({
+                customer: FOLDED,
+                reasons: ['Same telephone number', 'Same name'],
+              }),
+            ],
+          }),
+        ...routes,
+      },
+      { path: '/customers/:customerId/duplicates', at: DUPLICATES_AT },
+    ),
+  )
 const EDIT_AT = `/customers/${CUSTOMER.customerId}/edit`
 
 const edit = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
@@ -486,4 +524,96 @@ export const DetailHistoryError: Story = {
 export const DetailHistoryPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => detail({ [TIMELINE]: () => storyJson(aTimelinePage()) }),
+}
+
+/* Duplicates and the merge ----------------------------------------------------------------------- */
+
+/**
+ * The review screen. Read which record survives — it is the one in the heading — before pressing
+ * anything: the control says which way round the merge goes, because this is the only operation on a
+ * customer record that cannot be undone.
+ */
+export const Duplicates: Story = { render: () => merge({}) }
+
+export const DuplicatesLoading: Story = { render: () => merge({ [DUPLICATES]: storyPending }) }
+
+/** Nothing resembles this record closely enough to be worth a manager's time. */
+export const DuplicatesEmpty: Story = {
+  render: () => merge({ [DUPLICATES]: () => storyJson({ candidates: [] }) }),
+}
+
+/** A caller who may read the duplicates but not merge them — Reception preparing the decision. */
+export const DuplicatesReadOnly: Story = {
+  render: () =>
+    merge({
+      'GET /api/v1/me': () =>
+        storyJson({ ...CUSTOMERS_USER, permissions: [CUSTOMERS_PERMISSIONS.read] }),
+    }),
+}
+
+/**
+ * Press "Fold C-000999 into Priya Selvam" to meet the confirmation.
+ *
+ * On a desktop it asks for a reason *and* the folded record's own number, typed. On a phone the
+ * typed tier does not exist, and the substitute is the reason plus a second, explicitly armed press
+ * — resize the preview to see it change.
+ */
+export const DuplicatesConfirm: Story = {
+  render: () =>
+    merge({
+      [`POST ${CUSTOMERS}${CUSTOMER.customerId}/merge`]: () =>
+        storyJson(
+          {
+            customer: CUSTOMER,
+            mergeId: '0199cc00-0000-7000-8000-00000000d001',
+            mergedCustomerId: FOLDED_ID,
+            mergedCustomerNumber: 'C-000999',
+            aliasesRecorded: 2,
+            visibilityBranchesAdded: 1,
+            recordsRepointed: 3,
+            mergedAt: '2026-09-21T10:00:00Z',
+          },
+          'W/"8"',
+        ),
+    }),
+}
+
+/**
+ * Confirm the merge to meet the half that went stale: the record that would *survive* changed while
+ * the decision was being taken. It sends the reader back to that record, and it does not read like
+ * the other 409.
+ */
+export const DuplicatesSurvivorConflict: Story = {
+  render: () =>
+    merge({
+      [`POST ${CUSTOMERS}${CUSTOMER.customerId}/merge`]: () =>
+        storyProblem(409, 'customers.version-conflict'),
+    }),
+}
+
+/** Confirm the merge to meet the other half: the record about to be folded in changed. */
+export const DuplicatesMergedRecordConflict: Story = {
+  render: () =>
+    merge({
+      [`POST ${CUSTOMERS}${CUSTOMER.customerId}/merge`]: () =>
+        storyProblem(409, 'customers.merged-record-changed'),
+    }),
+}
+
+/** Confirm the merge for a refusal that is neither conflict. */
+export const DuplicatesError: Story = {
+  render: () =>
+    merge({
+      [`POST ${CUSTOMERS}${CUSTOMER.customerId}/merge`]: () =>
+        storyProblem(403, 'security.permission-denied'),
+    }),
+}
+
+/** Merging needs a connection, and the screen says so rather than offering a doomed control. */
+export const DuplicatesOffline: Story = { render: () => merge({}, false) }
+
+/** The 40% growth tolerance on the card and the confirmation's sentences. */
+export const DuplicatesPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => merge({}),
 }
