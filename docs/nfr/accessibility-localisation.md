@@ -231,6 +231,14 @@ Non-sensitive field actions offer a three-second undo. Sensitive actions use the
 confirm; confirm with a reason; typed confirmation, which is **reserved for desktop and tablet administration** and
 never asked of somebody on a phone in a workshop.
 
+**The tiers escalate**: each asks for everything the tier below it asks for, so a typed confirmation collects the
+mandatory reason *as well as* the phrase. This is stated because the opposite is an easy thing to build by accident
+and a hard thing to notice — a strongest tier that recorded less about why somebody acted than the middle tier would
+leave the gap exactly where the audit trail matters most, and it would make the typed tier unusable for any endpoint
+that requires a reason, which is most of the endpoints strong enough to want one. It is also already what the phone
+substitute does: the typed tier's phone form is a mandatory reason plus a second, explicitly armed press, so the same
+action has always produced a reason when taken one-handed in a workshop.
+
 ---
 
 ## 9. Roles, journeys and the risk each carries

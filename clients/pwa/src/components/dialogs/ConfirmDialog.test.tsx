@@ -182,6 +182,9 @@ describe('ConfirmDialog — tier three, typed confirmation', () => {
       </ConfirmDialog>,
     )
 
+    // The reason is satisfied first, so what this asserts is the *phrase* check and not the reason
+    // check standing in front of it — the tiers escalate, so a typed confirmation asks for both.
+    await userEvent.type(getByRole('textbox', { name: 'Reason' }), 'The customer changed her mind')
     await userEvent.type(getByRole('textbox', { name: /Type CANCEL ORDER/ }), 'cancel')
     await userEvent.click(getByRole('button', { name: 'Cancel order' }))
 
@@ -191,7 +194,7 @@ describe('ConfirmDialog — tier three, typed confirmation', () => {
     )
   })
 
-  it('confirms once the phrase matches', async () => {
+  it('confirms once the phrase matches, carrying the reason with it', async () => {
     const onConfirm = vi.fn()
     const { getByRole } = renderWithProviders(
       <ConfirmDialog
@@ -205,10 +208,11 @@ describe('ConfirmDialog — tier three, typed confirmation', () => {
       </ConfirmDialog>,
     )
 
+    await userEvent.type(getByRole('textbox', { name: 'Reason' }), 'The customer changed her mind')
     await userEvent.type(getByRole('textbox', { name: /Type CANCEL ORDER/ }), 'CANCEL ORDER')
     await userEvent.click(getByRole('button', { name: 'Cancel order' }))
 
-    expect(onConfirm).toHaveBeenCalledWith({})
+    expect(onConfirm).toHaveBeenCalledWith({ reason: 'The customer changed her mind' })
   })
 
   it('never asks a phone to type anything', () => {
@@ -391,5 +395,48 @@ describe('ConfirmDialog — everywhere', () => {
       </ConfirmDialog>,
     )
     await expectNoAccessibilityViolations(typed.baseElement)
+  })
+})
+
+describe('ConfirmDialog — the tiers escalate', () => {
+  it('asks the typed tier for a reason as well as the phrase, so the strongest tier records the most', async () => {
+    const onConfirm = vi.fn()
+    const { getByRole } = renderWithProviders(
+      <ConfirmDialog
+        {...base}
+        onConfirm={onConfirm}
+        shellKind="desktop"
+        tier="typed"
+        typedPhrase="C-000123"
+      >
+        the consequence
+      </ConfirmDialog>,
+    )
+
+    await userEvent.type(getByRole('textbox', { name: 'Reason' }), 'She asked for it')
+    await userEvent.type(getByRole('textbox', { name: 'Type C-000123 to confirm' }), 'C-000123')
+    await userEvent.click(getByRole('button', { name: base.confirmLabel }))
+
+    expect(onConfirm).toHaveBeenCalledWith({ reason: 'She asked for it' })
+  })
+
+  it('refuses a typed confirmation whose reason is empty', async () => {
+    const onConfirm = vi.fn()
+    const { getByRole } = renderWithProviders(
+      <ConfirmDialog
+        {...base}
+        onConfirm={onConfirm}
+        shellKind="desktop"
+        tier="typed"
+        typedPhrase="C-000123"
+      >
+        the consequence
+      </ConfirmDialog>,
+    )
+
+    await userEvent.type(getByRole('textbox', { name: 'Type C-000123 to confirm' }), 'C-000123')
+    await userEvent.click(getByRole('button', { name: base.confirmLabel }))
+
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 })

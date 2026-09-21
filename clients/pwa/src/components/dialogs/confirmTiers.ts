@@ -7,9 +7,15 @@ import type { ShellKind } from '../../design-system/foundations/types'
  *   reason   a mandatory typed reason, stored on the audit event. Required for **corrections,
  *            reprints, holds, cancellations and manual lookups** — the actions whose audit trail is
  *            the only record of why somebody stepped outside the ordinary path
- *   typed    the person types a phrase to confirm. Reserved for **desktop and tablet administration
- *            actions** and never asked of somebody on a phone in a workshop, where it is a minute of
- *            one-handed typing in front of a waiting customer
+ *   typed    the person types a phrase to confirm, **on top of** the mandatory reason. Reserved for
+ *            **desktop and tablet administration actions** and never asked of somebody on a phone in
+ *            a workshop, where it is a minute of one-handed typing in front of a waiting customer
+ *
+ * The tiers escalate, so each one asks for everything the one below it asks for: the typed tier
+ * collects the reason as well as the phrase. That is not an extra rule bolted on — it is what the
+ * phone substitute below has always done, and a strongest tier that recorded *less* about why
+ * somebody acted than the middle tier would be a gap in the audit trail exactly where it matters
+ * most.
  *
  * The tier is a property of the action, not of the screen: cancelling an order is a `reason` tier
  * wherever it is cancelled from. Only the third tier is affected by where the person is standing,
