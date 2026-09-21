@@ -97,3 +97,36 @@ export function readDuplicateCandidates(failure: unknown): readonly DuplicateCan
     ? problem.candidates
     : null
 }
+
+/**
+ * Corrects what a customer record says about the person.
+ *
+ * `PUT`, and whole-record: the server compares every field against what it holds and records which
+ * ones changed, so a field left out of `details` is a field being cleared, not a field being left
+ * alone. The edit screen therefore sends the record it read back with the person's edits applied,
+ * never a sparse patch.
+ *
+ * Three headers carry the things that make it safe, and `apiClient` puts all three on:
+ *
+ *  - `If-Match` is the version read from the record's own `GET`. A correction made against a version
+ *    that is no longer current is refused with `409 customers.version-conflict` rather than quietly
+ *    overwriting whatever a colleague saved in between.
+ *  - `Idempotency-Key` makes a resend of *this* correction replay the first outcome instead of
+ *    applying it twice.
+ *  - The reason travels in the body because the endpoint is audited with `reasonRequired`, and a
+ *    correction with no reason is a change nobody can question later.
+ */
+export async function correctCustomer(input: {
+  readonly customerId: string
+  readonly details: CustomerDetailsInput
+  readonly reason: string
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<Customer>> {
+  return await apiRequestVersioned<Customer>(`${CUSTOMERS}${input.customerId}`, {
+    method: 'PUT',
+    body: { ...input.details, reason: input.reason },
+    ifMatch: input.version,
+    idempotencyKey: input.idempotencyKey,
+  })
+}

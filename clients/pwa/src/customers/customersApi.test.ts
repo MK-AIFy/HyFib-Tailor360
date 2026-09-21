@@ -3,8 +3,13 @@ import { forgetAntiforgeryToken } from '../auth/antiforgery'
 import { setSessionChallengeHandler } from '../auth/apiClient'
 import { jsonResponse, problemResponse, stubFetch } from '../auth/testing/fixtures'
 import type { FetchStub } from '../auth/testing/fixtures'
-import { readDuplicateCandidates, registerCustomer, searchCustomers } from './customersApi'
-import { aDuplicateCandidate } from './testing/fixtures'
+import {
+  correctCustomer,
+  readDuplicateCandidates,
+  registerCustomer,
+  searchCustomers,
+} from './customersApi'
+import { aCustomer, aDuplicateCandidate, versionedResponse } from './testing/fixtures'
 import { CUSTOMER_DUPLICATES_CODE } from './types'
 
 let transport: FetchStub
@@ -80,5 +85,38 @@ describe('readDuplicateCandidates', () => {
     expect(readDuplicateCandidates(new Error('boom'))).toBeNull()
     expect(readDuplicateCandidates({ problem: null })).toBeNull()
     expect(readDuplicateCandidates({ problem: 'not an object' })).toBeNull()
+  })
+})
+
+describe('correctCustomer', () => {
+  const CUSTOMER_ID = '0199cc00-0000-7000-8000-000000000001'
+
+  // The three headers are what make the correction safe, and all three are the transport's job —
+  // this asserts the call site actually asks for them, because a correction sent without `If-Match`
+  // overwrites a colleague's save and looks like it worked.
+  it('presents the version it was read at, a retry key, and the reason in the body', async () => {
+    transport.route(`PUT /api/v1/customers/${CUSTOMER_ID}`, () =>
+      versionedResponse(aCustomer({ displayName: 'Priya S' }), 'W/"8"'),
+    )
+
+    const corrected = await correctCustomer({
+      customerId: CUSTOMER_ID,
+      details: { displayName: 'Priya S', language: 'en-IN' },
+      reason: 'Spelling on her identity document',
+      version: 'W/"7"',
+      idempotencyKey: 'idem-correct',
+    })
+
+    expect(corrected.version).toBe('W/"8"')
+    expect(corrected.value.displayName).toBe('Priya S')
+
+    const [sent] = transport.callsTo(`PUT /api/v1/customers/${CUSTOMER_ID}`)
+    expect(sent?.headers.get('If-Match')).toBe('W/"7"')
+    expect(sent?.headers.get('Idempotency-Key')).toBe('idem-correct')
+    expect(sent?.body).toEqual({
+      displayName: 'Priya S',
+      language: 'en-IN',
+      reason: 'Spelling on her identity document',
+    })
   })
 })

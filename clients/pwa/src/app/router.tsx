@@ -46,6 +46,7 @@ import { InstallRoute } from '../routes/InstallRoute'
 import { CUSTOMERS_PERMISSIONS } from '../customers/customersPermissions'
 import { CustomerCreateRoute } from '../routes/customers/CustomerCreateRoute'
 import { CustomerDetailRoute } from '../routes/customers/CustomerDetailRoute'
+import { CustomerEditRoute } from '../routes/customers/CustomerEditRoute'
 import { CustomerSearchRoute } from '../routes/customers/CustomerSearchRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
 import { MeasurementCompareRoute } from '../routes/measurements/MeasurementCompareRoute'
@@ -214,6 +215,17 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
                 <CustomerDetailRoute />
+              </RequirePermission>
+            ),
+          },
+          // Correcting a record (#582). Its own address rather than a mode of the detail screen: a
+          // correction is a separate decision with a reason attached, and one a colleague may be
+          // sent straight to.
+          {
+            path: 'customers/:customerId/edit',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.update}>
+                <CustomerEditRoute />
               </RequirePermission>
             ),
           },

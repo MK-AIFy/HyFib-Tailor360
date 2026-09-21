@@ -27,7 +27,7 @@ import type {
   ServiceTypeRequest,
   StartDesignSelectionDraftRequest,
 } from '../catalog/types'
-import type { CustomerCard, CustomerPage } from '../customers/types'
+import type { Customer, CustomerCard, CustomerPage } from '../customers/types'
 import type {
   ConfirmMeasurementsRequest,
   MeasurementCaptureTemplate,
@@ -432,6 +432,30 @@ export type CustomerCardConforms = Conforms<
 >
 
 export type CustomerPageConforms = Conforms<CustomerPage, Immutable<Response200<'SearchCustomers'>>>
+
+/**
+ * Pinned against the correction's response rather than the read's, deliberately.
+ *
+ * `GetCustomer` and `CorrectCustomer` both answer with a `CustomerPayload`, so either would catch a
+ * field being renamed. The correction is the one pinned because it is the one whose response the
+ * edit screen puts straight back into a form: a field that appears there and not in `Customer` is a
+ * field a correction would silently start clearing.
+ *
+ * ## Why `version` is omitted rather than added to `Customer`
+ *
+ * The payload carries the record's version twice — in the body as `version`, and in the `ETag` — and
+ * the client reads the `ETag` one. That is not an oversight: `apiRequestVersioned` returns the tag
+ * alongside the body for every versioned resource in the application, so an edit screen presents a
+ * precondition the same way whatever module it belongs to, and a `Customer` carrying its own
+ * `version` field would be a second, customer-only spelling of the same thing that a call site could
+ * reach for by mistake. Omitting it here keeps the assertion honest about what `Customer` claims to
+ * be; every other field on the payload is still pinned, so a rename or a type change still fails the
+ * build.
+ */
+export type CustomerConforms = Conforms<
+  Customer,
+  Omit<Immutable<Response200<'CorrectCustomer'>>, 'version'>
+>
 
 export type MeasurementDraftConforms = Conforms<
   MeasurementDraft,
