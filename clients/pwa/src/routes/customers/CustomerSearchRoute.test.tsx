@@ -389,6 +389,110 @@ it('clears the address-derived error when the field is emptied', async () => {
   })
 })
 
+/*
+ * The segmented Phone / Name mode (#629).
+ *
+ * Specified by the plan's #26 [E04-F01] blueprint and by exceptions.md section 4.1, where it is
+ * part of duplicate prevention: Reception who cannot type a number quickly searches less, and a
+ * search not made is how the same person is registered twice.
+ */
+it('raises the telephone keypad in phone mode, and the text keyboard in name mode', async () => {
+  const user = userEvent.setup()
+  renderSearch()
+
+  const box = screen.getByRole('searchbox', { name: 'Search' })
+  // Name is the default, and it is what this field did before the modes existed.
+  expect(box).not.toHaveAttribute('inputmode')
+
+  await user.click(screen.getByRole('radio', { name: 'Phone number' }))
+
+  expect(await screen.findByRole('searchbox', { name: 'Search' })).toHaveAttribute(
+    'inputmode',
+    'tel',
+  )
+})
+
+// The mode is not part of the question: the endpoint matches a name, a number or the tail of a
+// phone number either way. Re-running on a switch would be work nobody asked for, and would risk
+// results that disagree with the control above them.
+it('does not re-run the search when the keyboard changes', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null, refusal: null }),
+  )
+  renderSearch('/customers?term=priya')
+
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+  await user.click(screen.getByRole('radio', { name: 'Phone number' }))
+
+  expect(transport.callsTo('GET /api/v1/customers/?term=priya')).toHaveLength(1)
+  // And the results it already had are still the ones on screen.
+  expect(screen.getByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
+})
+
+// In the address, for the reason the term and the filter are: `MasterDetail` takes this pane out of
+// the DOM when a record is open, so anything held in state dies when somebody opens a customer.
+it('keeps the mode, the term and the filter together in the address', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya&includeDeactivated=true', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null, refusal: null }),
+  )
+  renderSearch('/customers?term=priya&withdrawn=true&mode=phone')
+
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+
+  expect(screen.getByRole('radio', { name: 'Phone number' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Include deactivated records' })).toBeChecked()
+  expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('priya')
+
+  // And a fresh search from here does not quietly drop the keyboard back.
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+  expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveAttribute('inputmode', 'tel')
+})
+
+/*
+ * Switching the keyboard writes the whole query back, so everything else in it has to be carried.
+ *
+ * `setParams` replaces the address rather than merging into it, which makes every part of the
+ * question something the switch can silently drop — the committed term, and the filter that decides
+ * whether a deactivated record is even offered. Dropping the filter would put results back that
+ * exclude her, under a box still showing ticked.
+ */
+it('keeps the committed term and the filter when the keyboard changes', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya&includeDeactivated=true', () =>
+    jsonResponse({
+      customers: [aCustomerCard({ status: 'Deactivated' })],
+      nextCursor: null,
+      refusal: null,
+    }),
+  )
+  renderSearch('/customers?term=priya&withdrawn=true')
+
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+
+  await user.click(screen.getByRole('radio', { name: 'Phone number' }))
+
+  expect(screen.getByRole('checkbox', { name: 'Include deactivated records' })).toBeChecked()
+  expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('priya')
+  // Still the one answer, not re-asked and not re-asked differently.
+  expect(
+    transport.callsTo('GET /api/v1/customers/?term=priya&includeDeactivated=true'),
+  ).toHaveLength(1)
+  expect(screen.getByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
+})
+
+// Switching the keyboard must not cost somebody the term they have typed.
+it('keeps a typed term when the keyboard changes', async () => {
+  const user = userEvent.setup()
+  renderSearch()
+
+  await user.type(screen.getByRole('searchbox', { name: 'Search' }), '98765')
+  await user.click(screen.getByRole('radio', { name: 'Phone number' }))
+
+  expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('98765')
+})
+
 it('has no accessibility violations', async () => {
   const user = userEvent.setup()
   transport.route('GET /api/v1/customers/?term=priya', () =>
