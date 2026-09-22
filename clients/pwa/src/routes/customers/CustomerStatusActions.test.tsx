@@ -37,7 +37,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderActions(customer: Customer = aCustomer()) {
+function renderActions(customer: Customer = aCustomer(), reloadFailure: unknown = null) {
   return render(
     <AppIntlProvider locale="en-IN">
       <CustomerStatusActions
@@ -45,6 +45,7 @@ function renderActions(customer: Customer = aCustomer()) {
         onChanged={() => {
           changed += 1
         }}
+        reloadFailure={reloadFailure}
         version='W/"7"'
       />
     </AppIntlProvider>,
@@ -234,6 +235,60 @@ it('stays inert after a command until the reloaded record arrives', async () => 
   const back = screen.getByRole('button', { name: 'Reactivate this record' })
   expect(back).not.toHaveAttribute('aria-disabled')
   expect(back).not.toHaveAttribute('aria-busy')
+})
+
+/*
+ * The reload that was meant to end the wait never arrives.
+ *
+ * The command itself succeeded; only the read after it failed. Staying inert would leave a control
+ * that cannot be pressed again short of reloading the page, and a status on screen that is known to
+ * be stale but presented as current.
+ */
+it('comes back, and says the record is stale, when the reload fails', async () => {
+  transport.route(DEACTIVATE, () =>
+    versionedResponse(aCustomer({ status: 'Deactivated' }), 'W/"8"'),
+  )
+  const { rerender } = renderActions()
+  await confirm('Deactivate this record')
+
+  await waitFor(() => {
+    expect(transport.callsTo(DEACTIVATE)).toHaveLength(1)
+  })
+
+  // The parent still holds the old record, and now also the reason it could not get a new one.
+  rerender(
+    <AppIntlProvider locale="en-IN">
+      <CustomerStatusActions
+        customer={aCustomer()}
+        onChanged={() => {
+          changed += 1
+        }}
+        reloadFailure={new Error('the network went')}
+        version='W/"7"'
+      />
+    </AppIntlProvider>,
+  )
+
+  expect(screen.getByText(/could not be read again just now/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Deactivate this record' })).not.toHaveAttribute(
+    'aria-disabled',
+  )
+})
+
+// The message says to read the record again and decide once more. Until now there was no way to do
+// that: retrying sent the same superseded If-Match and was refused identically, forever.
+it('asks for the record again when the version has moved', async () => {
+  transport.route(DEACTIVATE, () => problemResponse(409, CUSTOMER_VERSION_CONFLICT_CODE))
+  renderActions()
+  await confirm('Deactivate this record')
+
+  expect(
+    await screen.findByText(/Somebody corrected this record while you were reading it/),
+  ).toBeInTheDocument()
+  // The dialog is closed, because the record being decided about is not the record that exists.
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  // And the parent was asked for a fresh one, so the next attempt carries a version that can win.
+  expect(changed).toBe(1)
 })
 
 it('blocks the command with an explanation when the connection goes', async () => {

@@ -158,6 +158,7 @@ export function CustomerDetailRoute() {
           onChanged={() => {
             record.reload()
           }}
+          reloadFailure={record.failure}
           version={version}
         />
       ) : null}
