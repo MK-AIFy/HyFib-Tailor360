@@ -1018,6 +1018,22 @@ export const DetailStatusConflict: Story = {
     }),
 }
 
+/**
+ * The 40% growth tolerance on the deactivated banner, which is the longest prose in this surface.
+ *
+ * Worth its own story rather than leaning on the others: the banner has to spend four sentences
+ * saying what deactivating is *not*, because the word on its own reads like a deletion — so it is
+ * the string in this module most likely to break its container when a translation runs long.
+ */
+export const DetailStatusPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () =>
+    detail({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyJson({ ...CUSTOMER, status: 'Deactivated' }, 'W/"1"'),
+    }),
+}
+
 /** Search "priya" with the filter on, to find somebody who has been deactivated. */
 export const SearchIncludingDeactivated: Story = {
   render: () =>
