@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { StatusBadge } from '../../components/primitives/StatusBadge'
 import { Checkbox } from '../../design-system/components/forms/Checkbox'
+import { SegmentedControl } from '../../design-system/components/forms/SegmentedControl'
 import { TextField } from '../../design-system/components/forms/TextField'
 import {
   CUSTOMER_SEARCH_MINIMUM_LENGTH,
@@ -17,6 +18,15 @@ import {
 } from '../../customers/customersApi'
 import { customerStatusKind } from '../../customers/customerStatus'
 import type { CustomerCard, CustomerPage } from '../../customers/types'
+
+/**
+ * Which keyboard the search field asks for.
+ *
+ * Specified by the plan's `#26 [E04-F01]` blueprint and by docs/prd/exceptions.md section 4.1,
+ * where the segmented mode is part of *duplicate prevention*: Reception who cannot type a number
+ * quickly searches less, and a search not made is how the same person gets registered twice.
+ */
+type SearchMode = 'phone' | 'name'
 import './customers.css'
 
 /**
@@ -58,6 +68,20 @@ export function CustomerSearchRoute() {
   // takes the screen, and a filter that reset itself on the way back would quietly change what the
   // next search means.
   const withdrawn = params.get('withdrawn') === 'true'
+  /*
+   * Which keyboard the field asks for, in the address for the same two reasons as the filter.
+   *
+   * It is *not* part of the question. The endpoint matches a name, a native-script name, a customer
+   * number or the tail of a telephone number whichever mode is showing, so switching raises a
+   * different keyboard and changes nothing about what is asked — which is why switching does not
+   * re-run the search and cannot leave results disagreeing with the control above them.
+   *
+   * Defaults to `name`, which is exactly what this field did before the modes existed. Reception
+   * starting from a telephone number is plausibly the commoner case at a counter, and #629 records
+   * that as the open question rather than settling it here: a default that silently changes the
+   * keyboard for everybody is a product decision, not a client one.
+   */
+  const mode: SearchMode = params.get('mode') === 'phone' ? 'phone' : 'name'
 
   const [term, setTerm] = useState(committed)
   const [includeWithdrawn, setIncludeWithdrawn] = useState(withdrawn)
@@ -82,9 +106,33 @@ export function CustomerSearchRoute() {
    * asks the same question rather than showing an empty screen.
    */
   const ask = (wanted: string, withDeactivated: boolean) => {
-    setParams(withDeactivated ? { term: wanted, withdrawn: 'true' } : { term: wanted }, {
-      replace: true,
-    })
+    setParams(
+      {
+        term: wanted,
+        ...(withDeactivated ? { withdrawn: 'true' } : {}),
+        // Carried rather than rebuilt: a search must not silently drop back to the other keyboard.
+        ...(mode === 'phone' ? { mode: 'phone' } : {}),
+      },
+      { replace: true },
+    )
+  }
+
+  /*
+   * Switching the keyboard, and nothing else.
+   *
+   * The term and the filter are written back unchanged because `setParams` replaces the whole
+   * query, and because losing a typed term to a keyboard change would be its own small betrayal.
+   * No search is re-run: the mode is not part of the question.
+   */
+  const chooseMode = (next: string) => {
+    setParams(
+      {
+        ...(committed.length > 0 ? { term: committed } : {}),
+        ...(withdrawn ? { withdrawn: 'true' } : {}),
+        ...(next === 'phone' ? { mode: 'phone' } : {}),
+      },
+      { replace: true },
+    )
   }
 
   const submit = () => {
@@ -263,6 +311,24 @@ export function CustomerSearchRoute() {
           Input Purpose governs a person's own details, which a staff member searching for a
           customer is not entering.
         */}
+        {/*
+          Above the field, because it changes what the field is for. The design system's segmented
+          control is a fieldset with a legend and native radios, so the group is announced before
+          the first option and the arrow keys work — a wedge scanner is a keyboard, and so is
+          somebody's thumb.
+        */}
+        <SegmentedControl
+          id="customer-search-mode"
+          label={intl.formatMessage({ id: 'customers.search.mode.label' })}
+          name="mode"
+          onValueChange={chooseMode}
+          options={[
+            { value: 'name', label: intl.formatMessage({ id: 'customers.search.mode.name' }) },
+            { value: 'phone', label: intl.formatMessage({ id: 'customers.search.mode.phone' }) },
+          ]}
+          value={mode}
+        />
+
         <TextField
           autoComplete="off"
           description={intl.formatMessage(
@@ -270,6 +336,13 @@ export function CustomerSearchRoute() {
             { minimum: CUSTOMER_SEARCH_MINIMUM_LENGTH },
           )}
           enterKeyHint="search"
+          /*
+            The whole point of the mode, and the reason it is a mode rather than an `inputMode` on
+            one field: a keypad is right for a number and wrong for a name, so the screen asks which
+            before it decides. `type` stays `search` in both — it is still a search field, and
+            changing the type would change the clear affordance under the person's thumb.
+          */
+          {...(mode === 'phone' ? { inputMode: 'tel' as const } : {})}
           {...(tooShort || refusedAsTooShort || committedIsTooShort
             ? {
                 error: intl.formatMessage(

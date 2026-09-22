@@ -102,7 +102,7 @@ function link<T>(online: boolean, render: () => T): T {
   return render()
 }
 
-const search = (routes: Parameters<typeof withAdminApi>[1]) =>
+const search = (routes: Parameters<typeof withAdminApi>[1], at = '/customers') =>
   withAdminApi(
     <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
       <CustomerSearchRoute />
@@ -111,7 +111,7 @@ const search = (routes: Parameters<typeof withAdminApi>[1]) =>
       'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
       ...routes,
     },
-    { path: '/customers', at: '/customers' },
+    { path: '/customers', at },
   )
 
 const create = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
@@ -1035,6 +1035,33 @@ export const DetailStatusPseudoLocale: Story = {
 }
 
 /** Search "priya" with the filter on, to find somebody who has been deactivated. */
+/**
+ * The segmented Phone / Name mode (#629), on the text keyboard it opens with.
+ *
+ * Specified by the plan's `#26 [E04-F01]` blueprint and by `exceptions.md` section 4.1, where it
+ * belongs to *duplicate prevention*: Reception who cannot type a number quickly searches less, and
+ * a search not made is how the same person is registered twice.
+ */
+export const SearchByName: Story = { render: () => search({}) }
+
+/**
+ * The same screen with the telephone keypad chosen.
+ *
+ * The mode lives in the address beside the term and the filter, because `MasterDetail` takes this
+ * pane out of the DOM when a record is open — so the story opens at one, which is also how a
+ * colleague would arrive from a shared link.
+ */
+export const SearchByPhone: Story = {
+  render: () =>
+    search(
+      {
+        'GET /api/v1/customers/?term=000001': () =>
+          storyJson({ customers: [aCustomerCard()], nextCursor: null, refusal: null }),
+      },
+      '/customers?term=000001&mode=phone',
+    ),
+}
+
 export const SearchIncludingDeactivated: Story = {
   render: () =>
     search({
