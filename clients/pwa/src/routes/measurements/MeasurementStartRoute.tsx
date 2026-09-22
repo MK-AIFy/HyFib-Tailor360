@@ -14,7 +14,11 @@ import { useNetworkState } from '../../components/states/useNetworkState'
 import { RadioGroup } from '../../design-system/components/forms/RadioGroup'
 import { Select } from '../../design-system/components/forms/Select'
 import { TextField } from '../../design-system/components/forms/TextField'
-import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers/customersApi'
+import {
+  CUSTOMER_SEARCH_MINIMUM_LENGTH,
+  searchCustomers,
+  searchOutcome,
+} from '../../customers/customersApi'
 import type { CustomerCard } from '../../customers/types'
 import { MeasurementProblemAlert } from '../../measurements/MeasurementProblemAlert'
 import { startMeasurementDraft } from '../../measurements/measurementsApi'
@@ -58,6 +62,15 @@ export function MeasurementStartRoute() {
   const [results, setResults] = useState<readonly CustomerCard[] | null>(null)
   const [truncated, setTruncated] = useState(false)
   const [tooShort, setTooShort] = useState(false)
+  /*
+   * The search answered, but did not search.
+   *
+   * This screen is the second consumer of `searchCustomers`, and it used to drop `page.refusal` and
+   * render an empty list as "No customer matched" — a false negative in front of somebody about to
+   * decide whether this is a new customer, which is how one person ends up with two records. The
+   * refusal is kept so the screen can say the true thing instead.
+   */
+  const [refused, setRefused] = useState(false)
 
   const [customerId, setCustomerId] = useState<string>(params.get('customerId') ?? '')
   const preselected = params.get('customerId') !== null && results === null
@@ -104,6 +117,7 @@ export function MeasurementStartRoute() {
     }
 
     setTooShort(false)
+    setRefused(false)
     setSearching(true)
     setSearchFailure(null)
     // A choice made from the previous list does not survive a new search — forgotten the moment the
@@ -113,6 +127,22 @@ export function MeasurementStartRoute() {
     setCustomerId('')
     try {
       const page = await searchCustomers(wanted)
+      const outcome = searchOutcome(page)
+
+      // Classified centrally rather than here, because "empty list" and "did not search" are
+      // different answers and this screen previously gave the first for both.
+      if (outcome === 'too-short') {
+        setTooShort(true)
+        setResults(null)
+        return
+      }
+
+      if (outcome === 'refused') {
+        setRefused(true)
+        setResults(null)
+        return
+      }
+
       setResults(page.customers)
       setTruncated(page.nextCursor !== null)
     } catch (cause: unknown) {
@@ -261,6 +291,12 @@ export function MeasurementStartRoute() {
             {preselected && customerId !== '' ? (
               <Alert live="off" tone="info">
                 {intl.formatMessage({ id: 'measurements.start.customer.preselected' })}
+              </Alert>
+            ) : null}
+
+            {refused ? (
+              <Alert live="polite" tone="warning">
+                {intl.formatMessage({ id: 'measurements.start.customer.refused' })}
               </Alert>
             ) : null}
 

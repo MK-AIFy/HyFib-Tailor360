@@ -105,8 +105,6 @@ export function CustomerSearchRoute() {
    * from that is "she is not here", which is the one conclusion this filter exists to prevent.
    */
   const toggleDeactivated = (on: boolean) => {
-    setIncludeWithdrawn(on)
-
     /*
      * Re-asks what is *in the box*, not what was last committed.
      *
@@ -117,17 +115,27 @@ export function CustomerSearchRoute() {
      */
     const wanted = term.trim()
 
-    // Nothing typed and nothing asked: a checkbox on an empty screen has no question to re-ask, and
-    // complaining about the length of a term nobody has entered would be noise.
+    // Nothing typed and nothing asked: no question to re-ask and no results to disagree with, so
+    // the box simply moves. Complaining about the length of a term nobody has entered would be noise.
     if (wanted.length === 0 && committed.length === 0) {
+      setIncludeWithdrawn(on)
       return
     }
 
+    /*
+     * The box holds something this search will not run, so the filter stays where it is.
+     *
+     * Moving it and stopping would leave a ticked "Include deactivated records" above results that
+     * were fetched without it — and somebody reads that as "she is deactivated and still not here",
+     * which is the one conclusion this filter exists to prevent. The error at the field says why
+     * nothing happened; a checkbox that silently disagrees with the list below it would not.
+     */
     if (wanted.length < CUSTOMER_SEARCH_MINIMUM_LENGTH) {
       setTooShort(true)
       return
     }
 
+    setIncludeWithdrawn(on)
     setTooShort(false)
     ask(wanted, on)
   }
@@ -196,9 +204,17 @@ export function CustomerSearchRoute() {
    *
    * Derived rather than stored, so it follows the address on a reload or a remount instead of
    * depending on somebody having pressed a button earlier in the session.
+   *
+   * It reads the *field* as well as the address, so that typing a valid term clears it and emptying
+   * the box clears it too. Reading the address alone left "Type at least 3 characters" standing
+   * against a value that no longer deserved it — an error a person cannot get rid of by fixing what
+   * it complains about teaches them to ignore errors.
    */
   const committedIsTooShort =
-    committed.length > 0 && committed.length < CUSTOMER_SEARCH_MINIMUM_LENGTH
+    committed.length > 0 &&
+    committed.length < CUSTOMER_SEARCH_MINIMUM_LENGTH &&
+    term.trim().length > 0 &&
+    term.trim().length < CUSTOMER_SEARCH_MINIMUM_LENGTH
 
   const results = current?.page?.customers ?? null
   const truncated = current?.page?.nextCursor !== undefined && current?.page?.nextCursor !== null
@@ -226,13 +242,16 @@ export function CustomerSearchRoute() {
         }}
       >
         {/*
-          No `inputMode`, deliberately, and #614 records the decision as still open.
+          No `inputMode`, deliberately — see below for why, which is not the reason it once said.
 
           This field matches a name, a native-script name, a customer number *or* the tail of a
           telephone number — which is what the hint above it says.
 
-          It is **one field, and the specification asks for two.** Plan section 4.6 and
-          docs/prd/exceptions.md section 4.1 both call for a segmented Phone / Name mode: the
+          It is **one field, and the specification asks for two.** The plan's
+          `### #26 [E04-F01] Customer profiles, consent, search, deduplication, timeline` blueprint
+          (docs/IMPLEMENTATION_PLAN.md, from line 1215 — not section 4.6, which is general client
+          architecture) and docs/prd/exceptions.md section 4.1 both call for a segmented Phone /
+          Name mode: the
           telephone keypad for a number, the text keyboard for a name. That is not implemented here,
           and it is a gap to build rather than a question to answer — #629 tracks it.
 

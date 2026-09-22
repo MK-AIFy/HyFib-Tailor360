@@ -44,6 +44,9 @@ export const measurementsEn = {
   'measurements.start.customer.results': 'Customer',
   'measurements.start.customer.none':
     'No customer matches. Check the spelling, or register the customer at the counter first.',
+  'measurements.start.customer.refused':
+    'This search did not run, and this version of the app cannot say why. Reload to get ' +
+    'the latest version, then try again. Do not read this as nobody being found.',
   'measurements.start.customer.card': '{name} · {number} · {phone}',
   'measurements.start.customer.masked': '{name} · {number} · registered at another branch',
   'measurements.start.customer.preselected':
@@ -254,6 +257,10 @@ export const measurementsTa: Record<keyof typeof measurementsEn, string> = {
   // not translated — awaiting native-speaker review
   'measurements.start.customer.none':
     'No customer matches. Check the spelling, or register the customer at the counter first.',
+  // not translated — awaiting native-speaker review
+  'measurements.start.customer.refused':
+    'This search did not run, and this version of the app cannot say why. Reload to get ' +
+    'the latest version, then try again. Do not read this as nobody being found.',
   // not translated — awaiting native-speaker review
   'measurements.start.customer.card': '{name} · {number} · {phone}',
   // not translated — awaiting native-speaker review
