@@ -249,9 +249,16 @@ public sealed record CustomerCardPayload(
 /// <summary>One page of search results.</summary>
 /// <param name="Customers">The cards, most recently seen first.</param>
 /// <param name="NextCursor">Where the next page starts, or null at the end.</param>
+/// <param name="Refusal">
+/// Why the page is empty, when it is empty for a reason other than nobody matching; null otherwise.
+/// Today the only value is <c>customers.search-term-too-short</c>. **The set is open-ended**: treat
+/// an unrecognised value as "empty, for a reason this client does not know", which reads correctly
+/// whatever is added later, and never as "nobody matched".
+/// </param>
 public sealed record CustomerPagePayload(
     IReadOnlyList<CustomerCardPayload> Customers,
-    string? NextCursor)
+    string? NextCursor,
+    string? Refusal)
 {
     /// <summary>Projects a page.</summary>
     /// <param name="page">The page.</param>
@@ -262,7 +269,8 @@ public sealed record CustomerPagePayload(
 
         return new CustomerPagePayload(
             [.. page.Customers.Select(CustomerCardPayload.From)],
-            page.NextCursor);
+            page.NextCursor,
+            page.Refusal);
     }
 }
 

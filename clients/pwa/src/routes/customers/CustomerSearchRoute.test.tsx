@@ -57,21 +57,78 @@ it('refuses a search shorter than the server accepts, without asking the server'
  * The case #182's criterion A is about: the refusal reads the same whether the field worked it out
  * or the server said it.
  *
- * Reachable in one realistic way — the client's minimum and the server's having drifted apart, which
- * is what the contract test in the .NET tier exists to prevent — and in one ordinary one: a pasted
- * or bookmarked address carrying a term the form itself would never have submitted. Either way it
- * belongs at the field the person has to change, not floating above the form as an unexplained
- * failure.
+ * The server says it in a field on a 200, not as a 400 — changing the status would break a v1
+ * caller reading `200 []` as "nobody matched". Reachable when the client's minimum and the server's
+ * have drifted apart, which the .NET contract test exists to prevent, and it belongs at the field
+ * the person has to change rather than as a bare empty state.
  */
 it("shows the server's too-short refusal at the field, in the same words", async () => {
   transport.route('GET /api/v1/customers/?term=abc', () =>
-    problemResponse(400, 'customers.search-term-too-short'),
+    jsonResponse({
+      customers: [],
+      nextCursor: null,
+      refusal: 'customers.search-term-too-short',
+    }),
   )
   renderSearch('/customers?term=abc')
 
   expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
-  // Not also as a problem alert: one refusal, said once, where it can be acted on.
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  // And emphatically not "Nobody matched", which is a different and wrong answer.
+  expect(
+    screen.queryByText('Nobody matched. Check the spelling, or register a new customer.'),
+  ).not.toBeInTheDocument()
+})
+
+/*
+ * A refusal this build has never heard of.
+ *
+ * The field is documented as open-ended, so the server may add a reason without that being a
+ * breaking change. The one thing an old client must not do is fall back to "Nobody matched": it
+ * does not know why the page is empty, and claiming there is nobody is the wrong half of the
+ * uncertainty to resolve.
+ */
+it('does not claim nobody matched on a refusal it does not recognise', async () => {
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({
+      customers: [],
+      nextCursor: null,
+      refusal: 'customers.search-unavailable-in-this-branch',
+    }),
+  )
+  renderSearch('/customers?term=priya')
+
+  // Waited for by its text, not by the request: asserting an absence before the render has
+  // happened passes for the wrong reason, which is how the first version of this test was vacuous.
+  expect(await screen.findByText(/cannot say why/)).toBeInTheDocument()
+  expect(
+    screen.queryByText('Nobody matched. Check the spelling, or register a new customer.'),
+  ).not.toBeInTheDocument()
+})
+
+// The ordinary empty page still reads as it always did: no refusal, nobody matched.
+it('still says nobody matched when the page is empty for no stated reason', async () => {
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [], nextCursor: null, refusal: null }),
+  )
+  renderSearch('/customers?term=priya')
+
+  expect(
+    await screen.findByText('Nobody matched. Check the spelling, or register a new customer.'),
+  ).toBeInTheDocument()
+})
+
+/*
+ * A pasted or bookmarked address carrying a term too short to run.
+ *
+ * Nobody pressed anything, and the screen does not ask the server for a term this short, so without
+ * deriving the error from the address there is nothing on screen at all: the term in the box, no
+ * results, and no reason. "No reason" is read as "no such person".
+ */
+it('explains a too-short term that arrived in the address', async () => {
+  renderSearch('/customers?term=ab')
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+  expect(transport.callsTo('GET /api/v1/customers/?term=ab')).toHaveLength(0)
 })
 
 it('finds a customer and opens their record', async () => {

@@ -360,17 +360,19 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
 
         (await CreateAsync(counter, Registration("cust-short"))).StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        // Typed, but not enough of it: a refusal that names the minimum, not an empty page.
-        var refused = await counter.GetAsync("/api/v1/customers/?term=ka");
-        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        // Typed, but not enough of it: an empty page that says why it is empty.
+        var refused = await SearchAsync(counter, "ka");
+        refused.Customers.ShouldBeEmpty();
+        refused.Refusal.ShouldBe("customers.search-term-too-short");
 
-        (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.search-term-too-short");
-
-        // Nothing typed at all is not a refusal. She has not asked a question yet.
-        (await SearchAsync(counter, string.Empty)).Customers.ShouldBeEmpty();
+        // Nothing typed at all is not a refusal. She has not asked a question yet, and the page
+        // says nothing about why — which is what tells the two apart.
+        var nothing = await SearchAsync(counter, string.Empty);
+        nothing.Customers.ShouldBeEmpty();
+        nothing.Refusal.ShouldBeNull();
     }
 
-    /// <summary>A term at exactly the minimum is run, not refused — the boundary, from the inside.</summary>
+    /// <summary>A term at exactly the minimum is searched on — the boundary, from the inside.</summary>
     [Fact]
     public async Task ASearchAtExactlyTheMinimumIsRun()
     {
@@ -381,7 +383,29 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
 
         (await CreateAsync(counter, Registration("cust-min"))).StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var response = await counter.GetAsync("/api/v1/customers/?term=kav");
+        // Carries no refusal, which is what says the search actually ran.
+        (await SearchAsync(counter, "kav")).Refusal.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The status code did not move, which is the whole point of answering in a field.
+    /// </summary>
+    /// <remarks>
+    /// A term of one or two characters answered <c>200</c> with an empty page before this existed,
+    /// and still does. Changing it to a <c>400</c> would be breaking inside v1 under
+    /// <c>docs/architecture/conventions.md</c> section 5.2 — a tightened validation and a changed
+    /// status code — so a caller that ignores <c>refusal</c> reads exactly what it read before.
+    /// </remarks>
+    [Fact]
+    public async Task AShortSearchStillAnswersTwoHundredForACallerThatIgnoresTheRefusal()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, FirstBranchId, FirstBranchCode);
+        using var counter = await CounterAsync("cust-v1", "203.0.113.132", FirstBranchId);
+
+        var response = await counter.GetAsync("/api/v1/customers/?term=ka");
+
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -612,7 +636,10 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
         bool VisibleToCaller,
         string Status);
 
-    private sealed record PageBody(IReadOnlyList<CardBody> Customers, string? NextCursor);
+    private sealed record PageBody(
+        IReadOnlyList<CardBody> Customers,
+        string? NextCursor,
+        string? Refusal);
 
     private sealed record AuditRow(string Action, string Summary, string? Before, string? After);
 }

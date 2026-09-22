@@ -100,9 +100,28 @@ public sealed record CustomerSearchQuery(
 /// <summary>One page of search results, and where to continue from.</summary>
 /// <param name="Customers">The cards, most recently seen first.</param>
 /// <param name="NextCursor">Where the next page starts, or null at the end.</param>
+/// <param name="Refusal">
+/// Why the page is empty, when it is empty for a reason other than nobody matching; null otherwise.
+/// </param>
 public sealed record CustomerSearchPage(
     IReadOnlyList<CustomerCard> Customers,
-    string? NextCursor);
+    string? NextCursor,
+    string? Refusal = null)
+{
+    /// <summary>
+    /// The term was too short to search on, so the search was not run.
+    /// </summary>
+    /// <remarks>
+    /// An empty page on its own means "nobody matched", and a screen can only say what it is told.
+    /// Reusing it for "your term was too short" makes the two indistinguishable, and at a counter
+    /// the second is read as the first — which is how the same person gets registered twice.
+    ///
+    /// It is a field rather than a <c>400</c> because a status-code change is breaking inside v1
+    /// (<c>docs/architecture/conventions.md</c> section 5.2) and a new response field is not. A
+    /// caller that ignores this reads exactly what it read before.
+    /// </remarks>
+    public const string TermTooShort = "customers.search-term-too-short";
+}
 
 /// <summary>
 /// One customer as a search result, before any field-level masking.
