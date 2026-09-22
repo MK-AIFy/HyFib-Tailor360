@@ -170,8 +170,10 @@ repeated here.
 ## 4. Questions raised while drafting this documentation set
 
 These arose from writing [`00-overview.md`](00-overview.md), [`glossary.md`](glossary.md) and
-[`configurable-vs-fixed.md`](configurable-vs-fixed.md). None is a new decision area; each resolves inside an
-existing plan Section 11 item, and is listed here so the workshop agenda is complete.
+[`configurable-vs-fixed.md`](configurable-vs-fixed.md), and — since 2026-09-22 — from building against them, which
+is where a question of this kind is most likely to surface: a requirement reads as settled until something has to
+be built to satisfy it. None is a new decision area; each resolves inside an existing plan Section 11 item, and is
+listed here so the workshop agenda is complete.
 
 | Question | Resolves under | Interim position |
 | --- | --- | --- |
@@ -182,6 +184,7 @@ existing plan Section 11 item, and is listed here so the workshop agenda is comp
 | Which Tamil words are correct on the shop floor for phases, measurements and money terms? | Issue #19 accessibility and localisation, using the glossary from issue #17 | Every Tamil entry in [`glossary.md`](glossary.md) is marked as needing native-speaker review and must not be used in a customer-facing message until reviewed |
 | Do all branches share one price list, or does each branch price separately? | OD-06 with OD-05 | Price-list versions already carry branch availability; the business rule is confirmed at the workshop |
 | Are advances refundable on cancellation, and under what approval? | OD-04 with OD-05 | Refunds and reversals exist as compensating, approved records; the business policy is confirmed at the workshop |
+| Should the customer search raise a numeric keypad on a phone? #182 asks for it to be "phone keypad optimised for mobile"; the field is alphabetic today | Issue #19 accessibility and localisation, with #182; recorded from #620 | **Open — raised 2026-09-22.** Alphabetic stands until it is decided, and it is a product decision rather than a defect. `inputMode="tel"` is one line, and probably wrong: the endpoint matches a name, a native-script name, a customer number *or* the tail of a telephone number, and the screen says so — a keypad on a field whose commonest input is a name would make most searches worse to serve the one the server already makes cheap by matching a partial number. Three options: **(1)** leave it alphabetic and treat "keypad optimised" as satisfied by that partial phone matching rather than by the keyboard; **(2)** a name-or-number mode switch on the field, with the keyboard following it; **(3)** split into a phone-first field with a keypad beside a separate name field. Whoever decides should also confirm `autoComplete="off"` stays — it is deliberate on a shared counter device, and WCAG 1.3.5 Identify Input Purpose governs a person's *own* details, which a staff member searching for a customer is not entering |
 
 ---
 

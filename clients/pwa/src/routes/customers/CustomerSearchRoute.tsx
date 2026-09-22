@@ -144,6 +144,10 @@ export function CustomerSearchRoute() {
           keypad optimised", and a `tel` keypad on a field whose commonest input is a name would make
           most searches worse to serve the one that the server already makes cheap by matching a
           partial number. `autoComplete` stays off because this is a shared counter device.
+
+          That is a reading of #182, not an answer to it, so the question and its three options are
+          recorded in docs/prd/assumptions-and-open-decisions.md section 4 (#620). Alphabetic stands
+          until somebody decides; change this field when that row changes, not before.
         */}
         <TextField
           autoComplete="off"
