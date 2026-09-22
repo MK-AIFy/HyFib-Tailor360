@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useLocation, useSearchParams } from 'react-router'
-import { ApiError } from '../../auth/apiClient'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { Alert } from '../../components/primitives/Alert'
 import { Button } from '../../components/primitives/Button'
@@ -168,16 +167,39 @@ export function CustomerSearchRoute() {
   const searching = asked && current === null
   const failure = current?.failure ?? null
   /*
-   * The server refusing the same thing the field pre-checks.
+   * Why the page is empty, when it is empty for a reason other than nobody matching.
    *
-   * It should not happen — the form does not submit a term this short — but it is reachable from a
-   * pasted or bookmarked address, and it is what a drift between the two minimums would look like.
-   * Rendering it as the field's own error rather than as a problem alert is what makes #182's
-   * criterion A true: the refusal reads the same wherever it came from, and it points at the field
-   * the person has to change rather than floating above the form as an unexplained failure.
+   * The page still answers 200 with no results — that is the whole point of carrying the reason in
+   * a field — so without reading this the screen would say "Nobody matched", which is a different
+   * and wrong answer.
    */
-  const refusedAsTooShort =
-    failure instanceof ApiError && failure.code === CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE
+  const refusal = current?.page?.refusal ?? null
+
+  /*
+   * The server saying the same thing the field pre-checks.
+   *
+   * It should not happen, because the form does not submit a term this short. It is reachable from
+   * a pasted or bookmarked address, and it is what a drift between the two minimums would look
+   * like. Rendering it as the field's own error rather than as a bare empty state is what makes
+   * #182's criterion A true: the refusal reads the same wherever it came from, and it points at the
+   * field the person has to change.
+   */
+  const refusedAsTooShort = refusal === CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE
+
+  /*
+   * An address carrying a term too short to run — `/customers?term=ab`, pasted or bookmarked.
+   *
+   * The effect above deliberately does not ask the server for one of these, so no page comes back
+   * to carry a refusal, and `tooShort` is false because nobody submitted the form. Without this the
+   * screen shows the term in the box, no results and no reason: the one state a search screen must
+   * never be in, because "no reason" is read as "no such person".
+   *
+   * Derived rather than stored, so it follows the address on a reload or a remount instead of
+   * depending on somebody having pressed a button earlier in the session.
+   */
+  const committedIsTooShort =
+    committed.length > 0 && committed.length < CUSTOMER_SEARCH_MINIMUM_LENGTH
+
   const results = current?.page?.customers ?? null
   const truncated = current?.page?.nextCursor !== undefined && current?.page?.nextCursor !== null
 
@@ -229,7 +251,7 @@ export function CustomerSearchRoute() {
             { minimum: CUSTOMER_SEARCH_MINIMUM_LENGTH },
           )}
           enterKeyHint="search"
-          {...(tooShort || refusedAsTooShort
+          {...(tooShort || refusedAsTooShort || committedIsTooShort
             ? {
                 error: intl.formatMessage(
                   { id: 'customers.search.tooShort' },
@@ -265,12 +287,25 @@ export function CustomerSearchRoute() {
         </Button>
       </form>
 
-      {/* The too-short refusal is shown at the field, so it is not repeated here as a failure. */}
-      <AuthProblemAlert failure={refusedAsTooShort ? null : failure} />
+      <AuthProblemAlert failure={failure} />
 
       {searching && results === null ? (
         <LoadingState what={intl.formatMessage({ id: 'customers.search.loading' })} />
-      ) : results === null ? null : results.length === 0 ? (
+      ) : results === null ? null : refusedAsTooShort ? null : refusal !== null ? ( // Said at the field, where the person can act on it. Saying it twice would be worse.
+        /*
+         * A refusal this build has never heard of — the field is open-ended, so the server may add
+         * one without that being a breaking change.
+         *
+         * "Nobody matched" would be a wrong answer: the reason is unknown, which is not the same as
+         * knowing there is nobody. Rendering nothing at all would be the other wrong answer, and the
+         * one this screen has already been bitten by twice — a blank area with a term still in the
+         * box reads as "no such person" just as loudly as the sentence does. So it says the true
+         * thing: the search did not run, and this version cannot say why.
+         */
+        <EmptyState iconName="alert-triangle" live="polite">
+          {intl.formatMessage({ id: 'customers.search.refusedUnknown' })}
+        </EmptyState>
+      ) : results.length === 0 ? (
         <EmptyState iconName="users" live="polite">
           {intl.formatMessage({ id: 'customers.search.empty' })}
         </EmptyState>

@@ -31,7 +31,13 @@ const CUSTOMERS = '/api/v1/customers/'
  */
 export const CUSTOMER_SEARCH_MINIMUM_LENGTH = 3
 
-/** The server's refusal of a term shorter than {@link CUSTOMER_SEARCH_MINIMUM_LENGTH}. */
+/**
+ * The value of `CustomerPage.refusal` when the term was too short to search on.
+ *
+ * The page comes back `200` and empty, exactly as it always did — the reason rides in a field
+ * rather than in the status code, because changing the status would break a v1 caller that reads
+ * `200 []` as "nobody matched".
+ */
 export const CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE = 'customers.search-term-too-short'
 
 /**

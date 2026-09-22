@@ -32,6 +32,9 @@ export const customersEn = {
   'customers.search.searching': 'Searching…',
   'customers.search.loading': 'the search results',
   'customers.search.empty': 'Nobody matched. Check the spelling, or register a new customer.',
+  'customers.search.refusedUnknown':
+    'This search did not run, and this version of the app cannot say why. Reload to get the ' +
+    'latest version, then try again.',
   'customers.search.results': 'Matching customers',
   'customers.search.more': 'More matched than are shown. Narrow the search to see the rest.',
   'customers.search.card': '{name}, {number}, {phone}',
@@ -288,6 +291,9 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.search.loading': 'the search results',
   // not translated — awaiting native-speaker review
   'customers.search.empty': 'Nobody matched. Check the spelling, or register a new customer.',
+  'customers.search.refusedUnknown':
+    'This search did not run, and this version of the app cannot say why. Reload to get the ' +
+    'latest version, then try again.',
   // not translated — awaiting native-speaker review
   'customers.search.results': 'Matching customers',
   // not translated — awaiting native-speaker review

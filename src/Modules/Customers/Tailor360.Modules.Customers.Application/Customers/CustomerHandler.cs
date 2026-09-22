@@ -384,13 +384,12 @@ public sealed class CustomerHandler(
         }
 
         // Something was typed, but not enough of it. That is a different answer from "nobody
-        // matched", and it has to read differently: an empty page tells a receptionist that this
-        // person is not a customer here, which is both wrong and the kind of wrong that ends with
-        // somebody being registered twice.
+        // matched", and it has to read differently: an empty page on its own tells a receptionist
+        // that this person is not a customer here, which is both wrong and the kind of wrong that
+        // ends with somebody being registered twice. So the page says why it is empty.
         if (term.Length < CustomerSearchQuery.MinimumTermLength)
         {
-            return Result.Failure<CustomerSearchPage>(
-                CustomersErrors.SearchTermTooShort(CustomerSearchQuery.MinimumTermLength));
+            return Result.Success(new CustomerSearchPage([], null, CustomerSearchPage.TermTooShort));
         }
 
         var bounded = query with
