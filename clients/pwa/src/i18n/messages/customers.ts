@@ -202,6 +202,37 @@ export const customersEn = {
   'customers.layout.title': 'Customers',
   'customers.layout.list': 'Customer search and results',
   'customers.layout.detail': 'The customer record',
+
+  /* The subject-access export. -------------------------------------------------------------- */
+  'customers.detail.export': 'Export her data for a subject-access request',
+  'customers.export.title': 'Export {name}’s data',
+  'customers.export.body':
+    'This is the copy that answers a subject-access request. Generating one replaces any earlier copy, so only one exists outside the record at a time.',
+  'customers.export.contains': 'What the copy holds',
+  'customers.export.contains.profile': 'Her record: name, contact details, branch and status',
+  'customers.export.contains.consent': 'Every answer she has given about consent, and when',
+  'customers.export.contains.preferences': 'How she has asked to be reached',
+  'customers.export.excludes':
+    'It does not hold images, duplicate scores or merge reasons, and it holds no measurements — the system does not record any against a customer yet. Say so if you are asked whether the copy is everything.',
+  'customers.export.action': 'Generate the copy',
+  'customers.export.again': 'Generate a fresh copy',
+  'customers.export.offlineAction': 'Generating a subject-access export',
+  'customers.export.offlineDownload': 'Downloading the export',
+  'customers.export.confirm.title': 'Generate a copy of {name}’s data?',
+  'customers.export.confirm.body':
+    'Everything the shop holds about her is written to a file that can be downloaded until it expires. Any earlier copy stops working the moment this one is made, so a download you have already given somebody will stop working. The reason you give is kept against her record.',
+  'customers.export.confirm.action': 'generating a copy of her data',
+  'customers.export.confirm.label': 'Generate the copy',
+  'customers.export.ready.title': 'The copy is ready',
+  'customers.export.generatedAt': 'Made at',
+  'customers.export.expiresAt': 'Stops working at',
+  'customers.export.classification': 'Handling class',
+  'customers.export.superseded':
+    '{count, plural, one {# earlier copy} other {# earlier copies}} stopped working when this one was made.',
+  'customers.export.download': 'Download the copy',
+  'customers.export.gone.title': 'That copy has gone',
+  'customers.export.gone.body':
+    'It expired, or a newer copy replaced it. The record that it was made, by whom and why is kept — only the copy of the data is destroyed. Generate a fresh one to answer the request.',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -516,4 +547,57 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.layout.list': 'Customer search and results',
   // not translated — awaiting native-speaker review
   'customers.layout.detail': 'The customer record',
+  // not translated — awaiting native-speaker review
+  'customers.detail.export': 'Export her data for a subject-access request',
+  // not translated — awaiting native-speaker review
+  'customers.export.title': 'Export {name}’s data',
+  // not translated — awaiting native-speaker review
+  'customers.export.body':
+    'This is the copy that answers a subject-access request. Generating one replaces any earlier copy, so only one exists outside the record at a time.',
+  // not translated — awaiting native-speaker review
+  'customers.export.contains': 'What the copy holds',
+  // not translated — awaiting native-speaker review
+  'customers.export.contains.profile': 'Her record: name, contact details, branch and status',
+  // not translated — awaiting native-speaker review
+  'customers.export.contains.consent': 'Every answer she has given about consent, and when',
+  // not translated — awaiting native-speaker review
+  'customers.export.contains.preferences': 'How she has asked to be reached',
+  // not translated — awaiting native-speaker review
+  'customers.export.excludes':
+    'It does not hold images, duplicate scores or merge reasons, and it holds no measurements — the system does not record any against a customer yet. Say so if you are asked whether the copy is everything.',
+  // not translated — awaiting native-speaker review
+  'customers.export.action': 'Generate the copy',
+  // not translated — awaiting native-speaker review
+  'customers.export.again': 'Generate a fresh copy',
+  // not translated — awaiting native-speaker review
+  'customers.export.offlineAction': 'Generating a subject-access export',
+  // not translated — awaiting native-speaker review
+  'customers.export.offlineDownload': 'Downloading the export',
+  // not translated — awaiting native-speaker review
+  'customers.export.confirm.title': 'Generate a copy of {name}’s data?',
+  // not translated — awaiting native-speaker review
+  'customers.export.confirm.body':
+    'Everything the shop holds about her is written to a file that can be downloaded until it expires. Any earlier copy stops working the moment this one is made, so a download you have already given somebody will stop working. The reason you give is kept against her record.',
+  // not translated — awaiting native-speaker review
+  'customers.export.confirm.action': 'generating a copy of her data',
+  // not translated — awaiting native-speaker review
+  'customers.export.confirm.label': 'Generate the copy',
+  // not translated — awaiting native-speaker review
+  'customers.export.ready.title': 'The copy is ready',
+  // not translated — awaiting native-speaker review
+  'customers.export.generatedAt': 'Made at',
+  // not translated — awaiting native-speaker review
+  'customers.export.expiresAt': 'Stops working at',
+  // not translated — awaiting native-speaker review
+  'customers.export.classification': 'Handling class',
+  // not translated — awaiting native-speaker review
+  'customers.export.superseded':
+    '{count, plural, one {# earlier copy} other {# earlier copies}} stopped working when this one was made.',
+  // not translated — awaiting native-speaker review
+  'customers.export.download': 'Download the copy',
+  // not translated — awaiting native-speaker review
+  'customers.export.gone.title': 'That copy has gone',
+  // not translated — awaiting native-speaker review
+  'customers.export.gone.body':
+    'It expired, or a newer copy replaced it. The record that it was made, by whom and why is kept — only the copy of the data is destroyed. Generate a fresh one to answer the request.',
 }

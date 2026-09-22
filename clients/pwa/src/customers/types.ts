@@ -251,3 +251,33 @@ export const COMMUNICATION_CHANNELS = ['Sms', 'WhatsApp', 'Email'] as const
 
 /** The three answers a customer can give. `NeverAsked` is a status, never a decision. */
 export const CONSENT_DECISIONS = ['Granted', 'Declined', 'Withdrawn'] as const
+
+/**
+ * The receipt a subject-access export hands back — not the document.
+ *
+ * It names the copy and says when the download stops working. The document itself is fetched from
+ * the download route, which re-authorises and is audited on every call, and is never given a URL:
+ * rule 9, and the reason an export is a two-step operation rather than a link.
+ *
+ * `supersededCount` is how many earlier exports this one destroyed. Generating an export destroys
+ * any previous copy, so at most one copy of a person's record exists outside the record at a time —
+ * which is a property somebody answering a second request needs to be told about rather than left
+ * to discover when the first download stops working.
+ */
+export interface CustomerExport {
+  readonly exportId: string
+  readonly customerId: string
+  readonly documentCode: string
+  readonly documentVersion: number
+  /** The handling class of what is inside, from `docs/nfr/data-classification.md`. */
+  readonly classification: string
+  readonly contentType: string
+  readonly byteCount: number
+  readonly generatedAt: string
+  /** When the copy is emptied. The record that it was taken, by whom and why is kept. */
+  readonly expiresAt: string
+  readonly supersededCount: number
+}
+
+/** The code the download answers with once the copy has gone — expired, or replaced by a newer one. */
+export const CUSTOMER_EXPORT_EXPIRED_CODE = 'customers.export-expired'

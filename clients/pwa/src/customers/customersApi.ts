@@ -1,5 +1,5 @@
-import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
-import type { VersionedResponse } from '../auth/apiClient'
+import { apiRequest, apiRequestBlob, apiRequestVersioned } from '../auth/apiClient'
+import type { BlobDownload, VersionedResponse } from '../auth/apiClient'
 import { CUSTOMER_DUPLICATES_CODE } from './types'
 import type {
   Customer,
@@ -8,6 +8,7 @@ import type {
   CommunicationPreferences,
   ConsentAnswer,
   CustomerConsent,
+  CustomerExport,
   CustomerMergeOutcome,
   CustomerTimelinePage,
   DuplicateCandidate,
@@ -330,4 +331,50 @@ export async function replaceCommunicationPreferences(input: {
       idempotencyKey: input.idempotencyKey,
     },
   )
+}
+
+/**
+ * Generates the copy of a customer's data that answers a subject-access request.
+ *
+ * What comes back is a **receipt**, not the document: it names the export and says when the download
+ * stops working. `downloadCustomerExport` fetches the bytes, from a route that re-authorises and is
+ * audited on every call.
+ *
+ * Generating destroys any earlier export for the same customer, so at most one copy of a person's
+ * record exists outside the record at a time. That is a property of the endpoint and not a choice
+ * this function makes, but it is the reason the screen asks before doing it rather than after.
+ */
+export async function requestCustomerExport(input: {
+  readonly customerId: string
+  readonly reason: string
+  readonly idempotencyKey: string
+}): Promise<CustomerExport> {
+  return await apiRequest<CustomerExport>(`${CUSTOMERS}${input.customerId}/export`, {
+    method: 'POST',
+    body: { reason: input.reason },
+    idempotencyKey: input.idempotencyKey,
+  })
+}
+
+/**
+ * Fetches the export's bytes.
+ *
+ * Through the transport, as bytes, never as an address. The permission, the organisation and the
+ * expiry are re-checked on this request and the call is written to the audit trail against the
+ * customer — none of which a link somebody could copy out of the address bar would do, which is
+ * what rule 9 is protecting.
+ *
+ * The file name comes from the server's `Content-Disposition`, and the fallback here keeps the same
+ * promise it does: the export's identifier and nothing about the person. A customer's name in a
+ * downloads folder is personal data in a place nobody is auditing.
+ */
+export async function downloadCustomerExport(input: {
+  readonly customerId: string
+  readonly exportId: string
+  readonly documentCode: string
+}): Promise<BlobDownload> {
+  return await apiRequestBlob(`${CUSTOMERS}${input.customerId}/exports/${input.exportId}`, {
+    accept: 'application/json',
+    fallbackFileName: `${input.documentCode}-${input.exportId}.json`,
+  })
 }

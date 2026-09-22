@@ -18,4 +18,6 @@ export const CUSTOMERS_PERMISSIONS = {
   merge: 'customers.merge',
   /** Reading a customer's consent record and her communication preferences. */
   readConsent: 'customers.read_consent',
+  /** Exporting a customer's personal data to answer a subject-access request. */
+  export: 'customers.export',
 } as const

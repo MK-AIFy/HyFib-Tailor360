@@ -18,6 +18,7 @@ import {
   aDuplicateCandidate,
   aTimelineEntry,
   aTimelinePage,
+  anExportReceipt,
 } from '../../customers/testing/fixtures'
 import { CUSTOMER_DUPLICATES_CODE, CUSTOMER_VERSION_CONFLICT_CODE } from '../../customers/types'
 import { CustomerCreateRoute } from './CustomerCreateRoute'
@@ -25,6 +26,7 @@ import { CustomerDetailRoute } from './CustomerDetailRoute'
 import { CustomerEditRoute } from './CustomerEditRoute'
 import { Route, Routes } from 'react-router'
 import { CustomerConsentRoute } from './CustomerConsentRoute'
+import { CustomerExportRoute } from './CustomerExportRoute'
 import { CustomersLayoutRoute } from './CustomersLayoutRoute'
 import { CustomerMergeRoute } from './CustomerMergeRoute'
 import { CustomerSearchRoute } from './CustomerSearchRoute'
@@ -82,6 +84,7 @@ const CUSTOMERS_USER = {
     CUSTOMERS_PERMISSIONS.update,
     CUSTOMERS_PERMISSIONS.merge,
     CUSTOMERS_PERMISSIONS.readConsent,
+    CUSTOMERS_PERMISSIONS.export,
   ],
 }
 
@@ -240,6 +243,25 @@ const consent = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
         ...routes,
       },
       { path: '/customers/:customerId/consent', at: CONSENT_AT },
+    ),
+  )
+
+const EXPORT_AT = `/customers/${CUSTOMER.customerId}/export`
+const GENERATE = `POST ${CUSTOMERS}${CUSTOMER.customerId}/export`
+
+const exportScreen = (routes: Parameters<typeof withAdminApi>[1], online = true) =>
+  link(online, () =>
+    withAdminApi(
+      <RequirePermission permission={CUSTOMERS_PERMISSIONS.export}>
+        <CustomerExportRoute />
+      </RequirePermission>,
+      {
+        'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
+        [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () => storyJson(CUSTOMER, 'W/"1"'),
+        [GENERATE]: () => storyJson(anExportReceipt()),
+        ...routes,
+      },
+      { path: '/customers/:customerId/export', at: EXPORT_AT },
     ),
   )
 
@@ -864,4 +886,63 @@ export const ListAndRecordStacked: Story = {
 export const ListAndRecordPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => listAndRecord(undefined, `${DETAIL_AT}?term=priya`),
+}
+
+/* The subject-access export (#619) ---------------------------------------------------------------- */
+
+/**
+ * What the copy holds, and — just as plainly — what it does not.
+ *
+ * Somebody handing this to a customer is answering for its completeness, and finding out afterwards
+ * that the images were never in it is the wrong moment.
+ */
+export const Export: Story = { render: () => exportScreen({}) }
+
+/**
+ * Press Generate to meet the confirmation.
+ *
+ * It says the thing that is a surprise if you meet it by accident: making a copy stops any earlier
+ * one working, so a download already given to somebody breaks. Confirm-with-reason, not the typed
+ * tier — an export is significant and repeatable, and the reason is what the trail keeps.
+ */
+export const ExportConfirm: Story = { render: () => exportScreen({}) }
+
+/** Generate, then look at the receipt: when it stops working, and what it replaced. */
+export const ExportGenerated: Story = {
+  render: () =>
+    exportScreen({ [GENERATE]: () => storyJson(anExportReceipt({ supersededCount: 2 })) }),
+}
+
+/** Generate, for a refusal. */
+export const ExportError: Story = {
+  render: () => exportScreen({ [GENERATE]: () => storyProblem(403, 'security.permission-denied') }),
+}
+
+/**
+ * Generate, then download, to meet the copy having gone.
+ *
+ * It expired or a newer one replaced it. The record that the export was taken is kept; only the copy
+ * of the data is destroyed, and the screen says which.
+ */
+export const ExportGone: Story = {
+  render: () =>
+    exportScreen({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}/exports/${anExportReceipt().exportId}`]: () =>
+        storyProblem(404, 'customers.export-expired'),
+    }),
+}
+
+/** Generating needs a connection, and so does the download. */
+export const ExportOffline: Story = { render: () => exportScreen({}, false) }
+
+/** Somebody without `customers.export`: a sentence and who to ask, never a redirect. */
+export const ExportForbidden: Story = {
+  render: () =>
+    exportScreen({ 'GET /api/v1/me': () => storyJson({ ...STORY_USER, permissions: [] }) }),
+}
+
+/** The 40% growth tolerance on the longest prose in this module. */
+export const ExportPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => exportScreen({}),
 }

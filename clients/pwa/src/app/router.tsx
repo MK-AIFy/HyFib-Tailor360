@@ -48,6 +48,7 @@ import { CustomerCreateRoute } from '../routes/customers/CustomerCreateRoute'
 import { CustomerDetailRoute } from '../routes/customers/CustomerDetailRoute'
 import { CustomerEditRoute } from '../routes/customers/CustomerEditRoute'
 import { CustomerConsentRoute } from '../routes/customers/CustomerConsentRoute'
+import { CustomerExportRoute } from '../routes/customers/CustomerExportRoute'
 import { CustomersLayoutRoute } from '../routes/customers/CustomersLayoutRoute'
 import { CustomerMergeRoute } from '../routes/customers/CustomerMergeRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
@@ -257,6 +258,17 @@ export const router = createBrowserRouter([
             element: (
               <RequirePermission permission={CUSTOMERS_PERMISSIONS.readConsent}>
                 <CustomerConsentRoute />
+              </RequirePermission>
+            ),
+          },
+          // Answering a subject-access request (#619). Its own address, and a whole screen rather
+          // than a pane: it is a disclosure of everything the shop holds about a named person, it
+          // destroys any earlier copy, and it carries a reason into the audit trail.
+          {
+            path: 'customers/:customerId/export',
+            element: (
+              <RequirePermission permission={CUSTOMERS_PERMISSIONS.export}>
+                <CustomerExportRoute />
               </RequirePermission>
             ),
           },

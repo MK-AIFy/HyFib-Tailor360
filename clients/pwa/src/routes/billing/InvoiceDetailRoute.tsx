@@ -17,7 +17,7 @@ import {
   printInvoice,
 } from '../../billing/billingApi'
 import { InvoiceDocumentView } from '../../billing/InvoiceDocumentView'
-import { saveBlob } from '../../billing/saveBlob'
+import { saveBlob } from '../../downloads/saveBlob'
 import type { AdjustmentNote, Invoice } from '../../billing/types'
 import { ConfirmDialog } from '../../components/dialogs/ConfirmDialog'
 import type { ConfirmOutcome } from '../../components/dialogs/ConfirmDialog'
