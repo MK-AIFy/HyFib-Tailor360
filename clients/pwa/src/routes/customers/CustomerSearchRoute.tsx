@@ -186,14 +186,20 @@ export function CustomerSearchRoute() {
           No `inputMode`, deliberately, and #614 records the decision as still open.
 
           This field matches a name, a native-script name, a customer number *or* the tail of a
-          telephone number — which is what the hint above it says. #182 asks for it to be "phone
-          keypad optimised", and a `tel` keypad on a field whose commonest input is a name would make
-          most searches worse to serve the one that the server already makes cheap by matching a
-          partial number. `autoComplete` stays off because this is a shared counter device.
+          telephone number — which is what the hint above it says.
 
-          That is a reading of #182, not an answer to it, so the question and its three options are
-          recorded in docs/prd/assumptions-and-open-decisions.md section 4 (#620). Alphabetic stands
-          until somebody decides; change this field when that row changes, not before.
+          It is **one field, and the specification asks for two.** Plan section 4.6 and
+          docs/prd/exceptions.md section 4.1 both call for a segmented Phone / Name mode: the
+          telephone keypad for a number, the text keyboard for a name. That is not implemented here,
+          and it is a gap to build rather than a question to answer — #629 tracks it.
+
+          Do not answer it by putting inputMode="tel" on this field. A keypad on a field whose
+          commonest input is a name makes most searches worse, which is the reason the specification
+          splits the modes rather than switching the keyboard on one field.
+
+          `autoComplete` stays off because this is a shared counter device, and WCAG 1.3.5 Identify
+          Input Purpose governs a person's own details, which a staff member searching for a
+          customer is not entering.
         */}
         <TextField
           autoComplete="off"
