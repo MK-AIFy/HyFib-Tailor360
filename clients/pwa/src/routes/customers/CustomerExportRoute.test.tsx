@@ -195,6 +195,71 @@ it('shows an empty state for a record that cannot be reached', async () => {
   ).toBeInTheDocument()
 })
 
+/*
+ * The retry key belongs to the request, and the request is the reason.
+ *
+ * Rotating only on success is not enough: the dialog stays open on a failure with the text still
+ * editable, so "same key, different body" is one keystroke and one click away — on an operation that
+ * destroys the previous copy and writes the reason to the audit trail. The same mistake was fixed on
+ * the merge screen in #584; this is it a second time, so it is tested rather than remembered.
+ */
+it('keeps the key when the same reason is tried again', async () => {
+  transport.route(GENERATE, () => problemResponse(503, 'platform.unavailable'))
+  renderExport()
+  await generate('Subject access request')
+
+  await waitFor(() => {
+    expect(transport.callsTo(GENERATE)).toHaveLength(1)
+  })
+  const dialog = screen.getByRole('dialog')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Generate the copy' }))
+  await waitFor(() => {
+    expect(transport.callsTo(GENERATE)).toHaveLength(2)
+  })
+
+  const sent = transport.callsTo(GENERATE)
+  expect(sent[0]?.headers.get('Idempotency-Key')).toBe(sent[1]?.headers.get('Idempotency-Key'))
+})
+
+it('mints a new key when the reason is corrected after a failure', async () => {
+  transport.route(GENERATE, () => problemResponse(400, 'customers.reason-not-well-formed'))
+  renderExport()
+  await generate('SAR')
+
+  await waitFor(() => {
+    expect(transport.callsTo(GENERATE)).toHaveLength(1)
+  })
+  const dialog = screen.getByRole('dialog')
+  await userEvent.type(
+    within(dialog).getByRole('textbox', { name: 'Reason' }),
+    ' received 21 September',
+  )
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Generate the copy' }))
+  await waitFor(() => {
+    expect(transport.callsTo(GENERATE)).toHaveLength(2)
+  })
+
+  const sent = transport.callsTo(GENERATE)
+  expect(sent[1]?.body).toEqual({ reason: 'SAR received 21 September' })
+  // A different reason is a different request, and the trail must not record the first one's.
+  expect(sent[0]?.headers.get('Idempotency-Key')).not.toBe(sent[1]?.headers.get('Idempotency-Key'))
+})
+
+// Once the copy has gone there is nothing to download, so the control goes with it rather than
+// staying up to be pressed at a dead export.
+it('stops offering a download once the copy has gone', async () => {
+  transport.route(GENERATE, () => jsonResponse(anExportReceipt(), 201))
+  transport.route(DOWNLOAD, () => problemResponse(404, CUSTOMER_EXPORT_EXPIRED_CODE))
+  renderExport()
+  await generate()
+  await userEvent.click(await screen.findByRole('button', { name: 'Download the copy' }))
+
+  expect(await screen.findByText('That copy has gone')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Download the copy' })).not.toBeInTheDocument()
+  // And the way out is offered.
+  expect(screen.getByRole('button', { name: 'Generate the copy' })).toBeInTheDocument()
+})
+
 it('has no accessibility violations', async () => {
   transport.route(GENERATE, () => jsonResponse(anExportReceipt(), 201))
   const { container } = renderExport()

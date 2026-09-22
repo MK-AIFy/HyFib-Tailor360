@@ -68,9 +68,29 @@ export function CustomerExportRoute() {
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const [failure, setFailure] = useState<unknown>(null)
+  /*
+   * Two failures, not one.
+   *
+   * Generating and downloading fail for different reasons, are shown in different places — one
+   * inside the confirmation, one on the page — and only the download can report that the copy has
+   * gone. Sharing a slot worked only because the control that opens the dialog happened to clear it
+   * first, which is an invariant nothing enforces and the next edit would quietly break.
+   */
+  const [generateFailure, setGenerateFailure] = useState<unknown>(null)
+  const [downloadFailure, setDownloadFailure] = useState<unknown>(null)
   const [generated, setGenerated] = useState<CustomerExport | null>(null)
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
+  /**
+   * The attempt in hand: the reason that was sent, and the key it was sent under.
+   *
+   * The key belongs to the *request*, and the request is the reason — so pressing confirm again
+   * after a timeout replays, and confirming a corrected reason does not. Rotating only on success
+   * is not enough, which is the mistake this repeats from #584: the dialog stays open on a failure
+   * with the text still editable, so "same key, different body" is one keystroke and one click away
+   * on an operation that destroys the previous copy and writes the reason to the audit trail.
+   */
+  const [attempt, setAttempt] = useState<{ readonly reason: string; readonly key: string } | null>(
+    null,
+  )
 
   // Both calls are writes as far as the trail is concerned — one generates a copy, the other is an
   // audited read of somebody's personal data — so neither is abandoned when the screen goes away.
@@ -99,23 +119,30 @@ export function CustomerExportRoute() {
   }
 
   const generate = (reason: string) => {
-    setBusy(true)
-    setFailure(null)
+    if (busy) {
+      return
+    }
 
-    void requestCustomerExport({ customerId, reason, idempotencyKey })
+    // Same reason as the attempt that failed: a retry, and it keeps its key so the server replays.
+    // Different reason: a different request, and it gets its own.
+    const key = attempt !== null && attempt.reason === reason ? attempt.key : crypto.randomUUID()
+    setAttempt({ reason, key })
+    setBusy(true)
+    setGenerateFailure(null)
+
+    void requestCustomerExport({ customerId, reason, idempotencyKey: key })
       .then((receipt) => {
         if (!live.current) {
           return
         }
         setGenerated(receipt)
         setAsking(false)
-        // A new key for the next, separate request. A resend of *this* one must replay rather than
-        // make a second copy of somebody's record.
-        setIdempotencyKey(crypto.randomUUID())
+        // Done with: the next export is a new request whatever its reason says.
+        setAttempt(null)
       })
       .catch((cause: unknown) => {
         if (live.current) {
-          setFailure(cause)
+          setGenerateFailure(cause)
         }
       })
       .finally(() => {
@@ -126,8 +153,12 @@ export function CustomerExportRoute() {
   }
 
   const download = (receipt: CustomerExport) => {
+    if (downloading) {
+      return
+    }
+
     setDownloading(true)
-    setFailure(null)
+    setDownloadFailure(null)
 
     void downloadCustomerExport({
       customerId,
@@ -135,11 +166,22 @@ export function CustomerExportRoute() {
       documentCode: receipt.documentCode,
     })
       .then(({ blob, fileName }) => {
+        // Deliberately not guarded by `live`, unlike everything below it. The bytes are already
+        // fetched and the server has already written the read to the trail — the disclosure has
+        // happened — and `saveBlob` touches the document rather than React state. Skipping it
+        // because the person navigated away would throw away a file they asked for and that is
+        // already recorded as delivered.
         saveBlob(blob, fileName ?? `${receipt.documentCode}-${receipt.exportId}.json`)
       })
       .catch((cause: unknown) => {
-        if (live.current) {
-          setFailure(cause)
+        if (!live.current) {
+          return
+        }
+        setDownloadFailure(cause)
+        if (cause instanceof ApiError && cause.code === CUSTOMER_EXPORT_EXPIRED_CODE) {
+          // There is nothing left to offer a download of, so stop offering one. Leaving the button
+          // up would let somebody press it at a dead copy until they worked out why.
+          setGenerated(null)
         }
       })
       .finally(() => {
@@ -149,7 +191,8 @@ export function CustomerExportRoute() {
       })
   }
 
-  const gone = failure instanceof ApiError && failure.code === CUSTOMER_EXPORT_EXPIRED_CODE
+  const gone =
+    downloadFailure instanceof ApiError && downloadFailure.code === CUSTOMER_EXPORT_EXPIRED_CODE
 
   return (
     <section className="page customers">
@@ -198,7 +241,7 @@ export function CustomerExportRoute() {
           <FormattedMessage id="customers.export.gone.body" />
         </Alert>
       ) : (
-        <AuthProblemAlert failure={asking ? null : failure} />
+        <AuthProblemAlert failure={downloadFailure} />
       )}
 
       {generated === null ? null : (
@@ -217,7 +260,7 @@ export function CustomerExportRoute() {
           busy={busy}
           iconName="clipboard"
           onClick={() => {
-            setFailure(null)
+            setGenerateFailure(null)
             setAsking(true)
           }}
           size="primary"
@@ -240,13 +283,13 @@ export function CustomerExportRoute() {
           confirmLabel={intl.formatMessage({ id: 'customers.export.confirm.label' })}
           onCancel={() => {
             setAsking(false)
-            setFailure(null)
+            setGenerateFailure(null)
           }}
           onConfirm={(outcome) => {
             generate((outcome.reason ?? '').trim())
           }}
           open
-          problem={<AuthProblemAlert failure={failure} />}
+          problem={<AuthProblemAlert failure={generateFailure} />}
           tier="reason"
           title={intl.formatMessage(
             { id: 'customers.export.confirm.title' },
@@ -260,7 +303,14 @@ export function CustomerExportRoute() {
   )
 }
 
-/** What was generated, in terms somebody can repeat to the person who asked for it. */
+/**
+ * What was generated, in terms somebody can repeat to the person who asked for it.
+ *
+ * The download goes in the alert's `actions` slot rather than its content, which is the contract
+ * every other caller follows: the content is the message and is inside a polite live region, and a
+ * primary control folded into a region meant to be read out is a control whose presence is tied to
+ * whatever re-announces the message.
+ */
 function ExportReceipt({
   receipt,
   busy,
@@ -276,6 +326,17 @@ function ExportReceipt({
 
   return (
     <Alert
+      actions={
+        online ? (
+          <Button busy={busy} iconName="clipboard" onClick={onDownload} variant="secondary">
+            {intl.formatMessage({ id: 'customers.export.download' })}
+          </Button>
+        ) : (
+          <OfflineBlockedAction
+            action={intl.formatMessage({ id: 'customers.export.offlineDownload' })}
+          />
+        )
+      }
       live="polite"
       tone="success"
       title={intl.formatMessage({ id: 'customers.export.ready.title' })}
@@ -302,16 +363,6 @@ function ExportReceipt({
             values={{ count: receipt.supersededCount }}
           />
         </p>
-      )}
-
-      {online ? (
-        <Button busy={busy} iconName="clipboard" onClick={onDownload} variant="secondary">
-          {intl.formatMessage({ id: 'customers.export.download' })}
-        </Button>
-      ) : (
-        <OfflineBlockedAction
-          action={intl.formatMessage({ id: 'customers.export.offlineDownload' })}
-        />
       )}
     </Alert>
   )
