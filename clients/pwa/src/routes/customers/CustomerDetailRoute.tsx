@@ -8,6 +8,7 @@ import { StatusBadge } from '../../components/primitives/StatusBadge'
 import { Tabs } from '../../components/navigation/Tabs'
 import { readCustomer } from '../../customers/customersApi'
 import { CUSTOMERS_PERMISSIONS } from '../../customers/customersPermissions'
+import { CustomerStatusActions } from './CustomerStatusActions'
 import { useSession } from '../../auth/useSession'
 import { customerStatusKind } from '../../customers/customerStatus'
 import type { Customer } from '../../customers/types'
@@ -64,6 +65,7 @@ export function CustomerDetailRoute() {
 
   const record = useAdminResource(customerId, (signal) => readCustomer(customerId, signal))
   const customer = record.value?.value ?? null
+  const version = record.value?.version
 
   if (record.value === null && record.loading) {
     return <LoadingState what={intl.formatMessage({ id: 'customers.detail.loading' })} />
@@ -134,6 +136,22 @@ export function CustomerDetailRoute() {
             <FormattedMessage id="customers.detail.export" />
           </Link>
         </p>
+      ) : null}
+
+      {/*
+        A control rather than a link, unlike the four above it. Those are separate pieces of work
+        with their own screens; this is one decision with a reason, and a recoverable one — so the
+        friction that belongs to it is the confirmation, which is modal, and not a navigation.
+      */}
+      {user?.permissions.includes(CUSTOMERS_PERMISSIONS.deactivate) === true &&
+      version !== undefined ? (
+        <CustomerStatusActions
+          customer={customer}
+          onChanged={() => {
+            record.reload()
+          }}
+          version={version}
+        />
       ) : null}
 
       <Tabs

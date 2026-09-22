@@ -8,6 +8,7 @@ import { Card } from '../../components/primitives/Card'
 import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { StatusBadge } from '../../components/primitives/StatusBadge'
+import { Checkbox } from '../../design-system/components/forms/Checkbox'
 import { TextField } from '../../design-system/components/forms/TextField'
 import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers/customersApi'
 import { customerStatusKind } from '../../customers/customerStatus'
@@ -49,8 +50,13 @@ export function CustomerSearchRoute() {
    */
   const [params, setParams] = useSearchParams()
   const committed = params.get('term') ?? ''
+  // In the address beside the term, and for the same reason: this pane is unmounted when the record
+  // takes the screen, and a filter that reset itself on the way back would quietly change what the
+  // next search means.
+  const withdrawn = params.get('withdrawn') === 'true'
 
   const [term, setTerm] = useState(committed)
+  const [includeWithdrawn, setIncludeWithdrawn] = useState(withdrawn)
   const [tooShort, setTooShort] = useState(false)
   /**
    * The answer, tagged with the term it answers.
@@ -62,6 +68,7 @@ export function CustomerSearchRoute() {
    */
   const [answer, setAnswer] = useState<{
     readonly term: string
+    readonly withdrawn: boolean
     readonly page: CustomerPage | null
     readonly failure: unknown
   } | null>(null)
@@ -75,7 +82,9 @@ export function CustomerSearchRoute() {
     setTooShort(false)
     // The effect below does the asking. Writing the address is the whole of the action, so a reload
     // or a remount asks the same question rather than showing an empty screen.
-    setParams({ term: wanted }, { replace: true })
+    setParams(includeWithdrawn ? { term: wanted, withdrawn: 'true' } : { term: wanted }, {
+      replace: true,
+    })
   }
 
   // The read, once per committed term, cancelled if the term changes or the pane goes away. Written
@@ -89,15 +98,15 @@ export function CustomerSearchRoute() {
     const controller = new AbortController()
     let cancelled = false
 
-    void searchCustomers(committed, controller.signal)
+    void searchCustomers(committed, { includeDeactivated: withdrawn, signal: controller.signal })
       .then((page) => {
         if (!cancelled) {
-          setAnswer({ term: committed, page, failure: null })
+          setAnswer({ term: committed, withdrawn, page, failure: null })
         }
       })
       .catch((cause: unknown) => {
         if (!cancelled && !(cause instanceof DOMException && cause.name === 'AbortError')) {
-          setAnswer({ term: committed, page: null, failure: cause })
+          setAnswer({ term: committed, withdrawn, page: null, failure: cause })
         }
       })
 
@@ -105,10 +114,11 @@ export function CustomerSearchRoute() {
       cancelled = true
       controller.abort()
     }
-  }, [committed])
+  }, [committed, withdrawn])
 
   const asked = committed.length >= CUSTOMER_SEARCH_MINIMUM_LENGTH
-  const current = answer !== null && answer.term === committed ? answer : null
+  const current =
+    answer !== null && answer.term === committed && answer.withdrawn === withdrawn ? answer : null
   const searching = asked && current === null
   const failure = current?.failure ?? null
   const results = current?.page?.customers ?? null
@@ -166,6 +176,20 @@ export function CustomerSearchRoute() {
           onValueChange={setTerm}
           type="search"
           value={term}
+        />
+        {/*
+          Off by default, matching the server: a search is nearly always somebody starting a new
+          order, and a withdrawn record is exactly the one not to offer for that. It is here at all
+          because a record nobody can find is a record nobody can put back — withdrawing one would
+          otherwise be a one-way door with a button labelled as if it were not.
+        */}
+        <Checkbox
+          description={intl.formatMessage({ id: 'customers.search.withdrawnHint' })}
+          id="customer-search-withdrawn"
+          label={intl.formatMessage({ id: 'customers.search.withdrawn' })}
+          name="withdrawn"
+          onValueChange={setIncludeWithdrawn}
+          value={includeWithdrawn}
         />
         <Button busy={searching} iconName="search" type="submit" variant="primary">
           {intl.formatMessage({

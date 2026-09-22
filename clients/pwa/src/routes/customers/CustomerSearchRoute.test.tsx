@@ -122,6 +122,46 @@ it('offers to register a new customer even before anybody has searched', () => {
   expect(screen.getByRole('link', { name: 'Register a new customer' })).toBeInTheDocument()
 })
 
+/*
+ * A withdrawn record drops out of an ordinary search, which is the point of withdrawing one — and
+ * would make it a one-way door if there were no way to ask for them. This is what makes #618's
+ * "put it back" reachable by somebody who did not keep the address.
+ */
+it('does not ask for deactivated records unless it is told to', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null }),
+  )
+  renderSearch()
+
+  await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'priya')
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+  expect(transport.callsTo('GET /api/v1/customers/?term=priya')).toHaveLength(1)
+})
+
+it('asks for deactivated records when the filter is on, and finds one', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya&includeDeactivated=true', () =>
+    jsonResponse({
+      customers: [aCustomerCard({ status: 'Deactivated' })],
+      nextCursor: null,
+    }),
+  )
+  renderSearch()
+
+  await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'priya')
+  await user.click(screen.getByRole('checkbox', { name: 'Include deactivated records' }))
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+
+  expect(await screen.findByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
+  // The card says which it is, in a word and not only a colour.
+  // The badge's own word is `Closed` — the glossary's term is Deactivate, and #624 tracks the
+  // disagreement. Asserted as it reads rather than as it ought to, so the test fails when it is fixed.
+  expect(screen.getByText('Closed')).toBeInTheDocument()
+})
+
 it('has no accessibility violations', async () => {
   const user = userEvent.setup()
   transport.route('GET /api/v1/customers/?term=priya', () =>
