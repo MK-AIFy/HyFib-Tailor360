@@ -30,11 +30,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderSearch() {
+function renderSearch(at = '/customers') {
   return render(
     <AppIntlProvider locale="en-IN">
       <SessionProvider>
-        <MemoryRouter initialEntries={['/customers']}>
+        <MemoryRouter initialEntries={[at]}>
           <CustomerSearchRoute />
         </MemoryRouter>
       </SessionProvider>
@@ -51,6 +51,27 @@ it('refuses a search shorter than the server accepts, without asking the server'
 
   expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
   expect(transport.callsTo('GET /api/v1/customers/?term=ab')).toHaveLength(0)
+})
+
+/*
+ * The case #182's criterion A is about: the refusal reads the same whether the field worked it out
+ * or the server said it.
+ *
+ * Reachable in one realistic way — the client's minimum and the server's having drifted apart, which
+ * is what the contract test in the .NET tier exists to prevent — and in one ordinary one: a pasted
+ * or bookmarked address carrying a term the form itself would never have submitted. Either way it
+ * belongs at the field the person has to change, not floating above the form as an unexplained
+ * failure.
+ */
+it("shows the server's too-short refusal at the field, in the same words", async () => {
+  transport.route('GET /api/v1/customers/?term=abc', () =>
+    problemResponse(400, 'customers.search-term-too-short'),
+  )
+  renderSearch('/customers?term=abc')
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+  // Not also as a problem alert: one refusal, said once, where it can be acted on.
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
 it('finds a customer and opens their record', async () => {

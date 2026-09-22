@@ -378,9 +378,19 @@ public sealed class CustomerHandler(
 
         // A search with nothing to search on would return the organisation's whole customer list to
         // anybody holding customers.read. An empty result is the honest answer to an empty question.
-        if (term is null || term.Length < CustomerSearchQuery.MinimumTermLength)
+        if (string.IsNullOrEmpty(term))
         {
             return Result.Success(new CustomerSearchPage([], null));
+        }
+
+        // Something was typed, but not enough of it. That is a different answer from "nobody
+        // matched", and it has to read differently: an empty page tells a receptionist that this
+        // person is not a customer here, which is both wrong and the kind of wrong that ends with
+        // somebody being registered twice.
+        if (term.Length < CustomerSearchQuery.MinimumTermLength)
+        {
+            return Result.Failure<CustomerSearchPage>(
+                CustomersErrors.SearchTermTooShort(CustomerSearchQuery.MinimumTermLength));
         }
 
         var bounded = query with
