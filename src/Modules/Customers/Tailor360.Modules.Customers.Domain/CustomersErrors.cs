@@ -122,6 +122,24 @@ public static class CustomersErrors
         "customers.status-transition-not-allowed",
         $"A customer record cannot move from {from} to {to}.");
 
+    /// <summary>A search term too short to be worth running.</summary>
+    /// <remarks>
+    /// A refusal rather than an empty page, because the two mean different things and a screen can
+    /// only say what it is told. An empty page means "nobody matched", which a receptionist reads as
+    /// "she is not a customer here" — a wrong and consequential answer to give somebody who has
+    /// simply not finished typing. Before this, both produced the same silent empty page, so the
+    /// client's own pre-check was the only thing standing between the two readings, and nothing tied
+    /// its idea of the minimum to this one.
+    ///
+    /// An absent or empty term is deliberately *not* this error: somebody who has typed nothing has
+    /// not asked a question, and an empty page is the honest answer to that.
+    /// </remarks>
+    /// <param name="minimum">The fewest characters the search accepts.</param>
+    public static Error SearchTermTooShort(int minimum) => Error.Validation(
+        "customers.search-term-too-short",
+        $"Type at least {minimum} characters to search.",
+        "term");
+
     /// <summary>A correction, deactivation or reactivation arrived without a reason.</summary>
     public static Error ReasonRequired { get; } = Error.Validation(
         "customers.reason-required",

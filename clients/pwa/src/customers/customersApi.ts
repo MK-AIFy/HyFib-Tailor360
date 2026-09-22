@@ -31,6 +31,9 @@ const CUSTOMERS = '/api/v1/customers/'
  */
 export const CUSTOMER_SEARCH_MINIMUM_LENGTH = 3
 
+/** The server's refusal of a term shorter than {@link CUSTOMER_SEARCH_MINIMUM_LENGTH}. */
+export const CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE = 'customers.search-term-too-short'
+
 /**
  * The value of `CustomerPage.refusal` when the term was too short to search on.
  *
