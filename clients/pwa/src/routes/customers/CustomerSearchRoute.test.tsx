@@ -162,6 +162,29 @@ it('asks for deactivated records when the filter is on, and finds one', async ()
   expect(screen.getByText('Closed')).toBeInTheDocument()
 })
 
+// A ticked box above results fetched without it is the screen saying one thing and showing another,
+// and the reading somebody takes from it is "she is not here" — the one conclusion the filter exists
+// to prevent.
+it('re-asks at once when the filter is turned on after a search', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [], nextCursor: null }),
+  )
+  transport.route('GET /api/v1/customers/?term=priya&includeDeactivated=true', () =>
+    jsonResponse({ customers: [aCustomerCard({ status: 'Deactivated' })], nextCursor: null }),
+  )
+  renderSearch()
+
+  await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'priya')
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+  await screen.findByText('Nobody matched. Check the spelling, or register a new customer.')
+
+  // No second press of Search.
+  await user.click(screen.getByRole('checkbox', { name: 'Include deactivated records' }))
+
+  expect(await screen.findByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
+})
+
 it('has no accessibility violations', async () => {
   const user = userEvent.setup()
   transport.route('GET /api/v1/customers/?term=priya', () =>

@@ -145,8 +145,16 @@ export function CustomerDetailRoute() {
       */}
       {user?.permissions.includes(CUSTOMERS_PERMISSIONS.deactivate) === true &&
       version !== undefined ? (
+        /*
+         * Keyed on the customer, for the same reason the history tab below is: React Router
+         * re-renders this route in place when `:customerId` changes. Without the key, a failed
+         * command on one record leaves its retry key behind, and the next record deactivated with
+         * the same reason text would be sent under it — one person's command carrying another
+         * person's idempotency key, which the server is entitled to answer with the first outcome.
+         */
         <CustomerStatusActions
           customer={customer}
+          key={customer.customerId}
           onChanged={() => {
             record.reload()
           }}

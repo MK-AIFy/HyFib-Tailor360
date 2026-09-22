@@ -60,6 +60,22 @@ export function CustomerStatusActions({
   const [attempt, setAttempt] = useState<{ readonly reason: string; readonly key: string } | null>(
     null,
   )
+  /**
+   * The version a command was last accepted at.
+   *
+   * `useAdminResource` keeps the record it already has on screen while it reloads, which is right —
+   * a screen that blanks itself between two reads flickers. But it means that between a command
+   * succeeding and the reload landing, this component is still holding the version and the status
+   * from *before* the command. Without this, the button goes live again in that window, still
+   * labelled for the old status, and pressing it sends the superseded version — so somebody who has
+   * just deactivated a record is told that somebody else changed it while they were reading it,
+   * about their own action.
+   *
+   * Comparing against the current `version` prop is what makes it self-clearing: the moment the
+   * reload lands, the version differs and the surface is live again, with no effect and nothing to
+   * reset.
+   */
+  const [settledAt, setSettledAt] = useState<string | null>(null)
 
   const live = useRef(true)
   useEffect(() => {
@@ -71,9 +87,11 @@ export function CustomerStatusActions({
 
   const withdrawn = customer.status !== 'Active'
   const merged = customer.mergedIntoCustomerId !== null
+  /** A command has been accepted and what is on screen is still the record from before it. */
+  const pending = settledAt !== null && settledAt === version
 
   const send = (command: CustomerStatusCommand, reason: string) => {
-    if (busy) {
+    if (busy || pending) {
       return
     }
 
@@ -100,6 +118,7 @@ export function CustomerStatusActions({
         }
         setAsking(null)
         setAttempt(null)
+        setSettledAt(version)
         onChanged()
       })
       .catch((cause: unknown) => {
@@ -131,8 +150,17 @@ export function CustomerStatusActions({
   return (
     <>
       {withdrawn ? (
+        /*
+         * `polite` rather than `off`, because this banner has two lives. On a record that was
+         * already deactivated it is simply present at render, which is the `off` case — and a polite
+         * region that is populated on first render does not announce anyway. But the same banner
+         * appears *in place*, without a remount, when a deactivate succeeds and the reload brings
+         * the record back closed. That is the "appeared after the screen did" case, and it is the
+         * only confirmation of the command a screen-reader user gets: the dialog has closed and the
+         * problem region was cleared on success.
+         */
         <Alert
-          live="off"
+          live="polite"
           tone="warning"
           title={intl.formatMessage({ id: 'customers.status.withdrawn.title' })}
         >
@@ -144,7 +172,10 @@ export function CustomerStatusActions({
 
       {network.online ? (
         <Button
-          busy={busy}
+          // `busy`, not a disabled attribute: the design system keeps the control focusable on
+          // purpose, so somebody who has tabbed to it does not lose their place, and the second tap
+          // is swallowed rather than sent.
+          busy={busy || pending}
           iconName={withdrawn ? 'refresh' : 'pause'}
           onClick={() => {
             setFailure(null)
@@ -218,6 +249,12 @@ export function CustomerStatusActions({
 function StatusProblem({ failure }: { readonly failure: unknown }) {
   const intl = useIntl()
 
+  /*
+   * Assertive, under `Alert`'s second case: an error that has stopped what the person was doing.
+   * Both of these end the attempt outright — the reason they typed cannot be sent as it stands, and
+   * the next thing they do depends on reading this. The third refusal below is deliberately not in
+   * this group, because it did not stop anything.
+   */
   if (failure instanceof ApiError && failure.code === CUSTOMER_VERSION_CONFLICT_CODE) {
     return (
       <Alert live="assertive" tone="warning">

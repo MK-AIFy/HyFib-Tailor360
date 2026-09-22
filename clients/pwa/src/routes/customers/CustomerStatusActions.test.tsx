@@ -190,6 +190,52 @@ it('keeps the key for a retry and mints a new one for a corrected reason', async
   expect(sent[1]?.headers.get('Idempotency-Key')).not.toBe(sent[2]?.headers.get('Idempotency-Key'))
 })
 
+/*
+ * The window between a command being accepted and the reload landing.
+ *
+ * `useAdminResource` keeps the record it has on screen while it reloads, so for that moment this
+ * component still holds the pre-command version and the pre-command status. Left live, the button
+ * would invite a second press that sends the superseded version — and the person would be told
+ * somebody else had changed the record, about their own action.
+ */
+it('stays inert after a command until the reloaded record arrives', async () => {
+  transport.route(DEACTIVATE, () =>
+    versionedResponse(aCustomer({ status: 'Deactivated' }), 'W/"8"'),
+  )
+  const { rerender } = renderActions()
+  await confirm('Deactivate this record')
+
+  await waitFor(() => {
+    expect(transport.callsTo(DEACTIVATE)).toHaveLength(1)
+  })
+
+  // The parent has re-rendered with the record it still has: the version this command was sent at.
+  // The name carries the busy suffix the design system appends, which is the point — the control is
+  // still there and still focusable, and it says for itself that it is working.
+  const button = screen.getByRole('button', { name: /^Deactivate this record/ })
+  expect(button).toHaveAttribute('aria-disabled', 'true')
+  await userEvent.click(button)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(transport.callsTo(DEACTIVATE)).toHaveLength(1)
+
+  // The reload lands, and the surface is live again — against the record as it now stands.
+  rerender(
+    <AppIntlProvider locale="en-IN">
+      <CustomerStatusActions
+        customer={aCustomer({ status: 'Deactivated' })}
+        onChanged={() => {
+          changed += 1
+        }}
+        version='W/"8"'
+      />
+    </AppIntlProvider>,
+  )
+
+  const back = screen.getByRole('button', { name: 'Reactivate this record' })
+  expect(back).not.toHaveAttribute('aria-disabled')
+  expect(back).not.toHaveAttribute('aria-busy')
+})
+
 it('blocks the command with an explanation when the connection goes', async () => {
   renderActions()
   expect(screen.getByRole('button', { name: 'Deactivate this record' })).toBeInTheDocument()

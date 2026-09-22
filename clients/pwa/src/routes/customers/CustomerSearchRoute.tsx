@@ -73,6 +73,16 @@ export function CustomerSearchRoute() {
     readonly failure: unknown
   } | null>(null)
 
+  /**
+   * Writes the question into the address. The effect below is what asks it, so a reload or a remount
+   * asks the same question rather than showing an empty screen.
+   */
+  const ask = (wanted: string, withDeactivated: boolean) => {
+    setParams(withDeactivated ? { term: wanted, withdrawn: 'true' } : { term: wanted }, {
+      replace: true,
+    })
+  }
+
   const submit = () => {
     const wanted = term.trim()
     if (wanted.length < CUSTOMER_SEARCH_MINIMUM_LENGTH) {
@@ -80,11 +90,21 @@ export function CustomerSearchRoute() {
       return
     }
     setTooShort(false)
-    // The effect below does the asking. Writing the address is the whole of the action, so a reload
-    // or a remount asks the same question rather than showing an empty screen.
-    setParams(includeWithdrawn ? { term: wanted, withdrawn: 'true' } : { term: wanted }, {
-      replace: true,
-    })
+    ask(wanted, includeWithdrawn)
+  }
+
+  /*
+   * Turning the filter on re-asks at once, when there is a question to re-ask.
+   *
+   * Leaving it until the next press of Search would put a ticked box above results that were
+   * fetched without it — the screen saying one thing and showing another. The reading somebody takes
+   * from that is "she is not here", which is the one conclusion this filter exists to prevent.
+   */
+  const toggleDeactivated = (on: boolean) => {
+    setIncludeWithdrawn(on)
+    if (committed.length >= CUSTOMER_SEARCH_MINIMUM_LENGTH) {
+      ask(committed, on)
+    }
   }
 
   // The read, once per committed term, cancelled if the term changes or the pane goes away. Written
@@ -188,7 +208,7 @@ export function CustomerSearchRoute() {
           id="customer-search-withdrawn"
           label={intl.formatMessage({ id: 'customers.search.withdrawn' })}
           name="withdrawn"
-          onValueChange={setIncludeWithdrawn}
+          onValueChange={toggleDeactivated}
           value={includeWithdrawn}
         />
         <Button busy={searching} iconName="search" type="submit" variant="primary">
