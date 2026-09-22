@@ -152,6 +152,36 @@ describe('starting a measurement', () => {
     ).not.toBeInTheDocument()
   })
 
+  /*
+   * The other consumer of the customer search, and the one that used to get this wrong.
+   *
+   * A page that says why it is empty is not a page that found nobody. Rendering "No customer
+   * matches" for it is a false negative in front of somebody deciding whether to register a new
+   * customer — which is how one person ends up with two records, which is the thing the whole
+   * duplicate-prevention design exists to avoid.
+   */
+  it('does not report a refused search as nobody matching', async () => {
+    const user = userEvent.setup()
+    transport.route('GET /api/v1/customers/?term=Asha', () =>
+      jsonResponse({
+        customers: [],
+        nextCursor: null,
+        refusal: 'customers.search-unavailable-in-this-branch',
+      }),
+    )
+    renderAt('/measurements/new')
+
+    const term = await screen.findByLabelText('Find the customer')
+    await user.type(term, 'Asha{Enter}')
+
+    expect(await screen.findByText(/cannot say why/)).toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        'No customer matches. Check the spelling, or register the customer at the counter first.',
+      ),
+    ).not.toBeInTheDocument()
+  })
+
   it('forgets a customer chosen from a list that is no longer on screen', async () => {
     const user = userEvent.setup()
     transport.route('GET /api/v1/customers/?term=Asha', () =>

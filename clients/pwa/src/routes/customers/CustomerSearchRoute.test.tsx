@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
@@ -321,6 +321,72 @@ it('refuses the toggle when the box holds a term too short to search', async () 
   expect(
     transport.callsTo('GET /api/v1/customers/?term=priya&includeDeactivated=true'),
   ).toHaveLength(0)
+})
+
+/*
+ * The checkbox must never disagree with the list under it.
+ *
+ * Tick "Include deactivated records" while the box holds a term too short to run, and the old
+ * results stay on screen. If the tick had landed, they would sit under a filter that did not fetch
+ * them, and somebody reads that as "she is deactivated and still not here" — the one conclusion the
+ * filter exists to prevent.
+ */
+it('does not move the filter it cannot honour', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null, refusal: null }),
+  )
+  renderSearch()
+
+  const box = screen.getByRole('searchbox', { name: 'Search' })
+  await user.type(box, 'priya')
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+
+  await user.clear(box)
+  await user.type(box, 'an')
+  const filter = screen.getByRole('checkbox', { name: 'Include deactivated records' })
+  await user.click(filter)
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+  // Unticked, so it still describes the results that are on screen.
+  expect(filter).not.toBeChecked()
+})
+
+/*
+ * An error somebody cannot clear by fixing what it complains about teaches them to ignore errors.
+ *
+ * The deep-link error is derived from the address, which does not change until a search is
+ * submitted — so typing a valid term left "Type at least 3 characters" standing against it.
+ */
+it('clears the address-derived error once the field is valid', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=abc', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null, refusal: null }),
+  )
+  renderSearch('/customers?term=ab')
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+
+  await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'c')
+
+  await waitFor(() => {
+    expect(screen.queryByText(/Type at least 3 characters/)).not.toBeInTheDocument()
+  })
+})
+
+// Emptying the box is also a fix, and left the same error standing.
+it('clears the address-derived error when the field is emptied', async () => {
+  const user = userEvent.setup()
+  renderSearch('/customers?term=ab')
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+
+  await user.clear(screen.getByRole('searchbox', { name: 'Search' }))
+
+  await waitFor(() => {
+    expect(screen.queryByText(/Type at least 3 characters/)).not.toBeInTheDocument()
+  })
 })
 
 it('has no accessibility violations', async () => {

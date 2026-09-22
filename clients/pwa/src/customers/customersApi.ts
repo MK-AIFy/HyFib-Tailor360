@@ -41,6 +41,33 @@ export const CUSTOMER_SEARCH_MINIMUM_LENGTH = 3
 export const CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE = 'customers.search-term-too-short'
 
 /**
+ * What an empty search page actually means.
+ *
+ * Told apart here rather than at each screen, because two screens have now got it wrong in the same
+ * way: an empty list was rendered as "nobody matched" when the page had said, in `refusal`, that it
+ * had not searched at all. That is a false negative in front of somebody deciding whether to
+ * register a new customer, and it is how one person ends up with two records.
+ *
+ * `refused` covers a value this build does not recognise. The field is open-ended by contract, so
+ * that case is reachable by an old client against a newer server, and it must not collapse into
+ * `none`: not knowing why the page is empty is not the same as knowing there is nobody.
+ */
+export type SearchOutcome = 'results' | 'none' | 'too-short' | 'refused'
+
+/** Classifies a page. See {@link SearchOutcome} for why this is not left to call sites. */
+export function searchOutcome(page: CustomerPage): SearchOutcome {
+  if (page.customers.length > 0) {
+    return 'results'
+  }
+
+  if (page.refusal === CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE) {
+    return 'too-short'
+  }
+
+  return page.refusal === null || page.refusal === undefined ? 'none' : 'refused'
+}
+
+/**
  * Finds a customer by name, native name, customer number or the tail of a telephone number.
  *
  * Answers across the organisation. The term travels as a query string, so it is encoded here rather
