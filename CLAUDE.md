@@ -197,7 +197,10 @@ under about 1,500 changed lines, excluding generated code and tests.
 
 `develop` is the integration branch and is where every feature branch is cut from and merged back to. `main` moves
 in batches: when a set of work is complete, one `develop` → `main` pull request carries it, and **that** pull
-request is the CI gate. A consequence worth knowing before you write the commit message: `Closes #NN` fires when
+request is the CI gate. **That one is merged with a merge commit, not squashed** — a feature branch is squashed
+because its history is noise, but squashing an integration branch leaves `main` sharing no ancestry with
+`develop`, so the next batch re-proposes everything already merged and the merge that repairs it can silently
+resurrect deleted code. It happened once, at #628; the repair is `765ad25`. A consequence worth knowing before you write the commit message: `Closes #NN` fires when
 the work reaches `main`, not when it reaches `develop`, so an issue stays open until its batch lands.
 
 - **Branch**: `feat|fix|docs/eXX-fYY[a-c]-<slug>`, all lower case — for example `feat/e02-f03-ci-quality-gates`.
