@@ -281,3 +281,20 @@ export interface CustomerExport {
 
 /** The code the download answers with once the copy has gone — expired, or replaced by a newer one. */
 export const CUSTOMER_EXPORT_EXPIRED_CODE = 'customers.export-expired'
+
+/**
+ * The code a status command is refused with when the record is already where it is being sent.
+ *
+ * Deactivating a withdrawn record, or reactivating an active one. Neither is a failure of the
+ * person's — they are looking at a screen that was drawn before somebody else acted — so the screen
+ * says what happened rather than rendering it as an error against what they did.
+ */
+export const CUSTOMER_STATUS_TRANSITION_CODE = 'customers.status-transition-not-allowed'
+
+/**
+ * The code a reactivation is refused with when the record was merged away.
+ *
+ * A merge cannot be undone, so a record that has been merged is finished: it is not returned to
+ * ordinary use. The reader is sent to the record that survived.
+ */
+export const CUSTOMER_ALREADY_MERGED_CODE = 'customers.already-merged'

@@ -85,6 +85,7 @@ const CUSTOMERS_USER = {
     CUSTOMERS_PERMISSIONS.merge,
     CUSTOMERS_PERMISSIONS.readConsent,
     CUSTOMERS_PERMISSIONS.export,
+    CUSTOMERS_PERMISSIONS.deactivate,
   ],
 }
 
@@ -945,4 +946,102 @@ export const ExportForbidden: Story = {
 export const ExportPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => exportScreen({}),
+}
+
+/* Deactivating a record, and reactivating one (#618) ---------------------------------------------- */
+
+/**
+ * The record with its status controls. Press Deactivate to meet the confirmation.
+ *
+ * It is a control rather than a link, unlike the four above it: those are separate pieces of work
+ * with their own screens, and this is one decision with a reason, recoverable by the same control
+ * pointing the other way.
+ */
+export const DetailWithStatusActions: Story = { render: () => detail({}) }
+
+/**
+ * A record that has been deactivated.
+ *
+ * It says what that means — still here, history intact, simply not offered for a new order — because
+ * the word alone reads like a deletion. The control now points the other way.
+ */
+export const DetailDeactivated: Story = {
+  render: () =>
+    detail({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyJson({ ...CUSTOMER, status: 'Deactivated' }, 'W/"1"'),
+    }),
+}
+
+/**
+ * A record that was merged away.
+ *
+ * No control at all, and a sentence saying why: a merge cannot be undone, so this record is
+ * finished. A disabled button somebody has to guess at would be worse.
+ */
+export const DetailMerged: Story = {
+  render: () =>
+    detail({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyJson(
+          {
+            ...CUSTOMER,
+            status: 'Deactivated',
+            mergedIntoCustomerId: '0199cc00-0000-7000-8000-000000000002',
+            mergedAt: '2026-09-01T10:00:00Z',
+          },
+          'W/"1"',
+        ),
+    }),
+}
+
+/**
+ * Deactivate, to meet the refusal that is not a failure.
+ *
+ * Somebody else got there first. The outcome they wanted is the outcome that exists, so it is told
+ * politely and in an informational tone rather than announced as an error against what they did.
+ */
+export const DetailStatusAlready: Story = {
+  render: () =>
+    detail({
+      [`POST ${CUSTOMERS}${CUSTOMER.customerId}/deactivate`]: () =>
+        storyProblem(409, 'customers.status-transition-not-allowed'),
+    }),
+}
+
+/** Deactivate, to meet a stale version: the record changed while it was being read. */
+export const DetailStatusConflict: Story = {
+  render: () =>
+    detail({
+      [`POST ${CUSTOMERS}${CUSTOMER.customerId}/deactivate`]: () =>
+        storyProblem(409, 'customers.version-conflict'),
+    }),
+}
+
+/**
+ * The 40% growth tolerance on the deactivated banner, which is the longest prose in this surface.
+ *
+ * Worth its own story rather than leaning on the others: the banner has to spend four sentences
+ * saying what deactivating is *not*, because the word on its own reads like a deletion — so it is
+ * the string in this module most likely to break its container when a translation runs long.
+ */
+export const DetailStatusPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () =>
+    detail({
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () =>
+        storyJson({ ...CUSTOMER, status: 'Deactivated' }, 'W/"1"'),
+    }),
+}
+
+/** Search "priya" with the filter on, to find somebody who has been deactivated. */
+export const SearchIncludingDeactivated: Story = {
+  render: () =>
+    search({
+      'GET /api/v1/customers/?term=priya&includeDeactivated=true': () =>
+        storyJson({
+          customers: [aCustomerCard({ status: 'Deactivated' })],
+          nextCursor: null,
+        }),
+    }),
 }

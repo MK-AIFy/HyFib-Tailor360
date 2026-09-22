@@ -53,6 +53,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PR_BODY: ${{ github.event.pull_request.body }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           AUTHOR: ${{ github.event.pull_request.user.login }}
           AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
@@ -67,6 +68,25 @@ jobs:
           fi
 
           failed=0
+
+          # --- Is this the release batch? -------------------------------------------------------
+          # `develop` collects reviewed work and is merged into `main` as one batch, so that pull
+          # request is a different animal from the ones these rules were written for: it aggregates
+          # issues by design, and its head is a long-lived integration branch rather than a branch
+          # somebody named. Two of the three rules below therefore do not describe it.
+          #
+          # This is an exemption from those two rules, not a hole in them. Rule 3 — the evidence
+          # checklist — still applies in full, because evidence is exactly what a batch reaching
+          # `main` needs; rule 1 still requires at least one issue, because a release that says
+          # nothing about what is in it is not reviewable either. Every constituent pull request was
+          # held to all three on its way into `develop`, which is where the per-issue discipline
+          # lives now.
+          release_batch=0
+          if [ "$HEAD_REF" = "develop" ] && [ "$BASE_REF" = "main" ]; then
+            release_batch=1
+            echo "This is the develop -> main release batch; the single-issue and branch-name rules"
+            echo "are scoped to feature pull requests and do not apply. The evidence checklist does."
+          fi
 
           # --- Rule 1: exactly one linked issue, and it is open ---------------------------------
           # Only `Refs #NN` and `Closes #NN` count. `Refs` records a relationship; `Closes` also
@@ -134,6 +154,9 @@ jobs:
             echo "'Closes #20' (closes it on merge) to the 'Linked issue' section of the template."
             echo "Other closing keywords ('Fixes', 'Resolves') are deliberately not accepted, so"
             echo "that the link reads the same way on every pull request."
+          elif [ "$release_batch" -eq 1 ]; then
+            issue_verdict="pass"
+            echo "Linked issues: $(printf '%s' "$issues" | tr '\n' ' ')(release batch)"
           else
             failed=1
             echo "::error title=More than one linked issue::The pull-request body links $issue_count issues; exactly one is required."
@@ -156,6 +179,9 @@ jobs:
             branch_verdict="pass"
           elif printf '%s' "$HEAD_REF" | grep -qE "$automation_rule"; then
             echo "Branch name: $HEAD_REF (reserved automation prefix)"
+            branch_verdict="pass"
+          elif [ "$release_batch" -eq 1 ]; then
+            echo "Branch name: $HEAD_REF (the integration branch, merging into $BASE_REF)"
             branch_verdict="pass"
           else
             failed=1

@@ -191,9 +191,14 @@ The full pyramid and per-layer gates are plan Section 5.3 in
 
 ## 6. Git workflow
 
-**One issue, one branch, one pull request.** An issue too large for that is split into sub-issues first, each with
-its own branch and pull request; the parent closes when they are all merged. Target under about 1,500 changed
-lines, excluding generated code and tests.
+**One issue, one branch, one pull request — onto `develop`.** An issue too large for that is split into
+sub-issues first, each with its own branch and pull request; the parent closes when they are all merged. Target
+under about 1,500 changed lines, excluding generated code and tests.
+
+`develop` is the integration branch and is where every feature branch is cut from and merged back to. `main` moves
+in batches: when a set of work is complete, one `develop` → `main` pull request carries it, and **that** pull
+request is the CI gate. A consequence worth knowing before you write the commit message: `Closes #NN` fires when
+the work reaches `main`, not when it reaches `develop`, so an issue stays open until its batch lands.
 
 - **Branch**: `feat|fix|docs/eXX-fYY[a-c]-<slug>`, all lower case — for example `feat/e02-f03-ci-quality-gates`.
   The policy check also accepts `chore` as a type and a plain slug in place of the `eXX-fYY` identifier, and
@@ -201,13 +206,16 @@ lines, excluding generated code and tests.
 - **Commits**: Conventional Commits — `type(scope): subject in the imperative`, for example
   `feat(orders): confirm an order and allocate its barcodes`. The body says why, and carries `Refs #NN`.
 - **Pull request**: exactly one issue linked, as `Refs #NN` while the issue stays open or `Closes #NN` when merging
-  completes it. `Fixes` and `Resolves` are deliberately not accepted, so the link reads the same everywhere.
+  completes it. The `develop` → `main` batch is the one exception, and the only one: it links every issue in the
+  batch, and the policy check knows about it by its branches rather than by anything written in the body. `Fixes` and `Resolves` are deliberately not accepted, so the link reads the same everywhere.
   Fill in [`.github/pull_request_template.md`](.github/pull_request_template.md); delete a section only when it
   genuinely cannot apply, and say why in one line.
 - **Evidence before review.** Paste the run output, the screenshots and the migration output — a description of
   them is not evidence, and a reviewer will not start without them.
-- **Merge**: squash, after a CODEOWNERS review and a green required check. Never merge your own unreviewed work
-  around the check.
+- **Merge**: squash, after a CODEOWNERS review. Never merge your own unreviewed work around the check. The
+  required checks run on the `develop` → `main` batch rather than on each feature pull request, which is what
+  makes the review on the way into `develop` the thing that catches a defect — there is no second mechanical
+  opinion behind it until the batch.
 - **Scope discipline**: no unrelated refactor, no drive-by formatting of untouched files. Anything discovered out
   of scope becomes a new issue linked to the epic.
 

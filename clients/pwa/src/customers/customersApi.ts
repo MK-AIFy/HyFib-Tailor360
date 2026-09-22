@@ -17,8 +17,22 @@ import type {
 
 const CUSTOMERS = '/api/v1/customers/'
 
-/** The server returns nothing for a shorter term rather than the whole customer list. */
+/**
+ * The shortest term the server will search on.
+ *
+ * Held equal to `CustomerSearchQuery.MinimumTermLength` by a contract test, which reads this line.
+ * It cannot be generated from the API document: `minLength` is a validation keyword and the
+ * generated types render the parameter as `string` either way. Change this and the server's
+ * constant together, or that test fails and says so.
+ *
+ * The screen pre-checks against it so that a term the server would refuse costs no round trip —
+ * being told what you could have been told locally is its own small insult — and renders the
+ * server's refusal in the same words when it meets one anyway.
+ */
 export const CUSTOMER_SEARCH_MINIMUM_LENGTH = 3
+
+/** The server's refusal of a term shorter than {@link CUSTOMER_SEARCH_MINIMUM_LENGTH}. */
+export const CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE = 'customers.search-term-too-short'
 
 /**
  * Finds a customer by name, native name, customer number or the tail of a telephone number.
@@ -26,11 +40,28 @@ export const CUSTOMER_SEARCH_MINIMUM_LENGTH = 3
  * Answers across the organisation. The term travels as a query string, so it is encoded here rather
  * than at every call site; a name with an ampersand in it is a name, not a second parameter.
  */
-export async function searchCustomers(term: string, signal?: AbortSignal): Promise<CustomerPage> {
+export async function searchCustomers(
+  term: string,
+  options: {
+    /**
+     * Whether to offer records that have been withdrawn from ordinary use.
+     *
+     * Off by default, which is the server's default too: a search is nearly always somebody starting
+     * a new order, and a withdrawn record is precisely the one that should not be offered for that.
+     * The customer search screen turns it on when asked, because a record that cannot be found is a
+     * record that cannot be put back.
+     */
+    readonly includeDeactivated?: boolean
+    readonly signal?: AbortSignal
+  } = {},
+): Promise<CustomerPage> {
   const query = new URLSearchParams({ term })
+  if (options.includeDeactivated === true) {
+    query.set('includeDeactivated', 'true')
+  }
 
   return await apiRequest<CustomerPage>(`${CUSTOMERS}?${query.toString()}`, {
-    ...(signal === undefined ? {} : { signal }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
   })
 }
 
@@ -376,5 +407,38 @@ export async function downloadCustomerExport(input: {
   return await apiRequestBlob(`${CUSTOMERS}${input.customerId}/exports/${input.exportId}`, {
     accept: 'application/json',
     fallbackFileName: `${input.documentCode}-${input.exportId}.json`,
+  })
+}
+
+/** Which way a customer record's status is being moved. The two share every rule but their verb. */
+export type CustomerStatusCommand = 'deactivate' | 'reactivate'
+
+/**
+ * Withdraws a customer record from ordinary use, or returns one to it.
+ *
+ * **Not a deletion.** The record stays readable and its history stays resolvable — an order placed
+ * last year still names the person who placed it. What changes is that a search stops offering the
+ * record when somebody starts a new order. That is the whole of the difference, and it is why this
+ * is the recoverable thing to reach for when a merge is not: `reactivate` puts it back.
+ *
+ * Both directions are gated on the same permission, deliberately, so that a record cannot be put
+ * beyond the reach of everybody present.
+ *
+ * `If-Match` is required — this is a state change on a versioned record like any other — and the
+ * reason is required because the audit trail is the only place a reader can later ask why somebody
+ * was withdrawn.
+ */
+export async function commandCustomerStatus(input: {
+  readonly customerId: string
+  readonly command: CustomerStatusCommand
+  readonly reason: string
+  readonly version: string
+  readonly idempotencyKey: string
+}): Promise<VersionedResponse<Customer>> {
+  return await apiRequestVersioned<Customer>(`${CUSTOMERS}${input.customerId}/${input.command}`, {
+    method: 'POST',
+    body: { reason: input.reason },
+    ifMatch: input.version,
+    idempotencyKey: input.idempotencyKey,
   })
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useLocation, useSearchParams } from 'react-router'
+import { ApiError } from '../../auth/apiClient'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { Alert } from '../../components/primitives/Alert'
 import { Button } from '../../components/primitives/Button'
@@ -8,8 +9,13 @@ import { Card } from '../../components/primitives/Card'
 import { EmptyState } from '../../components/states/EmptyState'
 import { LoadingState } from '../../components/states/LoadingState'
 import { StatusBadge } from '../../components/primitives/StatusBadge'
+import { Checkbox } from '../../design-system/components/forms/Checkbox'
 import { TextField } from '../../design-system/components/forms/TextField'
-import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers/customersApi'
+import {
+  CUSTOMER_SEARCH_MINIMUM_LENGTH,
+  CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE,
+  searchCustomers,
+} from '../../customers/customersApi'
 import { customerStatusKind } from '../../customers/customerStatus'
 import type { CustomerCard, CustomerPage } from '../../customers/types'
 import './customers.css'
@@ -49,8 +55,13 @@ export function CustomerSearchRoute() {
    */
   const [params, setParams] = useSearchParams()
   const committed = params.get('term') ?? ''
+  // In the address beside the term, and for the same reason: this pane is unmounted when the record
+  // takes the screen, and a filter that reset itself on the way back would quietly change what the
+  // next search means.
+  const withdrawn = params.get('withdrawn') === 'true'
 
   const [term, setTerm] = useState(committed)
+  const [includeWithdrawn, setIncludeWithdrawn] = useState(withdrawn)
   const [tooShort, setTooShort] = useState(false)
   /**
    * The answer, tagged with the term it answers.
@@ -62,9 +73,20 @@ export function CustomerSearchRoute() {
    */
   const [answer, setAnswer] = useState<{
     readonly term: string
+    readonly withdrawn: boolean
     readonly page: CustomerPage | null
     readonly failure: unknown
   } | null>(null)
+
+  /**
+   * Writes the question into the address. The effect below is what asks it, so a reload or a remount
+   * asks the same question rather than showing an empty screen.
+   */
+  const ask = (wanted: string, withDeactivated: boolean) => {
+    setParams(withDeactivated ? { term: wanted, withdrawn: 'true' } : { term: wanted }, {
+      replace: true,
+    })
+  }
 
   const submit = () => {
     const wanted = term.trim()
@@ -73,9 +95,42 @@ export function CustomerSearchRoute() {
       return
     }
     setTooShort(false)
-    // The effect below does the asking. Writing the address is the whole of the action, so a reload
-    // or a remount asks the same question rather than showing an empty screen.
-    setParams({ term: wanted }, { replace: true })
+    ask(wanted, includeWithdrawn)
+  }
+
+  /*
+   * Turning the filter on re-asks at once, when there is a question to re-ask.
+   *
+   * Leaving it until the next press of Search would put a ticked box above results that were
+   * fetched without it — the screen saying one thing and showing another. The reading somebody takes
+   * from that is "she is not here", which is the one conclusion this filter exists to prevent.
+   */
+  const toggleDeactivated = (on: boolean) => {
+    setIncludeWithdrawn(on)
+
+    /*
+     * Re-asks what is *in the box*, not what was last committed.
+     *
+     * Those are the same thing until somebody edits the field without pressing Search, and then
+     * they are not: re-running the committed term would put results for the old question under the
+     * new one, which is the same "the screen says one thing and shows another" failure this
+     * immediate re-ask exists to prevent, only harder to spot because the box looks right.
+     */
+    const wanted = term.trim()
+
+    // Nothing typed and nothing asked: a checkbox on an empty screen has no question to re-ask, and
+    // complaining about the length of a term nobody has entered would be noise.
+    if (wanted.length === 0 && committed.length === 0) {
+      return
+    }
+
+    if (wanted.length < CUSTOMER_SEARCH_MINIMUM_LENGTH) {
+      setTooShort(true)
+      return
+    }
+
+    setTooShort(false)
+    ask(wanted, on)
   }
 
   // The read, once per committed term, cancelled if the term changes or the pane goes away. Written
@@ -89,15 +144,15 @@ export function CustomerSearchRoute() {
     const controller = new AbortController()
     let cancelled = false
 
-    void searchCustomers(committed, controller.signal)
+    void searchCustomers(committed, { includeDeactivated: withdrawn, signal: controller.signal })
       .then((page) => {
         if (!cancelled) {
-          setAnswer({ term: committed, page, failure: null })
+          setAnswer({ term: committed, withdrawn, page, failure: null })
         }
       })
       .catch((cause: unknown) => {
         if (!cancelled && !(cause instanceof DOMException && cause.name === 'AbortError')) {
-          setAnswer({ term: committed, page: null, failure: cause })
+          setAnswer({ term: committed, withdrawn, page: null, failure: cause })
         }
       })
 
@@ -105,12 +160,24 @@ export function CustomerSearchRoute() {
       cancelled = true
       controller.abort()
     }
-  }, [committed])
+  }, [committed, withdrawn])
 
   const asked = committed.length >= CUSTOMER_SEARCH_MINIMUM_LENGTH
-  const current = answer !== null && answer.term === committed ? answer : null
+  const current =
+    answer !== null && answer.term === committed && answer.withdrawn === withdrawn ? answer : null
   const searching = asked && current === null
   const failure = current?.failure ?? null
+  /*
+   * The server refusing the same thing the field pre-checks.
+   *
+   * It should not happen — the form does not submit a term this short — but it is reachable from a
+   * pasted or bookmarked address, and it is what a drift between the two minimums would look like.
+   * Rendering it as the field's own error rather than as a problem alert is what makes #182's
+   * criterion A true: the refusal reads the same wherever it came from, and it points at the field
+   * the person has to change rather than floating above the form as an unexplained failure.
+   */
+  const refusedAsTooShort =
+    failure instanceof ApiError && failure.code === CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE
   const results = current?.page?.customers ?? null
   const truncated = current?.page?.nextCursor !== undefined && current?.page?.nextCursor !== null
 
@@ -140,10 +207,20 @@ export function CustomerSearchRoute() {
           No `inputMode`, deliberately, and #614 records the decision as still open.
 
           This field matches a name, a native-script name, a customer number *or* the tail of a
-          telephone number — which is what the hint above it says. #182 asks for it to be "phone
-          keypad optimised", and a `tel` keypad on a field whose commonest input is a name would make
-          most searches worse to serve the one that the server already makes cheap by matching a
-          partial number. `autoComplete` stays off because this is a shared counter device.
+          telephone number — which is what the hint above it says.
+
+          It is **one field, and the specification asks for two.** Plan section 4.6 and
+          docs/prd/exceptions.md section 4.1 both call for a segmented Phone / Name mode: the
+          telephone keypad for a number, the text keyboard for a name. That is not implemented here,
+          and it is a gap to build rather than a question to answer — #629 tracks it.
+
+          Do not answer it by putting inputMode="tel" on this field. A keypad on a field whose
+          commonest input is a name makes most searches worse, which is the reason the specification
+          splits the modes rather than switching the keyboard on one field.
+
+          `autoComplete` stays off because this is a shared counter device, and WCAG 1.3.5 Identify
+          Input Purpose governs a person's own details, which a staff member searching for a
+          customer is not entering.
         */}
         <TextField
           autoComplete="off"
@@ -152,7 +229,7 @@ export function CustomerSearchRoute() {
             { minimum: CUSTOMER_SEARCH_MINIMUM_LENGTH },
           )}
           enterKeyHint="search"
-          {...(tooShort
+          {...(tooShort || refusedAsTooShort
             ? {
                 error: intl.formatMessage(
                   { id: 'customers.search.tooShort' },
@@ -167,6 +244,20 @@ export function CustomerSearchRoute() {
           type="search"
           value={term}
         />
+        {/*
+          Off by default, matching the server: a search is nearly always somebody starting a new
+          order, and a withdrawn record is exactly the one not to offer for that. It is here at all
+          because a record nobody can find is a record nobody can put back — withdrawing one would
+          otherwise be a one-way door with a button labelled as if it were not.
+        */}
+        <Checkbox
+          description={intl.formatMessage({ id: 'customers.search.withdrawnHint' })}
+          id="customer-search-withdrawn"
+          label={intl.formatMessage({ id: 'customers.search.withdrawn' })}
+          name="withdrawn"
+          onValueChange={toggleDeactivated}
+          value={includeWithdrawn}
+        />
         <Button busy={searching} iconName="search" type="submit" variant="primary">
           {intl.formatMessage({
             id: searching ? 'customers.search.searching' : 'customers.search.action',
@@ -174,7 +265,8 @@ export function CustomerSearchRoute() {
         </Button>
       </form>
 
-      <AuthProblemAlert failure={failure} />
+      {/* The too-short refusal is shown at the field, so it is not repeated here as a failure. */}
+      <AuthProblemAlert failure={refusedAsTooShort ? null : failure} />
 
       {searching && results === null ? (
         <LoadingState what={intl.formatMessage({ id: 'customers.search.loading' })} />

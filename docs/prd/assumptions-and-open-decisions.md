@@ -170,8 +170,8 @@ repeated here.
 ## 4. Questions raised while drafting this documentation set
 
 These arose from writing [`00-overview.md`](00-overview.md), [`glossary.md`](glossary.md) and
-[`configurable-vs-fixed.md`](configurable-vs-fixed.md). None is a new decision area; each resolves inside an
-existing plan Section 11 item, and is listed here so the workshop agenda is complete.
+[`configurable-vs-fixed.md`](configurable-vs-fixed.md). None is a new decision area; each resolves inside an existing plan Section 11 item, and is
+listed here so the workshop agenda is complete.
 
 | Question | Resolves under | Interim position |
 | --- | --- | --- |
