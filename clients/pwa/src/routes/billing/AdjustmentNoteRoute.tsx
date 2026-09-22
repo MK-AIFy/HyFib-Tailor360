@@ -25,7 +25,7 @@ import { useNetworkState } from '../../components/states/useNetworkState'
 import { NumericStepper } from '../../design-system/components/forms/NumericStepper'
 import { RadioGroup } from '../../design-system/components/forms/RadioGroup'
 import { getFormatters } from '../../i18n/formatters'
-import { saveBlob } from '../../billing/saveBlob'
+import { saveBlob } from '../../downloads/saveBlob'
 import './billing.css'
 
 type NoteKind = 'Credit' | 'Debit'

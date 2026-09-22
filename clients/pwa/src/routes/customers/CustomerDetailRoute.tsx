@@ -128,6 +128,14 @@ export function CustomerDetailRoute() {
         </p>
       ) : null}
 
+      {user?.permissions.includes(CUSTOMERS_PERMISSIONS.export) === true ? (
+        <p>
+          <Link to={`/customers/${customer.customerId}/export`}>
+            <FormattedMessage id="customers.detail.export" />
+          </Link>
+        </p>
+      ) : null}
+
       <Tabs
         items={[
           {

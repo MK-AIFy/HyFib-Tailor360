@@ -3,6 +3,7 @@ import type {
   ConsentAnswer,
   ConsentPurpose,
   Customer,
+  CustomerExport,
   CustomerCard,
   CustomerTimelineEntry,
   CustomerTimelinePage,
@@ -161,6 +162,23 @@ export function aCommunicationPreference(
     quietHoursEnd: '08:00:00',
     updatedAt: '2026-09-01T10:00:00Z',
     version: 'W/"4"',
+    ...overrides,
+  }
+}
+
+/** The receipt a generated subject-access export hands back. Never the document itself. */
+export function anExportReceipt(overrides: Partial<CustomerExport> = {}): CustomerExport {
+  return {
+    exportId: '0199cc00-0000-7000-8000-00000000e501',
+    customerId: '0199cc00-0000-7000-8000-000000000001',
+    documentCode: 'CUSTOMER-EXPORT',
+    documentVersion: 1,
+    classification: 'Sensitive personal data',
+    contentType: 'application/json',
+    byteCount: 2048,
+    generatedAt: '2026-09-21T10:00:00Z',
+    expiresAt: '2026-09-28T10:00:00Z',
+    supersededCount: 0,
     ...overrides,
   }
 }
