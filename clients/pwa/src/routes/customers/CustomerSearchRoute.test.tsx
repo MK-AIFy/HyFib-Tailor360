@@ -206,6 +206,21 @@ it('re-asks at once when the filter is turned on after a search', async () => {
   expect(await screen.findByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
 })
 
+/*
+ * A pasted or bookmarked address carrying a term too short to run.
+ *
+ * Nobody pressed anything, and the screen does not ask the server for a term this short, so without
+ * deriving the error from the address there is nothing on screen at all: the term in the box, no
+ * results, and no reason. "No reason" is read as "no such person".
+ */
+it('explains a too-short term that arrived in the address', async () => {
+  renderSearch('/customers?term=ab')
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+  // And it did not ask the server a question it knows the answer to.
+  expect(transport.callsTo('GET /api/v1/customers/?term=ab')).toHaveLength(0)
+})
+
 it('has no accessibility violations', async () => {
   const user = userEvent.setup()
   transport.route('GET /api/v1/customers/?term=priya', () =>

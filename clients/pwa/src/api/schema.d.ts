@@ -2411,7 +2411,7 @@ export interface paths {
         };
         /**
          * Find a customer by name, native name, customer number or telephone number.
-         * @description Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters returns nothing rather than the whole customer list.
+         * @description Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters is refused with 400 `customers.search-term-too-short` rather than answered, so an empty page means that nobody matched and only that. A term that is absent or empty is not that refusal: it is not a question, and it is answered with an empty page.
          */
         get: operations["SearchCustomers"];
         put?: never;

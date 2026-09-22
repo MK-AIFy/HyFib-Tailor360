@@ -157,6 +157,20 @@ export function CustomerSearchRoute() {
    */
   const refusedAsTooShort =
     failure instanceof ApiError && failure.code === CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE
+
+  /*
+   * An address carrying a term too short to run — `/customers?term=ab`, pasted or bookmarked.
+   *
+   * The effect below deliberately does not ask the server for one of these, so there is no failure
+   * to render and `tooShort` is false because nobody submitted the form. Without this the screen
+   * shows the term in the box, no results, and no reason: the one state a search screen must never
+   * be in, because "no reason" is read as "no such person".
+   *
+   * Derived rather than stored, so it follows the address on a reload or a remount instead of
+   * depending on somebody having pressed a button earlier in the session.
+   */
+  const committedIsTooShort =
+    committed.length > 0 && committed.length < CUSTOMER_SEARCH_MINIMUM_LENGTH
   const results = current?.page?.customers ?? null
   const truncated = current?.page?.nextCursor !== undefined && current?.page?.nextCursor !== null
 
@@ -202,7 +216,7 @@ export function CustomerSearchRoute() {
             { minimum: CUSTOMER_SEARCH_MINIMUM_LENGTH },
           )}
           enterKeyHint="search"
-          {...(tooShort || refusedAsTooShort
+          {...(tooShort || refusedAsTooShort || committedIsTooShort
             ? {
                 error: intl.formatMessage(
                   { id: 'customers.search.tooShort' },
