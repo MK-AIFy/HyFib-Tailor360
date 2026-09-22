@@ -233,6 +233,32 @@ export const customersEn = {
   'customers.export.gone.title': 'That copy has gone',
   'customers.export.gone.body':
     'It expired, or a newer copy replaced it. The record that it was made, by whom and why is kept — only the copy of the data is destroyed. Generate a fresh one to answer the request.',
+  'customers.search.withdrawn': 'Include deactivated records',
+  'customers.search.withdrawnHint':
+    'Off for an ordinary search: a deactivated record is not one to start a new order against. Turn it on to find somebody who was deactivated, so you can reactivate them.',
+
+  /* Withdrawing a record, and putting it back. ------------------------------------------------ */
+  'customers.status.deactivate': 'Deactivate this record',
+  'customers.status.reactivate': 'Reactivate this record',
+  'customers.status.offlineDeactivate': 'Deactivating a customer record',
+  'customers.status.offlineReactivate': 'Reactivating a customer record',
+  'customers.status.withdrawn.title': 'This record has been deactivated',
+  'customers.status.withdrawn.body':
+    'It is still here and its history still stands — an order placed last year still names her. What changed is that an ordinary search no longer offers her, so nobody starts a new order against this record by accident.',
+  'customers.status.merged':
+    'This record was merged into another one, so it cannot be reactivated — a merge cannot be undone. Work on the record that survived.',
+  'customers.status.confirm.deactivate.title': 'Deactivate {name}’s record?',
+  'customers.status.confirm.deactivate.body':
+    'She stops appearing in an ordinary search, so nobody starts a new order against this record. Nothing is deleted: the record stays readable, her history stands, and you can reactivate it. To find her afterwards, tick “Include deactivated records” when you search.',
+  'customers.status.confirm.deactivate.action': 'deactivating this record',
+  'customers.status.confirm.reactivate.title': 'Reactivate {name}’s record?',
+  'customers.status.confirm.reactivate.body':
+    'She appears in ordinary search results again and can be used for a new order.',
+  'customers.status.confirm.reactivate.action': 'reactivating this record',
+  'customers.status.conflict':
+    'Somebody corrected this record while you were reading it, so this is not the record you looked at. Read it again and decide once more.',
+  'customers.status.already':
+    'Somebody else already did that. The record is where you wanted it, so there is nothing more to do.',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -600,4 +626,45 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.export.gone.body':
     'It expired, or a newer copy replaced it. The record that it was made, by whom and why is kept — only the copy of the data is destroyed. Generate a fresh one to answer the request.',
+  // not translated — awaiting native-speaker review
+  'customers.search.withdrawn': 'Include deactivated records',
+  // not translated — awaiting native-speaker review
+  'customers.search.withdrawnHint':
+    'Off for an ordinary search: a deactivated record is not one to start a new order against. Turn it on to find somebody who was deactivated, so you can reactivate them.',
+  // not translated — awaiting native-speaker review
+  'customers.status.deactivate': 'Deactivate this record',
+  // not translated — awaiting native-speaker review
+  'customers.status.reactivate': 'Reactivate this record',
+  // not translated — awaiting native-speaker review
+  'customers.status.offlineDeactivate': 'Deactivating a customer record',
+  // not translated — awaiting native-speaker review
+  'customers.status.offlineReactivate': 'Reactivating a customer record',
+  // not translated — awaiting native-speaker review
+  'customers.status.withdrawn.title': 'This record has been deactivated',
+  // not translated — awaiting native-speaker review
+  'customers.status.withdrawn.body':
+    'It is still here and its history still stands — an order placed last year still names her. What changed is that an ordinary search no longer offers her, so nobody starts a new order against this record by accident.',
+  // not translated — awaiting native-speaker review
+  'customers.status.merged':
+    'This record was merged into another one, so it cannot be reactivated — a merge cannot be undone. Work on the record that survived.',
+  // not translated — awaiting native-speaker review
+  'customers.status.confirm.deactivate.title': 'Deactivate {name}’s record?',
+  // not translated — awaiting native-speaker review
+  'customers.status.confirm.deactivate.body':
+    'She stops appearing in an ordinary search, so nobody starts a new order against this record. Nothing is deleted: the record stays readable, her history stands, and you can reactivate it. To find her afterwards, tick “Include deactivated records” when you search.',
+  // not translated — awaiting native-speaker review
+  'customers.status.confirm.deactivate.action': 'deactivating this record',
+  // not translated — awaiting native-speaker review
+  'customers.status.confirm.reactivate.title': 'Reactivate {name}’s record?',
+  // not translated — awaiting native-speaker review
+  'customers.status.confirm.reactivate.body':
+    'She appears in ordinary search results again and can be used for a new order.',
+  // not translated — awaiting native-speaker review
+  'customers.status.confirm.reactivate.action': 'reactivating this record',
+  // not translated — awaiting native-speaker review
+  'customers.status.conflict':
+    'Somebody corrected this record while you were reading it, so this is not the record you looked at. Read it again and decide once more.',
+  // not translated — awaiting native-speaker review
+  'customers.status.already':
+    'Somebody else already did that. The record is where you wanted it, so there is nothing more to do.',
 }

@@ -20,4 +20,6 @@ export const CUSTOMERS_PERMISSIONS = {
   readConsent: 'customers.read_consent',
   /** Exporting a customer's personal data to answer a subject-access request. */
   export: 'customers.export',
+  /** Withdrawing a customer record from ordinary use, and returning one to it. */
+  deactivate: 'customers.deactivate',
 } as const

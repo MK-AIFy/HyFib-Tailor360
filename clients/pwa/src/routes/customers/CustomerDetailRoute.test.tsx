@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
@@ -273,6 +273,61 @@ it('starts a fresh history when the record changes underneath it', async () => {
   expect(screen.queryByText('Customer record corrected')).not.toBeInTheDocument()
   // The followed page is what would leak, so it is what this asserts is gone.
   expect(screen.queryByText('Priya was registered')).not.toBeInTheDocument()
+})
+
+/*
+ * The same in-place re-render, for the command surface rather than the history.
+ *
+ * What would leak here is the retry key. It is held so that pressing confirm again after a timeout
+ * replays the request rather than issuing a second one — correct within one record, and wrong the
+ * moment the record underneath changes: the next person deactivated with the same reason text would
+ * be sent under the previous person's key, and a server honouring that key is entitled to answer
+ * with the outcome it already stored for somebody else.
+ */
+it("does not carry one record's retry key over to the next record", async () => {
+  const SECOND = '0199cc00-0000-7000-8000-000000000002'
+  const REASON = 'Created in error'
+  transport.route('GET /api/v1/me', () =>
+    jsonResponse(aCurrentUser({ permissions: ['customers.read', 'customers.deactivate'] })),
+  )
+  transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
+    versionedResponse(aCustomer(), 'W/"1"'),
+  )
+  transport.route(`GET /api/v1/customers/${SECOND}`, () =>
+    versionedResponse(aCustomer({ customerId: SECOND, displayName: 'Anitha K' }), 'W/"1"'),
+  )
+  // The first command has to *fail*, because a succeeded one clears the key on its own. A key only
+  // survives when there is something left to retry.
+  const first = `POST /api/v1/customers/${CUSTOMER_ID}/deactivate`
+  const second = `POST /api/v1/customers/${SECOND}/deactivate`
+  transport.route(first, () => problemResponse(503, 'platform.unavailable'))
+  transport.route(second, () => versionedResponse(aCustomer({ customerId: SECOND }), 'W/"2"'))
+
+  const deactivate = async (reason: string) => {
+    await userEvent.click(screen.getByRole('button', { name: 'Deactivate this record' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Reason' }), reason)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Deactivate this record' }))
+  }
+
+  renderDetail(<GoToCustomer customerId={SECOND} />)
+  await screen.findByRole('heading', { name: 'Priya Selvam' })
+  await deactivate(REASON)
+  await waitFor(() => {
+    expect(transport.callsTo(first)).toHaveLength(1)
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'open the other customer' }))
+  await screen.findByRole('heading', { name: 'Anitha K' })
+  // The same words, which is exactly the case that used to collide.
+  await deactivate(REASON)
+  await waitFor(() => {
+    expect(transport.callsTo(second)).toHaveLength(1)
+  })
+
+  expect(transport.callsTo(second)[0]?.headers.get('Idempotency-Key')).not.toBe(
+    transport.callsTo(first)[0]?.headers.get('Idempotency-Key'),
+  )
 })
 
 it('has no accessibility violations', async () => {
