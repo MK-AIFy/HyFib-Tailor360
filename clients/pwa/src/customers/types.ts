@@ -23,6 +23,15 @@ export interface CustomerCard {
 export interface CustomerPage {
   readonly customers: readonly CustomerCard[]
   readonly nextCursor: string | null
+  /**
+   * Why the page is empty, when it is empty for a reason other than nobody matching.
+   *
+   * **Open-ended on purpose.** Today the only value is `customers.search-term-too-short`, and the
+   * server may add others without that being a breaking change. An unrecognised value means "empty,
+   * for a reason this build does not know" — which is still the truth, and still not "nobody
+   * matched". Never fall back to the empty state on one.
+   */
+  readonly refusal: string | null
 }
 
 /** A previous name, spelling or merged customer number held against a record. */

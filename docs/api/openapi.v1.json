@@ -2241,11 +2241,18 @@
               "null",
               "string"
             ]
+          },
+          "refusal": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "required": [
           "customers",
-          "nextCursor"
+          "nextCursor",
+          "refusal"
         ],
         "type": "object"
       },
@@ -24856,7 +24863,7 @@
     },
     "/api/v1/customers": {
       "get": {
-        "description": "Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters returns nothing rather than the whole customer list.",
+        "description": "Answers across the organisation. A record one of the caller's branches can see comes back in full; one it cannot comes back as a masked disambiguation card, which is enough to tell two people apart and not enough to be a contact list. A term shorter than three characters is not searched on: the page comes back empty with `refusal` set to `customers.search-term-too-short`, so an empty page carrying no `refusal` means nobody matched and only that. The set of `refusal` values is open-ended — read an unfamiliar one as \"empty for a reason\" rather than as nobody matching. A term that is absent or empty carries no `refusal`: it is not a question, and an empty page is the answer to one of those.",
         "operationId": "SearchCustomers",
         "parameters": [
           {

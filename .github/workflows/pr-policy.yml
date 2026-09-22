@@ -54,6 +54,8 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
           AUTHOR: ${{ github.event.pull_request.user.login }}
           AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
@@ -81,8 +83,16 @@ jobs:
           # nothing about what is in it is not reviewable either. Every constituent pull request was
           # held to all three on its way into `develop`, which is where the per-issue discipline
           # lives now.
+          #
+          # The head repository is part of the test, not decoration. A fork's branch may be named
+          # `develop` too, and from these two refs alone a pull request opened from one is
+          # indistinguishable from this repository's integration branch — which would hand an
+          # outside contributor both exemptions on a required check. The label job in this same
+          # file already guards this way.
           release_batch=0
-          if [ "$HEAD_REF" = "develop" ] && [ "$BASE_REF" = "main" ]; then
+          if [ "$HEAD_REF" = "develop" ] \
+            && [ "$BASE_REF" = "main" ] \
+            && [ "$HEAD_REPO" = "$THIS_REPO" ]; then
             release_batch=1
             echo "This is the develop -> main release batch; the single-issue and branch-name rules"
             echo "are scoped to feature pull requests and do not apply. The evidence checklist does."
@@ -155,8 +165,38 @@ jobs:
             echo "Other closing keywords ('Fixes', 'Resolves') are deliberately not accepted, so"
             echo "that the link reads the same way on every pull request."
           elif [ "$release_batch" -eq 1 ]; then
+            # The cardinality rule is exempt; the references themselves are not. A batch naming
+            # numbers that do not exist, or pull-request numbers, is exactly the textual match the
+            # comment above says is not traceability — and this is the pull request whose links
+            # matter most, because it is the one arriving at `main`.
+            #
+            # Openness is deliberately *not* required here, unlike the single-issue path. A batch
+            # legitimately names issues that it closes on merge and issues an earlier batch already
+            # closed, so demanding `open` would fail every release after the first.
             issue_verdict="pass"
-            echo "Linked issues: $(printf '%s' "$issues" | tr '\n' ' ')(release batch)"
+            batch_bad=""
+            for number in $issues; do
+              if linked=$(gh api "repos/$REPOSITORY/issues/$number" \
+                            --jq 'if .pull_request then "pull-request" else "issue" end' 2>/dev/null); then
+                if [ "$linked" != "issue" ]; then
+                  batch_bad="$batch_bad #$number(pull request)"
+                fi
+              else
+                batch_bad="$batch_bad #$number(not found)"
+              fi
+            done
+
+            if [ -n "$batch_bad" ]; then
+              failed=1
+              issue_verdict="fail"
+              issue_cell="bad references:$batch_bad"
+              echo "::error title=Release batch links something that is not an issue::$batch_bad"
+              echo "A batch may link several issues, but each one has to be an issue that exists."
+              echo "Numbers found:$batch_bad"
+            else
+              issue_cell="$issue_count issues (release batch)"
+              echo "Linked issues: $(printf '%s' "$issues" | tr '\n' ' ')(release batch)"
+            fi
           else
             failed=1
             echo "::error title=More than one linked issue::The pull-request body links $issue_count issues; exactly one is required."
