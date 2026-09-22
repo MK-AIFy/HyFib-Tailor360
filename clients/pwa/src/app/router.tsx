@@ -48,8 +48,8 @@ import { CustomerCreateRoute } from '../routes/customers/CustomerCreateRoute'
 import { CustomerDetailRoute } from '../routes/customers/CustomerDetailRoute'
 import { CustomerEditRoute } from '../routes/customers/CustomerEditRoute'
 import { CustomerConsentRoute } from '../routes/customers/CustomerConsentRoute'
+import { CustomersLayoutRoute } from '../routes/customers/CustomersLayoutRoute'
 import { CustomerMergeRoute } from '../routes/customers/CustomerMergeRoute'
-import { CustomerSearchRoute } from '../routes/customers/CustomerSearchRoute'
 import { MEASUREMENT_PERMISSIONS } from '../measurements/measurementsPermissions'
 import { MeasurementCompareRoute } from '../routes/measurements/MeasurementCompareRoute'
 import { MeasurementDraftRoute } from '../routes/measurements/MeasurementDraftRoute'
@@ -193,30 +193,36 @@ export const router = createBrowserRouter([
           { path: 'account/security', element: <SecurityRoute /> },
           { path: 'account/security/authenticator', element: <AuthenticatorEnrolmentRoute /> },
           { path: 'account/sessions', element: <SessionsRoute /> },
-          // Finding or registering a customer (#26, #182 unit 1). `customers/new` is declared before
-          // the dynamic `customers/:customerId` for a human reading the list top to bottom; react
-          // router's own ranking already prefers the static segment regardless of order.
+          // Finding a customer, and the record it opens (#26, #182 unit 1, #616).
+          //
+          // Nested on purpose, and this is the only nesting in the customer routes: a master-detail
+          // layout needs the list and the record rendered *at the same time*, which two sibling
+          // addresses replacing one another cannot do. `CustomersLayoutRoute` owns the arrangement
+          // and puts the record in its `Outlet`.
+          //
+          // `customers/new` stays a sibling rather than becoming a child, because registering
+          // somebody is a whole screen and not a pane — and it keeps winning against `:customerId`
+          // by react router's ranking, which prefers a static segment over a dynamic one. The test
+          // `renders the register form, not a record called "new"` is what holds that true, because
+          // the failure mode is a screen that tries to load a customer named after the route.
           {
             path: 'customers',
             element: (
               <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
-                <CustomerSearchRoute />
+                <CustomersLayoutRoute />
               </RequirePermission>
             ),
+            children: [
+              // Nothing selected: `MasterDetail` renders its own "choose one from the list".
+              { index: true, element: null },
+              { path: ':customerId', element: <CustomerDetailRoute /> },
+            ],
           },
           {
             path: 'customers/new',
             element: (
               <RequirePermission permission={CUSTOMERS_PERMISSIONS.create}>
                 <CustomerCreateRoute />
-              </RequirePermission>
-            ),
-          },
-          {
-            path: 'customers/:customerId',
-            element: (
-              <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
-                <CustomerDetailRoute />
               </RequirePermission>
             ),
           },

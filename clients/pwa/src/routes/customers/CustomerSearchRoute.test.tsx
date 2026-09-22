@@ -64,7 +64,9 @@ it('finds a customer and opens their record', async () => {
   await user.click(screen.getByRole('button', { name: 'Search' }))
 
   const link = await screen.findByRole('link', { name: /Priya Selvam, C-000123/ })
-  expect(link).toHaveAttribute('href', '/customers/0199cc00-0000-7000-8000-000000000001')
+  // The search travels with the link: this screen is the list pane of a master-detail layout, and a
+  // bare address would empty the list beside the record it just opened (#616).
+  expect(link).toHaveAttribute('href', '/customers/0199cc00-0000-7000-8000-000000000001?term=priya')
 })
 
 it('says a masked card is at another branch, and still offers to open it', async () => {

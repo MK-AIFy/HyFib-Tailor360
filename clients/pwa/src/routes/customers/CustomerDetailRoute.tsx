@@ -24,6 +24,14 @@ import './customers.css'
  * and merge screen (#584) and consent (#585) are separate units for the same reason: each is real
  * complexity of its own, and none of it is needed to answer "is this the record I found."
  *
+ * ## Why the person's name is an `h2`
+ *
+ * This screen is a *pane* as of #616, not a page: `CustomersLayoutRoute` renders it beside the
+ * search, whose `h1` is the page's. Two `h1`s on one screen would be two documents pretending to be
+ * one, and the outline a screen-reader user walks is the thing that tells them which pane they are
+ * in. The pane is a named landmark; the name inside it is the heading of a section of the page, and
+ * `Also known as` follows it at `h3`.
+ *
  * ## The history is a tab, and it is fetched when the tab is opened
  *
  * `Tabs` mounts only the selected panel, so opening "History" is what asks for the timeline. Its own
@@ -74,13 +82,12 @@ export function CustomerDetailRoute() {
 
   return (
     <section className="page customers">
-      <p>
-        <Link to="/customers">
-          <FormattedMessage id="customers.detail.back" />
-        </Link>
-      </p>
-
-      <h1>{customer.displayName}</h1>
+      {/*
+        No back link of its own as of #616. `MasterDetail` renders "Back to the list" when the two
+        panes cannot both be on screen, and when they can there is nothing to go back *to* — the list
+        is beside this. Two stacked back controls on a phone is what this looked like before.
+      */}
+      <h2>{customer.displayName}</h2>
       {customer.nativeName === null ? null : (
         <p className="customers__lede">{customer.nativeName}</p>
       )}
@@ -230,9 +237,9 @@ function RecordPanel({
 
       {customer.aliases.length === 0 ? null : (
         <>
-          <h2>
+          <h3>
             <FormattedMessage id="customers.detail.aliases" />
-          </h2>
+          </h3>
           <ul>
             {customer.aliases.map((alias) => (
               <li key={`${alias.kind}:${alias.value}`}>{alias.value}</li>

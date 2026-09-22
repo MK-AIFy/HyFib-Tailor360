@@ -43,7 +43,6 @@ export const customersEn = {
     "Only once you're sure this is somebody new — check the results above first.",
 
   /* Detail. ------------------------------------------------------------------------------------ */
-  'customers.detail.back': 'Back to customers',
   'customers.detail.loading': 'the customer record',
   'customers.detail.notFound': 'This record could not be found, or is not one you can reach.',
   'customers.detail.number': 'Customer number {number}',
@@ -200,6 +199,9 @@ export const customersEn = {
   'customers.preferences.save': 'Save how to reach her',
   'customers.preferences.saved': 'Saved.',
   'customers.preferences.offlineAction': 'Saving how to reach her',
+  'customers.layout.title': 'Customers',
+  'customers.layout.list': 'Customer search and results',
+  'customers.layout.detail': 'The customer record',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -243,7 +245,6 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.search.createNewHint':
     "Only once you're sure this is somebody new — check the results above first.",
   // not translated — awaiting native-speaker review
-  'customers.detail.back': 'Back to customers',
   // not translated — awaiting native-speaker review
   'customers.detail.loading': 'the customer record',
   // not translated — awaiting native-speaker review
@@ -509,4 +510,10 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   'customers.preferences.saved': 'Saved.',
   // not translated — awaiting native-speaker review
   'customers.preferences.offlineAction': 'Saving how to reach her',
+  // not translated — awaiting native-speaker review
+  // not translated — awaiting native-speaker review
+  'customers.layout.title': 'Customers',
+  'customers.layout.list': 'Customer search and results',
+  // not translated — awaiting native-speaker review
+  'customers.layout.detail': 'The customer record',
 }

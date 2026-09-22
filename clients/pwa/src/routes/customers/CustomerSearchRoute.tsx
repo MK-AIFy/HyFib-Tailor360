@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { Link } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { Alert } from '../../components/primitives/Alert'
 import { Button } from '../../components/primitives/Button'
@@ -11,7 +11,7 @@ import { StatusBadge } from '../../components/primitives/StatusBadge'
 import { TextField } from '../../design-system/components/forms/TextField'
 import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers/customersApi'
 import { customerStatusKind } from '../../customers/customerStatus'
-import type { CustomerCard } from '../../customers/types'
+import type { CustomerCard, CustomerPage } from '../../customers/types'
 import './customers.css'
 
 /**
@@ -37,41 +37,93 @@ import './customers.css'
 export function CustomerSearchRoute() {
   const intl = useIntl()
 
-  const [term, setTerm] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [tooShort, setTooShort] = useState(false)
-  const [failure, setFailure] = useState<unknown>(null)
-  const [results, setResults] = useState<readonly CustomerCard[] | null>(null)
-  const [truncated, setTruncated] = useState(false)
+  /*
+   * The search that has actually been made lives in the address, not in this component.
+   *
+   * Two reasons, and the second is the one that made it necessary. A search is a thing somebody
+   * should be able to reload, bookmark and send to a colleague — that is ordinary. But this screen
+   * is also the list pane of `CustomersLayoutRoute`, and when the panes cannot both fit,
+   * `MasterDetail` takes the list *out of the DOM* while the record is open. Anything held in
+   * component state dies there, so on a phone every record somebody opened used to cost them their
+   * search. The address survives the unmount; state does not.
+   */
+  const [params, setParams] = useSearchParams()
+  const committed = params.get('term') ?? ''
 
-  const search = async (): Promise<void> => {
+  const [term, setTerm] = useState(committed)
+  const [tooShort, setTooShort] = useState(false)
+  /**
+   * The answer, tagged with the term it answers.
+   *
+   * One piece of state rather than four, for `useAdminResource`'s reason: nothing is set
+   * synchronously in the effect body, so there is no cascading render on the way in, and "is it
+   * searching" is *derived* from whether the answer on hand is the one the address is asking for
+   * rather than tracked as a state that can disagree with it.
+   */
+  const [answer, setAnswer] = useState<{
+    readonly term: string
+    readonly page: CustomerPage | null
+    readonly failure: unknown
+  } | null>(null)
+
+  const submit = () => {
     const wanted = term.trim()
     if (wanted.length < CUSTOMER_SEARCH_MINIMUM_LENGTH) {
       setTooShort(true)
       return
     }
-
     setTooShort(false)
-    setSearching(true)
-    setFailure(null)
-
-    try {
-      const page = await searchCustomers(wanted)
-      setResults(page.customers)
-      setTruncated(page.nextCursor !== null)
-    } catch (cause: unknown) {
-      setFailure(cause)
-      setResults(null)
-    } finally {
-      setSearching(false)
-    }
+    // The effect below does the asking. Writing the address is the whole of the action, so a reload
+    // or a remount asks the same question rather than showing an empty screen.
+    setParams({ term: wanted }, { replace: true })
   }
+
+  // The read, once per committed term, cancelled if the term changes or the pane goes away. Written
+  // here rather than through `useAdminResource` because this one is conditional: a term shorter than
+  // the minimum is not a request, and a hook that always reads would have to be told to lie.
+  useEffect(() => {
+    if (committed.length < CUSTOMER_SEARCH_MINIMUM_LENGTH) {
+      return
+    }
+
+    const controller = new AbortController()
+    let cancelled = false
+
+    void searchCustomers(committed, controller.signal)
+      .then((page) => {
+        if (!cancelled) {
+          setAnswer({ term: committed, page, failure: null })
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled && !(cause instanceof DOMException && cause.name === 'AbortError')) {
+          setAnswer({ term: committed, page: null, failure: cause })
+        }
+      })
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [committed])
+
+  const asked = committed.length >= CUSTOMER_SEARCH_MINIMUM_LENGTH
+  const current = answer !== null && answer.term === committed ? answer : null
+  const searching = asked && current === null
+  const failure = current?.failure ?? null
+  const results = current?.page?.customers ?? null
+  const truncated = current?.page?.nextCursor !== undefined && current?.page?.nextCursor !== null
 
   return (
     <section className="page customers">
-      <h1>
+      {/*
+        An `h2`: this is a pane of the customers screen, not a page of its own, and
+        `CustomersLayoutRoute` owns the `h1` so that the outline is the same whether or not the
+        record is beside it (#616).
+      */}
+      <h2>
         <FormattedMessage id="customers.search.title" />
-      </h1>
+      </h2>
       <p className="customers__lede">
         <FormattedMessage id="customers.search.body" />
       </p>
@@ -81,7 +133,7 @@ export function CustomerSearchRoute() {
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          void search()
+          submit()
         }}
       >
         {/*
@@ -134,13 +186,13 @@ export function CustomerSearchRoute() {
         <>
           {/*
             A real heading, not an aria-label on the list: 1.3.1 and the heading-order rule both
-            want the document outline to say what this section is, and an h2 here is what lets each
-            result render as an h3 without skipping a level — the create-card below is the only
-            other h2 on the screen, so the two read as siblings under the page's own h1.
+            want the document outline to say what this section is, and an h3 here is what lets each
+            result render as an h4 without skipping a level — the create-card below is the only
+            other h3 in this pane, so the two read as siblings under the pane's own h2.
           */}
-          <h2>
+          <h3>
             <FormattedMessage id="customers.search.results" />
-          </h2>
+          </h3>
           <div className="customers__results" role="list">
             {results.map((card) => (
               <div key={card.customerId} role="listitem">
@@ -163,7 +215,7 @@ export function CustomerSearchRoute() {
             {intl.formatMessage({ id: 'customers.search.createNew' })}
           </Link>
         }
-        headingLevel={2}
+        headingLevel={3}
       >
         <p>
           <FormattedMessage id="customers.search.createNewHint" />
@@ -175,6 +227,15 @@ export function CustomerSearchRoute() {
 
 function ResultCard({ card }: { readonly card: CustomerCard }) {
   const intl = useIntl()
+  /*
+   * The record's address keeps the search that found it.
+   *
+   * Without this, opening a result navigates to a bare `/customers/<id>`, the committed term goes
+   * with it and the list beside the record empties — which is the same failure as losing the search
+   * on a phone, wearing a different hat. The search is in the address, so every link that stays on
+   * this screen has to carry it.
+   */
+  const { search } = useLocation()
 
   const label = card.visibleToCaller
     ? intl.formatMessage(
@@ -188,8 +249,8 @@ function ResultCard({ card }: { readonly card: CustomerCard }) {
 
   return (
     <Card
-      title={<Link to={`/customers/${card.customerId}`}>{label}</Link>}
-      headingLevel={3}
+      title={<Link to={{ pathname: `/customers/${card.customerId}`, search }}>{label}</Link>}
+      headingLevel={4}
       meta={<StatusBadge status={customerStatusKind(card.status)} />}
     >
       {card.visibleToCaller ? null : (
