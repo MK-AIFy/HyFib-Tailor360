@@ -140,14 +140,18 @@ it('shows an empty state for a record that does not exist, or is not one the cal
   ).toBeInTheDocument()
 })
 
-it('links back to the search screen', async () => {
+// The record is a pane as of #616, and the pane's own layout owns going back: `MasterDetail` offers
+// "Back to the list" when the two cannot both be on screen, and nothing when they can. A second back
+// control here put two of them on top of each other on a phone.
+it('has no back link of its own, because the layout owns going back', async () => {
   transport.route(`GET /api/v1/customers/${CUSTOMER_ID}`, () =>
     versionedResponse(aCustomer(), 'W/"1"'),
   )
   renderDetail()
 
-  const back = await screen.findByRole('link', { name: 'Back to customers' })
-  expect(back).toHaveAttribute('href', '/customers')
+  await screen.findByRole('heading', { name: 'Priya Selvam' })
+
+  expect(screen.queryByRole('link', { name: 'Back to customers' })).not.toBeInTheDocument()
 })
 
 it('offers the correction form to a caller who holds customers.update', async () => {

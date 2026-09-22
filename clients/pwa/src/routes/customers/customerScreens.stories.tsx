@@ -23,7 +23,9 @@ import { CUSTOMER_DUPLICATES_CODE, CUSTOMER_VERSION_CONFLICT_CODE } from '../../
 import { CustomerCreateRoute } from './CustomerCreateRoute'
 import { CustomerDetailRoute } from './CustomerDetailRoute'
 import { CustomerEditRoute } from './CustomerEditRoute'
+import { Route, Routes } from 'react-router'
 import { CustomerConsentRoute } from './CustomerConsentRoute'
+import { CustomersLayoutRoute } from './CustomersLayoutRoute'
 import { CustomerMergeRoute } from './CustomerMergeRoute'
 import { CustomerSearchRoute } from './CustomerSearchRoute'
 import './customers.css'
@@ -138,6 +140,53 @@ const detail = (routes: Parameters<typeof withAdminApi>[1]) =>
   )
 
 const TIMELINE = `GET ${CUSTOMERS}${CUSTOMER.customerId}/timeline`
+
+/**
+ * The nested routes the layout needs, as a descendant route tree.
+ *
+ * `withAdminApi` mounts one element at one path, and a master-detail layout needs a parent with a
+ * child — so the parent is mounted at a splat and brings its own `Routes`. That is the same shape
+ * `router.tsx` declares, one level deeper.
+ */
+function CustomersAt({ arrangement }: { readonly arrangement?: 'split' | 'stacked' }) {
+  return (
+    <Routes>
+      {/*
+        Relative, not `/customers`. These are *descendant* routes — mounted under a `/customers/*`
+        route — so they match against what is left of the address after that prefix, which is the
+        customer identifier alone. An absolute path here matches nothing and renders a blank screen,
+        which is exactly what it did before this comment existed.
+      */}
+      <Route
+        element={<CustomersLayoutRoute {...(arrangement === undefined ? {} : { arrangement })} />}
+        path="/"
+      >
+        <Route element={null} index />
+        <Route element={<CustomerDetailRoute />} path=":customerId" />
+      </Route>
+    </Routes>
+  )
+}
+
+const listAndRecord = (
+  arrangement: 'split' | 'stacked' | undefined,
+  at: string,
+  routes: Parameters<typeof withAdminApi>[1] = {},
+) =>
+  withAdminApi(
+    <RequirePermission permission={CUSTOMERS_PERMISSIONS.read}>
+      <CustomersAt {...(arrangement === undefined ? {} : { arrangement })} />
+    </RequirePermission>,
+    {
+      'GET /api/v1/me': () => storyJson(CUSTOMERS_USER),
+      'GET /api/v1/customers/?term=priya': () =>
+        storyJson({ customers: [aCustomerCard()], nextCursor: null }),
+      [`GET ${CUSTOMERS}${CUSTOMER.customerId}`]: () => storyJson(CUSTOMER, 'W/"1"'),
+      [TIMELINE]: () => storyJson(aTimelinePage()),
+      ...routes,
+    },
+    { path: '/customers/*', at },
+  )
 const DUPLICATES = `GET ${CUSTOMERS}${CUSTOMER.customerId}/duplicates`
 const DUPLICATES_AT = `/customers/${CUSTOMER.customerId}/duplicates`
 const FOLDED_ID = '0199cc00-0000-7000-8000-000000000002'
@@ -758,4 +807,57 @@ export const ConsentOffline: Story = { render: () => consent({}, false) }
 export const ConsentPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
   render: () => consent({}),
+}
+
+/* The list beside the record (#616) ---------------------------------------------------------------- */
+
+/**
+ * **The real behaviour: resize the preview and watch it change.**
+ *
+ * No arrangement is forced here, so `MasterDetail` measures its own container and decides — which is
+ * the thing worth looking at, because it is what the application actually does. Narrow, and the list
+ * and the record take turns; wide, and they sit side by side. Nothing reads an orientation or a user
+ * agent, so 1.3.4 cannot be broken by accident, and a desktop window dragged narrow behaves like the
+ * phone it is now the size of.
+ *
+ * This is why the layout exists at all. A receptionist is usually deciding *which* of two people is
+ * in front of them, and that decision is comparing a record against the rest of the list — which a
+ * screen that replaced the list with the record makes impossible without searching again.
+ */
+export const ListAndRecord: Story = {
+  render: () => listAndRecord(undefined, DETAIL_AT),
+}
+
+/**
+ * The split arrangement, forced.
+ *
+ * For reviewing the arrangement itself rather than the decision. **It is not a state the application
+ * can reach at a phone width** — `MasterDetail` would stack there, because two panes do not fit in
+ * 390 px — so a forced split narrower than about 768 px will overflow, and that is the story lying
+ * rather than the layout failing.
+ */
+export const ListAndRecordSplit: Story = {
+  render: () => listAndRecord('split', DETAIL_AT),
+}
+
+/** Nothing chosen yet: the detail pane says so rather than sitting empty. Search "priya". */
+export const ListAndRecordNothingSelected: Story = {
+  render: () => listAndRecord(undefined, '/customers'),
+}
+
+/**
+ * Narrow enough that both panes will not fit — a counter tablet in portrait, or a phone.
+ *
+ * One pane at a time, with a Back control that returns focus to the list. The arrangement is forced
+ * here; in the application it is decided by the measured width of the layout's own container, so the
+ * same tablet turned to landscape splits without anything reading an orientation.
+ */
+export const ListAndRecordStacked: Story = {
+  render: () => listAndRecord('stacked', DETAIL_AT),
+}
+
+/** The 40% growth tolerance across both panes at once, where the split is tightest. */
+export const ListAndRecordPseudoLocale: Story = {
+  globals: { locale: PSEUDO_LOCALE },
+  render: () => listAndRecord(undefined, DETAIL_AT),
 }
