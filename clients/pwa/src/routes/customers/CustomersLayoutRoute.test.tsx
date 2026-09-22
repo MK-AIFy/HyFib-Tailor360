@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -49,11 +49,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderCustomers(arrangement: MasterDetailArrangement) {
+function renderCustomers(arrangement: MasterDetailArrangement, at = '/customers?term=priya') {
   return render(
     <AppIntlProvider locale="en-IN">
       <SessionProvider>
-        <MemoryRouter initialEntries={['/customers']}>
+        <MemoryRouter initialEntries={[at]}>
           <Routes>
             <Route element={<CustomersLayoutRoute arrangement={arrangement} />} path="/customers">
               <Route element={null} index />
@@ -67,10 +67,15 @@ function renderCustomers(arrangement: MasterDetailArrangement) {
   )
 }
 
-/** Searches for "priya" and opens the one result. */
+/**
+ * Opens the one result of a search that is already in the address.
+ *
+ * The term is seeded through `initialEntries` rather than typed, because the address is where a
+ * committed search lives — that is the whole of the fix for the list pane being unmounted — and a
+ * test that types it would be testing React Router's transition scheduling rather than this screen.
+ * One test below does type it, to prove the form writes the address at all.
+ */
 async function findAndOpen() {
-  await userEvent.type(await screen.findByRole('searchbox', { name: 'Search' }), 'priya')
-  await userEvent.click(screen.getByRole('button', { name: 'Search' }))
   await userEvent.click(await screen.findByRole('link', { name: /Priya Selvam/ }))
 }
 
@@ -118,7 +123,7 @@ it('keeps the search term and the results when a record is opened', async () => 
 })
 
 it('says to choose somebody when nothing is selected yet', async () => {
-  renderCustomers('split')
+  renderCustomers('split', '/customers')
   await screen.findByRole('searchbox', { name: 'Search' })
 
   expect(screen.getByText('Choose an item from the list to see it here.')).toBeInTheDocument()
@@ -187,6 +192,26 @@ it('renders the register form, not a record called "new"', async () => {
   expect(transport.callsTo('GET /api/v1/customers/new')).toHaveLength(0)
 })
 
+// The form's whole action is writing the address; the effect does the asking. That is what makes a
+// reload, a shared link and a remounted list pane all ask the same question.
+it('commits the typed term to the address', async () => {
+  renderCustomers('split', '/customers')
+
+  await userEvent.type(await screen.findByRole('searchbox', { name: 'Search' }), 'priya')
+  await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+
+  await waitFor(() => {
+    expect(transport.callsTo(SEARCH)).toHaveLength(1)
+  })
+})
+
+it('runs a search that is already in the address, without being asked again', async () => {
+  renderCustomers('split')
+
+  expect(await screen.findByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
+  expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('priya')
+})
+
 it('has no accessibility violations when split', async () => {
   const { container } = renderCustomers('split')
   await findAndOpen()
@@ -201,12 +226,42 @@ it('has no accessibility violations when stacked', async () => {
   await expectNoAccessibilityViolations(container)
 })
 
-// Two `h1`s on one screen would be two documents pretending to be one. The search owns the page
-// heading; the record's name is a heading of a section within its own named landmark.
-it('has one page heading, with the record a level below it', async () => {
+// The layout owns the page heading, so the outline is the same in both arrangements. Two `h1`s would
+// be two documents pretending to be one; none at all — which is what a record alone on a phone had
+// before the layout owned it — is a section hanging off nothing.
+it('has one page heading, with both panes a level below it', async () => {
   renderCustomers('split')
   await findAndOpen()
 
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  expect(screen.getByRole('heading', { level: 1, name: 'Customers' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 2, name: 'Find a customer' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 2, name: 'Priya Selvam' })).toBeInTheDocument()
+})
+
+// The case the heading lived in the wrong place for: a record open on a narrow screen, where the
+// list pane — and the heading it used to carry — is not in the DOM at all.
+it('still has a page heading when the record is the only pane', async () => {
+  renderCustomers('stacked')
+  await findAndOpen()
+
+  expect(
+    screen.queryByRole('region', { name: 'Customer search and results' }),
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1, name: 'Customers' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 2, name: 'Priya Selvam' })).toBeInTheDocument()
+})
+
+// The acceptance criterion the split arrangement satisfies trivially and the stacked one does not:
+// `MasterDetail` removes the list pane from the DOM when the detail is open, so anything the search
+// held in component state dies with it. On a phone that is somebody searching again after every
+// record they look at — the exact thing this layout exists to stop.
+it('still has the search when the record is closed again on a narrow screen', async () => {
+  renderCustomers('stacked')
+  await findAndOpen()
+  await userEvent.click(screen.getByRole('button', { name: 'Back to the list' }))
+
+  const box = await screen.findByRole('searchbox', { name: 'Search' })
+  expect(box).toHaveValue('priya')
+  expect(await screen.findByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
 })

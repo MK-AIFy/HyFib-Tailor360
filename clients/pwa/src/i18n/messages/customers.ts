@@ -199,6 +199,7 @@ export const customersEn = {
   'customers.preferences.save': 'Save how to reach her',
   'customers.preferences.saved': 'Saved.',
   'customers.preferences.offlineAction': 'Saving how to reach her',
+  'customers.layout.title': 'Customers',
   'customers.layout.list': 'Customer search and results',
   'customers.layout.detail': 'The customer record',
 } as const
@@ -510,6 +511,8 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.preferences.offlineAction': 'Saving how to reach her',
   // not translated — awaiting native-speaker review
+  // not translated — awaiting native-speaker review
+  'customers.layout.title': 'Customers',
   'customers.layout.list': 'Customer search and results',
   // not translated — awaiting native-speaker review
   'customers.layout.detail': 'The customer record',

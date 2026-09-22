@@ -1,5 +1,5 @@
-import { useIntl } from 'react-intl'
-import { Outlet, useMatch, useNavigate } from 'react-router'
+import { FormattedMessage, useIntl } from 'react-intl'
+import { Outlet, useLocation, useMatch, useNavigate } from 'react-router'
 import { MasterDetail } from '../../components/layout/MasterDetail'
 import type { MasterDetailArrangement } from '../../components/layout/MasterDetail'
 import { CustomerSearchRoute } from './CustomerSearchRoute'
@@ -40,23 +40,44 @@ export function CustomersLayoutRoute({
 }) {
   const intl = useIntl()
   const navigate = useNavigate()
+  // Kept across the close, for the reason the result links keep it: the committed search lives in
+  // the address, so anything that navigates within this screen has to carry it or empty the list.
+  const { search } = useLocation()
 
   // The record's own address, and only it. The full-page addresses above are not children of this
   // route, so they do not match here and cannot open as a pane.
   const selected = useMatch('/customers/:customerId')
 
   return (
-    <MasterDetail
-      className="customers__masterDetail"
-      {...(arrangement === undefined ? {} : { arrangement })}
-      detail={selected === null ? undefined : <Outlet />}
-      detailLabel={intl.formatMessage({ id: 'customers.layout.detail' })}
-      detailOpen={selected !== null}
-      list={<CustomerSearchRoute />}
-      listLabel={intl.formatMessage({ id: 'customers.layout.list' })}
-      onCloseDetail={() => {
-        void navigate('/customers')
-      }}
-    />
+    <>
+      {/*
+        The screen's own heading, and the reason it is here rather than in either pane.
+        
+        A heading that lives in a pane is only on the page when that pane is. When the panes cannot
+        both fit and a record is open — a phone, a tablet in portrait, a shared link opened on
+        either — `MasterDetail` takes the list *out of the DOM*, and with it went the only `h1`: the
+        record's name was left as an `h2` under nothing. Owning it here makes the outline the same in
+        both arrangements, which is the only version of it that is true.
+        
+        Visually hidden because the navigation already says where somebody is, and a second "Customers"
+        above the panes would be chrome competing with the screen for the top of a phone.
+      */}
+      <h1 className="visually-hidden">
+        <FormattedMessage id="customers.layout.title" />
+      </h1>
+
+      <MasterDetail
+        className="customers__masterDetail"
+        {...(arrangement === undefined ? {} : { arrangement })}
+        detail={selected === null ? undefined : <Outlet />}
+        detailLabel={intl.formatMessage({ id: 'customers.layout.detail' })}
+        detailOpen={selected !== null}
+        list={<CustomerSearchRoute />}
+        listLabel={intl.formatMessage({ id: 'customers.layout.list' })}
+        onCloseDetail={() => {
+          void navigate({ pathname: '/customers', search })
+        }}
+      />
+    </>
   )
 }

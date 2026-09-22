@@ -823,9 +823,13 @@ export const ConsentPseudoLocale: Story = {
  * This is why the layout exists at all. A receptionist is usually deciding *which* of two people is
  * in front of them, and that decision is comparing a record against the rest of the list — which a
  * screen that replaced the list with the record makes impossible without searching again.
+ *
+ * The address carries `?term=priya`, which is where a committed search lives: that is what lets the
+ * results survive the list pane being unmounted when the panes cannot both fit, and what makes this
+ * screen something somebody can send to a colleague.
  */
 export const ListAndRecord: Story = {
-  render: () => listAndRecord(undefined, DETAIL_AT),
+  render: () => listAndRecord(undefined, `${DETAIL_AT}?term=priya`),
 }
 
 /**
@@ -837,7 +841,7 @@ export const ListAndRecord: Story = {
  * rather than the layout failing.
  */
 export const ListAndRecordSplit: Story = {
-  render: () => listAndRecord('split', DETAIL_AT),
+  render: () => listAndRecord('split', `${DETAIL_AT}?term=priya`),
 }
 
 /** Nothing chosen yet: the detail pane says so rather than sitting empty. Search "priya". */
@@ -853,11 +857,11 @@ export const ListAndRecordNothingSelected: Story = {
  * same tablet turned to landscape splits without anything reading an orientation.
  */
 export const ListAndRecordStacked: Story = {
-  render: () => listAndRecord('stacked', DETAIL_AT),
+  render: () => listAndRecord('stacked', `${DETAIL_AT}?term=priya`),
 }
 
 /** The 40% growth tolerance across both panes at once, where the split is tightest. */
 export const ListAndRecordPseudoLocale: Story = {
   globals: { locale: PSEUDO_LOCALE },
-  render: () => listAndRecord(undefined, DETAIL_AT),
+  render: () => listAndRecord(undefined, `${DETAIL_AT}?term=priya`),
 }
