@@ -259,6 +259,9 @@ export const customersEn = {
     'Somebody corrected this record while you were reading it, so this is not the record you looked at. Read it again and decide once more.',
   'customers.status.already':
     'Somebody else already did that. The record is where you wanted it, so there is nothing more to do.',
+  'customers.status.staleAfterCommand':
+    'That was done. This record could not be read again just now, so what is shown below may be out ' +
+    'of date — reload the page to see it as it stands.',
 } as const
 
 export const customersTa: Record<keyof typeof customersEn, string> = {
@@ -667,4 +670,8 @@ export const customersTa: Record<keyof typeof customersEn, string> = {
   // not translated — awaiting native-speaker review
   'customers.status.already':
     'Somebody else already did that. The record is where you wanted it, so there is nothing more to do.',
+  // not translated — awaiting native-speaker review
+  'customers.status.staleAfterCommand':
+    'That was done. This record could not be read again just now, so what is shown below may be out ' +
+    'of date — reload the page to see it as it stands.',
 }

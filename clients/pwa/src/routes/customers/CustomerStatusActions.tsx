@@ -45,11 +45,20 @@ export function CustomerStatusActions({
   customer,
   version,
   onChanged,
+  reloadFailure = null,
 }: {
   readonly customer: Customer
   /** The version the record was read at. The command is refused without it. */
   readonly version: string
   readonly onChanged: () => void
+  /**
+   * Why the record could not be re-read, when that is why it is still the old one.
+   *
+   * `useAdminResource` keeps the value it has and records the failure beside it, and the detail
+   * route does not render a failure while it still has a record to show. Without this the surface
+   * would wait forever for a version that is never coming.
+   */
+  readonly reloadFailure?: unknown
 }) {
   const intl = useIntl()
   const network = useNetworkState()
@@ -87,8 +96,22 @@ export function CustomerStatusActions({
 
   const withdrawn = customer.status !== 'Active'
   const merged = customer.mergedIntoCustomerId !== null
-  /** A command has been accepted and what is on screen is still the record from before it. */
-  const pending = settledAt !== null && settledAt === version
+  /** A command was accepted and what is on screen is still the record from before it. */
+  const waiting = settledAt !== null && settledAt === version
+  /*
+   * The reload that was supposed to end the wait did not arrive.
+   *
+   * The command itself went through — this is only the read afterwards. Saying so matters: the
+   * screen is now showing a record that is known to be out of date, and the person is entitled to
+   * know that rather than to read a stale status as current.
+   */
+  const staleAfterCommand = waiting && reloadFailure !== null
+  /*
+   * Inert only while there is still a reason to believe the record is about to arrive. Once the
+   * reload has failed, the surface comes back rather than staying busy forever — a control that can
+   * never be pressed again without reloading the page is worse than one that may be refused.
+   */
+  const pending = waiting && reloadFailure === null
 
   const send = (command: CustomerStatusCommand, reason: string) => {
     if (busy || pending) {
@@ -122,8 +145,25 @@ export function CustomerStatusActions({
         onChanged()
       })
       .catch((cause: unknown) => {
-        if (live.current) {
-          setFailure(cause)
+        if (!live.current) {
+          return
+        }
+
+        setFailure(cause)
+
+        /*
+         * A stale version is the one refusal the screen can do something about, and until now it
+         * did not: the message says to read the record again and decide once more, while the only
+         * way to read it again was to reload the page. Retrying from the open dialog sent the same
+         * superseded `If-Match` and was refused identically, forever.
+         *
+         * So close the dialog and ask for the record. The reason they typed goes with it, which is
+         * right rather than merely acceptable: the record they were deciding about is not the
+         * record that exists, so the decision has to be made again on what is actually there.
+         */
+        if (cause instanceof ApiError && cause.code === CUSTOMER_VERSION_CONFLICT_CODE) {
+          setAsking(null)
+          onChanged()
         }
       })
       .finally(() => {
@@ -165,6 +205,12 @@ export function CustomerStatusActions({
           title={intl.formatMessage({ id: 'customers.status.withdrawn.title' })}
         >
           <FormattedMessage id="customers.status.withdrawn.body" />
+        </Alert>
+      ) : null}
+
+      {staleAfterCommand ? (
+        <Alert live="polite" tone="warning">
+          <FormattedMessage id="customers.status.staleAfterCommand" />
         </Alert>
       ) : null}
 

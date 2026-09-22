@@ -206,6 +206,66 @@ it('re-asks at once when the filter is turned on after a search', async () => {
   expect(await screen.findByRole('link', { name: /Priya Selvam/ })).toBeInTheDocument()
 })
 
+/*
+ * The trap the immediate re-ask opened if it re-asked the wrong thing.
+ *
+ * Search "priya", then type over it without pressing Search, then tick the filter. Re-running the
+ * committed term would put results for "priya" under a box reading "anitha" — the same "screen says
+ * one thing, shows another" failure, and harder to spot, because the box looks right.
+ */
+it('re-asks what is in the box, not what was last committed', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null }),
+  )
+  transport.route('GET /api/v1/customers/?term=anitha&includeDeactivated=true', () =>
+    jsonResponse({
+      customers: [aCustomerCard({ displayName: 'Anitha K', status: 'Deactivated' })],
+      nextCursor: null,
+    }),
+  )
+  renderSearch()
+
+  const box = screen.getByRole('searchbox', { name: 'Search' })
+  await user.type(box, 'priya')
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+
+  // Typed over, deliberately without pressing Search.
+  await user.clear(box)
+  await user.type(box, 'anitha')
+  await user.click(screen.getByRole('checkbox', { name: 'Include deactivated records' }))
+
+  expect(await screen.findByRole('link', { name: /Anitha K/ })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /Priya Selvam/ })).not.toBeInTheDocument()
+  expect(
+    transport.callsTo('GET /api/v1/customers/?term=priya&includeDeactivated=true'),
+  ).toHaveLength(0)
+})
+
+// And a draft too short to run is refused rather than quietly re-running the old question.
+it('refuses the toggle when the box holds a term too short to search', async () => {
+  const user = userEvent.setup()
+  transport.route('GET /api/v1/customers/?term=priya', () =>
+    jsonResponse({ customers: [aCustomerCard()], nextCursor: null }),
+  )
+  renderSearch()
+
+  const box = screen.getByRole('searchbox', { name: 'Search' })
+  await user.type(box, 'priya')
+  await user.click(screen.getByRole('button', { name: 'Search' }))
+  await screen.findByRole('link', { name: /Priya Selvam/ })
+
+  await user.clear(box)
+  await user.type(box, 'an')
+  await user.click(screen.getByRole('checkbox', { name: 'Include deactivated records' }))
+
+  expect(await screen.findByText(/Type at least 3 characters/)).toBeInTheDocument()
+  expect(
+    transport.callsTo('GET /api/v1/customers/?term=priya&includeDeactivated=true'),
+  ).toHaveLength(0)
+})
+
 it('has no accessibility violations', async () => {
   const user = userEvent.setup()
   transport.route('GET /api/v1/customers/?term=priya', () =>

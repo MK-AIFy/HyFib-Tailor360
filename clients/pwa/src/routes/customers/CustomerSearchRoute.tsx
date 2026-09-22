@@ -107,9 +107,30 @@ export function CustomerSearchRoute() {
    */
   const toggleDeactivated = (on: boolean) => {
     setIncludeWithdrawn(on)
-    if (committed.length >= CUSTOMER_SEARCH_MINIMUM_LENGTH) {
-      ask(committed, on)
+
+    /*
+     * Re-asks what is *in the box*, not what was last committed.
+     *
+     * Those are the same thing until somebody edits the field without pressing Search, and then
+     * they are not: re-running the committed term would put results for the old question under the
+     * new one, which is the same "the screen says one thing and shows another" failure this
+     * immediate re-ask exists to prevent, only harder to spot because the box looks right.
+     */
+    const wanted = term.trim()
+
+    // Nothing typed and nothing asked: a checkbox on an empty screen has no question to re-ask, and
+    // complaining about the length of a term nobody has entered would be noise.
+    if (wanted.length === 0 && committed.length === 0) {
+      return
     }
+
+    if (wanted.length < CUSTOMER_SEARCH_MINIMUM_LENGTH) {
+      setTooShort(true)
+      return
+    }
+
+    setTooShort(false)
+    ask(wanted, on)
   }
 
   // The read, once per committed term, cancelled if the term changes or the pane goes away. Written
