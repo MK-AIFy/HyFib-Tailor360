@@ -340,8 +340,18 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
             .ShouldContain(found => found.CustomerId == customer.CustomerId);
     }
 
+    /// <summary>
+    /// The two ways of asking nothing, which are not the same thing and must not read alike.
+    /// </summary>
+    /// <remarks>
+    /// Nobody has typed anything: no question was asked, and an empty page is the honest answer.
+    /// Somebody has typed "ka": a question was asked that this search will not run, and answering it
+    /// with an empty page tells a receptionist that the person is not a customer here. That is a
+    /// wrong answer, and it is the kind that ends with the same person registered twice. Before
+    /// #617 both produced the same silent empty page.
+    /// </remarks>
     [Fact]
-    public async Task ASearchTooShortToMeanAnythingReturnsNothingRatherThanEverything()
+    public async Task ASearchTooShortIsRefusedWhileAnEmptyOneIsSimplyNotAQuestion()
     {
         Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
 
@@ -350,8 +360,29 @@ public sealed class CustomerEndpointTests(WebApplicationFixture fixture)
 
         (await CreateAsync(counter, Registration("cust-short"))).StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        (await SearchAsync(counter, "ka")).Customers.ShouldBeEmpty();
+        // Typed, but not enough of it: a refusal that names the minimum, not an empty page.
+        var refused = await counter.GetAsync("/api/v1/customers/?term=ka");
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        (await AuthenticationClient.CodeAsync(refused)).ShouldBe("customers.search-term-too-short");
+
+        // Nothing typed at all is not a refusal. She has not asked a question yet.
         (await SearchAsync(counter, string.Empty)).Customers.ShouldBeEmpty();
+    }
+
+    /// <summary>A term at exactly the minimum is run, not refused — the boundary, from the inside.</summary>
+    [Fact]
+    public async Task ASearchAtExactlyTheMinimumIsRun()
+    {
+        Assert.SkipUnless(DatabaseAvailability.IsAvailable, DatabaseAvailability.SkipReason);
+
+        await CustomerHarness.BranchAsync(fixture, FirstBranchId, FirstBranchCode);
+        using var counter = await CounterAsync("cust-min", "203.0.113.131", FirstBranchId);
+
+        (await CreateAsync(counter, Registration("cust-min"))).StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var response = await counter.GetAsync("/api/v1/customers/?term=kav");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     /// <summary>

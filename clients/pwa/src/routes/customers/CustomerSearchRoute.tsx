@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Link, useLocation, useSearchParams } from 'react-router'
+import { ApiError } from '../../auth/apiClient'
 import { AuthProblemAlert } from '../../auth/AuthProblemAlert'
 import { Alert } from '../../components/primitives/Alert'
 import { Button } from '../../components/primitives/Button'
@@ -10,7 +11,11 @@ import { LoadingState } from '../../components/states/LoadingState'
 import { StatusBadge } from '../../components/primitives/StatusBadge'
 import { Checkbox } from '../../design-system/components/forms/Checkbox'
 import { TextField } from '../../design-system/components/forms/TextField'
-import { CUSTOMER_SEARCH_MINIMUM_LENGTH, searchCustomers } from '../../customers/customersApi'
+import {
+  CUSTOMER_SEARCH_MINIMUM_LENGTH,
+  CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE,
+  searchCustomers,
+} from '../../customers/customersApi'
 import { customerStatusKind } from '../../customers/customerStatus'
 import type { CustomerCard, CustomerPage } from '../../customers/types'
 import './customers.css'
@@ -141,6 +146,17 @@ export function CustomerSearchRoute() {
     answer !== null && answer.term === committed && answer.withdrawn === withdrawn ? answer : null
   const searching = asked && current === null
   const failure = current?.failure ?? null
+  /*
+   * The server refusing the same thing the field pre-checks.
+   *
+   * It should not happen — the form does not submit a term this short — but it is reachable from a
+   * pasted or bookmarked address, and it is what a drift between the two minimums would look like.
+   * Rendering it as the field's own error rather than as a problem alert is what makes #182's
+   * criterion A true: the refusal reads the same wherever it came from, and it points at the field
+   * the person has to change rather than floating above the form as an unexplained failure.
+   */
+  const refusedAsTooShort =
+    failure instanceof ApiError && failure.code === CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE
   const results = current?.page?.customers ?? null
   const truncated = current?.page?.nextCursor !== undefined && current?.page?.nextCursor !== null
 
@@ -186,7 +202,7 @@ export function CustomerSearchRoute() {
             { minimum: CUSTOMER_SEARCH_MINIMUM_LENGTH },
           )}
           enterKeyHint="search"
-          {...(tooShort
+          {...(tooShort || refusedAsTooShort
             ? {
                 error: intl.formatMessage(
                   { id: 'customers.search.tooShort' },
@@ -222,7 +238,8 @@ export function CustomerSearchRoute() {
         </Button>
       </form>
 
-      <AuthProblemAlert failure={failure} />
+      {/* The too-short refusal is shown at the field, so it is not repeated here as a failure. */}
+      <AuthProblemAlert failure={refusedAsTooShort ? null : failure} />
 
       {searching && results === null ? (
         <LoadingState what={intl.formatMessage({ id: 'customers.search.loading' })} />

@@ -17,8 +17,22 @@ import type {
 
 const CUSTOMERS = '/api/v1/customers/'
 
-/** The server returns nothing for a shorter term rather than the whole customer list. */
+/**
+ * The shortest term the server will search on.
+ *
+ * Held equal to `CustomerSearchQuery.MinimumTermLength` by a contract test, which reads this line.
+ * It cannot be generated from the API document: `minLength` is a validation keyword and the
+ * generated types render the parameter as `string` either way. Change this and the server's
+ * constant together, or that test fails and says so.
+ *
+ * The screen pre-checks against it so that a term the server would refuse costs no round trip —
+ * being told what you could have been told locally is its own small insult — and renders the
+ * server's refusal in the same words when it meets one anyway.
+ */
 export const CUSTOMER_SEARCH_MINIMUM_LENGTH = 3
+
+/** The server's refusal of a term shorter than {@link CUSTOMER_SEARCH_MINIMUM_LENGTH}. */
+export const CUSTOMER_SEARCH_TERM_TOO_SHORT_CODE = 'customers.search-term-too-short'
 
 /**
  * Finds a customer by name, native name, customer number or the tail of a telephone number.
