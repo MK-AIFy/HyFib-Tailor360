@@ -64,16 +64,13 @@
       over ImageSharp (Six Labors' revenue-gated Split Licence) and Magick.NET (a much larger native
       footprint for what this adapter needs). It has no HEIF decoder, so HEIC uploads are refused
       rather than decoded; how HEIC is handled instead is #643. MIT-licensed. Referenced by
-      Integration.Infrastructure only (ARCH-009); the meta-package carries no native binaries of its own,
-      so every platform that actually decodes an image needs its own NativeAssets package alongside it —
-      Linux for the worker and web containers and continuous integration, Win32 and macOS for local
-      development, since the hosts run from the SDK on a developer machine rather than in a container
-      (infra/CLAUDE.md §1).
+      Integration.Infrastructure only (ARCH-009). For net10.0 the SkiaSharp package brings its Windows
+      and macOS native binaries itself; Linux — the worker and web containers, and continuous
+      integration — needs NativeAssets.Linux referenced explicitly, as the package's README says. The two
+      move in lockstep: a SkiaSharp update without the matching NativeAssets.Linux fails to load there.
     -->
     <PackageVersion Include="SkiaSharp" Version="4.152.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="4.152.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="4.152.1" />
   </ItemGroup>
 
   <ItemGroup Label="Validation and tooling">

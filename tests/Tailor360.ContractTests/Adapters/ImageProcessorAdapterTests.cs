@@ -17,6 +17,8 @@ namespace Tailor360.ContractTests.Adapters;
 [Trait("Category", "Contract")]
 public sealed class ImageProcessorAdapterTests
 {
+    private const string FakeSourceIccMarker = "FAKE-SOURCE-ICC-PROFILE-MARKER";
+
     private static readonly SKColor Red = new(255, 0, 0);
     private static readonly SKColor Green = new(0, 255, 0);
     private static readonly SKColor Blue = new(0, 0, 255);
@@ -27,7 +29,7 @@ public sealed class ImageProcessorAdapterTests
     // ---- Accepted: decoded, stripped and derived ----
 
     [Fact]
-    public async Task AcceptsAWellFormedJpegAndProducesAnOriginalThumbnailAndPreview()
+    public async Task AcceptsAWellFormedJpegAndProducesAnOriginalPreviewAndThumbnail()
     {
         var jpeg = EncodeSolidColour(2000, 1000, SKColors.SeaGreen, SKEncodedImageFormat.Jpeg);
 
@@ -35,14 +37,30 @@ public sealed class ImageProcessorAdapterTests
 
         result.Status.ShouldBe(ImageProcessingStatus.Accepted);
         var image = result.Image.ShouldNotBeNull();
+
+        // docs/nfr/capacity-and-performance.md §2.5: previews at 1,024 px and thumbnails at 256 px on the long edge.
         (image.Original.WidthPx, image.Original.HeightPx).ShouldBe((2000, 1000));
-        (image.Preview.WidthPx, image.Preview.HeightPx).ShouldBe((1600, 800));
-        (image.Thumbnail.WidthPx, image.Thumbnail.HeightPx).ShouldBe((320, 160));
-        foreach (var variant in new[] { image.Original, image.Preview, image.Thumbnail })
+        (image.Preview.WidthPx, image.Preview.HeightPx).ShouldBe((1024, 512));
+        (image.Thumbnail.WidthPx, image.Thumbnail.HeightPx).ShouldBe((256, 128));
+        foreach (var variant in Variants(image))
         {
             variant.ContentType.ShouldBe("image/jpeg");
             AssertIsJpegOf(variant);
         }
+    }
+
+    [Fact]
+    public async Task DownscalesAnOriginalLongerThanTheReEncodeTarget()
+    {
+        // capacity-and-performance.md §2.5 proposes storing originals at 2,400 px on the long edge (open decision CP-06).
+        var jpeg = EncodeSolidColour(3000, 1500, SKColors.SeaGreen, SKEncodedImageFormat.Jpeg);
+
+        var image = (await Process(jpeg, "image/jpeg")).Image.ShouldNotBeNull();
+
+        (image.Original.WidthPx, image.Original.HeightPx).ShouldBe((2400, 1200));
+        (image.Preview.WidthPx, image.Preview.HeightPx).ShouldBe((1024, 512));
+        (image.Thumbnail.WidthPx, image.Thumbnail.HeightPx).ShouldBe((256, 128));
+        AssertIsJpegOf(image.Original);
     }
 
     [Theory]
@@ -90,8 +108,7 @@ public sealed class ImageProcessorAdapterTests
         var result = await Process(withMetadata, "image/jpeg");
 
         result.Status.ShouldBe(ImageProcessingStatus.Accepted, "a photo carrying ordinary metadata is stripped, not refused");
-        var image = result.Image.ShouldNotBeNull();
-        foreach (var variant in new[] { image.Original, image.Preview, image.Thumbnail })
+        foreach (var variant in Variants(result.Image.ShouldNotBeNull()))
         {
             var output = Encoding.Latin1.GetString(variant.Bytes.Span);
             output.ShouldNotContain("Exif");
@@ -105,8 +122,9 @@ public sealed class ImageProcessorAdapterTests
 
     /// <summary>
     /// Tracks four coloured quadrants — red top-left, green top-right, blue bottom-left, yellow bottom-right — through
-    /// each EXIF orientation. Every one of the eight is a distinct arrangement, so this proves the transform for all of
-    /// them rather than only the common rotation. Expected corners follow the EXIF definition of each value.
+    /// each EXIF orientation, into every variant. Each of the eight is a distinct arrangement, so this proves the
+    /// transform for all of them, and proves the preview and thumbnail are cut from the oriented image rather than
+    /// the decoded one. Expected corners follow the EXIF definition of each value.
     /// </summary>
     [Theory]
     [InlineData(1, "RGBY")]
@@ -117,57 +135,134 @@ public sealed class ImageProcessorAdapterTests
     [InlineData(6, "BRYG")]
     [InlineData(7, "YGBR")]
     [InlineData(8, "GYRB")]
-    public async Task BakesEachExifOrientationIntoThePixels(int orientation, string expectedCorners)
+    public async Task BakesEachExifOrientationIntoEveryVariant(int orientation, string expectedCorners)
     {
-        var landscape = EncodeQuadrants(64, 32);
+        var landscape = EncodeQuadrants(2000, 1000);
         var tagged = SpliceAfterSoi(landscape, BuildExifOrientationSegment((ushort)orientation));
 
-        var original = (await Process(tagged, "image/jpeg")).Image.ShouldNotBeNull().Original;
+        var image = (await Process(tagged, "image/jpeg")).Image.ShouldNotBeNull();
 
         var turnsQuarter = orientation >= 5;
-        (original.WidthPx, original.HeightPx).ShouldBe(turnsQuarter ? (32, 64) : (64, 32));
-
-        // Sampled at each quadrant's centre, well inside JPEG's 16-pixel blocks, so lossy edges cannot decide it.
-        using var decoded = SKBitmap.Decode(original.Bytes.ToArray());
-        var (w, h) = (decoded.Width, decoded.Height);
-        var corners = string.Concat(
-            Classify(decoded.GetPixel(w / 4, h / 4)),
-            Classify(decoded.GetPixel(3 * w / 4, h / 4)),
-            Classify(decoded.GetPixel(w / 4, 3 * h / 4)),
-            Classify(decoded.GetPixel(3 * w / 4, 3 * h / 4)));
-        corners.ShouldBe(expectedCorners, $"orientation {orientation}: top-left, top-right, bottom-left, bottom-right");
+        (image.Original.WidthPx, image.Original.HeightPx).ShouldBe(turnsQuarter ? (1000, 2000) : (2000, 1000));
+        (image.Preview.WidthPx, image.Preview.HeightPx).ShouldBe(turnsQuarter ? (512, 1024) : (1024, 512));
+        (image.Thumbnail.WidthPx, image.Thumbnail.HeightPx).ShouldBe(turnsQuarter ? (128, 256) : (256, 128));
+        foreach (var variant in Variants(image))
+        {
+            Corners(variant).ShouldBe(
+                expectedCorners, $"orientation {orientation}, {variant.WidthPx}x{variant.HeightPx}: TL, TR, BL, BR");
+        }
     }
 
     [Fact]
-    public async Task FlattensTransparencyOntoWhiteRatherThanBlack()
+    public async Task FlattensTransparencyOntoWhiteInEveryVariant()
     {
         // JPEG has no alpha channel, and Skia's encoder writes a transparent pixel as black: an unflattened transparent
-        // reference image (a garment cut-out, say) would come back as a black rectangle.
-        var transparent = EncodeSolidColour(40, 40, SKColors.Transparent, SKEncodedImageFormat.Png);
+        // reference image (a garment cut-out, say) would come back as a black rectangle. Large enough that the preview
+        // and thumbnail are resized from the flattened image, not reused.
+        var transparent = EncodeSolidColour(2000, 2000, SKColors.Transparent, SKEncodedImageFormat.Png);
 
-        var original = (await Process(transparent, "image/png")).Image.ShouldNotBeNull().Original;
+        var image = (await Process(transparent, "image/png")).Image.ShouldNotBeNull();
 
-        using var decoded = SKBitmap.Decode(original.Bytes.ToArray());
-        var pixel = decoded.GetPixel(20, 20);
-        pixel.Red.ShouldBeGreaterThan((byte)240);
-        pixel.Green.ShouldBeGreaterThan((byte)240);
-        pixel.Blue.ShouldBeGreaterThan((byte)240);
+        image.Thumbnail.ShouldNotBeSameAs(image.Original);
+        foreach (var variant in Variants(image))
+        {
+            using var decoded = SKBitmap.Decode(variant.Bytes.ToArray());
+            var pixel = decoded.GetPixel(decoded.Width / 2, decoded.Height / 2);
+            (pixel.Red, pixel.Green, pixel.Blue).ShouldBe(((byte)255, (byte)255, (byte)255), $"{variant.WidthPx} px variant");
+        }
     }
 
     [Fact]
     public async Task DecodesAGrayscaleJpegAndStillAppliesItsOrientation()
     {
-        // A single-component JPEG decodes to a colour type a canvas cannot always draw into; the adapter decodes
-        // everything into one canonical layout first, which this proves by rotating one.
         var grayscale = EncodeGrayscaleHalves(32, 16);
-        var tagged = SpliceAfterSoi(grayscale, BuildExifOrientationSegment(orientation: 6));
+        using (var codec = SKCodec.Create(new MemoryStream(grayscale)))
+        {
+            codec.Info.ColorType.ShouldBe(SKColorType.Gray8, "the premise: a genuine single-component JPEG");
+        }
 
+        var tagged = SpliceAfterSoi(grayscale, BuildExifOrientationSegment(orientation: 6));
         var original = (await Process(tagged, "image/jpeg")).Image.ShouldNotBeNull().Original;
 
         (original.WidthPx, original.HeightPx).ShouldBe((16, 32));
         using var decoded = SKBitmap.Decode(original.Bytes.ToArray());
         decoded.GetPixel(8, 4).Red.ShouldBeLessThan((byte)60, "the source's dark left half becomes the top");
         decoded.GetPixel(8, 28).Red.ShouldBeGreaterThan((byte)200, "and its light right half the bottom");
+    }
+
+    [Fact]
+    public async Task ConvertsAWideGamutSourceIntoSrgb()
+    {
+        // A Display P3 photograph — what a recent phone camera writes — carries its own ICC profile. The adapter decodes
+        // into sRGB, so the source's profile governs the conversion and never reaches an output.
+        var displayP3 = EncodeDisplayP3Red(64, 64);
+        using (var codec = SKCodec.Create(new MemoryStream(displayP3)))
+        {
+            codec.Info.ColorSpace.ShouldNotBeNull();
+            codec.Info.ColorSpace.IsSrgb.ShouldBeFalse("the premise: the input really is tagged as another colour space");
+        }
+
+        var image = (await Process(displayP3, "image/jpeg")).Image.ShouldNotBeNull();
+
+        foreach (var variant in Variants(image))
+        {
+            using var codec = SKCodec.Create(new MemoryStream(variant.Bytes.ToArray()));
+            codec.Info.ColorSpace.ShouldNotBeNull();
+            codec.Info.ColorSpace.IsSrgb.ShouldBeTrue();
+        }
+    }
+
+    [Fact]
+    public void DropsTheAncillaryPngChunksThatCannotChangeAPixel()
+    {
+        // Text chunks above all: libpng inflates every compressed one it is handed, about 13 ms of uncancellable work
+        // each, and a thousand fit under the upload cap. Pixel-affecting ones stay, but only the first of each.
+        var png = BuildPng(
+            ("IHDR", Ihdr(1, 1)),
+            ("tEXt", "Comment\0hello"u8.ToArray()),
+            ("gAMA", [0x00, 0x00, 0xB1, 0x8F]),
+            ("zTXt", [.. "Comment\0"u8.ToArray(), 0, .. ZlibCompress(new byte[100_000])]),
+            ("sRGB", [0]),
+            ("sRGB", [0]),
+            ("pHYs", new byte[9]),
+            ("IDAT", ZlibCompress([0, 10, 20, 30])),
+            ("iTXt", [.. "Comment\0"u8.ToArray(), 0, 0, 0, 0, .. "late text"u8.ToArray()]),
+            ("IEND", []));
+
+        var filtered = SkiaImageProcessor.WithoutInertPngChunks(new ArraySegment<byte>(png));
+
+        ChunkTypes(filtered).ShouldBe(["IHDR", "gAMA", "sRGB", "IDAT", "IEND"]);
+    }
+
+    [Fact]
+    public void LeavesAPngWithNothingToDropUntouched()
+    {
+        var png = BuildPng(("IHDR", Ihdr(1, 1)), ("gAMA", [0x00, 0x00, 0xB1, 0x8F]), ("IDAT", ZlibCompress([0, 1, 2, 3])), ("IEND", []));
+
+        var filtered = SkiaImageProcessor.WithoutInertPngChunks(new ArraySegment<byte>(png));
+
+        filtered.Array.ShouldBeSameAs(png, "no copy is made when there is nothing to drop");
+    }
+
+    [Fact]
+    public async Task AcceptsAPngCarryingCompressedTextChunksWithoutInflatingThem()
+    {
+        var textBomb = BuildPngWithCompressedTextChunks(chunkCount: 20, inflatedBytesPerChunk: 7_900_000);
+
+        var result = await Process(textBomb, "image/png");
+
+        result.Status.ShouldBe(ImageProcessingStatus.Accepted, "the text chunks are dropped; the 1x1 image itself is fine");
+    }
+
+    [Fact]
+    public async Task StillReportsATruncatedPngAsTruncatedAfterDroppingItsTextChunks()
+    {
+        var png = EncodeNoise(64, 64, SKEncodedImageFormat.Png);
+        var withText = SplicePngChunkAfterIhdr(png, "tEXt", "Comment\0hello"u8.ToArray());
+
+        var result = await Process(withText[..(withText.Length * 6 / 10)], "image/png");
+
+        result.RejectionReason.ShouldBe(ImageRejectionReason.Truncated);
     }
 
     // ---- Rejected: each for a reason the caller can tell apart ----
@@ -200,9 +295,37 @@ public sealed class ImageProcessorAdapterTests
     [Fact]
     public async Task RejectsAJpegWithARealZipArchiveAppended()
     {
-        var polyglot = EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg)
-            .Concat(BuildZipArchive("payload.txt", "not really a picture"))
-            .ToArray();
+        var polyglot = SmallJpeg().Concat(BuildZipArchive("payload.txt", "not really a picture")).ToArray();
+
+        var result = await Process(polyglot, "image/jpeg");
+
+        result.RejectionReason.ShouldBe(ImageRejectionReason.PolyglotContent);
+    }
+
+    [Fact]
+    public async Task RejectsAnAppendedZipThatOnlyItsAbsoluteDirectoryOffsetLocates()
+    {
+        // .NET's ZipArchive and Info-ZIP seek to the offset the end record states and ignore its size field, so an
+        // archive with offsets rewritten to be absolute and a zeroed size still opens in them.
+        var jpeg = SmallJpeg();
+        var polyglot = jpeg.Concat(BuildZipArchive("payload.txt", "not really a picture")).ToArray();
+        var endRecord = polyglot.Length - 22;
+        var offset = BinaryPrimitives.ReadUInt32LittleEndian(polyglot.AsSpan(endRecord + 16, 4));
+        BinaryPrimitives.WriteUInt32LittleEndian(polyglot.AsSpan(endRecord + 16, 4), offset + (uint)jpeg.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(polyglot.AsSpan(endRecord + 12, 4), 0);
+
+        var result = await Process(polyglot, "image/jpeg");
+
+        result.RejectionReason.ShouldBe(ImageRejectionReason.PolyglotContent);
+    }
+
+    [Fact]
+    public async Task RejectsAnAppendedZip64EndRecord()
+    {
+        // A ZIP64 archive leaves its classic end record's fields at 0xFFFF…; the locator just before it is the shape.
+        byte[] locator = [.. "PK\x06\x07"u8.ToArray(), .. new byte[16]];
+        byte[] endRecord = [.. "PK\x05\x06"u8.ToArray(), .. Enumerable.Repeat((byte)0xFF, 16), 0, 0];
+        var polyglot = SmallJpeg().Concat(locator).Concat(endRecord).ToArray();
 
         var result = await Process(polyglot, "image/jpeg");
 
@@ -212,21 +335,26 @@ public sealed class ImageProcessorAdapterTests
     [Fact]
     public async Task AcceptsAJpegWhoseCommentMerelyContainsZipSignatures()
     {
-        // The false positive a bare four-byte scan produced about once per 700 three-megabyte photographs: ZIP's
-        // signatures with no archive structure around them are not a ZIP any reader would open.
-        var comment = BuildJpegSegment(0xFE, [.. "PK\x03\x04"u8.ToArray(), .. "PK\x05\x06"u8.ToArray(), .. new byte[18]]);
-        var jpeg = SpliceAfterSoi(EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg), comment);
+        // The false positive a bare four-byte scan produced about once per 700 three-megabyte photographs. The end-record
+        // candidate's size field points four bytes back — at a local-file signature, not a central-directory one — and
+        // its offset field at the start of the file, so both structural comparisons run and both fail.
+        byte[] payload = [.. "PK\x03\x04"u8.ToArray(), .. "PK\x05\x06"u8.ToArray(), .. new byte[8], 4, 0, 0, 0, .. new byte[6]];
+        var jpeg = SpliceAfterSoi(SmallJpeg(), BuildJpegSegment(0xFE, payload));
 
         var result = await Process(jpeg, "image/jpeg");
 
         result.Status.ShouldBe(ImageProcessingStatus.Accepted);
     }
 
-    [Fact]
-    public async Task RejectsAPdfHeaderWhereAPdfReaderWouldFindIt()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1018)]
+    public async Task RejectsAPdfHeaderWhereAPdfReaderWouldFindIt(int padding)
     {
-        var comment = BuildJpegSegment(0xFE, "%PDF-1.7\n1 0 obj << >> endobj\n"u8.ToArray());
-        var polyglot = SpliceAfterSoi(EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg), comment);
+        // The comment segment's payload starts at byte 6, so padding 1018 puts the header at byte 1024 — the last
+        // offset PDFium accepts.
+        var comment = BuildJpegSegment(0xFE, [.. new byte[padding], .. "%PDF-1.7\n1 0 obj << >> endobj\n"u8.ToArray()]);
+        var polyglot = SpliceAfterSoi(SmallJpeg(), comment);
 
         var result = await Process(polyglot, "image/jpeg");
 
@@ -237,18 +365,22 @@ public sealed class ImageProcessorAdapterTests
     public async Task AcceptsAPdfMarkerFarBeyondWhereAPdfReaderLooks()
     {
         var comment = BuildJpegSegment(0xFE, [.. new byte[2000], .. "%PDF-1.7"u8.ToArray()]);
-        var jpeg = SpliceAfterSoi(EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg), comment);
+        var jpeg = SpliceAfterSoi(SmallJpeg(), comment);
 
         var result = await Process(jpeg, "image/jpeg");
 
         result.Status.ShouldBe(ImageProcessingStatus.Accepted);
     }
 
-    [Fact]
-    public async Task RejectsScriptBearingMarkupNearTheStartWhateverItsCase()
+    [Theory]
+    [InlineData("<SCRIPT>alert(document.cookie)</SCRIPT>")]
+    [InlineData("<Html><body>")]
+    [InlineData("<iFrame src=x>")]
+    [InlineData("<SVG onload=x>")]
+    [InlineData("<!DOCTYPE HTML>")]
+    public async Task RejectsScriptBearingMarkupNearTheStartWhateverItsCase(string markup)
     {
-        var comment = BuildJpegSegment(0xFE, "<SCRIPT>alert(document.cookie)</SCRIPT>"u8.ToArray());
-        var polyglot = SpliceAfterSoi(EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg), comment);
+        var polyglot = SpliceAfterSoi(SmallJpeg(), BuildJpegSegment(0xFE, Encoding.ASCII.GetBytes(markup)));
 
         var result = await Process(polyglot, "image/jpeg");
 
@@ -256,11 +388,23 @@ public sealed class ImageProcessorAdapterTests
     }
 
     [Fact]
+    public async Task AcceptsMarkupFarBeyondWhereABrowserSniffs()
+    {
+        // Scanning the whole file for markup would reject real photographs: a short tag occurs by chance in megabytes.
+        var comment = BuildJpegSegment(0xFE, [.. new byte[2000], .. "<svg onload=x>"u8.ToArray()]);
+        var jpeg = SpliceAfterSoi(SmallJpeg(), comment);
+
+        var result = await Process(jpeg, "image/jpeg");
+
+        result.Status.ShouldBe(ImageProcessingStatus.Accepted);
+    }
+
+    [Fact]
     public async Task RejectsAPhpOpenTagAnywhereInTheFile()
     {
         // Deliberately past the markup window: PHP runs an open tag wherever it sits in an included file.
         var comment = BuildJpegSegment(0xFE, [.. new byte[4000], .. "<?PHP echo 1; ?>"u8.ToArray()]);
-        var polyglot = SpliceAfterSoi(EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg), comment);
+        var polyglot = SpliceAfterSoi(SmallJpeg(), comment);
 
         var result = await Process(polyglot, "image/jpeg");
 
@@ -305,8 +449,10 @@ public sealed class ImageProcessorAdapterTests
     }
 
     [Fact]
-    public async Task RejectsATruncatedFileRatherThanPartiallyDecodingIt()
+    public async Task RejectsAStreamThatEndsBeforeDecodingFinishes()
     {
+        // Only a stream that runs out: a JPEG whose scan data is cut but followed by an end marker is, by libjpeg's
+        // rules, a warning — it is grey-filled and accepted (see SkiaImageProcessor's remarks).
         var jpeg = EncodeSolidColour(800, 600, SKColors.Purple, SKEncodedImageFormat.Jpeg);
 
         var result = await Process(jpeg[..(jpeg.Length - 200)], "image/jpeg");
@@ -315,22 +461,48 @@ public sealed class ImageProcessorAdapterTests
     }
 
     [Fact]
-    public async Task RejectsGarbageBytesBehindAValidLeadingSignature()
+    public async Task RejectsAJpegCutOffInsideItsHeaderAsTruncated()
     {
+        // Cut before the frame header is complete, so the codec cannot even be opened — the other truncation path.
+        var jpeg = EncodeSolidColour(800, 600, SKColors.Purple, SKEncodedImageFormat.Jpeg);
+
+        var result = await Process(jpeg[..100], "image/jpeg");
+
+        result.RejectionReason.ShouldBe(ImageRejectionReason.Truncated);
+    }
+
+    [Fact]
+    public async Task RejectsAJpegWithAnImpossibleFrameHeaderAsMalformed()
+    {
+        // Every byte present, but a frame header declaring zero colour components: libjpeg calls that an error, not
+        // missing input. (A corrupt PNG cannot be used here — Skia reports every libpng error as incomplete input.)
+        var jpeg = SmallJpeg();
+        var frameHeader = jpeg.AsSpan().IndexOf((ReadOnlySpan<byte>)[0xFF, 0xC0]);
+        frameHeader.ShouldBeGreaterThan(0, "the premise: a baseline frame header to corrupt");
+        jpeg[frameHeader + 9] = 0;
+
+        var result = await Process(jpeg, "image/jpeg");
+
+        result.RejectionReason.ShouldBe(ImageRejectionReason.Malformed);
+    }
+
+    [Fact]
+    public async Task RejectsGarbageBytesBehindAValidLeadingSignatureAsTruncated()
+    {
+        // libjpeg skips the zeros looking for the next marker and runs out of input doing it — so this is reported as
+        // truncated, deliberately pinned here rather than left to either of two answers.
         var garbage = new byte[] { 0xFF, 0xD8, 0xFF }.Concat(Enumerable.Repeat((byte)0x00, 300)).ToArray();
 
         var result = await Process(garbage, "image/jpeg");
 
-        result.Status.ShouldBe(ImageProcessingStatus.Rejected);
-        (result.RejectionReason is ImageRejectionReason.Malformed or ImageRejectionReason.Truncated)
-            .ShouldBeTrue("a signature followed by nothing decodable is corrupt or cut short, never accepted");
+        result.RejectionReason.ShouldBe(ImageRejectionReason.Truncated);
     }
 
     [Fact]
     public async Task RefusesHeicAsUnsupportedWithoutHandingItToAnyDecoder()
     {
-        // SkiaSharp has no HEIF decoder on any platform (mono/SkiaSharp#2887, #1700; confirmed on Windows and in the
-        // Linux worker image), so HEIC is refused by name. How HEIC should be handled instead is #643.
+        // SkiaSharp has no HEIF decoder on any platform (mono/SkiaSharp#2887, #1700; confirmed on Windows and in a Linux
+        // container), so HEIC is refused by name. How HEIC should be handled instead is #643.
         var result = await Process(BuildMinimalHeicContainer(), "image/heic");
 
         result.RejectionReason.ShouldBe(ImageRejectionReason.UnsupportedFormat);
@@ -354,14 +526,12 @@ public sealed class ImageProcessorAdapterTests
     }
 
     [Fact]
-    public async Task PropagatesCancellationRatherThanReportingARejection()
+    public async Task PropagatesCancellationRequestedBeforeProcessingRatherThanRejecting()
     {
-        // A cancelled or failed run says nothing about the file, so it must not come back as a rejection — a
-        // rejection is final, and the caller would never retry a valid photo.
-        var jpeg = EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg);
-
+        // Proves only the check before processing starts; the checks between decode and each encode are single
+        // statements with nothing in them to test without a seam, and are verified by inspection.
         var exception = await Record.ExceptionAsync(
-            () => new SkiaImageProcessor().ProcessAsync(new MemoryStream(jpeg), "image/jpeg", new CancellationToken(canceled: true)));
+            () => new SkiaImageProcessor().ProcessAsync(new MemoryStream(SmallJpeg()), "image/jpeg", new CancellationToken(canceled: true)));
 
         exception.ShouldBeAssignableTo<OperationCanceledException>();
     }
@@ -375,11 +545,25 @@ public sealed class ImageProcessorAdapterTests
         return result.Value;
     }
 
+    private static ProcessedImageVariant[] Variants(ProcessedImage image) => [image.Original, image.Preview, image.Thumbnail];
+
     private static void AssertIsJpegOf(ProcessedImageVariant variant)
     {
         variant.Bytes.Span[..3].ToArray().ShouldBe([0xFF, 0xD8, 0xFF]);
         using var decoded = SKBitmap.Decode(variant.Bytes.ToArray());
         (decoded.Width, decoded.Height).ShouldBe((variant.WidthPx, variant.HeightPx), "reported dimensions match the bytes");
+    }
+
+    /// <summary>The colour at each quadrant's centre — top-left, top-right, bottom-left, bottom-right — as R, G, B or Y.</summary>
+    private static string Corners(ProcessedImageVariant variant)
+    {
+        using var decoded = SKBitmap.Decode(variant.Bytes.ToArray());
+        var (w, h) = (decoded.Width, decoded.Height);
+        return string.Concat(
+            Classify(decoded.GetPixel(w / 4, h / 4)),
+            Classify(decoded.GetPixel(3 * w / 4, h / 4)),
+            Classify(decoded.GetPixel(w / 4, 3 * h / 4)),
+            Classify(decoded.GetPixel(3 * w / 4, 3 * h / 4)));
     }
 
     private static char Classify(SKColor pixel)
@@ -391,16 +575,29 @@ public sealed class ImageProcessorAdapterTests
             + Math.Pow(pixel.Blue - reference.Colour.Blue, 2)).Name;
     }
 
+    private static string[] ChunkTypes(ArraySegment<byte> png)
+    {
+        var types = new List<string>();
+        var bytes = png.AsSpan();
+        for (var at = 8; at + 8 <= bytes.Length;)
+        {
+            var length = (int)BinaryPrimitives.ReadUInt32BigEndian(bytes.Slice(at, 4));
+            types.Add(Encoding.ASCII.GetString(bytes.Slice(at + 4, 4)));
+            at += 12 + length;
+        }
+
+        return [.. types];
+    }
+
     // ---- Fixture construction ----
 
-    private const string FakeSourceIccMarker = "FAKE-SOURCE-ICC-PROFILE-MARKER";
+    private static byte[] SmallJpeg() => EncodeSolidColour(200, 200, SKColors.Gray, SKEncodedImageFormat.Jpeg);
 
     private static byte[] EncodeSolidColour(int width, int height, SKColor colour, SKEncodedImageFormat format)
     {
         using var bitmap = new SKBitmap(width, height);
         bitmap.Erase(colour);
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(format, 90);
+        using var data = bitmap.Encode(format, 90);
         return data.ToArray();
     }
 
@@ -418,8 +615,7 @@ public sealed class ImageProcessorAdapterTests
             }
         }
 
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 100);
+        using var data = bitmap.Encode(SKEncodedImageFormat.Jpeg, 100);
         return data.ToArray();
     }
 
@@ -437,8 +633,39 @@ public sealed class ImageProcessorAdapterTests
         }
 
         Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 100);
+        using var data = bitmap.Encode(SKEncodedImageFormat.Jpeg, 100);
+        return data.ToArray();
+    }
+
+    /// <summary>Pure Display P3 red, written raw into a P3-tagged bitmap, so the JPEG embeds a real P3 ICC profile.</summary>
+    private static byte[] EncodeDisplayP3Red(int width, int height)
+    {
+        var displayP3 = SKColorSpace.CreateRgb(SKColorSpaceTransferFn.Srgb, SKColorSpaceXyz.DisplayP3);
+        using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul, displayP3));
+        var pixels = new byte[bitmap.RowBytes * height];
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            (pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]) = ((byte)255, (byte)0, (byte)0, (byte)255);
+        }
+
+        Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
+        using var data = bitmap.Encode(SKEncodedImageFormat.Jpeg, 100);
+        return data.ToArray();
+    }
+
+    /// <summary>Deterministic noise, so the encoded file has a large pixel-data chunk to cut into.</summary>
+    private static byte[] EncodeNoise(int width, int height, SKEncodedImageFormat format)
+    {
+        using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Opaque));
+        var pixels = new byte[bitmap.RowBytes * height];
+        new Random(597).NextBytes(pixels);
+        for (var i = 3; i < pixels.Length; i += 4)
+        {
+            pixels[i] = 255;
+        }
+
+        Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
+        using var data = bitmap.Encode(format, 100);
         return data.ToArray();
     }
 
@@ -528,27 +755,54 @@ public sealed class ImageProcessorAdapterTests
         return output.ToArray();
     }
 
+    private static byte[] Ihdr(int width, int height)
+    {
+        var ihdr = new byte[13];
+        BinaryPrimitives.WriteInt32BigEndian(ihdr.AsSpan(0, 4), width);
+        BinaryPrimitives.WriteInt32BigEndian(ihdr.AsSpan(4, 4), height);
+        ihdr[8] = 8;  // bit depth
+        ihdr[9] = 2;  // colour type: truecolour RGB
+        return ihdr;
+    }
+
+    private static byte[] BuildPng(params (string Type, byte[] Data)[] chunks)
+    {
+        using var stream = new MemoryStream();
+        stream.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        foreach (var (type, data) in chunks)
+        {
+            WritePngChunk(stream, type, data);
+        }
+
+        return stream.ToArray();
+    }
+
     /// <summary>
     /// A spec-correct PNG whose IHDR declares <paramref name="declaredWidth"/> × <paramref name="declaredHeight"/> while
     /// its IDAT holds one genuine, tiny, correctly zlib-compressed 1×1 scanline — deliberately inconsistent, which is
     /// what a decompression bomb looks like on the wire.
     /// </summary>
     private static byte[] BuildPngWithMismatchedHeaderDimensions(int declaredWidth, int declaredHeight)
+        => BuildPng(("IHDR", Ihdr(declaredWidth, declaredHeight)), ("IDAT", ZlibCompress([0, 10, 20, 30])), ("IEND", []));
+
+    /// <summary>
+    /// A 1×1 PNG carrying <paramref name="chunkCount"/> zTXt chunks, each a run of zeros that deflates to a few KB and
+    /// inflates to <paramref name="inflatedBytesPerChunk"/> — kept under libpng's default 8,000,000-byte per-chunk
+    /// ceiling, so libpng would inflate every one of them rather than refusing the chunk.
+    /// </summary>
+    private static byte[] BuildPngWithCompressedTextChunks(int chunkCount, int inflatedBytesPerChunk)
     {
-        using var stream = new MemoryStream();
-        stream.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        byte[] ztxt = [.. "Comment\0"u8.ToArray(), 0, .. ZlibCompress(new byte[inflatedBytesPerChunk])];
+        return BuildPng(
+            [("IHDR", Ihdr(1, 1)), .. Enumerable.Repeat(("zTXt", ztxt), chunkCount), ("IDAT", ZlibCompress([0, 10, 20, 30])), ("IEND", [])]);
+    }
 
-        var ihdr = new byte[13];
-        BinaryPrimitives.WriteInt32BigEndian(ihdr.AsSpan(0, 4), declaredWidth);
-        BinaryPrimitives.WriteInt32BigEndian(ihdr.AsSpan(4, 4), declaredHeight);
-        ihdr[8] = 8;  // bit depth
-        ihdr[9] = 2;  // colour type: truecolour RGB
-        WritePngChunk(stream, "IHDR", ihdr);
-
-        // Filter-type byte (0 = none) and one RGB pixel.
-        WritePngChunk(stream, "IDAT", ZlibCompress([0, 10, 20, 30]));
-        WritePngChunk(stream, "IEND", []);
-        return stream.ToArray();
+    private static byte[] SplicePngChunkAfterIhdr(byte[] png, string type, byte[] data)
+    {
+        using var chunk = new MemoryStream();
+        WritePngChunk(chunk, type, data);
+        const int afterIhdr = 8 + 12 + 13;
+        return [.. png.AsSpan(0, afterIhdr), .. chunk.ToArray(), .. png.AsSpan(afterIhdr)];
     }
 
     private static void WritePngChunk(Stream stream, string type, byte[] data)
@@ -570,7 +824,7 @@ public sealed class ImageProcessorAdapterTests
     private static byte[] ZlibCompress(byte[] raw)
     {
         using var output = new MemoryStream();
-        using (var zlib = new ZLibStream(output, CompressionLevel.Fastest, leaveOpen: true))
+        using (var zlib = new ZLibStream(output, CompressionLevel.Optimal, leaveOpen: true))
         {
             zlib.Write(raw);
         }
@@ -599,13 +853,11 @@ public sealed class ImageProcessorAdapterTests
     /// </summary>
     private static byte[] BuildMinimalHeicContainer()
     {
-        using var stream = new MemoryStream();
         byte[] payload = [.. "heic"u8.ToArray(), 0, 0, 0, 0, .. "mif1"u8.ToArray(), .. "heic"u8.ToArray(), .. "miaf"u8.ToArray(), .. "MiHB"u8.ToArray()];
-        Span<byte> size = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32BigEndian(size, (uint)(8 + payload.Length));
-        stream.Write(size);
-        stream.Write("ftyp"u8);
-        stream.Write(payload);
-        return stream.ToArray();
+        var box = new byte[8 + payload.Length];
+        BinaryPrimitives.WriteUInt32BigEndian(box, (uint)box.Length);
+        "ftyp"u8.CopyTo(box.AsSpan(4));
+        payload.CopyTo(box, 8);
+        return box;
     }
 }

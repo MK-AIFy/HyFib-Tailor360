@@ -114,7 +114,7 @@ Image policy as designed (plan Section 4.4, issue #31):
 | --- | --- | --- |
 | Upload size cap | 15 MB per file | Rejected above this before any decoding |
 | Dimension cap | 40 megapixels, or 12,000 px on a side | Rejected from the header, in the worker |
-| Original after re-encode | about 1.5 MB, long edge proposed at 2,400 px | A5 input; the actual size depends on the encoder settings confirmed by #31 |
+| Original after re-encode | about 1.5 MB, long edge proposed at 2,400 px | A5 input; the actual size depends on the encoder settings confirmed by #31 — the adapter from #597 proposes JPEG quality 90 until they are |
 | Preview derivative | about 120 KB, long edge 1,024 px | — |
 | Thumbnail derivative | about 20 KB, long edge 256 px | — |
 | Derivative overhead | about 30% of originals | A5 input |

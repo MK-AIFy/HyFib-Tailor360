@@ -7,14 +7,12 @@
     <PackageReference Include="ZXing.Net" />
     <PackageReference Include="Minio" />
     <!--
-      The SkiaSharp meta-package carries no native binaries of its own (issue #597); referencing all
-      three desktop RIDs unconditionally is SkiaSharp's own documented pattern — restore fetches every
-      platform's asset, publish keeps only the one the target runtime identifier selects.
+      SkiaSharp brings its Windows and macOS native binaries itself; Linux needs its own package (#597).
+      The hosts publish without a runtime identifier, so every platform's binary lands in the Linux
+      images too; trimming that is #644.
     -->
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" />
   </ItemGroup>
 
   <ItemGroup>

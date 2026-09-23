@@ -145,7 +145,7 @@ across a boundary.
 
 | Library | Provides | Used by every module for |
 | --- | --- | --- |
-| `Platform.Abstractions` | `Result`, `DomainEvent`, `IClock`, `IIdGenerator`, `Money`, and the ports: `IEmailSender`, `IPdfRenderer`, `IBarcodeRenderer`, `IPrintQueue`, `IOutboundHttp`, `IMalwareScanner`, `ITimelineSource` | Talking to the outside world without naming a vendor. Provider SDK packages are referenced only by `Integration.Infrastructure` and test projects |
+| `Platform.Abstractions` | `Result`, `DomainEvent`, `IClock`, `IIdGenerator`, `Money`, and the ports: `IEmailSender`, `IPdfRenderer`, `IBarcodeRenderer`, `IPrintQueue`, `IOutboundHttp`, `IMalwareScanner`, `IImageProcessor`, `ITimelineSource` | Talking to the outside world without naming a vendor. Provider SDK packages are referenced only by `Integration.Infrastructure` and test projects |
 | `Platform.Persistence` | EF Core conventions, the outbox and inbox tables, sequence allocation, idempotency storage, and the audit writer with its `SaveChanges` interceptor | Writing an aggregate, its outbox message and its audit event in one transaction |
 | `Platform.Security` | The permission catalogue, authorisation policies and requirement handlers, branch scope evaluation, step-up, and the endpoint extensions that declare them | `.RequirePermission("orders.confirm")`, `.RequireStepUp()`, field-level minimisation, and the justified-anonymous escape hatch |
 | `Platform.Observability` | OpenTelemetry traces, metrics and logs, Serilog configuration with the redaction policy, correlation middleware, and the health-check endpoints | Correlation and causation identifiers everywhere, and the four probes of [`container.md`](container.md) Section 4 |

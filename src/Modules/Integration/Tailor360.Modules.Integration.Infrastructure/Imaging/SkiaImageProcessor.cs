@@ -14,7 +14,9 @@ namespace Tailor360.Modules.Integration.Infrastructure.Imaging;
 /// <strong>Stripping is a side effect of re-encoding, not a separate step.</strong> Every accepted file is decoded to
 /// raw sRGB pixels and encoded again as a new JPEG. Nothing from the source file's segments survives that — not its
 /// EXIF or GPS tags, its XMP packet, its own ICC profile, nor a polyglot's second payload. The one profile an output
-/// carries is the sRGB profile Skia writes into every JPEG it encodes, identical whatever the source was.
+/// carries is the sRGB profile Skia writes into every JPEG it encodes, identical whatever the source was. That
+/// re-encode is the control: <see cref="ImageRejectionReason.PolyglotContent"/> is best-effort defence in depth, and a
+/// caller must store and serve only the re-encoded variants, never the bytes it was given.
 /// </para>
 /// <para>
 /// <strong>Two things are baked into the pixels rather than discarded.</strong> EXIF orientation, because a camera
@@ -29,11 +31,19 @@ namespace Tailor360.Modules.Integration.Infrastructure.Imaging;
 /// bytes — WBMP, BMP or ICO — decode it and report success. How HEIC should be handled instead is #643.
 /// </para>
 /// <para>
-/// <strong>An exception means the environment or this adapter failed, never that the file was bad.</strong> Every
-/// problem with the bytes themselves is a <see cref="ImageProcessingStatus.Rejected"/> outcome. Memory exhaustion, a
-/// missing native library, cancellation, or a Skia call failing in a way no input should cause all escape to the
-/// caller, whose retry policy is the right place for them: reported as a rejection, they would permanently refuse a
-/// valid photo and look like ordinary upload traffic while doing it.
+/// <strong>What a rejection and an exception each mean.</strong> Every problem with the bytes themselves is a
+/// <see cref="ImageProcessingStatus.Rejected"/> outcome; an allocation failure this adapter can see, a missing native
+/// library, cancellation, or a Skia call failing in a way no input should cause escapes as an exception, for the
+/// caller's retry policy. Two limits on that: an allocation failure deep inside a decoder can come back from Skia as
+/// corrupt input and so as <see cref="ImageRejectionReason.Malformed"/>, and real memory exhaustion usually ends the
+/// process instead of throwing — so a caller must bound its attempts durably, not only by catching.
+/// </para>
+/// <para>
+/// <strong>What <see cref="ImageRejectionReason.Truncated"/> can and cannot tell apart.</strong> Skia reports every error
+/// libpng raises as incomplete input, so a corrupt PNG is reported as truncated, not malformed; only JPEG distinguishes
+/// the two. And a JPEG whose scan data is damaged but still followed by a marker is not rejected at all: libjpeg treats
+/// that as a warning and fills the missing blocks with grey. Neither is a way past the checks — the output is still a
+/// fresh encode of whatever pixels decoded — but a reason code is only as precise as the decoder behind it.
 /// </para>
 /// </remarks>
 public sealed class SkiaImageProcessor : IImageProcessor
@@ -45,24 +55,34 @@ public sealed class SkiaImageProcessor : IImageProcessor
     private const long MaxPixelCount = 40_000_000;
 
     /// <summary>
-    /// Implementation defaults, not sourced product figures — nothing today reads these from configuration, and
-    /// nobody has asked for a specific thumbnail or preview size yet.
+    /// The re-encode target for the stored original: docs/nfr/capacity-and-performance.md §2.5 proposes 2,400 px on the
+    /// long edge. Still open decision CP-06, where 1,600 px is the alternative — change it here if CP-06 decides so.
     /// </summary>
-    private const int ThumbnailMaxEdgePx = 320;
+    private const int OriginalMaxEdgePx = 2400;
 
-    private const int PreviewMaxEdgePx = 1600;
+    /// <summary>docs/nfr/capacity-and-performance.md §2.5: previews at 1,024 px and thumbnails at 256 px on the long edge.</summary>
+    private const int PreviewMaxEdgePx = 1024;
+
+    private const int ThumbnailMaxEdgePx = 256;
+
+    /// <summary>
+    /// Not sourced: §2.5 leaves the encoder settings for #31 to confirm, and this is the adapter's proposal until it
+    /// does — high enough that a fabric's weave survives the preview.
+    /// </summary>
     private const int JpegQuality = 90;
 
     private const string JpegContentType = "image/jpeg";
 
-    /// <summary>Acrobat looks for a PDF header within the first 1,024 bytes of a file, not only at byte 0.</summary>
-    private const int PdfHeaderWindow = 1024;
+    /// <summary>PDFium accepts a <c>%PDF</c> header that starts anywhere in the first 1,025 bytes.</summary>
+    private const int PdfHeaderLastOffset = 1024;
 
     /// <summary>How far into a file a content-sniffing reader looks for markup; 1,024 covers every browser's window.</summary>
     private const int MarkupSniffWindow = 1024;
 
     private const int ZipEndRecordLength = 22;
     private const int Zip64LocatorLength = 20;
+    private const int PngSignatureLength = 8;
+    private const int PngChunkOverhead = 12;
 
     private static readonly SKColorSpace Srgb = SKColorSpace.CreateSrgb();
 
@@ -75,6 +95,12 @@ public sealed class SkiaImageProcessor : IImageProcessor
     private static readonly byte[][] ScriptBearingMarkup =
         ["<script"u8.ToArray(), "<html"u8.ToArray(), "<iframe"u8.ToArray(), "<svg"u8.ToArray(), "<!doctype html"u8.ToArray()];
 
+    /// <summary>
+    /// The ancillary PNG chunks that can change a decoded pixel. Every other ancillary chunk — the text chunks above
+    /// all — is dropped before libpng sees the file; critical chunks are always kept, so an unknown one still fails.
+    /// </summary>
+    private static readonly string[] PixelAffectingPngChunks = ["tRNS", "gAMA", "cHRM", "sRGB", "iCCP", "sBIT", "eXIf"];
+
     /// <inheritdoc />
     public async Task<Result<ImageProcessingResult>> ProcessAsync(
         Stream content, string declaredContentType, CancellationToken cancellationToken = default)
@@ -86,14 +112,71 @@ public sealed class SkiaImageProcessor : IImageProcessor
         await content.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return Result.Success(Process(buffer.GetBuffer(), (int)buffer.Length, declaredContentType, cancellationToken));
+        var bytes = new ArraySegment<byte>(buffer.GetBuffer(), 0, (int)buffer.Length);
+        return Result.Success(Process(bytes, declaredContentType, cancellationToken));
+    }
+
+    /// <summary>
+    /// Returns <paramref name="png"/> without the ancillary chunks that cannot change a decoded pixel, or unchanged when
+    /// it has none. libpng inflates every compressed text chunk it is handed — about 13 ms of uncancellable work per
+    /// chunk, and a thousand of them fit under the upload cap — so they are removed before it is handed any. A chunk
+    /// that runs past the end of the file is kept as it is, so a truncated file still reads as truncated.
+    /// </summary>
+    internal static ArraySegment<byte> WithoutInertPngChunks(ArraySegment<byte> png)
+    {
+        var bytes = png.AsSpan();
+        var kept = new List<Range>();
+        var droppedAny = false;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var at = PngSignatureLength;
+        while (at + 8 <= bytes.Length)
+        {
+            var length = BinaryPrimitives.ReadUInt32BigEndian(bytes.Slice(at, 4));
+            var type = Encoding.ASCII.GetString(bytes.Slice(at + 4, 4));
+            var end = at + PngChunkOverhead + (long)length;
+            if (end > bytes.Length)
+            {
+                kept.Add(at..bytes.Length);
+                break;
+            }
+
+            // A lower-case first letter marks an ancillary chunk; each pixel-affecting one is singular by the spec,
+            // so only its first occurrence can matter.
+            var ancillary = char.IsLower(type[0]);
+            if (ancillary && (!PixelAffectingPngChunks.Contains(type) || !seen.Add(type)))
+            {
+                droppedAny = true;
+            }
+            else
+            {
+                kept.Add(at..(int)end);
+            }
+
+            at = (int)end;
+            if (type == "IEND")
+            {
+                break;
+            }
+        }
+
+        if (!droppedAny)
+        {
+            return png;
+        }
+
+        using var rebuilt = new MemoryStream(png.Count);
+        rebuilt.Write(bytes[..PngSignatureLength]);
+        foreach (var range in kept)
+        {
+            rebuilt.Write(bytes[range]);
+        }
+
+        return new ArraySegment<byte>(rebuilt.GetBuffer(), 0, (int)rebuilt.Length);
     }
 
     private static ImageProcessingResult Process(
-        byte[] buffer, int length, string declaredContentType, CancellationToken cancellationToken)
+        ArraySegment<byte> bytes, string declaredContentType, CancellationToken cancellationToken)
     {
-        var bytes = buffer.AsSpan(0, length);
-
         var format = DetectFormat(bytes);
         if (format is null || !string.Equals(format.ContentType, declaredContentType, StringComparison.Ordinal))
         {
@@ -110,24 +193,65 @@ public sealed class SkiaImageProcessor : IImageProcessor
             return Rejected(ImageRejectionReason.PolyglotContent);
         }
 
-        // Wraps the buffer rather than copying it: the file is already in memory once.
-        using var stream = new MemoryStream(buffer, 0, length, writable: false);
+        var decodable = expectedDecoder == SKEncodedImageFormat.Png ? WithoutInertPngChunks(bytes) : bytes;
+        var (decoded, rejection) = Decode(decodable, expectedDecoder);
+        if (decoded is null)
+        {
+            return Rejected(rejection!.Value);
+        }
+
+        var source = decoded.Pixels;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Normalise(source, decoded.Origin, decoded.MayHaveTransparency) is { } normalised)
+            {
+                source.Dispose();
+                source = normalised;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var original = EncodeWithin(source, OriginalMaxEdgePx, sameSizeAlreadyEncoded: null);
+            cancellationToken.ThrowIfCancellationRequested();
+            var preview = EncodeWithin(source, PreviewMaxEdgePx, original);
+            cancellationToken.ThrowIfCancellationRequested();
+            var thumbnail = EncodeWithin(source, ThumbnailMaxEdgePx, original);
+
+            return new ImageProcessingResult(
+                ImageProcessingStatus.Accepted, Image: new ProcessedImage(original, thumbnail, preview));
+        }
+        finally
+        {
+            source.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Opens a codec, applies the header limits, and decodes into one canonical layout — or names why it would not.
+    /// The codec and its input stream are disposed before this returns, so nothing a decoder holds outlives the decode.
+    /// </summary>
+    private static (DecodedImage? Image, ImageRejectionReason? Rejection) Decode(
+        ArraySegment<byte> bytes, SKEncodedImageFormat expectedDecoder)
+    {
+        using var stream = new MemoryStream(bytes.Array!, bytes.Offset, bytes.Count, writable: false);
         using var codec = SKCodec.Create(stream, out var openResult);
         if (codec is null)
         {
-            return Rejected(openResult switch
+            return (null, openResult switch
             {
                 SKCodecResult.IncompleteInput => ImageRejectionReason.Truncated,
                 SKCodecResult.Unimplemented => ImageRejectionReason.UnsupportedFormat,
+                SKCodecResult.InternalError => throw new InsufficientMemoryException(
+                    "SkiaSharp reported an internal error, which it documents as memory exhaustion, opening a codec."),
                 _ => ImageRejectionReason.Malformed,
             });
         }
 
         // Skia chooses its decoder by sniffing the bytes itself; the declared type only chose which signature was
-        // checked above. They agree for every accepted format today, and this keeps it that way.
+        // checked. They agree for every accepted format today, and this keeps it that way.
         if (codec.EncodedFormat != expectedDecoder)
         {
-            return Rejected(ImageRejectionReason.SignatureMismatch);
+            return (null, ImageRejectionReason.SignatureMismatch);
         }
 
         // Read from the header before a single pixel is decoded: the whole point is to refuse a decompression bomb —
@@ -136,51 +260,47 @@ public sealed class SkiaImageProcessor : IImageProcessor
         var height = codec.Info.Height;
         if (width <= 0 || height <= 0 || Math.Max(width, height) > MaxDimensionPx)
         {
-            return Rejected(ImageRejectionReason.DimensionsExceedLimit);
+            return (null, ImageRejectionReason.DimensionsExceedLimit);
         }
 
         if ((long)width * height > MaxPixelCount)
         {
-            return Rejected(ImageRejectionReason.PixelCountExceedsLimit);
+            return (null, ImageRejectionReason.PixelCountExceedsLimit);
         }
 
         // One canonical pixel format whatever the source was — grayscale, CMYK, palette or 16-bit — converted into
-        // sRGB by the codec as it decodes, so everything after this line handles a single well-known layout.
+        // sRGB by the codec as it decodes, so everything after this handles a single well-known layout.
         var info = new SKImageInfo(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Premul, Srgb);
-        using var decoded = Allocate(info);
-        var decodeResult = codec.GetPixels(info, decoded.GetPixels());
-        switch (decodeResult)
+        var pixels = Allocate(info);
+        var decodeResult = codec.GetPixels(info, pixels.GetPixels());
+        ImageRejectionReason? rejection = decodeResult switch
         {
-            case SKCodecResult.Success:
-                break;
-            case SKCodecResult.IncompleteInput:
-                return Rejected(ImageRejectionReason.Truncated);
-            case SKCodecResult.ErrorInInput or SKCodecResult.InvalidInput:
-                return Rejected(ImageRejectionReason.Malformed);
-            case SKCodecResult.Unimplemented:
-                return Rejected(ImageRejectionReason.UnsupportedFormat);
-            case SKCodecResult.InternalError:
-                throw new InsufficientMemoryException(
-                    $"SkiaSharp reported an internal error, which it documents as memory exhaustion, decoding a {width}x{height} image.");
-            default:
-                throw new InvalidOperationException(
-                    $"SkiaSharp refused a decode this adapter requested ({decodeResult}); no input should cause that.");
+            SKCodecResult.Success => null,
+            SKCodecResult.IncompleteInput => ImageRejectionReason.Truncated,
+            SKCodecResult.ErrorInInput or SKCodecResult.InvalidInput => ImageRejectionReason.Malformed,
+            SKCodecResult.Unimplemented => ImageRejectionReason.UnsupportedFormat,
+            _ => null,
+        };
+
+        if (decodeResult == SKCodecResult.Success)
+        {
+            // Never written again: marking it immutable lets drawing and encoding share its pixels instead of
+            // copying them, which is most of this adapter's peak memory at the 40 MP limit.
+            pixels.SetImmutable();
+            return (new DecodedImage(pixels, codec.EncodedOrigin, codec.Info.AlphaType != SKAlphaType.Opaque), null);
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
+        pixels.Dispose();
+        if (rejection is not null)
+        {
+            return (null, rejection);
+        }
 
-        using var normalised = Normalise(decoded, codec.EncodedOrigin, codec.Info.AlphaType != SKAlphaType.Opaque);
-        var source = normalised ?? decoded;
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var original = Encode(source);
-        cancellationToken.ThrowIfCancellationRequested();
-        var preview = EncodeDerivative(source, PreviewMaxEdgePx, original);
-        cancellationToken.ThrowIfCancellationRequested();
-        var thumbnail = EncodeDerivative(source, ThumbnailMaxEdgePx, original);
-
-        return new ImageProcessingResult(
-            ImageProcessingStatus.Accepted, Image: new ProcessedImage(original, thumbnail, preview));
+        throw decodeResult == SKCodecResult.InternalError
+            ? new InsufficientMemoryException(
+                $"SkiaSharp reported an internal error, which it documents as memory exhaustion, decoding a {width}x{height} image.")
+            : new InvalidOperationException(
+                $"SkiaSharp refused a decode this adapter requested ({decodeResult}); no input should cause that.");
     }
 
     private static ImageProcessingResult Rejected(ImageRejectionReason reason)
@@ -213,21 +333,23 @@ public sealed class SkiaImageProcessor : IImageProcessor
     }
 
     /// <summary>
-    /// True when a second format's reader would also accept the file. Each check looks exactly where that format's
-    /// own reader looks, rather than for a short marker anywhere: a real photograph is megabytes of compressed data,
-    /// and a four-byte marker occurs in that by chance about once in every 700 three-megabyte files.
+    /// True when a second format's reader would also accept the file, for the readers these checks model. Each looks
+    /// where that reader looks, rather than for a short marker anywhere: a real photograph is megabytes of compressed
+    /// data, and a four-byte marker occurs in that by chance about once in every 700 three-megabyte files. This is
+    /// best-effort — lenient readers exist for every format — which is why the re-encode, not this, is the control.
     /// </summary>
     private static bool ContainsSecondFormat(ReadOnlySpan<byte> bytes)
         => ContainsZipArchive(bytes)
-            || bytes[..Math.Min(bytes.Length, PdfHeaderWindow)].IndexOf("%PDF-"u8) >= 0
+            || bytes[..Math.Min(bytes.Length, PdfHeaderLastOffset + 4)].IndexOf("%PDF"u8) >= 0
             || ContainsMarkup(bytes[..Math.Min(bytes.Length, MarkupSniffWindow)])
             || ContainsPhpOpenTag(bytes);
 
     /// <summary>
-    /// A ZIP reader (and so a JAR, an APK or an Office document) finds its end-of-central-directory record by
-    /// scanning back from the end of the file — no further than a 65,535-byte comment — and then reads the central
-    /// directory that sits immediately before it. Only that shape makes a file a working archive, and requiring both
-    /// signatures in their structural positions takes the chance of a photograph matching it to roughly one in 10^14.
+    /// A ZIP reader (and so a JAR, an APK or an Office document) finds its end-of-central-directory record by scanning
+    /// back from the end of the file, no further than a 65,535-byte comment, then locates the central directory either
+    /// immediately before that record (from its size field) or at the absolute offset the record states. A candidate
+    /// counts only when a central-directory signature sits at one of those two places, which keeps the chance of a
+    /// photograph matching by accident to roughly one in 10^14.
     /// </summary>
     private static bool ContainsZipArchive(ReadOnlySpan<byte> bytes)
     {
@@ -266,10 +388,14 @@ public sealed class SkiaImageProcessor : IImageProcessor
         }
 
         var directorySize = BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(endRecord + 12, 4));
-        var directoryStart = (long)endRecord - directorySize;
-        return directorySize > 0 && directoryStart >= 0
-            && bytes.Slice((int)directoryStart, 4).SequenceEqual("PK\x01\x02"u8);
+        var directoryOffset = BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(endRecord + 16, 4));
+        return IsCentralDirectoryAt(bytes, directorySize == 0 ? -1 : (long)endRecord - directorySize, endRecord)
+            || IsCentralDirectoryAt(bytes, directoryOffset, endRecord);
     }
+
+    private static bool IsCentralDirectoryAt(ReadOnlySpan<byte> bytes, long position, int endRecord)
+        => position >= 0 && position + 4 <= endRecord
+            && bytes.Slice((int)position, 4).SequenceEqual("PK\x01\x02"u8);
 
     private static bool ContainsMarkup(ReadOnlySpan<byte> window)
     {
@@ -289,8 +415,9 @@ public sealed class SkiaImageProcessor : IImageProcessor
 
     /// <summary>
     /// PHP executes an open tag wherever it appears in an included file, so this one is checked across the whole
-    /// buffer. PHP requires whitespace after the tag, which keeps the chance of a photograph matching by accident to
-    /// about one in 600,000 at the 15 MB upload ceiling.
+    /// buffer. <c>&lt;?php</c> must be followed by whitespace, which keeps the chance of a photograph matching by
+    /// accident to about one in 600,000 at the 15 MB upload ceiling. The short echo tag <c>&lt;?=</c> is deliberately
+    /// not matched: three fixed bytes occur by chance in almost every large photograph.
     /// </summary>
     private static bool ContainsPhpOpenTag(ReadOnlySpan<byte> bytes)
     {
@@ -321,7 +448,8 @@ public sealed class SkiaImageProcessor : IImageProcessor
 
     /// <summary>
     /// Bakes orientation and transparency into a fresh bitmap, or returns null when the decoded one already needs
-    /// neither — the common case for a JPEG, which then costs no second full-size bitmap at all.
+    /// neither — the common case for a JPEG. At most two full-size bitmaps are alive at once, and only while this runs:
+    /// the caller disposes the decoded one as soon as this returns a replacement.
     /// </summary>
     private static SKBitmap? Normalise(SKBitmap decoded, SKEncodedOrigin origin, bool mayHaveTransparency)
     {
@@ -344,6 +472,7 @@ public sealed class SkiaImageProcessor : IImageProcessor
             canvas.DrawBitmap(decoded, 0, 0, NearestSampling);
         }
 
+        destination.SetImmutable();
         return destination;
     }
 
@@ -405,33 +534,42 @@ public sealed class SkiaImageProcessor : IImageProcessor
     }
 
     /// <summary>
-    /// Scales down to <paramref name="maxEdgePx"/> on the longest edge, never up: an image already that small is its
-    /// own derivative, and gets the original's bytes rather than a second identical encode.
+    /// Encodes <paramref name="source"/> scaled down to <paramref name="maxEdgePx"/> on its longest edge, never up. An
+    /// image already within the limit is encoded at its own size — or, when <paramref name="sameSizeAlreadyEncoded"/>
+    /// holds that encode already, reuses it rather than producing a second identical one.
     /// </summary>
-    private static ProcessedImageVariant EncodeDerivative(SKBitmap source, int maxEdgePx, ProcessedImageVariant original)
+    private static ProcessedImageVariant EncodeWithin(
+        SKBitmap source, int maxEdgePx, ProcessedImageVariant? sameSizeAlreadyEncoded)
     {
         var scale = (double)maxEdgePx / Math.Max(source.Width, source.Height);
         if (scale >= 1.0)
         {
-            return original;
+            return sameSizeAlreadyEncoded ?? Encode(source);
         }
 
         var info = source.Info.WithSize(
             Math.Max(1, (int)Math.Round(source.Width * scale)),
             Math.Max(1, (int)Math.Round(source.Height * scale)));
-        using var resized = source.Resize(info, DownscaleSampling)
-            ?? throw new InsufficientMemoryException($"SkiaSharp could not resize to {info.Width}x{info.Height}.");
+        using var resized = Allocate(info);
+        if (!source.ScalePixels(resized, DownscaleSampling))
+        {
+            throw new InvalidOperationException($"SkiaSharp could not scale to {info.Width}x{info.Height}.");
+        }
+
         return Encode(resized);
     }
 
+    /// <summary>Encodes straight from the bitmap's own pixels: no intermediate image, so no copy of them.</summary>
     private static ProcessedImageVariant Encode(SKBitmap bitmap)
     {
-        using var image = SKImage.FromBitmap(bitmap);
-        using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, JpegQuality)
+        using var encoded = bitmap.Encode(SKEncodedImageFormat.Jpeg, JpegQuality)
             ?? throw new InvalidOperationException($"SkiaSharp could not encode a {bitmap.Width}x{bitmap.Height} JPEG.");
         return new ProcessedImageVariant(encoded.ToArray(), JpegContentType, bitmap.Width, bitmap.Height);
     }
 
     /// <summary>The content type a signature identifies, and the Skia decoder that should handle it (none for HEIC).</summary>
     private sealed record DeclaredFormat(string ContentType, SKEncodedImageFormat? Decoder);
+
+    /// <summary>Decoded pixels, and what the codec reported that the pixels themselves do not carry.</summary>
+    private sealed record DecodedImage(SKBitmap Pixels, SKEncodedOrigin Origin, bool MayHaveTransparency);
 }

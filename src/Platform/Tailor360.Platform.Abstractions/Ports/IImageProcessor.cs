@@ -25,8 +25,16 @@ public interface IImageProcessor
     /// and a rejection is final: retrying the same bytes gets the same answer.
     /// </returns>
     /// <remarks>
-    /// An exception — memory exhaustion, a missing native library, cancellation — means the environment or the
-    /// adapter failed, never that the file was bad, so it is the caller's retry policy that should see it.
+    /// <para>
+    /// An exception — an allocation failure, a missing native library, cancellation — means the environment or the
+    /// adapter failed, never that the file was bad, so it is the caller's retry policy that should see it. Real memory
+    /// exhaustion usually ends the process rather than throwing, so a caller must also bound its attempts durably —
+    /// recorded before each attempt — or one pathological file can crash-loop it.
+    /// </para>
+    /// <para>
+    /// Only the returned variants are safe to store or serve: they are re-encoded from decoded pixels. The bytes the
+    /// caller passed in are not, whatever the outcome — the polyglot check is defence in depth, not a guarantee.
+    /// </para>
     /// </remarks>
     Task<Result<ImageProcessingResult>> ProcessAsync(
         Stream content, string declaredContentType, CancellationToken cancellationToken = default);

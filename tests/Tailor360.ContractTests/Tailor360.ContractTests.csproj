@@ -11,8 +11,6 @@
     <!-- Test-only: builds the adversarial and well-formed fixture images issue #597's adapter is exercised against. ARCH-009. -->
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>

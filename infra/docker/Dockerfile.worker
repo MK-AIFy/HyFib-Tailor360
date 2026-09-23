@@ -54,8 +54,10 @@ ENV DOTNET_NOLOGO=1 \
     Worker__HealthPort=8081
 
 # libfontconfig1: SkiaSharp's native binary (issue #597) links against it even for the plain
-# decode/resize/encode work this worker does — proven empirically, not assumed: the image built
-# without it loads and starts, but SKCodec.Create throws DllNotFoundException on the first image.
+# decode/resize/encode work this worker does. Found by running the adapter in a Linux container
+# without it: the process starts, but the first image processed fails to load libSkiaSharp, and
+# SkiaImageProcessor's type initializer then throws for the rest of the process's life. #644 looks
+# at a NoDependencies native package that would make this line unnecessary.
 RUN apt-get update \
     && apt-get install --no-install-recommends --yes curl libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
