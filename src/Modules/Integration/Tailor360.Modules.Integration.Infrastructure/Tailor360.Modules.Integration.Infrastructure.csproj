@@ -6,6 +6,13 @@
     <PackageReference Include="QuestPDF" />
     <PackageReference Include="ZXing.Net" />
     <PackageReference Include="Minio" />
+    <!--
+      SkiaSharp brings its Windows and macOS native binaries itself; Linux needs its own package (#597).
+      The hosts publish without a runtime identifier, so every platform's binary lands in the Linux
+      images too; trimming that is #644.
+    -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
   </ItemGroup>
 
   <ItemGroup>

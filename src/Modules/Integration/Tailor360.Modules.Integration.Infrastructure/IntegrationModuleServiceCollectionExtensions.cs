@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailor360.Modules.Integration.Infrastructure.Documents;
+using Tailor360.Modules.Integration.Infrastructure.Imaging;
 using Tailor360.Modules.Integration.Infrastructure.Scanning;
 using Tailor360.Modules.Integration.Infrastructure.Storage;
 using Tailor360.Platform.Abstractions.Health;
@@ -76,6 +77,11 @@ public static class IntegrationModuleServiceCollectionExtensions
 
         services.TryAddSingleton<IPdfRenderer, QuestPdfRenderer>();
         services.TryAddSingleton<IBarcodeRenderer, Code128BarcodeRenderer>();
+
+        // The image processor (ADR-0012, issue #597): a pure decode/validate/derive library with no
+        // endpoint to configure, so — unlike object storage and the malware scanner above — there is no
+        // "unconfigured" state and no fake to fall back to; SkiaSharp is always the adapter.
+        services.TryAddSingleton<IImageProcessor, SkiaImageProcessor>();
 
         // The malware scanner (ADR-0012, issue #596): ClamAV when a host is configured, the fake
         // scanner otherwise — the same real-or-fallback shape object storage uses above, and the

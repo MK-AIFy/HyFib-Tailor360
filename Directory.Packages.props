@@ -58,6 +58,21 @@
     <PackageVersion Include="Minio" Version="7.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Image processing (ADR-0012, issue #597)">
+    <!--
+      SkiaSharp decodes, validates, strips and derives uploaded images behind IImageProcessor — chosen
+      over ImageSharp (Six Labors' revenue-gated Split Licence) and Magick.NET (a much larger native
+      footprint for what this adapter needs). It has no HEIF decoder, so HEIC uploads are refused
+      rather than decoded; how HEIC is handled instead is #643. MIT-licensed. Referenced by
+      Integration.Infrastructure only (ARCH-009). For net10.0 the SkiaSharp package brings its Windows
+      and macOS native binaries itself; Linux — the worker and web containers, and continuous
+      integration — needs NativeAssets.Linux referenced explicitly, as the package's README says. The two
+      move in lockstep: a SkiaSharp update without the matching NativeAssets.Linux fails to load there.
+    -->
+    <PackageVersion Include="SkiaSharp" Version="4.152.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+  </ItemGroup>
+
   <ItemGroup Label="Validation and tooling">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />

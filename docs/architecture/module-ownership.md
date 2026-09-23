@@ -730,8 +730,8 @@ crossing.
 
 **Publishes — read contracts and ports.** `IAuditWriter`, `IIdempotencyStore`, `ISequenceAllocator`, `IPrintQueue`,
 `IOutboundHttp`, `IClock`, `IIdGenerator`, `ITimelineSource` (the interface itself; implementations belong to the
-business modules), `IPdfRenderer`, `IBarcodeRenderer`, `IMalwareScanner`, `IWorkerScopeFactory`, and the feature-flag
-evaluation contract.
+business modules), `IPdfRenderer`, `IBarcodeRenderer`, `IMalwareScanner`, `IImageProcessor`, `IWorkerScopeFactory`,
+and the feature-flag evaluation contract.
 
 **Consumes.** Nothing from business modules. Platform must never take a dependency on a module, in either direction of
 the type graph.
