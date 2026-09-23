@@ -6,6 +6,15 @@
     <PackageReference Include="QuestPDF" />
     <PackageReference Include="ZXing.Net" />
     <PackageReference Include="Minio" />
+    <!--
+      The SkiaSharp meta-package carries no native binaries of its own (issue #597); referencing all
+      three desktop RIDs unconditionally is SkiaSharp's own documented pattern — restore fetches every
+      platform's asset, publish keeps only the one the target runtime identifier selects.
+    -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" />
   </ItemGroup>
 
   <ItemGroup>

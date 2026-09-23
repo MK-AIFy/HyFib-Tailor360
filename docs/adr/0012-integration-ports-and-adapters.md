@@ -210,6 +210,7 @@ Ports are introduced by the first issue that needs them and extended afterwards 
 | `IMalwareScanner` | Upload scanning | #31 | ClamAV, feature-flagged; uploads quarantined until the scan passes |
 | `IPdfRenderer` | Document rendering with a Tamil-capable font | #32a | The default renderer named in plan D15 |
 | `IBarcodeRenderer` | Code 128 and quick-response images | #35 | The default renderer named in plan D15 |
+| `IImageProcessor` | Decode, validate, strip and derive an uploaded image | #597 | SkiaSharp; always the adapter — a pure library with no endpoint, so unlike the rows above it has no unconfigured state and no fake |
 
 **Anti-corruption is the rule.** A vendor type never appears in a port signature, in a domain model or in an
 application handler. The adapter translates, including translating vendor error codes into the port's own
