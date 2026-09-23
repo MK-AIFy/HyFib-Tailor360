@@ -98,8 +98,12 @@ public sealed class SkiaImageProcessor : IImageProcessor
     /// <summary>
     /// The ancillary PNG chunks that can change a decoded pixel. Every other ancillary chunk — the text chunks above
     /// all — is dropped before libpng sees the file; critical chunks are always kept, so an unknown one still fails.
+    /// <c>cICP</c>, <c>mDCV</c> and <c>cLLI</c> are PNG's third-edition colour and HDR metadata: the decoder in
+    /// SkiaSharp 4.152 does not read them yet, but a newer one does, and a small uncompressed chunk costs nothing to
+    /// keep against the day an upgrade would otherwise start mis-colouring wide-gamut images.
     /// </summary>
-    private static readonly string[] PixelAffectingPngChunks = ["tRNS", "gAMA", "cHRM", "sRGB", "iCCP", "sBIT", "eXIf"];
+    private static readonly string[] PixelAffectingPngChunks =
+        ["tRNS", "gAMA", "cHRM", "sRGB", "iCCP", "sBIT", "eXIf", "cICP", "mDCV", "cLLI"];
 
     /// <inheritdoc />
     public async Task<Result<ImageProcessingResult>> ProcessAsync(

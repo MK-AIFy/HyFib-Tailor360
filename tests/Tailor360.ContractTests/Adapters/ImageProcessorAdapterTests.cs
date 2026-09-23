@@ -219,11 +219,14 @@ public sealed class ImageProcessorAdapterTests
         // each, and a thousand fit under the upload cap. Pixel-affecting ones stay, but only the first of each.
         var png = BuildPng(
             ("IHDR", Ihdr(1, 1)),
+            ("cICP", [1, 13, 0, 1]),
             ("tEXt", "Comment\0hello"u8.ToArray()),
             ("gAMA", [0x00, 0x00, 0xB1, 0x8F]),
             ("zTXt", [.. "Comment\0"u8.ToArray(), 0, .. ZlibCompress(new byte[100_000])]),
             ("sRGB", [0]),
             ("sRGB", [0]),
+            ("mDCV", new byte[24]),
+            ("cLLI", new byte[8]),
             ("pHYs", new byte[9]),
             ("IDAT", ZlibCompress([0, 10, 20, 30])),
             ("iTXt", [.. "Comment\0"u8.ToArray(), 0, 0, 0, 0, .. "late text"u8.ToArray()]),
@@ -231,7 +234,41 @@ public sealed class ImageProcessorAdapterTests
 
         var filtered = SkiaImageProcessor.WithoutInertPngChunks(new ArraySegment<byte>(png));
 
-        ChunkTypes(filtered).ShouldBe(["IHDR", "gAMA", "sRGB", "IDAT", "IEND"]);
+        ChunkTypes(filtered).ShouldBe(["IHDR", "cICP", "gAMA", "sRGB", "mDCV", "cLLI", "IDAT", "IEND"]);
+    }
+
+    /// <summary>
+    /// PNG's third edition lets a file declare its primaries and transfer function with a four-byte cICP chunk instead
+    /// of an ICC profile — this one says Display P3. The adapter keeps it (see <c>DropsTheAncillaryPngChunks…</c>).
+    /// SkiaSharp 4.152's decoder does not read it: the file decodes as sRGB either way, which this pins. When an upgrade
+    /// starts reading it, this test switches to proving the colour is managed — which is what keeping the chunk is for.
+    /// </summary>
+    [Fact]
+    public async Task DecodesAPngWhoseColourSpaceIsDeclaredByCicpInWhateverColourSpaceTheDecoderReads()
+    {
+        byte[] cicpDisplayP3 = [12, 13, 0, 1]; // primaries P3-D65, sRGB transfer, RGB matrix, full range
+        var scanlines = ZlibCompress(SolidRgbScanlines(16, 16, 200, 100, 50));
+        var tagged = BuildPng(("IHDR", Ihdr(16, 16)), ("cICP", cicpDisplayP3), ("IDAT", scanlines), ("IEND", []));
+        var untagged = BuildPng(("IHDR", Ihdr(16, 16)), ("IDAT", scanlines), ("IEND", []));
+        bool decoderReadsCicp;
+        using (var codec = SKCodec.Create(new MemoryStream(tagged)))
+        {
+            decoderReadsCicp = codec.Info.ColorSpace is { IsSrgb: false };
+        }
+
+        var fromTagged = await CentrePixel(tagged);
+        var fromUntagged = await CentrePixel(untagged);
+
+        if (decoderReadsCicp)
+        {
+            // Display P3 (200, 100, 50) in sRGB is about (215, 93, 31); decoded as untagged it would stay (200, 100, 50).
+            fromTagged.Red.ShouldBeGreaterThan((byte)207, $"sampled {fromTagged}");
+            fromTagged.Blue.ShouldBeLessThan((byte)43, $"sampled {fromTagged}");
+        }
+        else
+        {
+            fromTagged.ShouldBe(fromUntagged, "a decoder that ignores cICP decodes both files identically");
+        }
     }
 
     [Fact]
@@ -547,6 +584,13 @@ public sealed class ImageProcessorAdapterTests
 
     private static ProcessedImageVariant[] Variants(ProcessedImage image) => [image.Original, image.Preview, image.Thumbnail];
 
+    private static async Task<SKColor> CentrePixel(byte[] png)
+    {
+        var original = (await Process(png, "image/png")).Image.ShouldNotBeNull().Original;
+        using var decoded = SKBitmap.Decode(original.Bytes.ToArray());
+        return decoded.GetPixel(decoded.Width / 2, decoded.Height / 2);
+    }
+
     private static void AssertIsJpegOf(ProcessedImageVariant variant)
     {
         variant.Bytes.Span[..3].ToArray().ShouldBe([0xFF, 0xD8, 0xFF]);
@@ -763,6 +807,23 @@ public sealed class ImageProcessorAdapterTests
         ihdr[8] = 8;  // bit depth
         ihdr[9] = 2;  // colour type: truecolour RGB
         return ihdr;
+    }
+
+    /// <summary>Unfiltered 8-bit RGB scanlines of one colour, ready to zlib-compress into an IDAT.</summary>
+    private static byte[] SolidRgbScanlines(int width, int height, byte red, byte green, byte blue)
+    {
+        var rowLength = 1 + (width * 3);
+        var scanlines = new byte[rowLength * height];
+        for (var row = 0; row < height; row++)
+        {
+            for (var column = 0; column < width; column++)
+            {
+                var at = (row * rowLength) + 1 + (column * 3);
+                (scanlines[at], scanlines[at + 1], scanlines[at + 2]) = (red, green, blue);
+            }
+        }
+
+        return scanlines;
     }
 
     private static byte[] BuildPng(params (string Type, byte[] Data)[] chunks)
