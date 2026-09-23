@@ -61,8 +61,9 @@
   <ItemGroup Label="Image processing (ADR-0012, issue #597)">
     <!--
       SkiaSharp decodes, validates, strips and derives uploaded images behind IImageProcessor — chosen
-      over ImageSharp (Six Labors' revenue-gated Split Licence, and no HEIC decode at all) and Magick.NET
-      (a much larger native footprint for what this adapter needs). MIT-licensed. Referenced by
+      over ImageSharp (Six Labors' revenue-gated Split Licence) and Magick.NET (a much larger native
+      footprint for what this adapter needs). It has no HEIF decoder, so HEIC uploads are refused
+      rather than decoded; how HEIC is handled instead is #643. MIT-licensed. Referenced by
       Integration.Infrastructure only (ARCH-009); the meta-package carries no native binaries of its own,
       so every platform that actually decodes an image needs its own NativeAssets package alongside it —
       Linux for the worker and web containers and continuous integration, Win32 and macOS for local

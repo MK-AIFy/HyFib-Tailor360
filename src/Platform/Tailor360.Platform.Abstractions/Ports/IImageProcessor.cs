@@ -20,6 +20,14 @@ public interface IImageProcessor
     /// on its own.
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// An accepted image, or a rejection naming the reason. Every problem with the bytes themselves is a rejection,
+    /// and a rejection is final: retrying the same bytes gets the same answer.
+    /// </returns>
+    /// <remarks>
+    /// An exception — memory exhaustion, a missing native library, cancellation — means the environment or the
+    /// adapter failed, never that the file was bad, so it is the caller's retry policy that should see it.
+    /// </remarks>
     Task<Result<ImageProcessingResult>> ProcessAsync(
         Stream content, string declaredContentType, CancellationToken cancellationToken = default);
 }
