@@ -20,15 +20,14 @@ public sealed class MoneyTests
 
     [Fact]
     public void RoundsToTwoDecimalPlacesForDocuments()
-        => new Money(12.345m).ToDocumentPrecision().Amount.ShouldBe(12.34m);
+        => new Money(12.345m).ToDocumentPrecision().Amount.ShouldBe(12.35m);
 
     [Fact]
-    public void UsesBankersRoundingSoRepeatedRoundingDoesNotDrift()
+    public void UsesHalfAwayFromZeroForDocumentLinesAndReversals()
     {
-        // Half-away-from-zero would bias every borderline line upwards; over a day of billing that
-        // becomes a visible discrepancy against the cash drawer.
-        new Money(2.345m).ToDocumentPrecision().Amount.ShouldBe(2.34m);
+        new Money(2.345m).ToDocumentPrecision().Amount.ShouldBe(2.35m);
         new Money(2.355m).ToDocumentPrecision().Amount.ShouldBe(2.36m);
+        new Money(-2.345m).ToDocumentPrecision().Amount.ShouldBe(-2.35m);
     }
 
     [Fact]

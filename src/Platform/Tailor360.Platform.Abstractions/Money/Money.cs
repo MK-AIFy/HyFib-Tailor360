@@ -53,11 +53,11 @@ public readonly record struct Money : IComparable<Money>
     public static Money Rupees(decimal amount) => new(amount);
 
     /// <summary>
-    /// Rounds to the currency's minor unit using banker's rounding, which is the rule applied when an
-    /// invoice line or total is written. Intermediate arithmetic is never rounded this way.
+    /// Rounds to the currency's minor unit using half-away-from-zero rounding, the documented rule
+    /// for invoice lines and tax components. Intermediate arithmetic is never rounded this way.
     /// </summary>
     public Money ToDocumentPrecision()
-        => new(decimal.Round(Amount, DocumentScale, MidpointRounding.ToEven), Currency);
+        => new(decimal.Round(Amount, DocumentScale, MidpointRounding.AwayFromZero), Currency);
 
     /// <summary>Adds two amounts of the same currency.</summary>
     /// <exception cref="InvalidOperationException">The currencies differ.</exception>
