@@ -29,6 +29,12 @@ import { RecoveryConfirmRoute } from '../routes/auth/RecoveryConfirmRoute'
 import { RecoveryRequestRoute } from '../routes/auth/RecoveryRequestRoute'
 import { SecurityRoute } from '../routes/auth/SecurityRoute'
 import { SessionsRoute } from '../routes/auth/SessionsRoute'
+import {
+  CustomerDetailRoute,
+  CustomersRoute,
+  NewCustomerRoute,
+} from '../routes/workspace/CustomersRoute'
+import { WorkflowRoute, WorkspaceHomeRoute } from '../routes/workspace/WorkspaceRoutes'
 
 /** Placeholder home screen. The role dashboards arrive with #50 and the feature milestones. */
 export function HomeRoute() {
@@ -154,7 +160,23 @@ export const router = createBrowserRouter([
       {
         element: <RequireSession />,
         children: [
-          { index: true, element: <HomeRoute /> },
+          { index: true, element: <WorkspaceHomeRoute /> },
+          { path: 'customers', element: <CustomersRoute /> },
+          { path: 'customers/new', element: <NewCustomerRoute /> },
+          { path: 'customers/:customerId', element: <CustomerDetailRoute /> },
+          { path: 'measurements', element: <WorkflowRoute name="measurements" /> },
+          { path: 'measurements/new', element: <WorkflowRoute name="measurements" /> },
+          { path: 'orders', element: <WorkflowRoute name="orders" /> },
+          { path: 'orders/new', element: <WorkflowRoute name="orders" /> },
+          { path: 'workboard', element: <WorkflowRoute name="workboard" /> },
+          { path: 'production', element: <WorkflowRoute name="production" /> },
+          { path: 'inventory', element: <WorkflowRoute name="inventory" /> },
+          { path: 'billing', element: <WorkflowRoute name="billing" /> },
+          { path: 'billing/new', element: <WorkflowRoute name="billing" /> },
+          { path: 'delivery', element: <WorkflowRoute name="delivery" /> },
+          { path: 'reports', element: <WorkflowRoute name="reports" /> },
+          { path: 'scan', element: <WorkflowRoute name="scan" /> },
+          { path: 'settings', element: <WorkflowRoute name="settings" /> },
           { path: 'account/security', element: <SecurityRoute /> },
           { path: 'account/security/authenticator', element: <AuthenticatorEnrolmentRoute /> },
           { path: 'account/sessions', element: <SessionsRoute /> },
