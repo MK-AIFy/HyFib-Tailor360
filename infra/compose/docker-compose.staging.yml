@@ -208,9 +208,8 @@ services:
     # rather than by the application, so that a deployment in which two versions overlap cannot have
     # them racing for the schema, and so that the migrator can hold a role the application does not.
     #
-    # The image is the promoted tailor360-cli digest, built by the release pipeline from
-    # infra/docker/Dockerfile.cli. That Dockerfile and the job that builds it are still owed — see
-    # "Still owed" in docs/dev/staging.md.
+    # The image is the promoted tailor360-cli digest, built from infra/docker/Dockerfile.cli.
+    # Signing and promotion remain owed — see "Still owed" in docs/dev/staging.md.
     image: ${TAILOR360_CLI_IMAGE:?set TAILOR360_CLI_IMAGE to the promoted image digest}
     command: ["migrate"]
     restart: "no"

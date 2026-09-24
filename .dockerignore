@@ -1,0 +1,17 @@
+.git
+.github
+.claude
+.agents
+.codex
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.vite
+**/TestResults
+artifacts
+infra/compose/secrets
+**/.env
+**/.env.*
+**/*.pem
+**/*.key

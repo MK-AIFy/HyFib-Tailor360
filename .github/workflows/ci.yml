@@ -367,6 +367,31 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  container-build:
+    name: Container image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    # Build each production image from the reviewed Dockerfiles. This gate deliberately does not
+    # publish an image: registry ownership, signing, provenance and promotion remain release work.
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build CLI image
+        run: docker build -f infra/docker/Dockerfile.cli -t tailor360-cli:check .
+
+      - name: Build worker image
+        run: docker build -f infra/docker/Dockerfile.worker -t tailor360-worker:check .
+
+      - name: Build client assets
+        run: docker build -f infra/docker/Dockerfile.pwa --target assets -t tailor360-pwa:check .
+
+      - name: Build web image
+        run: docker build -f infra/docker/Dockerfile.web --build-arg PWA_IMAGE=tailor360-pwa:check -t tailor360-web:check .
+
   documentation:
     name: Documentation links
     runs-on: ubuntu-latest

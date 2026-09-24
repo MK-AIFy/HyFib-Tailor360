@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# Build from the repository root:
+#   docker build -f infra/docker/Dockerfile.cli -t tailor360-cli:local .
+# The CLI runs migrations and reference-data commands as a one-shot service. Credentials are
+# mounted at run time under /run/secrets; no credential belongs in this image or its build args.
+
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+# The CLI references platform libraries that use Microsoft.AspNetCore.App.
+ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0
+
+FROM ${DOTNET_SDK_IMAGE} AS build
+ARG VERSION=0.0.0
+ARG SOURCE_REVISION=local
+ENV DOTNET_NOLOGO=1 \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+WORKDIR /source
+
+COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/ ./src/
+RUN find ./src -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+
+RUN dotnet restore src/Tools/Tailor360.Cli/Tailor360.Cli.csproj
+RUN dotnet publish src/Tools/Tailor360.Cli/Tailor360.Cli.csproj \
+      --configuration Release \
+      --no-restore \
+      --output /app \
+      -p:Version=${VERSION} \
+      -p:SourceRevisionId=${SOURCE_REVISION}
+
+FROM ${DOTNET_RUNTIME_IMAGE} AS final
+ARG VERSION=0.0.0
+ARG SOURCE_REVISION=local
+LABEL org.opencontainers.image.title="tailor360-cli" \
+      org.opencontainers.image.description="HyFib Tailor360 operator commands" \
+      org.opencontainers.image.vendor="HyFib" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}"
+
+ENV DOTNET_NOLOGO=1 \
+    DOTNET_EnableDiagnostics=0
+WORKDIR /app
+COPY --from=build /app ./
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "Tailor360.Cli.dll"]

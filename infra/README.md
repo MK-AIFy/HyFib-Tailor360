@@ -65,9 +65,8 @@ Both `docker build` commands run from the repository root: central package manag
 restore needs `Directory.Packages.props`, `Directory.Build.props` and `global.json`, so the build
 context is the root and the `-f` path points into this directory.
 
-The repository has no `.dockerignore` yet; until it does, the .NET images delete any `bin/` and
-`obj/` directory they copied from the working tree, and the client image deletes `node_modules/` and
-`dist/`, so an image never depends on who built it.
+The root `.dockerignore` excludes local build output, dependency folders and secret files from
+every image context. The .NET and client Dockerfiles also remove copied output defensively.
 
 ### Secret files for the overlay
 
@@ -178,10 +177,10 @@ Every long-running service has one, and dependants wait on it:
 
 ## Arriving later
 
-- **`docker/Dockerfile.cli` and the job that builds, signs and promotes the `tailor360-cli` image.**
-  The staging stack already wires the one-shot `migrate` service and the `seed` profile against
-  `TAILOR360_CLI_IMAGE`; nothing yet produces that image. The development overlay
-  (`docker-compose.app.yml`) still runs the migration step by hand.
+- **A job that signs and promotes the `tailor360-web`, `tailor360-worker` and `tailor360-cli` images.**
+  CI checks that all three runtime images and the client assets build, but does not publish them.
+  The staging stack requires promoted digests through its `TAILOR360_*_IMAGE` variables. The
+  development overlay (`docker-compose.app.yml`) still runs the migration step by hand.
 - **The per-role grants of Section 4.4** (`t360_migrator`, `t360_app`, `t360_reporting`,
   `t360_retention`, `t360_backup`), which replace the single bootstrap owner every process connects
   as today.

@@ -60,8 +60,8 @@ services they talk to.
    check; dependants use `condition: service_completed_successfully`.
 8. **Migrations run before the new version serves.** Web and worker wait on the one-shot `migrate` service with
    `condition: service_completed_successfully`. The service is wired in `compose/docker-compose.staging.yml`; what
-   is still owed is the `tailor360-cli` image it runs (`TAILOR360_CLI_IMAGE`), so until `docker/Dockerfile.cli` and
-   the job that builds it exist the step cannot actually run — see "Arriving later" in [`README.md`](README.md) and
+   is still owed is a signed, promoted `tailor360-cli` image (`TAILOR360_CLI_IMAGE`), so until the release job
+   exists the step cannot actually run — see "Arriving later" in [`README.md`](README.md) and
    [`../docs/dev/staging.md`](../docs/dev/staging.md) section 12 item 2. The development overlay still runs the
    migration by hand. The application never migrates itself — during a deployment two versions run at once and
    would race.

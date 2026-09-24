@@ -2,8 +2,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tailor360.Modules.Billing.Infrastructure;
+using Tailor360.Modules.Catalog.Infrastructure;
+using Tailor360.Modules.Custody.Infrastructure;
 using Tailor360.Modules.Customers.Infrastructure;
 using Tailor360.Modules.Identity.Infrastructure;
+using Tailor360.Modules.Integration.Infrastructure;
+using Tailor360.Modules.Inventory.Infrastructure;
+using Tailor360.Modules.Media.Infrastructure;
+using Tailor360.Modules.Notifications.Infrastructure;
+using Tailor360.Modules.Orders.Infrastructure;
+using Tailor360.Modules.Reporting.Infrastructure;
 using Tailor360.Platform.Persistence;
 using Tailor360.Platform.Security;
 
@@ -63,8 +72,18 @@ public static class CliHost
         // registered here as well as in the web host. A module missing from this list would have a
         // schema `migrate` never creates, and the omission would only surface when the application
         // refused to serve.
-        builder.Services.AddIdentityModule(builder.Configuration);
-        builder.Services.AddCustomersModule(builder.Configuration);
+        builder.Services
+            .AddIdentityModule(builder.Configuration)
+            .AddCustomersModule(builder.Configuration)
+            .AddCatalogModule(builder.Configuration)
+            .AddMediaModule(builder.Configuration)
+            .AddOrdersModule(builder.Configuration)
+            .AddCustodyModule(builder.Configuration)
+            .AddInventoryModule(builder.Configuration)
+            .AddBillingModule(builder.Configuration)
+            .AddReportingModule(builder.Configuration)
+            .AddNotificationsModule(builder.Configuration)
+            .AddIntegrationModule(builder.Configuration);
 
         return builder.Build();
     }
