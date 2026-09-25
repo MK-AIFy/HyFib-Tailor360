@@ -6,6 +6,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Catalog\Tailor360.Modules.Catalog.Contracts\Tailor360.Modules.Catalog.Contracts.csproj" />
+    <ProjectReference Include="..\..\Customers\Tailor360.Modules.Customers.Contracts\Tailor360.Modules.Customers.Contracts.csproj" />
     <ProjectReference Include="..\Tailor360.Modules.Orders.Contracts\Tailor360.Modules.Orders.Contracts.csproj" />
     <ProjectReference Include="..\Tailor360.Modules.Orders.Domain\Tailor360.Modules.Orders.Domain.csproj" />
     <ProjectReference Include="..\..\..\Platform\Tailor360.Platform.Abstractions\Tailor360.Platform.Abstractions.csproj" />

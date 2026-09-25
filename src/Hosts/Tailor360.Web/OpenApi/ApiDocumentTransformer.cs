@@ -46,6 +46,10 @@ internal sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             + "against one coherent snapshot of the hierarchy. A published version is immutable but "
             + "for its labels, so a correction is a clone, an edit and a second publication; "
             + "publishing supersedes what came before it and never changes work already under way.",
+        ["Orders"] =
+            "Branch-owned order intake. Drafts copy the customer identity and pin selections from the "
+            + "published catalogue; they have no price, invoice, stock reservation or confirmed job. "
+            + "Editing requires the current ETag and an idempotency key.",
         ["Platform"] =
             "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the "
             + "anti-forgery token pair and the build description the client shell reads on start-up.",

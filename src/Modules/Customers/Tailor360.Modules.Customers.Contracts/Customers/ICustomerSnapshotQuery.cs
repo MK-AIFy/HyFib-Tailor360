@@ -28,6 +28,16 @@ namespace Tailor360.Modules.Customers.Contracts.Customers;
 public interface ICustomerSnapshotQuery
 {
     /// <summary>
+    /// Read a customer for a new document within one organisation. Consumers creating orders or
+    /// invoices must use this form so an identifier from another organisation cannot be copied.
+    /// </summary>
+    Task<CustomerSnapshot?> GetForOrganisationAsync(
+        Guid customerId,
+        Guid organisationId,
+        IReadOnlyCollection<string> callerPermissions,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// The facts about one customer that a document may carry, masked to what the caller may see.
     /// </summary>
     /// <param name="customerId">The customer.</param>

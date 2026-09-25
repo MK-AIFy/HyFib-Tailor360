@@ -368,7 +368,8 @@
   }
   .workspace-search input,
   .workspace-form input:not([type='checkbox']),
-  .workspace-form select {
+  .workspace-form select,
+  .workspace-form textarea {
     width: 100%;
     min-height: var(--target-standard);
     padding: 0.6rem 0.8rem;
@@ -377,6 +378,10 @@
     background: var(--colour-surface);
     color: var(--colour-ink);
     font: inherit;
+  }
+  .workspace-form textarea {
+    min-height: 6rem;
+    resize: vertical;
   }
   .workspace-search input {
     flex: 1;
@@ -400,6 +405,9 @@
   }
   .workspace-list li + li {
     border-top: 1px solid var(--colour-border-subtle);
+  }
+  .workspace-list > li:not(:has(.workspace-customer)) {
+    padding: var(--space-3) var(--space-4);
   }
   .workspace-customer {
     display: flex;

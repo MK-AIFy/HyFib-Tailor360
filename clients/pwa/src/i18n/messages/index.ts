@@ -22,6 +22,7 @@ import { formsEn, formsTa } from './forms'
 import { installEn, installTa } from './install'
 import { layoutEn, layoutTa } from './layout'
 import { navigationEn, navigationTa } from './navigation'
+import { orderIntakeEn, orderIntakeTa } from './orderIntake'
 import { primitivesEn, primitivesTa } from './primitives'
 import { shellEn, shellTa } from './shell'
 import { statesEn, statesTa } from './states'
@@ -40,6 +41,7 @@ export const messagesEn = {
   ...authEn,
   ...adminEn,
   ...catalogEn,
+  ...orderIntakeEn,
 } as const
 
 export const messagesTa = {
@@ -55,4 +57,5 @@ export const messagesTa = {
   ...authTa,
   ...adminTa,
   ...catalogTa,
+  ...orderIntakeTa,
 }

@@ -26,6 +26,20 @@ public static class PayloadExamples
 {
     private static readonly Dictionary<string, string> Examples = new(StringComparer.Ordinal)
     {
+        ["StartOrderDraft"] = """
+            {
+              "customerId": "0199c2f0-0000-7000-8000-0000000000b1"
+            }
+            """,
+
+        ["AddOrderDraftGarment"] = """
+            {
+              "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000d2",
+              "quantity": 1,
+              "notes": "Match the sample seam finish."
+            }
+            """,
+
         ["CreateCatalogDraft"] = """
             {
               "name": "Add the Kids age bands",

@@ -54,4 +54,34 @@ public sealed class CustomerSnapshotQuery(CustomersDbContext context) : ICustome
                 customer.MergedIntoCustomerId))
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<CustomerSnapshot?> GetForOrganisationAsync(
+        Guid customerId,
+        Guid organisationId,
+        IReadOnlyCollection<string> callerPermissions,
+        CancellationToken cancellationToken = default)
+    {
+        var mayReadContact = CustomerSnapshot.MayReadContact(callerPermissions);
+
+        return await context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.Id == customerId && customer.OrganisationId == organisationId)
+            .Select(customer => new CustomerSnapshot(
+                customer.Id,
+                customer.CustomerNumber,
+                customer.DisplayName,
+                customer.NativeName,
+                customer.Language,
+                customer.OwningBranchId,
+                mayReadContact,
+                mayReadContact ? customer.PhoneE164 : null,
+                mayReadContact ? customer.AlternatePhoneE164 : null,
+                mayReadContact ? customer.Email : null,
+                mayReadContact ? customer.AddressLine : null,
+                mayReadContact ? customer.Locality : null,
+                mayReadContact ? customer.Postcode : null,
+                customer.MergedIntoCustomerId))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

@@ -35,6 +35,7 @@ import {
   NewCustomerRoute,
 } from '../routes/workspace/CustomersRoute'
 import { WorkflowRoute, WorkspaceHomeRoute } from '../routes/workspace/WorkspaceRoutes'
+import { NewOrderDraftRoute, OrderDraftRoute, OrdersRoute } from '../routes/workspace/OrdersRoute'
 
 /** Placeholder home screen. The role dashboards arrive with #50 and the feature milestones. */
 export function HomeRoute() {
@@ -166,8 +167,9 @@ export const router = createBrowserRouter([
           { path: 'customers/:customerId', element: <CustomerDetailRoute /> },
           { path: 'measurements', element: <WorkflowRoute name="measurements" /> },
           { path: 'measurements/new', element: <WorkflowRoute name="measurements" /> },
-          { path: 'orders', element: <WorkflowRoute name="orders" /> },
-          { path: 'orders/new', element: <WorkflowRoute name="orders" /> },
+          { path: 'orders', element: <OrdersRoute /> },
+          { path: 'orders/new', element: <NewOrderDraftRoute /> },
+          { path: 'orders/drafts/:draftId', element: <OrderDraftRoute /> },
           { path: 'workboard', element: <WorkflowRoute name="workboard" /> },
           { path: 'production', element: <WorkflowRoute name="production" /> },
           { path: 'inventory', element: <WorkflowRoute name="inventory" /> },

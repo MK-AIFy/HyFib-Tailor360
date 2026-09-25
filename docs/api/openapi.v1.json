@@ -184,6 +184,34 @@
         ],
         "type": "object"
       },
+      "AddDraftGarmentRequest": {
+        "properties": {
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "serviceTypeId",
+          "quantity",
+          "notes"
+        ],
+        "type": "object"
+      },
       "AntiForgeryTokenResponse": {
         "properties": {
           "headerName": {
@@ -1863,6 +1891,56 @@
         ],
         "type": "object"
       },
+      "DraftGarmentPayload": {
+        "properties": {
+          "catalogVersionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": "string"
+          },
+          "garmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "serviceCode": {
+            "type": "string"
+          },
+          "serviceName": {
+            "type": "string"
+          },
+          "serviceTypeId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "garmentId",
+          "serviceTypeId",
+          "catalogVersionId",
+          "categoryCode",
+          "serviceCode",
+          "serviceName",
+          "quantity",
+          "notes"
+        ],
+        "type": "object"
+      },
       "DuplicateCandidatePayload": {
         "properties": {
           "confidence": {
@@ -2637,6 +2715,53 @@
           "contactEmail",
           "gstRegistrationReference",
           "reason"
+        ],
+        "type": "object"
+      },
+      "OrderDraftPayload": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerNumber": {
+            "type": "string"
+          },
+          "draftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "garments": {
+            "items": {
+              "$ref": "#/components/schemas/DraftGarmentPayload"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draftId",
+          "customerId",
+          "customerNumber",
+          "customerName",
+          "createdAt",
+          "updatedAt",
+          "expiresAt",
+          "garments"
         ],
         "type": "object"
       },
@@ -4095,6 +4220,18 @@
           "customerId",
           "measurementTemplateId",
           "reuseFromVersionId"
+        ],
+        "type": "object"
+      },
+      "StartOrderDraftRequest": {
+        "properties": {
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customerId"
         ],
         "type": "object"
       },
@@ -13792,6 +13929,267 @@
         "x-tailor360-rate-limit": "default-user"
       }
     },
+    "/api/v1/orders/drafts": {
+      "post": {
+        "description": "Copies the current customer identity into a branch-owned intake draft. The draft expires after 72 hours and is not a confirmed order.",
+        "operationId": "StartOrderDraft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "customerId": "0199c2f0-0000-7000-8000-0000000000b1"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StartOrderDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Start an unpriced order draft for a customer in the current organisation.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft_create",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}": {
+      "get": {
+        "description": "Returns the customer snapshot and garments selected so far. The response ETag is required when adding a garment.",
+        "operationId": "GetOrderDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Read a branch-owned order draft and its current ETag.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "default-user"
+      }
+    },
+    "/api/v1/orders/drafts/{draftId}/garments": {
+      "post": {
+        "description": "Requires If-Match and Idempotency-Key. The selected service and catalogue version are pinned to the garment; this does not reserve stock or quote a price.",
+        "operationId": "AddOrderDraftGarment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draftId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "notes": "Match the sample seam finish.",
+                "quantity": 1,
+                "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000d2"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/AddDraftGarmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDraftPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "antiForgeryToken": [],
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Add a published catalogue service to an unpriced order draft.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-audit": "orders.draft_garment_added",
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "write"
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -13953,6 +14351,10 @@
     {
       "description": "The customer record: finding one, creating one, correcting it, withdrawing it from use, and recording that a second branch has begun serving the person. A search answers across the whole organisation and returns a masked disambiguation card for a record the caller's branches cannot see, because a revealed last-four is cheaper than the duplicate record it prevents. Contact details are a separate permission from finding the record at all, so a role without `customers.read_contact` receives those fields as null.",
       "name": "Customers"
+    },
+    {
+      "description": "Branch-owned order intake. Drafts copy the customer identity and pin selections from the published catalogue; they have no price, invoice, stock reservation or confirmed job. Editing requires the current ETag and an idempotency key.",
+      "name": "Orders"
     },
     {
       "description": "Cross-cutting operations owned by the backend-for-frontend rather than by a module: the anti-forgery token pair and the build description the client shell reads on start-up.",

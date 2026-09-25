@@ -1,0 +1,37 @@
+/** Draft intake wording. Tamil remains held for native review with the other operational families. */
+export const orderIntakeEn = {
+  'orderIntake.title': 'Orders',
+  'orderIntake.intro': 'Start an order with an existing customer and a published service.',
+  'orderIntake.unpriced': 'Draft intake',
+  'orderIntake.unpricedBody':
+    'Drafts are unpriced. Confirmation and billing will be available after their server rules are complete.',
+  'orderIntake.findCustomer': 'Find a customer',
+  'orderIntake.noAccess': 'Your account cannot start order drafts.',
+  'orderIntake.newTitle': 'Start an order draft',
+  'orderIntake.newBody': 'Create a branch draft for this customer, then add garments.',
+  'orderIntake.customerMissing': 'Choose a customer from the customer desk first.',
+  'orderIntake.start': 'Start draft',
+  'orderIntake.fromCustomer': 'Start order draft',
+  'orderIntake.starting': 'Starting…',
+  'orderIntake.draftTitle': 'Order draft',
+  'orderIntake.draftLoading': 'Loading order draft…',
+  'orderIntake.catalogLoading': 'Checking the published catalogue…',
+  'orderIntake.noCatalog': 'No service is published for this branch yet.',
+  'orderIntake.addGarment': 'Add a garment',
+  'orderIntake.service': 'Service',
+  'orderIntake.chooseService': 'Choose a published service',
+  'orderIntake.quantity': 'Quantity',
+  'orderIntake.notes': 'Notes',
+  'orderIntake.notesHint': 'Optional instructions for this garment',
+  'orderIntake.add': 'Add to draft',
+  'orderIntake.saving': 'Saving…',
+  'orderIntake.garments': 'Garments in this draft',
+  'orderIntake.empty': 'Add a service to begin this draft.',
+  'orderIntake.pieces': '{count, plural, one {# piece} other {# pieces}}',
+  'orderIntake.error': 'The order request could not be completed. Try again.',
+  'orderIntake.conflict': 'This draft changed. Reload it, review the new version and try again.',
+  'orderIntake.reload': 'Reload draft',
+} as const
+
+// Native-speaker review is required before the Tamil locale is selectable.
+export const orderIntakeTa = { ...orderIntakeEn }

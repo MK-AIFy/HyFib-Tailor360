@@ -1663,6 +1663,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start an unpriced order draft for a customer in the current organisation.
+         * @description Copies the current customer identity into a branch-owned intake draft. The draft expires after 72 hours and is not a confirmed order.
+         */
+        post: operations["StartOrderDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a branch-owned order draft and its current ETag.
+         * @description Returns the customer snapshot and garments selected so far. The response ETag is required when adding a garment.
+         */
+        get: operations["GetOrderDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/drafts/{draftId}/garments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a published catalogue service to an unpriced order draft.
+         * @description Requires If-Match and Idempotency-Key. The selected service and catalogue version are pinned to the garment; this does not reserve stock or quote a price.
+         */
+        post: operations["AddOrderDraftGarment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -1727,6 +1787,13 @@ export interface components {
             mustChangePassword: boolean;
             /** Format: int32 */
             unusedRecoveryCodes: number | string;
+        };
+        AddDraftGarmentRequest: {
+            notes: null | string;
+            /** Format: int32 */
+            quantity: number | string;
+            /** Format: uuid */
+            serviceTypeId: string;
         };
         AntiForgeryTokenResponse: {
             headerName: string;
@@ -2108,6 +2175,20 @@ export interface components {
             name: null | string;
             reason: null | string;
         };
+        DraftGarmentPayload: {
+            /** Format: uuid */
+            catalogVersionId: string;
+            categoryCode: string;
+            /** Format: uuid */
+            garmentId: string;
+            notes: null | string;
+            /** Format: int32 */
+            quantity: number | string;
+            serviceCode: string;
+            serviceName: string;
+            /** Format: uuid */
+            serviceTypeId: string;
+        };
         DuplicateCandidatePayload: {
             confidence: string;
             customer: components["schemas"]["CustomerCardPayload"];
@@ -2290,6 +2371,21 @@ export interface components {
             reason: null | string;
             state: null | string;
             timeZoneId: null | string;
+        };
+        OrderDraftPayload: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            customerId: string;
+            customerName: string;
+            customerNumber: string;
+            /** Format: uuid */
+            draftId: string;
+            /** Format: date-time */
+            expiresAt: string;
+            garments: components["schemas"]["DraftGarmentPayload"][];
+            /** Format: date-time */
+            updatedAt: string;
         };
         OrderableCatalogPayload: {
             /** Format: uuid */
@@ -2638,6 +2734,10 @@ export interface components {
             measurementTemplateId: string;
             /** Format: uuid */
             reuseFromVersionId: null | string;
+        };
+        StartOrderDraftRequest: {
+            /** Format: uuid */
+            customerId: string;
         };
         StartTemplateDraftRequest: {
             /** Format: uuid */
@@ -8253,6 +8353,164 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    StartOrderDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "customerId": "0199c2f0-0000-7000-8000-0000000000b1"
+                 *     }
+                 */
+                "application/json": components["schemas"]["StartOrderDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    GetOrderDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    AddOrderDraftGarment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "notes": "Match the sample seam finish.",
+                 *       "quantity": 1,
+                 *       "serviceTypeId": "0199c2f0-0000-7000-8000-0000000000d2"
+                 *     }
+                 */
+                "application/json": components["schemas"]["AddDraftGarmentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDraftPayload"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             426: components["responses"]["UpgradeRequired"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalServerError"];

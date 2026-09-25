@@ -199,6 +199,8 @@ export function CustomersRoute() {
 }
 
 export function CustomerDetailRoute() {
+  const intl = useIntl()
+  const user = useCurrentUser()
   const { customerId } = useParams()
   const [customer, setCustomer] = useState<CustomerRecord | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -264,6 +266,14 @@ export function CustomerDetailRoute() {
               <Link className="workspace-button" to="/measurements">
                 Open measurements
               </Link>
+              {user.permissions.includes('orders.intake') && user.branchId !== null ? (
+                <Link
+                  className="workspace-button workspace-button--primary"
+                  to={`/orders/new?customerId=${customer.customerId}`}
+                >
+                  {intl.formatMessage({ id: 'orderIntake.fromCustomer' })}
+                </Link>
+              ) : null}
             </div>
           </div>
         </>
