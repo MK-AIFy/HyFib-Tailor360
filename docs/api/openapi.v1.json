@@ -3146,6 +3146,59 @@
         ],
         "type": "object"
       },
+      "RecentOrderDraftPayload": {
+        "properties": {
+          "customerName": {
+            "type": "string"
+          },
+          "customerNumber": {
+            "type": "string"
+          },
+          "draftId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "garmentCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draftId",
+          "customerNumber",
+          "customerName",
+          "garmentCount",
+          "updatedAt",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "RecentOrderDraftsPayload": {
+        "properties": {
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/RecentOrderDraftPayload"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "drafts"
+        ],
+        "type": "object"
+      },
       "ReconfigureBranchPayload": {
         "properties": {
           "addressLine1": {
@@ -13930,6 +13983,51 @@
       }
     },
     "/api/v1/orders/drafts": {
+      "get": {
+        "description": "Returns branch and organisation scoped intake drafts that have not expired. Open a draft to read its full garment list and current ETag.",
+        "operationId": "ListRecentOrderDrafts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentOrderDraftsPayload"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/UpgradeRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "List the 25 most recently edited active drafts in the current branch.",
+        "tags": [
+          "Orders"
+        ],
+        "x-tailor360-authorisation": "permission:orders.intake",
+        "x-tailor360-rate-limit": "default-user"
+      },
       "post": {
         "description": "Copies the current customer identity into a branch-owned intake draft. The draft expires after 72 hours and is not a confirmed order.",
         "operationId": "StartOrderDraft",

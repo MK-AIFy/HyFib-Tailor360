@@ -1,3 +1,4 @@
+using Tailor360.Modules.Orders.Application.Drafts;
 using Tailor360.Modules.Orders.Domain.Drafts;
 
 namespace Tailor360.Modules.Orders.Api;
@@ -7,6 +8,27 @@ public sealed record StartOrderDraftRequest(Guid CustomerId);
 
 /// <summary>Add an orderable service to an unpriced draft.</summary>
 public sealed record AddDraftGarmentRequest(Guid ServiceTypeId, int Quantity, string? Notes);
+
+/// <summary>The most recently edited active drafts in the current branch.</summary>
+public sealed record RecentOrderDraftsPayload(IReadOnlyList<RecentOrderDraftPayload> Drafts);
+
+/// <summary>A branch draft that can be resumed at intake.</summary>
+public sealed record RecentOrderDraftPayload(
+    Guid DraftId,
+    string CustomerNumber,
+    string CustomerName,
+    int GarmentCount,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset ExpiresAt)
+{
+    public static RecentOrderDraftPayload From(RecentOrderDraft draft) => new(
+        draft.DraftId,
+        draft.CustomerNumber,
+        draft.CustomerName,
+        draft.GarmentCount,
+        draft.UpdatedAt,
+        draft.ExpiresAt);
+}
 
 /// <summary>The unpriced draft shown to counter staff.</summary>
 public sealed record OrderDraftPayload(

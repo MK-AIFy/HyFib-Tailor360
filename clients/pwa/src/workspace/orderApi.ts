@@ -1,4 +1,4 @@
-import { apiRequestVersioned } from '../auth/apiClient'
+import { apiRequest, apiRequestVersioned } from '../auth/apiClient'
 import type { VersionedResponse } from '../auth/apiClient'
 
 export interface DraftGarment {
@@ -23,7 +23,26 @@ export interface OrderDraft {
   readonly garments: readonly DraftGarment[]
 }
 
+export interface RecentOrderDraft {
+  readonly draftId: string
+  readonly customerNumber: string
+  readonly customerName: string
+  readonly garmentCount: number
+  readonly updatedAt: string
+  readonly expiresAt: string
+}
+
+export interface RecentOrderDrafts {
+  readonly drafts: readonly RecentOrderDraft[]
+}
+
 const DRAFTS = '/api/v1/orders/drafts'
+
+export async function listRecentOrderDrafts(signal?: AbortSignal): Promise<RecentOrderDrafts> {
+  return await apiRequest<RecentOrderDrafts>(DRAFTS, {
+    ...(signal === undefined ? {} : { signal }),
+  })
+}
 
 export async function startOrderDraft(
   customerId: string,

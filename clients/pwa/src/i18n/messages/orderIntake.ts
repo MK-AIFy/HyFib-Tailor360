@@ -6,6 +6,12 @@ export const orderIntakeEn = {
   'orderIntake.unpricedBody':
     'Drafts are unpriced. Confirmation and billing will be available after their server rules are complete.',
   'orderIntake.findCustomer': 'Find a customer',
+  'orderIntake.recentTitle': 'Recent drafts',
+  'orderIntake.recentBody': 'The 25 most recently edited active drafts at this branch.',
+  'orderIntake.recentLoading': 'Loading recent drafts…',
+  'orderIntake.recentEmpty': 'No active drafts at this branch yet.',
+  'orderIntake.recentGarments': '{count, plural, one {# garment} other {# garments}}',
+  'orderIntake.updated': 'Updated {date}',
   'orderIntake.noAccess': 'Your account cannot start order drafts.',
   'orderIntake.newTitle': 'Start an order draft',
   'orderIntake.newBody': 'Create a branch draft for this customer, then add garments.',

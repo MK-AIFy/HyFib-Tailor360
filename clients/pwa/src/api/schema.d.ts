@@ -1670,7 +1670,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List the 25 most recently edited active drafts in the current branch.
+         * @description Returns branch and organisation scoped intake drafts that have not expired. Open a draft to read its full garment list and current ETag.
+         */
+        get: operations["ListRecentOrderDrafts"];
         put?: never;
         /**
          * Start an unpriced order draft for a customer in the current organisation.
@@ -2496,6 +2500,21 @@ export interface components {
         };
         ReasonPayload: {
             reason: null | string;
+        };
+        RecentOrderDraftPayload: {
+            customerName: string;
+            customerNumber: string;
+            /** Format: uuid */
+            draftId: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: int32 */
+            garmentCount: number | string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RecentOrderDraftsPayload: {
+            drafts: components["schemas"]["RecentOrderDraftPayload"][];
         };
         ReconfigureBranchPayload: {
             addressLine1: null | string;
@@ -8348,6 +8367,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            426: components["responses"]["UpgradeRequired"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ListRecentOrderDrafts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecentOrderDraftsPayload"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -409,6 +409,21 @@
   .workspace-list > li:not(:has(.workspace-customer)) {
     padding: var(--space-3) var(--space-4);
   }
+  .workspace-order-drafts a {
+    display: grid;
+    gap: var(--space-1);
+    min-height: var(--target-standard);
+    color: inherit;
+    text-decoration: none;
+  }
+  .workspace-order-drafts a:hover strong,
+  .workspace-order-drafts a:focus-visible strong {
+    text-decoration: underline;
+  }
+  .workspace-order-drafts span,
+  .workspace-order-drafts small {
+    color: var(--colour-ink-muted);
+  }
   .workspace-customer {
     display: flex;
     align-items: center;

@@ -68,6 +68,12 @@ public sealed class OrderDraftHandler(
             : Result.Success(new OrderDraftState(draft, store.EntityTagOf(draft)));
     }
 
+    public Task<IReadOnlyList<RecentOrderDraft>> ListRecentAsync(
+        Guid organisationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+        => store.ListRecentAsync(organisationId, branchId, clock.UtcNow, cancellationToken);
+
     public async Task<Result<OrderDraftState>> AddGarmentAsync(
         Guid draftId,
         Guid organisationId,

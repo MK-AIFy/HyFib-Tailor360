@@ -36,7 +36,7 @@ import type {
   TemplateFieldRequest,
   TemplateValidation,
 } from '../admin/types'
-import type { OrderDraft } from '../workspace/orderApi'
+import type { OrderDraft, RecentOrderDrafts } from '../workspace/orderApi'
 
 /**
  * The published API contract, in TypeScript.
@@ -299,3 +299,8 @@ export type PresentationRequestConforms = Conforms<
 >
 
 export type OrderDraftConforms = Conforms<OrderDraft, Immutable<Response200<'GetOrderDraft'>>>
+
+export type RecentOrderDraftsConforms = Conforms<
+  RecentOrderDrafts,
+  Immutable<Response200<'ListRecentOrderDrafts'>>
+>

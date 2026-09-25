@@ -18,6 +18,25 @@ public sealed class OrderDraftStore(OrdersDbContext context) : IOrderDraftStore
                 && draft.OrganisationId == organisationId
                 && draft.BranchId == branchId, cancellationToken);
 
+    public async Task<IReadOnlyList<RecentOrderDraft>> ListRecentAsync(
+        Guid organisationId, Guid branchId, DateTimeOffset now, CancellationToken cancellationToken)
+        => await context.OrderDrafts
+            .AsNoTracking()
+            .Where(draft => draft.OrganisationId == organisationId
+                && draft.BranchId == branchId
+                && draft.ExpiresAt > now)
+            .OrderByDescending(draft => draft.UpdatedAt)
+            .ThenByDescending(draft => draft.Id)
+            .Take(25)
+            .Select(draft => new RecentOrderDraft(
+                draft.Id,
+                draft.CustomerNumber,
+                draft.CustomerName,
+                draft.Garments.Count,
+                draft.UpdatedAt,
+                draft.ExpiresAt))
+            .ToListAsync(cancellationToken);
+
     public void Add(OrderDraft draft) => context.OrderDrafts.Add(draft);
 
     public EntityTag EntityTagOf(OrderDraft draft) => context.EntityTagOf(draft);

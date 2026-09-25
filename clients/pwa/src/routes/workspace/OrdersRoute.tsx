@@ -7,8 +7,13 @@ import type { VersionedResponse } from '../../auth/apiClient'
 import { useCurrentUser } from '../../auth/useSession'
 import { readCurrentCatalog } from '../../catalog/catalogApi'
 import type { OrderableCatalog } from '../../catalog/types'
-import { addOrderDraftGarment, readOrderDraft, startOrderDraft } from '../../workspace/orderApi'
-import type { OrderDraft } from '../../workspace/orderApi'
+import {
+  addOrderDraftGarment,
+  listRecentOrderDrafts,
+  readOrderDraft,
+  startOrderDraft,
+} from '../../workspace/orderApi'
+import type { OrderDraft, RecentOrderDrafts } from '../../workspace/orderApi'
 import './workspace.css'
 
 function requestMessage(error: unknown, defaultMessage: string, conflictMessage: string): string {
@@ -19,6 +24,24 @@ export function OrdersRoute() {
   const intl = useIntl()
   const user = useCurrentUser()
   const canIntake = user.permissions.includes('orders.intake') && user.branchId !== null
+  const [recent, setRecent] = useState<RecentOrderDrafts | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!canIntake) return
+    const controller = new AbortController()
+    void listRecentOrderDrafts(controller.signal)
+      .then((drafts) => {
+        setRecent(drafts)
+        setError(null)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setError(intl.formatMessage({ id: 'orderIntake.error' }))
+        }
+      })
+    return () => controller.abort()
+  }, [canIntake, intl])
 
   return (
     <section className="workspace-page">
@@ -42,6 +65,48 @@ export function OrdersRoute() {
           <p className="workspace-notice">{intl.formatMessage({ id: 'orderIntake.noAccess' })}</p>
         )}
       </div>
+      {canIntake ? (
+        <div className="workspace-card">
+          <h2>{intl.formatMessage({ id: 'orderIntake.recentTitle' })}</h2>
+          <p>{intl.formatMessage({ id: 'orderIntake.recentBody' })}</p>
+          {error ? (
+            <p className="workspace-notice workspace-notice--error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {!recent && !error ? (
+            <p role="status">{intl.formatMessage({ id: 'orderIntake.recentLoading' })}</p>
+          ) : null}
+          {recent && recent.drafts.length === 0 ? (
+            <p>{intl.formatMessage({ id: 'orderIntake.recentEmpty' })}</p>
+          ) : null}
+          {recent && recent.drafts.length > 0 ? (
+            <ul className="workspace-list workspace-order-drafts">
+              {recent.drafts.map((draft) => (
+                <li key={draft.draftId}>
+                  <Link to={`/orders/drafts/${draft.draftId}`}>
+                    <strong>{draft.customerName}</strong>
+                    <span>{draft.customerNumber}</span>
+                    <small>
+                      {intl.formatMessage(
+                        { id: 'orderIntake.recentGarments' },
+                        { count: draft.garmentCount },
+                      )}
+                      {' · '}
+                      {intl.formatMessage(
+                        { id: 'orderIntake.updated' },
+                        {
+                          date: intl.formatDate(new Date(draft.updatedAt), { dateStyle: 'medium' }),
+                        },
+                      )}
+                    </small>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   )
 }

@@ -31,6 +31,33 @@ public static class OrdersEndpoints
 
         var orders = endpoints.MapGroup(GroupPrefix).WithTags(OpenApiTag);
 
+        orders.MapGet("/drafts", async Task<IResult> (
+                HttpContext context,
+                ICurrentUser caller,
+                OrderDraftHandler handler,
+                CancellationToken cancellationToken) =>
+            {
+                if (caller.Context.BranchId is not { } branchId)
+                {
+                    return ProblemResults.From(
+                        context, StatusCodes.Status400BadRequest, "orders.branch-required",
+                        "Choose a branch", "Select a branch before viewing order drafts.");
+                }
+
+                var drafts = await handler.ListRecentAsync(
+                    caller.Context.OrganisationId, branchId, cancellationToken);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(new RecentOrderDraftsPayload(
+                    [.. drafts.Select(RecentOrderDraftPayload.From)]));
+            })
+            .Produces<RecentOrderDraftsPayload>(StatusCodes.Status200OK)
+            .WithName("ListRecentOrderDrafts")
+            .WithSummary("List the 25 most recently edited active drafts in the current branch.")
+            .WithDescription("Returns branch and organisation scoped intake drafts that have not expired. Open a draft to read its full garment list and current ETag.")
+            .RequirePermission(OrdersPermissions.Intake, BranchScope.CurrentBranch)
+            .RequireRateLimiting(RateLimitPolicyNames.DefaultUser)
+            .WithRequestTimeout(RequestTimeoutPolicies.Read);
+
         orders.MapPost("/drafts", async Task<IResult> (
                 HttpContext context,
                 ICurrentUser caller,
