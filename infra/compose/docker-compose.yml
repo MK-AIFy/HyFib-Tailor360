@@ -205,7 +205,7 @@ services:
     #   docker compose -f infra/compose/docker-compose.yml --profile observability up -d
     #   then run the hosts with Observability__OtlpEndpoint=http://127.0.0.1:4317
     profiles: ["observability"]
-    image: otel/opentelemetry-collector-contrib:0.160.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     container_name: tailor360-otel-collector
     restart: unless-stopped
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
