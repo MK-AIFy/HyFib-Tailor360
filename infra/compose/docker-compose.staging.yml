@@ -388,7 +388,7 @@ services:
   clamav:
     # Not behind a profile here: staging must exercise the real scanner, because that is where the
     # media pipeline of #31 is rehearsed before it reaches a shop.
-    image: clamav/clamav:1.5.4@sha256:1fdfd24c6f0a0fb60788481487459a6d4eda8a9b448641594e04db8410d34422
+    image: clamav/clamav:1.5.4@sha256:9cb27d7660bdf66e9878c832cb433dd8aa152cfbe16f3c2c0084c80b04ae22b4
     restart: unless-stopped
     volumes:
       - clamav-data:/var/lib/clamav
